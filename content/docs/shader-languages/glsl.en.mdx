@@ -1,0 +1,62 @@
+---
+title: GLSL Overview
+description: GLSL syntax, vector types, and how they map to DreamShaderLang.
+---
+
+GLSL is common in shader examples online. DreamShaderLang accepts familiar GLSL-style vector
+aliases such as `vec2`, `vec3`, and `vec4`.
+
+## Basic Shape
+
+```glsl
+float luma(vec3 color)
+{
+    return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+```
+
+## Common Types
+
+| GLSL | DreamShaderLang |
+| --- | --- |
+| `float` | `float` |
+| `int` | `int` |
+| `bool` | `bool` |
+| `vec2` | `vec2` / `float2` |
+| `vec3` | `vec3` / `float3` |
+| `vec4` | `vec4` / `float4` |
+
+## Constructors and Swizzle
+
+```c
+vec3 color = vec3(1.0, 0.2, 0.1);
+float r = color.r;
+vec2 rg = color.rg;
+```
+
+DreamShaderLang supports these common shader-language patterns in Graph and helper code.
+
+## Common Functions
+
+| Function | Use |
+| --- | --- |
+| `dot` | Dot product. |
+| `mix` / `lerp` | Interpolation, depending on available aliases. |
+| `clamp` / `saturate` | Range limiting. |
+| `sin`, `cos` | Trigonometry. |
+| `normalize` | Normalize a vector. |
+
+## Common Keywords
+
+| Keyword | Meaning |
+| --- | --- |
+| `return` | Return from a helper. |
+| `if`, `else` | Conditional flow. |
+| `for`, `while` | Loop flow in helper code when supported. |
+| `in`, `out`, `inout` | Function parameter direction in shader languages. |
+
+## Relation to DreamShaderLang
+
+DreamShaderLang is not GLSL, but GLSL snippets are often easy to port into `Function`
+helpers. Keep Unreal node creation in `Graph` with `UE.*`, and keep reusable math in
+`Function` / `GraphFunction`.

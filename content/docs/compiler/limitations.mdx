@@ -1,6 +1,6 @@
 ---
 title: 当前限制
-description: DreamShaderLang 1.3.2 的边界、兼容性和推荐替代写法。
+description: DreamShaderLang 当前版本的边界、兼容性和推荐替代写法。
 ---
 
 DreamShaderLang 的当前目标是稳定生成 Unreal 材质图，而不是成为完整通用编程语言。理解边界能避免把逻辑写到不合适的层级。
@@ -34,7 +34,8 @@ DreamShaderLang 的当前目标是稳定生成 Unreal 材质图，而不是成�
 
 | 限制 | 说明 |
 | --- | --- |
-| `.dsh` 不直接生成资产 | 必须由 `.dsm` 引用或作为共享库。 |
+| `.dsh` 不直接生成资产 | 必须由 `.dsm` / `.dsf` 引用或作为共享库。 |
+| `.dsf` 不用于材质或 Layer 资产 | `.dsf` 面向 `ShaderFunction` 和相关 helper，材质入口仍放 `.dsm`。 |
 | 循环 import 不允许 | 需要拆分公共依赖。 |
 | Package 示例不会自动编译 | 示例 `.dsm` 需要复制到项目源码目录。 |
 | Package 更新依赖 git | VSCode 安装和更新需要本机可用 `git`。 |

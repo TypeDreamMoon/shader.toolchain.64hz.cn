@@ -1,0 +1,77 @@
+---
+title: HLSL Overview
+description: HLSL syntax, types, and keywords for DreamShaderLang users.
+---
+
+HLSL is the shader language used by Unreal's material Custom nodes. DreamShaderLang borrows
+some HLSL-style types and helper-function syntax, but Graph code still generates Unreal
+material nodes.
+
+## Basic Shape
+
+```hlsl
+float Luma(float3 color)
+{
+    return dot(color, float3(0.2126, 0.7152, 0.0722));
+}
+```
+
+## Common Types
+
+| HLSL | DreamShaderLang equivalent |
+| --- | --- |
+| `float` | `float` |
+| `float2` | `float2` / `vec2` |
+| `float3` | `float3` / `vec3` |
+| `float4` | `float4` / `vec4` |
+| `Texture2D` | `Texture2D` |
+
+## Variables and Expressions
+
+```hlsl
+float3 tinted = color * tint;
+float y = saturate(tinted.r);
+```
+
+DreamShaderLang `Function` bodies use familiar HLSL-style expressions for helper logic.
+
+## Control Flow
+
+```hlsl
+if (x > 0.5)
+{
+    return 1.0;
+}
+return 0.0;
+```
+
+Complex control flow is best placed in `Function`, not directly in Graph.
+
+## Common Builtins
+
+| Function | Use |
+| --- | --- |
+| `dot` | Dot product. |
+| `lerp` | Linear interpolation. |
+| `saturate` | Clamp to `0..1`. |
+| `sin`, `cos` | Trigonometry. |
+| `normalize` | Normalize a vector. |
+
+## Common Keywords
+
+| Keyword | Meaning |
+| --- | --- |
+| `return` | Return a function value. |
+| `if`, `else` | Conditional flow. |
+| `for`, `while` | Loop constructs in helper code when supported. |
+| `out` | Output parameter. |
+| `inout` | Input/output parameter. |
+
+## Relation to DreamShaderLang
+
+| HLSL area | DreamShaderLang usage |
+| --- | --- |
+| Helper functions | `Function` and `GraphFunction` bodies. |
+| Vector math | Graph expressions and helpers. |
+| Raw node graph | Use `Graph` and `UE.*`, not plain HLSL. |
+| Material settings | Use `Settings`, not HLSL code. |

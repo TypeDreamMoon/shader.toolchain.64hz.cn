@@ -1,0 +1,162 @@
+---
+title: Graph Language
+description: The graph DSL used by DreamShaderLang to generate Unreal material nodes.
+---
+
+`Graph` is the part of DreamShaderLang that becomes Unreal material nodes. It looks like a
+small shader language, but its statements are interpreted by the generator.
+
+## Statements
+
+Common statements include:
+
+```c
+float t = UE.Time();
+float pulse = sin(t) * 0.5 + 0.5;
+Color = Tint * pulse;
+```
+
+| Statement | Role |
+| --- | --- |
+| Declaration | Creates a named intermediate value. |
+| Assignment | Connects a value to another variable or output. |
+| Function call | Calls `Function`, `GraphFunction`, `ShaderFunction`, `VirtualFunction`, or `UE.*`. |
+| `if` / `else` | Generates conditional graph logic for supported cases. |
+| `#Region` | Groups nodes and can produce layout comment boxes. |
+
+## Declarations
+
+```c
+float Strength = 1.0;
+vec3 Color = Tint * Strength;
+```
+
+The declared name can be referenced later in the same Graph.
+
+## Expressions
+
+### Arithmetic
+
+```c
+Color = Tint * Strength + vec3(0.1, 0.1, 0.1);
+```
+
+### Constructors
+
+```c
+vec3 Blue = vec3(0.2, 0.6, 1.0);
+float4 Packed = float4(Blue, 1.0);
+```
+
+### Swizzle
+
+```c
+float r = Color.r;
+vec2 rg = Color.rg;
+```
+
+### MaterialAttributes
+
+`MaterialAttributes` values are used by Material Layer and Layer Blend graphs.
+
+```c
+MaterialAttributes Result = BaseMaterial;
+```
+
+### Function Calls
+
+Single-output calls can be used as value expressions:
+
+```c
+float y = ColorTools::Luma(Tint);
+```
+
+Multi-output calls use explicit output variables.
+
+## `Function` Calls
+
+`Function` calls become Custom-node helper calls or generated HLSL depending on the helper
+mode and compiler behavior.
+
+```c
+float y = Luma(Tint);
+```
+
+## `GraphFunction` Calls
+
+`GraphFunction` calls can contain `UE.*` calls inside the helper body:
+
+```c
+float pulse = Pulse(2.0);
+```
+
+## `ShaderFunction` Calls
+
+Generated `.dsf` functions can be called from other Graphs once imported:
+
+```c
+vec3 result = F_Tint(Color, Strength);
+```
+
+The exact callable name follows the declaration/import symbol exposed by the source.
+
+## `VirtualFunction` Calls
+
+`VirtualFunction` calls reference existing Unreal Material Function assets without
+generating them.
+
+Use this when a project already owns the material function in Unreal.
+
+## Parameter Node Calls
+
+Parameters are usually declared in `Properties` or `Inputs`, then referenced by name:
+
+```c
+Color = Tint * Strength;
+```
+
+Explicit parameter node types can carry Unreal metadata such as group and sort priority.
+
+## `if` / `else`
+
+Simple conditionals are supported for graph-friendly expressions:
+
+```c
+if (UseTint)
+{
+    Color = BaseColor * Tint;
+}
+else
+{
+    Color = BaseColor;
+}
+```
+
+For complex control flow, put the logic in a `Function` or `GraphFunction`.
+
+## Graph Region
+
+Use `#Region` and `#EndRegion` to group a portion of a graph:
+
+```c
+Graph = {
+    #Region "Pulse"
+    float t = UE.Time();
+    float pulse = sin(t) * 0.5 + 0.5;
+    #EndRegion
+
+    Color = Tint * pulse;
+}
+```
+
+Regions can work with generated layout comments and make decompiled graphs easier to
+review.
+
+## Not Currently Supported
+
+| Feature | Alternative |
+| --- | --- |
+| Arbitrary complex loops in Graph | Put loop logic in `Function`. |
+| Unsupported Unreal node shorthand | Use generic `UE.Expression(...)`. |
+| Deep shader-language constructs inside Graph | Use `Function` / `GraphFunction`. |
+| Ambiguous multi-output value expressions | Use explicit output variables. |

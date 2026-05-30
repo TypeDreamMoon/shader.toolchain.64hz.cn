@@ -1,0 +1,75 @@
+---
+title: VSCode Extension
+description: DreamShaderLang VSCode extension release notes.
+---
+
+## 1.4.9 - 2026-05-29
+
+### Function Builtins
+
+Unified HLSL intrinsics, GLSL aliases, and Unreal texture-sampling helper metadata for
+completion, hover, signature help, inlay hints, diagnostics, and semantic highlighting.
+
+## 1.4.8 - 2026-05-29
+
+### Layout and Region
+
+Added editor support for `Layout`, `Node(...)`, `Comment(...)`, and Graph `#Region` /
+`#EndRegion`.
+
+## 1.4.6 - 2026-05-22
+
+### Volume Texture
+
+Added `VolumeTexture` / `Texture3D` types, default texture support, completion, and
+diagnostics.
+
+## 1.4.5 - 2026-05-18
+
+### MaterialExpression Fallback
+
+Added built-in fallback metadata for `MaterialExpression` completion when bridge metadata
+is not available.
+
+## 1.4.4 - 2026-05-18
+
+### Reflected Expressions
+
+Added support for reflected Unreal `UMaterialExpression` metadata exported by the plugin.
+
+## 1.4.3 - 2026-05-18
+
+### Manifest Configuration
+
+Improved manifest configuration and metadata loading behavior.
+
+## 1.4.2 - 2026-05-10
+
+### MaterialExpression Metadata
+
+Expanded completion and hover metadata for Unreal material expression calls.
+
+## 1.4.1 - 2026-05-10
+
+### Dream Shader Function Files
+
+Added `.dsf` file support in the language extension.
+
+## 1.4.0 - 2026-05-10
+
+### Parser-based Language Service
+
+Rebuilt the language service around scanner, parser, context, symbol, and provider modules
+to reduce scope leakage and improve diagnostics, completion, folding, and document symbols.
+
+## Earlier Releases
+
+Earlier `1.3.x` and `1.2.x` releases added templates, Material Layer keywords,
+GraphFunction support, dynamic MaterialExpression metadata, output diagnostics,
+ShaderFunction properties, MaterialAttributes, parameter defaults, swizzles, language
+service improvements, root completion, bridge windows, Graph editing improvements, and
+automatic publishing.
+
+## 1.0.0 - 2026-04-21
+
+Initial VSCode language-support extension for DreamShaderLang.

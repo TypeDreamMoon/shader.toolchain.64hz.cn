@@ -331,7 +331,36 @@ Graph = {
 | `>=` / `<=` | 大于等于 / 小于等于。 |
 | `==` / `!=` | 等于 / 不等于。 |
 
-生成器会创建 Unreal Material `If` 节点来合并分支结果。条件两侧必须是标量。分支不能选择 `Texture2D`、`TextureCube` 或 `Texture2DArray` 值；`MaterialAttributes` 分支可以合并，但两侧都必须是 `MaterialAttributes`。
+生成器会创建 Unreal Material `If` 节点来合并分支结果。条件两侧必须是标量。分支不能选择 `Texture2D`、`TextureCube`、`Texture2DArray` 或 `VolumeTexture` 值；`MaterialAttributes` 分支可以合并，但两侧都必须是 `MaterialAttributes`。
+
+## Graph Region
+
+Graph 可以用 `#Region` / `#EndRegion` 标记一组语句。它不改变计算语义，主要用于生成图布局、反编译导出和 VSCode 折叠。
+
+```c
+Graph = {
+    #Region "Surface"
+    float2 uv = UE.TexCoord(Index=0);
+    Color = BaseColor.rgb;
+    RoughnessOut = saturate(Roughness);
+    #EndRegion
+
+    #Region "Output"
+    FinalColor = Color;
+    #EndRegion
+}
+```
+
+规则：
+
+| 规则 | 说明 |
+| --- | --- |
+| 名称 | `#Region` 必须带名称，例如 `#Region "Surface"`。 |
+| 闭合 | 每个 `#Region` 必须有匹配的 `#EndRegion`。 |
+| 作用范围 | region 内的变量和生成节点会被记录为同一布局分组。 |
+| 计算语义 | region 不改变变量作用域和执行顺序。 |
+
+如果同时写了 `Layout` section，生成器会优先使用显式 `Node(...)` / `Comment(...)` 信息，再用 region 信息组织未显式定位的节点。
 
 ## 当前不支持
 

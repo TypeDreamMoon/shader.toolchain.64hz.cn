@@ -1,0 +1,73 @@
+---
+title: Output Bindings
+description: Rules for Shader output variables, Base material properties, and Expression output nodes.
+---
+
+`Outputs` declares named values and binds them to material or function outputs.
+
+## Basic Binding
+
+```c
+Outputs = {
+    vec3 Color;
+    Base.EmissiveColor = Color;
+}
+```
+
+`Color` is a graph variable. `Base.EmissiveColor = Color` binds it to the Unreal material
+property.
+
+## Material Properties
+
+Common material outputs include:
+
+| Binding | Type |
+| --- | --- |
+| `Base.BaseColor` | `vec3` |
+| `Base.EmissiveColor` | `vec3` |
+| `Base.Opacity` | `float` |
+| `Base.OpacityMask` | `float` |
+| `Base.Roughness` | `float` |
+| `Base.Metallic` | `float` |
+| `Base.Normal` | `vec3` |
+
+The exact supported list depends on plugin and Unreal version.
+
+## Expression Output Nodes
+
+Material functions use declared outputs:
+
+```c
+Outputs = {
+    vec3 Result;
+    float Mask;
+}
+```
+
+The generator creates function output nodes and wires assigned Graph values into them.
+
+## Output Expressions
+
+You can assign expressions directly:
+
+```c
+Outputs = {
+    vec3 Color;
+    Base.EmissiveColor = Tint * Strength;
+}
+```
+
+For readability, prefer named intermediate variables when expressions get large.
+
+## Reserved Name `return`
+
+Use `return` to bind the primary material-function output when the declaration supports it:
+
+```c
+Outputs = {
+    vec3 Result;
+    return = Result;
+}
+```
+
+Do not use `return` as a normal variable name.

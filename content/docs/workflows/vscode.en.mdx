@@ -1,0 +1,102 @@
+---
+title: Editor Support
+description: VSCode and Rider language plugin support for DreamShaderLang.
+---
+
+DreamShaderLang has editor support for both VSCode and Rider. VSCode is the main extension
+documented here; Rider support is available through a separate JetBrains plugin repository.
+
+## Support Matrix
+
+| Capability | VSCode | Rider |
+| --- | --- | --- |
+| File type recognition | yes | yes |
+| Syntax highlighting | yes | yes |
+| Parser / PSI model | parser-based language service | JetBrains PSI parser |
+| Completion | yes | yes |
+| Hover | yes | yes |
+| Go to definition / navigation | yes | yes |
+| Diagnostics | local + Unreal bridge | supported by plugin |
+| Inlay hints | yes | yes |
+| Package commands | yes | plugin-dependent |
+| Templates | yes | plugin-dependent |
+
+## VSCode Extension
+
+| Item | Value |
+| --- | --- |
+| Repository | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) |
+| Current documented version | `1.4.9` |
+| File types | `.dsm`, `.dsf`, `.dsh` |
+
+### VSCode Capability Overview
+
+The VSCode extension provides:
+
+| Area | Features |
+| --- | --- |
+| Editing | Syntax highlighting, semantic tokens, folding, document symbols. |
+| IntelliSense | Completion, hover, signature help, inlay hints. |
+| Navigation | Go to definition for symbols and imports. |
+| Diagnostics | Parser, scope, type, section, output, metadata, and bridge diagnostics. |
+| Commands | Recompile current source, recompile all sources, package operations, templates. |
+
+### VSCode Editing Experience
+
+The `1.4.x` extension uses a scanner / parser / context / symbol / provider architecture.
+This reduces scope leakage between `Inputs`, `Graph`, `Function`, `Settings`, `Outputs`,
+and metadata blocks.
+
+### VSCode Local Diagnostics
+
+Local diagnostics catch syntax, scope, type, section, import, and metadata problems before
+Unreal generation runs.
+
+### Unreal Bridge Diagnostics
+
+The DreamShader plugin exports bridge metadata and diagnostics. The extension can read:
+
+```text
+Saved/DreamShader/Bridge/material-expressions.json
+```
+
+This powers reflected `UMaterialExpression` completion, hover, and signature help. A
+built-in fallback manifest is used when project metadata is not available.
+
+### VSCode Common Commands
+
+```text
+DreamShaderLang: Recompile Current Source
+DreamShaderLang: Recompile All Sources
+```
+
+Package and template commands are also exposed under the `DreamShaderLang` command group.
+
+### VSCode Workspace Settings
+
+Keep the workspace pointed at the Unreal project root so the extension can resolve:
+
+| Path | Use |
+| --- | --- |
+| `DShader` | Source root. |
+| `DShader/Packages` | Installed packages. |
+| `Saved/DreamShader/Bridge` | Unreal bridge metadata. |
+
+## Rider Plugin
+
+| Item | Value |
+| --- | --- |
+| Repository | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) |
+| Role | JetBrains Rider language support for DreamShaderLang. |
+| Features | File type support, PSI parser, highlighting, completion, navigation, diagnostics, and inlay hints. |
+
+Use the Rider plugin when your Unreal workflow is centered on JetBrains tools.
+
+## Recommended Usage
+
+| Workflow | Recommendation |
+| --- | --- |
+| Authoring and refactoring language files | Use VSCode or Rider language support. |
+| Validating generated assets | Inspect Unreal Editor and Output Log. |
+| Working with reflected nodes | Refresh DreamShader bridge metadata after plugin or engine changes. |
+| Team package workflows | Keep package manifests and source files in source control. |

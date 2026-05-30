@@ -247,6 +247,35 @@ float3 finalColor = UE.StaticSwitchParameter(
     False=baseColor);
 ```
 
+Graph 中也可以使用 `#Region` / `#EndRegion` 对生成节点分组。区域信息会参与图布局，并可在 VSCode 中折叠：
+
+```c
+Graph = {
+    #Region "Surface"
+    Color = BaseColor.rgb;
+    RoughnessOut = saturate(Roughness);
+    #EndRegion
+}
+```
+
+## `Layout`
+
+`Layout` 是可选的材质图布局 metadata，用于显式记录生成节点位置和注释框。它不改变材质计算结果。
+
+```c
+Layout = {
+    Comment(Name="Surface", X=-400, Y=-260, W=1200, H=700, Color=float4(0.10, 0.16, 0.22, 0.35));
+    Node(Var="BaseColor", X=-240, Y=-80);
+}
+```
+
+| 语句 | 必填参数 | 作用 |
+| --- | --- | --- |
+| `Node(...)` | `Var`、`X`、`Y` | 固定某个 Graph 变量或生成节点的位置。 |
+| `Comment(...)` | `Name`、`X`、`Y`、`W`、`H` | 创建 Unreal 材质图注释框。 |
+
+`Comment` 的 `Color=float4(...)` 可选。反编译导出时，如果启用了布局导出，已有材质图注释和节点区域会尽量转换成 `Layout` 与 Graph region。
+
 ## Section 支持矩阵
 
 | Section | `Shader` | `ShaderFunction` | `VirtualFunction` |
@@ -258,4 +287,5 @@ float3 finalColor = UE.StaticSwitchParameter(
 | `Settings` | 支持 | 支持 | 可作为 `Options` 兼容写法 |
 | `Options` | 不支持 | 不支持 | 支持 |
 | `Graph` | 必填 | 支持 | 不支持 |
+| `Layout` | 可选 | 可选 | 不支持 |
 | `Code` | 不支持 | 不支持 | 不支持 |

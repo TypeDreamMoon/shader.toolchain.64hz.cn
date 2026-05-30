@@ -1,0 +1,119 @@
+---
+title: 布局与 Region
+description: 用 Layout section 和 Graph #Region 控制生成材质图的节点位置与注释框。
+---
+
+DreamShader 会自动摆放生成节点。对于大型材质、反编译迁移或需要稳定审查生成图的场景，可以用 `Layout` section 和 Graph region 提供额外布局信息。
+
+## Graph Region
+
+`#Region` / `#EndRegion` 写在 `Graph = { ... }` 内，用来把一组 Graph 语句标记为同一个布局区域。
+
+```c
+Graph = {
+    #Region "Surface"
+    Color = BaseColor.rgb;
+    Rough = saturate(Roughness);
+    #EndRegion
+}
+```
+
+规则：
+
+| 规则 | 说明 |
+| --- | --- |
+| `#Region` | 必须带名称，例如 `#Region "Surface"`。 |
+| `#EndRegion` | 必须匹配已有 region。 |
+| 作用 | 生成器会把 region 内语句产生的节点归入同名布局分组。 |
+| 语义 | 不改变变量作用域、执行顺序或材质计算结果。 |
+
+VSCode 扩展会为 region 提供高亮、诊断、折叠和 snippet。
+
+## `Layout` section
+
+`Layout` section 写在 `Shader` 或 `ShaderFunction` 内，用来显式指定节点位置和注释框。
+
+```c
+Layout = {
+    Comment(Name="Surface", X=-400, Y=-260, W=1200, H=700, Color=float4(0.10, 0.16, 0.22, 0.35));
+    Node(Var="BaseColor", X=-240, Y=-80);
+    Node(Var="Roughness", X=-240, Y=80);
+}
+```
+
+## `Node(...)`
+
+`Node` 固定某个变量或生成节点在 Unreal 材质图中的位置。
+
+```c
+Node(Var="BaseColor", X=-240, Y=-80);
+```
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `Var` | 是 | Graph 变量、property 名称或生成器可识别的节点名。 |
+| `X` | 是 | Unreal graph X 坐标，整数。 |
+| `Y` | 是 | Unreal graph Y 坐标，整数。 |
+
+## `Comment(...)`
+
+`Comment` 创建 Unreal 材质图注释框。
+
+```c
+Comment(Name="Surface", X=-400, Y=-260, W=1200, H=700);
+Comment(Name="Surface", X=-400, Y=-260, W=1200, H=700, Color=float4(0.10, 0.16, 0.22, 0.35));
+```
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `Name` | 是 | 注释框标题。 |
+| `X` / `Y` | 是 | 注释框左上角坐标。 |
+| `W` / `H` | 是 | 注释框宽高，整数。 |
+| `Color` | 否 | `float4(r, g, b, a)` 注释框颜色。 |
+
+## 完整示例
+
+```c
+Shader(Name="DreamMaterials/M_LayoutExample")
+{
+    Properties = {
+        VectorParameter BaseColor = float4(0.8, 0.8, 0.8, 1.0);
+        ScalarParameter Roughness = 0.55;
+    }
+
+    Outputs = {
+        float3 Color;
+        float Rough;
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
+    }
+
+    Graph = {
+        #Region "Surface"
+        Color = BaseColor.rgb;
+        Rough = saturate(Roughness);
+        #EndRegion
+    }
+
+    Layout = {
+        Comment(Name="Surface", X=-400, Y=-260, W=1200, H=700, Color=float4(0.10, 0.16, 0.22, 0.35));
+        Node(Var="BaseColor", X=-240, Y=-80);
+        Node(Var="Roughness", X=-240, Y=80);
+    }
+}
+```
+
+## 反编译布局
+
+Content Browser 的 `DreamShader > Export DSM/DSF` 会尽量把已有材质图的注释框和节点区域导出为 `Layout` 与 `#Region`。反编译器定位是迁移辅助工具：它能保留很多常见布局信息，但不保证所有手工摆放都能完整往返。
+
+## 诊断
+
+| 错误 | 处理 |
+| --- | --- |
+| `Layout statement is missing a trailing ';'` | `Node(...)` / `Comment(...)` 后补分号。 |
+| `Layout statement should be Node(...) or Comment(...)` | `Layout` 中只写这两类语句。 |
+| `Layout argument 'X' must be an integer` | 坐标和尺寸使用整数。 |
+| `Layout Comment Color must be a float4 literal` | `Color` 写成 `float4(0.1, 0.2, 0.3, 0.35)`。 |
+| `Graph #Region must include a name` | 为 region 添加名称。 |
+| `Graph #Region ... is missing #EndRegion` | 补上匹配的 `#EndRegion`。 |

@@ -1,6 +1,6 @@
 ---
 title: 资产生成
-description: 从 .dsm / .dsh 到 UMaterial / UMaterialFunction 的生成流程。
+description: 从 .dsm / .dsf / .dsh 到 UMaterial / UMaterialFunction 的生成流程。
 ---
 
 DreamShaderLang 的编译目标是 Unreal 资产，而不是传统字节码或可执行文件。一次生成通常从 `.dsm` 开始，解析 import graph，生成材质节点、Custom 节点、材质函数和相关元数据。
@@ -8,8 +8,8 @@ DreamShaderLang 的编译目标是 Unreal 资产，而不是传统字节码或�
 ## 生成流程
 
 ```text
-.dsm
-  ├─ import .dsh / Package
+.dsm / .dsf
+  ├─ import .dsf / .dsh / Package
   ├─ 解析顶层声明
   ├─ 解析 Properties / Settings / Outputs / Graph
   ├─ 生成或复用 UMaterial / UMaterialFunction
@@ -24,10 +24,11 @@ DreamShaderLang 的编译目标是 Unreal 资产，而不是传统字节码或�
 
 | 文件 | 生成行为 |
 | --- | --- |
-| `.dsm` | 可以生成 `UMaterial` 和 `UMaterialFunction`，也可以声明 `VirtualFunction`。 |
+| `.dsm` | 可以生成 `UMaterial`、Material Layer 函数资产，也可以生成或声明材质函数。 |
+| `.dsf` | 用于生成可复用 `ShaderFunction` 资产，并可被 `.dsm` 或其他 `.dsf` 导入。 |
 | `.dsh` | 不直接生成 `Shader` / `ShaderFunction` 资产，可作为共享依赖并声明 `VirtualFunction`。 |
 
-保存 `.dsh` 时，DreamShader 会通过 import graph 找到受影响的 `.dsm` 并刷新。
+保存 `.dsh` 时，DreamShader 会通过 import graph 找到受影响的 `.dsm` / `.dsf` 并刷新。
 
 ## 资产路径
 
@@ -79,6 +80,7 @@ Shader(Name="DreamMaterials/M_Sample", Root="Plugin.MyPlugin")
 | 标量 property | `UMaterialExpressionScalarParameter` |
 | 向量 property | `UMaterialExpressionVectorParameter` |
 | 纹理 property | `UMaterialExpressionTextureObjectParameter` |
+| `VolumeTexture` / `Texture3D` property | Volume Texture Object Parameter，并使用 VolumeTexture 默认资源或显式 `Path(...)`。 |
 | 显式 Parameter property | 对应的 Unreal 参数节点，例如 Scalar / Vector / Texture Sample / Static Bool / Static Switch |
 | `UE.CollectionParam` | `UMaterialExpressionCollectionParameter` |
 | `StaticSwitchParameter` 调用 | `UMaterialExpressionStaticSwitchParameter` |
@@ -154,3 +156,16 @@ DreamShader.GeneratedAtUtc
 ## 材质重置
 
 更新已有材质时，DreamShader 会清理旧表达式并重置常见材质属性，再根据当前 `Settings` 重新应用。这样删除某个旧 setting 后，不容易留下资产上的历史状态。
+
+## 反编译导出
+
+DreamShader 插件提供 Content Browser 导出入口：
+
+| Unreal 资产 | 导出结果 |
+| --- | --- |
+| `UMaterial` | `DShader/Decompiled/Materials/*.dsm` |
+| `UMaterialFunction` | `DShader/Decompiled/Functions/*.dsf` |
+
+反编译器会尽量把常见常量、参数、算术节点、swizzle、纹理采样、Custom 节点和 `MaterialFunctionCall` 导出为 DreamShader `Graph` 文本。少见或尚未专门建模的 `MaterialExpression` 会回退到 `UE.Expression(...)`，以保留可继续生成的结构。
+
+如果材质图中已有注释框和节点区域，导出时会尽量生成 `#Region` 和 `Layout = { ... }`。这适合把手工材质迁移到文本源文件，但目前还不是完整稳定的双向往返系统。

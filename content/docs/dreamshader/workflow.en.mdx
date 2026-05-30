@@ -1,0 +1,81 @@
+---
+title: Plugin Workflow
+description: Daily workflow from editing DreamShaderLang to generating Unreal material assets.
+---
+
+The normal workflow is edit source, save, let the plugin compile, and inspect the generated
+asset in Unreal. The VSCode and Rider language plugins improve the editing side, while the
+Unreal plugin owns generation.
+
+## Daily Flow
+
+1. Edit `.dsm`, `.dsf`, or `.dsh` under `DShader`.
+2. Use editor diagnostics to catch syntax and semantic issues.
+3. Save the source file.
+4. DreamShader resolves imports and recompiles affected assets.
+5. Inspect the generated Unreal asset and material compilation output.
+
+## `.dsm` Workflow
+
+`.dsm` files usually contain `Shader`, `ShaderLayer`, or `ShaderLayerBlend` declarations.
+
+| Section | Typical role |
+| --- | --- |
+| `Properties` | Material parameters and input nodes. |
+| `Settings` | Material domain, blend mode, shading model, and Unreal properties. |
+| `Outputs` | Output variables and bindings to `Base.*`. |
+| `Graph` | Node graph expressed as statements. |
+| `Layout` | Optional node positions and comment boxes. |
+
+## `.dsh` Workflow
+
+`.dsh` files do not generate assets directly. They are shared headers for imports,
+namespaces, `Function`, and `GraphFunction` helpers.
+
+When a `.dsh` changes, DreamShader recompiles the dependent `.dsm` / `.dsf` files instead
+of trying to compile the header itself.
+
+## `.dsf` Workflow
+
+`.dsf` files are for reusable material-function assets:
+
+| Use | Notes |
+| --- | --- |
+| `ShaderFunction` | Generates a `UMaterialFunction`. |
+| Import target | Can be imported by `.dsm` or other `.dsf` files. |
+| Stable regeneration | Input/output IDs are preserved to reduce broken Unreal `MaterialFunctionCall` links. |
+
+## Material Layer Workflow
+
+Use:
+
+| Declaration | Asset |
+| --- | --- |
+| `ShaderLayer` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` | `UMaterialFunctionMaterialLayerBlend` |
+
+These are the recommended top-level blocks for native Unreal Material Layer assets.
+
+## Generation and Cache
+
+DreamShader tracks source hashes and dependency relationships. If source content and
+relevant imported files have not changed, regeneration can be skipped or limited to
+affected assets.
+
+## Decompile Migration
+
+Existing Unreal `Material` and `Material Function` assets can be exported to initial
+`.dsm` / `.dsf` files. Common nodes become Graph syntax; less common nodes fall back to
+generic `UE.Expression(...)` calls.
+
+Treat exported files as a starting point. Review names, layout, helper extraction, and
+imports before making them the canonical source.
+
+## Team Collaboration
+
+| Practice | Reason |
+| --- | --- |
+| Keep source files small and named by asset purpose | Easier reviews and import tracking. |
+| Put shared helpers in `.dsh` or packages | Avoid repeated graph logic. |
+| Commit package manifests | Rebuilds are reproducible. |
+| Keep generated asset policy explicit | Teams differ on whether generated `.uasset` files are committed. |

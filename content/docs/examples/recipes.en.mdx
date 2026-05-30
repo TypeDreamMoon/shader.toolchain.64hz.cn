@@ -1,0 +1,160 @@
+---
+title: Recipes
+description: Composable DreamShaderLang material snippets.
+---
+
+These snippets are intentionally small. Copy them into a material and adapt the parameter
+names to your project.
+
+## Time Pulse
+
+```c
+Graph = {
+    float t = UE.Time();
+    float pulse = sin(t * Speed) * 0.5 + 0.5;
+    Color = Tint * pulse;
+}
+```
+
+## UV Panning
+
+```c
+Graph = {
+    float2 uv = UE.TexCoord(Index=0);
+    float t = UE.Time();
+    float2 moved = uv + float2(t * SpeedX, t * SpeedY);
+}
+```
+
+## Conditional Shading
+
+```c
+Graph = {
+    if (UseTint)
+    {
+        Color = BaseColor * Tint;
+    }
+    else
+    {
+        Color = BaseColor;
+    }
+}
+```
+
+## Transparent UI Material
+
+```c
+Settings = {
+    Domain = "UI";
+    ShadingModel = "Unlit";
+    BlendMode = "Translucent";
+}
+
+Outputs = {
+    vec3 Color;
+    float Alpha;
+    Base.EmissiveColor = Color;
+    Base.Opacity = Alpha;
+}
+```
+
+## Surface PBR Skeleton
+
+```c
+Settings = {
+    Domain = "Surface";
+    ShadingModel = "DefaultLit";
+    BlendMode = "Opaque";
+}
+
+Outputs = {
+    vec3 BaseColor;
+    float Roughness;
+    float Metallic;
+    Base.BaseColor = BaseColor;
+    Base.Roughness = Roughness;
+    Base.Metallic = Metallic;
+}
+```
+
+## Parameter Groups and Sorting
+
+```c
+Properties = {
+    VectorParameter Tint = float4(1, 1, 1, 1) [
+        Group="Color";
+        SortPriority=10;
+    ];
+
+    ScalarParameter Strength = 1.0 [
+        Group="Color";
+        SortPriority=20;
+    ];
+}
+```
+
+## Static Switch Branch
+
+```c
+Properties = {
+    StaticSwitchParameter UseDetail = true;
+}
+
+Graph = {
+    if (UseDetail)
+    {
+        Color = BaseColor * DetailColor;
+    }
+    else
+    {
+        Color = BaseColor;
+    }
+}
+```
+
+## Material Parameter Collection
+
+```c
+float Wind = UE.CollectionParam(
+    Collection=Path("/Game/MPC_Global.MPC_Global"),
+    ParameterName="Wind");
+```
+
+## Optional Material Function Input
+
+Use defaults in `Inputs` so calls can omit less important values when the function wrapper
+or generator supports optional inputs.
+
+```c
+Inputs = {
+    vec3 Color;
+    float Strength = 1.0;
+}
+```
+
+## Custom MaterialExpression Output
+
+```c
+float pulse = UE.Expression(
+    Class="Sine",
+    OutputType="float1",
+    Input=t);
+```
+
+## Multi-output Helper
+
+```c
+Function void SplitColor(vec3 color, out float r, out float g, out float b)
+{
+    r = color.r;
+    g = color.g;
+    b = color.b;
+}
+
+Graph = {
+    float r;
+    float g;
+    float b;
+    SplitColor(Tint, r, g, b);
+}
+```

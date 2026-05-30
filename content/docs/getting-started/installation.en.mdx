@@ -1,0 +1,78 @@
+---
+title: Installation and Setup
+description: Enable DreamShader in an Unreal project and prepare the DreamShaderLang source directory.
+---
+
+DreamShaderLang is compiled by the DreamShader Unreal plugin. Before writing source files,
+make sure the Unreal project can find the plugin and the `DShader` source directory.
+
+## Requirements
+
+| Item | Requirement |
+| --- | --- |
+| Unreal project | Put the plugin under the project `Plugins/DreamShader` directory. |
+| Source root | Defaults to `DShader` under the project root. |
+| File extensions | `.dsm`, `.dsf`, and `.dsh`. |
+| Auto compile | Enabled by default. Saving a source file generates or refreshes assets. |
+
+## Basic Steps
+
+1. Put the plugin directory in `Plugins/DreamShader`.
+2. Enable the DreamShader plugin in Unreal Editor.
+3. Restart Unreal Editor.
+4. Create `DShader` in the project root.
+5. Create your first `.dsm` file under `DShader/Materials`.
+6. Save the file and wait for the plugin to generate a `UMaterial` or `UMaterialFunction`.
+
+## Project Settings
+
+Open `Project Settings > DreamPlugin > Dream Shader` to configure:
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `SourceDirectory` | `DShader` | DreamShaderLang source root. |
+| `GeneratedShaderDirectory` | configurable | Output location for helper includes generated from normal `Function` declarations. |
+| `AutoCompileOnSave` | `true` | Refresh assets after saving `.dsm`, `.dsf`, or `.dsh` files. |
+| `SaveDebounceSeconds` | `0.25` | Debounce interval after file save. |
+| `VerboseLogs` | `false` | Print detailed logs. |
+| `OpenInNewWindow` | `true` | Open a new VSCode window from Unreal; set to `false` to reuse an existing window. |
+
+## Manual Recompile
+
+The VSCode extension exposes commands:
+
+```text
+DreamShaderLang: Recompile Current Source
+DreamShaderLang: Recompile All Sources
+```
+
+Running the current-file command on a `.dsh` expands to every dependent `.dsm` / `.dsf`
+file. The compiler does not try to generate an asset directly from a header file.
+`.dsf` files generate `ShaderFunction` assets and can also be imported by `.dsm` or other
+`.dsf` files.
+
+## Generated Path
+
+`Shader(Name="DreamMaterials/M_Minimal")` resolves to:
+
+```text
+/Game/DreamMaterials/M_Minimal.M_Minimal
+```
+
+The language-level `Name` should not include the `/Game` prefix. The generator treats it
+as a relative package path under the selected root.
+
+To save under a content plugin root, write:
+
+```c
+Shader(Name="DreamMaterials/M_Minimal", Root="Plugin.MyPlugin")
+```
+
+This generates `/MyPlugin/DreamMaterials/M_Minimal.M_Minimal` and saves the asset at:
+
+```text
+[Project]/Plugins/MyPlugin/Content/DreamMaterials/M_Minimal.uasset
+```
+
+`Root` can also append subdirectories, such as `Game/Generated` or
+`Plugin.MyPlugin/Generated`.

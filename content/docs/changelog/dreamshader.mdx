@@ -5,6 +5,74 @@ description: DreamShader 插件版本更新记录。
 
 DreamShader 的版本更新记录按插件版本整理。这里主要记录会影响使用者的语言、生成器、工作流和兼容性变化。
 
+## 1.3.9 - 2026-05-29
+
+### Maintenance
+
+- 插件版本元数据更新到 `1.3.9`。
+- README、发布说明和文档引用同步到当前语言能力。
+
+## 1.3.8 - 2026-05-25
+
+### Texture Support
+
+- 新增 `VolumeTexture` property 解析、代码生成和默认纹理处理。
+- 生成 HLSL / Custom 节点输入时保留纹理对象子类型，`Texture2D`、`Texture2DArray` 和 `VolumeTexture` 会以正确 Unreal 纹理类型传入。
+
+### Plugin Cleanup
+
+- 移除项目设置和文档中的内置 shader library path 支持。
+
+## 1.3.7 - 2026-05-18
+
+### Decompiler
+
+- 泛型 `UE.Expression(...)` 反编译会导出更多 reflected literal property，减少少见 `MaterialExpression` 节点的状态丢失。
+- 连接了 UV 等 graph 输入的 `TextureSampleParameter2D` 会导出为 graph 表达式，而不是简单 `Properties` 声明。
+- 修复带动态命名输入和自定义输出类型 metadata 的 `MaterialExpressionCustom` 反编译。
+
+### Performance
+
+- 优化大型反编译材质的 import 性能，减少逐节点 package dirty、降低进度文本刷新频率，并在大型生成图上跳过自动布局。
+
+## 1.3.6 - 2026-05-12
+
+### Build Fixes
+
+- `DreamShaderSettings.h` 显式包含 `MaterialDomain.h`，让直接包含设置头的项目能稳定解析 `EMaterialDomain`。
+
+## 1.3.5 - 2026-05-11
+
+### ShaderFunction Calls
+
+- `Graph` 支持 statement-style 多输出 `ShaderFunction` 和 `VirtualFunction` 调用：位置输入参数在前，输出目标变量在后。
+
+### Dream Shader Function Files
+
+- 新增 `.dsf` Dream Shader Function 文件，用于可复用生成 `ShaderFunction` 资产。
+- `.dsm` 和 `.dsf` 可以 import `.dsf`，便于在不同 DreamShader 源文件间复用生成函数。
+- 增加 `.dsf` 源文件发现、依赖追踪和 VSCode workspace 文件关联。
+
+### Decompiler
+
+- Content Browser 增加 `UMaterial` 导出 `.dsm`、`UMaterialFunction` 导出 `.dsf` 的入口。
+- 反编译文件会写入 `DShader/Decompiled/Materials` 或 `DShader/Decompiled/Functions`，并使用唯一文件名。
+- 常见常量、参数、算术节点、swizzle、纹理采样、Custom 节点和 MaterialFunction call 会尽量导出为 DreamShader graph 文本；少见 reflected 节点回退为 `UE.Expression(...)`。
+
+## 1.3.4 - 2026-05-11
+
+### Output Initializers
+
+- `Outputs` 支持初始化声明，例如 `vec3 Color = Tint;`。
+- `Shader` 可以使用已初始化 output declaration 配合空 `Graph = {}`。
+
+## 1.3.3 - 2026-05-11
+
+### Graph Swizzles
+
+- 修复 vector property 分量数，声明为 `vec2` / `vec3` 时生成 `RG` / `RGB`，不再总是按 `RGBA` 绑定。
+- 修复 `.gbr` 这类非顺序 swizzle，通过显式 `ComponentMask` 和 `AppendVector` 节点生成。
+
 ## 1.3.2 - 2026-05-11
 
 ### Material Function Generation
@@ -202,7 +270,7 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### Package 与工作流
 
 - 新增 Package 系统，用 GitHub 分发和安装可复用 `.dsh` 共享库。
-- 增加 import dependency graph，保存共享 `.dsh` 后可以找到受影响的 `.dsm` 并增量刷新。
+- 增加 import dependency graph，保存共享 `.dsh` 后可以找到受影响的 `.dsm` 并增量刷新；后续版本也覆盖 `.dsf` 依赖。
 - 缓存配置目录，减少重复解析项目设置带来的开销。
 
 ### 诊断与兼容性

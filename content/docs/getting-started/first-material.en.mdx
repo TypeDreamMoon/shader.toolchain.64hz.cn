@@ -1,0 +1,92 @@
+---
+title: First Material
+description: Write a UI Unlit material from scratch and generate a UMaterial.
+---
+
+This example creates a UI-domain, Unlit material with a color parameter.
+
+## Create the File
+
+Create this file in the project:
+
+```text
+DShader/Materials/M_DreamPulse.dsm
+```
+
+Write:
+
+```c
+Shader(Name="DreamMaterials/M_DreamPulse")
+{
+    Properties = {
+        vec3 Tint = vec3(0.2, 0.6, 1.0);
+        float Strength = 1.0;
+    }
+
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float t = UE.Time();
+        float pulse = UE.Expression(
+            Class="Sine",
+            OutputType="float1",
+            Input=t);
+
+        Color = Tint * (pulse * 0.5 + 0.5) * Strength;
+    }
+}
+```
+
+After saving, DreamShader generates or updates:
+
+```text
+/Game/DreamMaterials/M_DreamPulse.M_DreamPulse
+```
+
+## What This File Does
+
+| Area | Role |
+| --- | --- |
+| `Shader(Name="...")` | Declares the Unreal material asset to generate. Optional `Root` defaults to `Game`. |
+| `Properties` | Generates material parameter nodes such as `Tint` and `Strength`. |
+| `Settings` | Sets Unreal material properties. |
+| `Outputs` | Declares graph output variables and binds them to `Base.EmissiveColor`. |
+| `Graph` | Creates material nodes and assigns the final result to `Color`. |
+
+## Parameter Panel Syntax
+
+For a first material, `float` and `vec3` are enough. When you need parameter groups,
+ordering, or descriptions in Unreal, use explicit parameter nodes:
+
+```c
+Properties = {
+    VectorParameter Tint = float4(0.2, 0.6, 1.0, 1.0) [
+        Group="Color";
+        SortPriority=10;
+        Description="Main tint";
+    ];
+    ScalarParameter Strength = 1.0 [
+        Group="Color";
+        SortPriority=20;
+    ];
+}
+```
+
+This generates Vector / Scalar Parameter nodes and writes metadata onto the Unreal nodes.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| No asset is generated | The file is under `SourceDirectory` and contains `Shader` or `ShaderFunction`. |
+| Output is empty | `Outputs` contains a `Base.* = ...` binding. |
+| `UE.Expression` reports an error | `Class` is an Unreal `MaterialExpression` class name and `OutputType` is set. |
+| Material compilation fails | Check the Unreal Output Log or VSCode bridge diagnostics. |

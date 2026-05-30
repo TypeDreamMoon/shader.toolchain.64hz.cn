@@ -1,0 +1,141 @@
+---
+title: Function and Helper
+description: HLSL-style helpers, GraphFunction, outputs, and self-contained patterns.
+---
+
+`Function` and `GraphFunction` let you move reusable logic out of raw Graph statements.
+Use `Function` for HLSL-style computation, and `GraphFunction` when the helper needs to
+create or call Unreal graph nodes through `UE.*`.
+
+## Basic Declaration
+
+```c
+Function float Luma(vec3 color)
+{
+    return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+```
+
+Use it from Graph code:
+
+```c
+Graph = {
+    float y = Luma(Tint);
+}
+```
+
+## Multiple Outputs
+
+Multi-output helpers use `out` parameters:
+
+```c
+Function void SplitColor(vec3 color, out float r, out float g, out float b)
+{
+    r = color.r;
+    g = color.g;
+    b = color.b;
+}
+```
+
+Call multi-output helpers with explicit variables:
+
+```c
+Graph = {
+    float r;
+    float g;
+    float b;
+    SplitColor(Tint, r, g, b);
+}
+```
+
+## GraphFunction
+
+`GraphFunction` can call `UE.*` inside its body:
+
+```c
+GraphFunction float Pulse(float speed)
+{
+    float t = UE.Time();
+    return sin(t * speed) * 0.5 + 0.5;
+}
+```
+
+The generator turns `UE.Time()` into a graph node and wires it into the Custom node used
+for the helper.
+
+## Texture Parameters
+
+When helpers sample textures, keep texture and sampler-like inputs explicit. Editor
+metadata from the VSCode extension includes Unreal texture sampling helpers and common
+HLSL intrinsics.
+
+```c
+Function vec3 ApplyTint(vec3 color, vec3 tint)
+{
+    return color * tint;
+}
+```
+
+## Function Builtins
+
+VSCode extension `1.4.9` unifies metadata for:
+
+| Source | Used for |
+| --- | --- |
+| HLSL intrinsics | Completion, hover, signature help, diagnostics, semantic highlighting. |
+| GLSL aliases | Familiar names such as vector constructors and shader math aliases. |
+| Unreal texture sampling helpers | Texture helper completion and signature help. |
+
+The compiler side still follows DreamShaderLang's supported syntax and generator rules.
+
+## Normal vs Self-contained Functions
+
+Use a normal `Function` when the helper can be emitted as shared HLSL. Use a
+`SelfContained` helper when the generated Custom-node code needs to carry its own helper
+body and avoid relying on external generated includes.
+
+```c
+SelfContained Function float SaturatePulse(float x)
+{
+    return saturate(sin(x) * 0.5 + 0.5);
+}
+```
+
+## Namespaced Functions
+
+Functions can be grouped in a namespace:
+
+```c
+Namespace ColorTools
+{
+    Function float Luma(vec3 color)
+    {
+        return dot(color, vec3(0.2126, 0.7152, 0.0722));
+    }
+}
+```
+
+Call:
+
+```c
+float y = ColorTools::Luma(Tint);
+```
+
+## Design Suggestions
+
+| Situation | Suggestion |
+| --- | --- |
+| Reused pure math | `Function` in `.dsh`. |
+| Reused graph-node logic | `GraphFunction`. |
+| Generated material function asset | `ShaderFunction` in `.dsf`. |
+| Existing Unreal material function | `VirtualFunction`. |
+| Public library API | Put stable helpers in `Namespace` and package entries. |
+
+## Common Errors
+
+| Error | Fix |
+| --- | --- |
+| Helper not found | Check imports and namespace qualifiers. |
+| Multi-output helper used as a value | Use explicit `out` variables. |
+| `UE.*` used in normal `Function` | Move the helper to `GraphFunction` or call `UE.*` from `Graph`. |
+| Texture helper signature mismatch | Check editor hover/signature help and the generated diagnostic. |

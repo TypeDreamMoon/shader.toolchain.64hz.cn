@@ -1,9 +1,9 @@
 ---
 title: 常用模式
-description: 最小材质、共享头文件、Package、Function、UE 节点、ShaderFunction 和 VirtualFunction 示例。
+description: 最小材质、共享头文件、函数文件、Package、Function、UE 节点、ShaderFunction 和 VirtualFunction 示例。
 ---
 
-这些片段按常见工作流排列，可以直接复制到 `.dsm` / `.dsh` 中改名使用。
+这些片段按常见工作流排列，可以直接复制到 `.dsm` / `.dsf` / `.dsh` 中改名使用。
 
 ## 最小 UI 材质
 
@@ -122,6 +122,8 @@ Function SelfContained Remap01(in float value, out float result) {
 ```
 
 ## `ShaderFunction`
+
+推荐放在 `DShader/Functions/F_Tint.dsf`：
 
 ```c
 ShaderFunction(Name="Functions/F_Tint")

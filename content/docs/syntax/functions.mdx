@@ -109,6 +109,44 @@ Namespace(Name="Texture")
 
 当 `Texture2D` 作为 Custom 节点输入时，生成器会处理对应 sampler 命名。函数体里常见写法是 `textureSampler`。
 
+## Function 内置函数
+
+VSCode 扩展 `1.4.9` 起使用统一的 Function builtin metadata，为 HLSL 原生函数、GLSL 风格别名和 Unreal 纹理采样 helper 提供补全、Hover、Signature Help、Inlay Hint、语义高亮和本地诊断白名单。
+
+常用 HLSL 原生函数包括：
+
+```text
+abs, acos, all, any, asin, atan, atan2, ceil, clamp, cos, cross,
+ddx, ddy, distance, dot, exp, floor, frac, fwidth, length, lerp,
+log, max, min, mul, normalize, pow, reflect, refract, round,
+rsqrt, saturate, sign, sin, smoothstep, sqrt, step, tan, transpose
+```
+
+GLSL 风格别名：
+
+| 别名 | 等价 |
+| --- | --- |
+| `mix` | `lerp` |
+| `fract` | `frac` |
+| `mod` | `fmod` |
+
+Unreal 纹理采样 helper：
+
+```text
+Texture2DSample, Texture2DSampleLevel, Texture2DSampleBias, Texture2DSampleGrad,
+Texture2DArraySample, Texture2DArraySampleLevel,
+TextureCubeSample, TextureCubeSampleLevel,
+Texture3DSample, Texture3DSampleLevel
+```
+
+示例：
+
+```c
+Function SampleVolume(in VolumeTexture texture, in float3 uvw, out float value) {
+    value = Texture3DSample(texture, textureSampler, uvw).r;
+}
+```
+
 ## 普通函数与自包含函数
 
 普通 helper：

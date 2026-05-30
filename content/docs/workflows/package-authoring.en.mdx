@@ -1,0 +1,84 @@
+---
+title: Package Authoring
+description: Recommended flow from shared .dsh files to installable DreamShader packages.
+---
+
+Packages let teams share `.dsh` and `.dsf` libraries across projects.
+
+## Create Steps
+
+1. Create a package directory under a scoped name.
+2. Add `dreamshader.package.json`.
+3. Put public helpers under `Library/`.
+4. Add examples or test materials.
+5. Publish package metadata to the Package Store Index if the package should be discoverable.
+
+## Example Skeleton
+
+```text
+dream-noise/
+├─ dreamshader.package.json
+├─ Library/
+│  └─ Noise.dsh
+└─ Examples/
+   └─ M_NoiseDemo.dsm
+```
+
+## Library Entry
+
+```c
+Namespace DreamNoise
+{
+    Function float Remap01(float x)
+    {
+        return saturate(x * 0.5 + 0.5);
+    }
+}
+```
+
+Import from a project:
+
+```c
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+```
+
+## Example Material
+
+```c
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+
+Shader(Name="DreamMaterials/M_NoiseDemo")
+{
+    Properties = {
+        float Strength = 1.0;
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float v = DreamNoise::Remap01(Strength);
+        Color = vec3(v, v, v);
+    }
+}
+```
+
+## Version Suggestions
+
+| Change | Versioning suggestion |
+| --- | --- |
+| Add helper without breaking existing calls | Minor version. |
+| Fix implementation while keeping API | Patch version. |
+| Rename or remove public helper | Major version. |
+| Change generated output behavior significantly | Document migration notes. |
+
+## Public API Design
+
+| Practice | Reason |
+| --- | --- |
+| Keep public names namespaced | Avoid collisions in projects. |
+| Export stable entry files | Materials should not depend on internal layout. |
+| Include examples | Users can verify the package quickly. |
+| Avoid project-specific asset paths | Packages should move across projects. |

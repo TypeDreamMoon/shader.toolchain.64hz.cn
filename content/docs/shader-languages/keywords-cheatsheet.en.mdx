@@ -1,0 +1,66 @@
+---
+title: Keyword Cheatsheet
+description: Common DreamShaderLang, HLSL, and GLSL keywords side by side.
+---
+
+Use this page as a quick vocabulary reference when moving between DreamShaderLang, HLSL,
+and GLSL examples.
+
+## DreamShaderLang
+
+| Keyword / block | Meaning |
+| --- | --- |
+| `import` | Import a project or package source file. |
+| `Shader` | Generate `UMaterial`. |
+| `ShaderFunction` | Generate `UMaterialFunction`. |
+| `ShaderLayer` | Generate Material Layer function asset. |
+| `ShaderLayerBlend` | Generate Material Layer Blend function asset. |
+| `VirtualFunction` | Reference an existing Unreal material function. |
+| `Function` | HLSL-style helper. |
+| `GraphFunction` | Helper that may contain `UE.*` calls. |
+| `Namespace` | Group helpers. |
+| `Properties` | Material parameter declarations. |
+| `Inputs` | Function or layer inputs. |
+| `Outputs` | Output variables and bindings. |
+| `Settings` | Unreal material settings. |
+| `Graph` | Material graph DSL. |
+| `Layout` | Node position and comment metadata. |
+
+## DreamShaderLang Common Types
+
+| Type | Meaning |
+| --- | --- |
+| `float`, `int`, `bool` | Scalar types. |
+| `vec2`, `vec3`, `vec4` | GLSL-style vector aliases. |
+| `float2`, `float3`, `float4` | HLSL-style vector aliases. |
+| `Texture2D`, `TextureCube`, `Texture3D`, `VolumeTexture` | Texture types. |
+| `MaterialAttributes` | Unreal material attributes value. |
+
+## HLSL Common Keywords
+
+| Keyword | Meaning |
+| --- | --- |
+| `return` | Return value. |
+| `if`, `else` | Conditional flow. |
+| `for`, `while` | Loops in helper code. |
+| `out`, `inout` | Output and input/output parameters. |
+| `struct` | Structured type in HLSL. |
+
+## GLSL Common Keywords
+
+| Keyword | Meaning |
+| --- | --- |
+| `return` | Return value. |
+| `if`, `else` | Conditional flow. |
+| `for`, `while` | Loops. |
+| `in`, `out`, `inout` | Shader or function data direction. |
+| `uniform` | External shader parameter in GLSL. |
+
+## Migration Reminders
+
+| Source habit | DreamShaderLang equivalent |
+| --- | --- |
+| Raw GLSL shader file | Put reusable math in `Function`; build Unreal nodes in `Graph`. |
+| HLSL Custom node body | Use `Function` or `GraphFunction`. |
+| Visual material node | Use a specific `UE.*` helper or `UE.Expression(...)`. |
+| Shared include file | Use `.dsh` and package imports. |

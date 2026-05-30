@@ -6,8 +6,8 @@ import type { ReactNode } from 'react';
 export default function DocsRootLayout({ children }: { children: ReactNode }) {
   return (
     <DocsLayout
-      {...baseOptions()}
-      tree={source.getPageTree()}
+      {...baseOptions('zh')}
+      tree={source.getPageTree('zh')}
       githubUrl="https://github.com/TypeDreamMoon/DreamShader"
     >
       {children}

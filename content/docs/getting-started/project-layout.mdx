@@ -1,6 +1,6 @@
 ---
 title: 推荐项目结构
-description: 组织 .dsm、.dsh 与 Package 的目录约定。
+description: 组织 .dsm、.dsf、.dsh 与 Package 的目录约定。
 ---
 
 DreamShaderLang 的源文件默认放在项目根目录的 `DShader`。推荐把材质、材质函数和共享头文件分开，便于 import graph 精确追踪依赖。
@@ -11,7 +11,7 @@ ProjectRoot/
 │  ├─ Materials/
 │  │  └─ M_Sample.dsm
 │  ├─ Functions/
-│  │  └─ F_Tint.dsm
+│  │  └─ F_Tint.dsf
 │  ├─ Shared/
 │  │  ├─ Common.dsh
 │  │  └─ Color.dsh
@@ -30,7 +30,7 @@ ProjectRoot/
 | 目录 | 建议内容 |
 | --- | --- |
 | `DShader/Materials` | 项目材质 `.dsm`，通常包含 `Shader`。 |
-| `DShader/Functions` | 项目材质函数 `.dsm`，通常包含 `ShaderFunction`。 |
+| `DShader/Functions` | 项目材质函数 `.dsf`，通常包含 `ShaderFunction`。 |
 | `DShader/Shared` | 项目内部共享 `.dsh`。 |
 | `DShader/Packages` | 通过 VSCode 扩展安装的第三方或团队包。 |
 
@@ -39,7 +39,7 @@ ProjectRoot/
 | 类型 | 建议 |
 | --- | --- |
 | 材质文件 | `M_*.dsm` |
-| 材质函数文件 | `F_*.dsm` |
+| 材质函数文件 | `F_*.dsf` |
 | 共享头文件 | 按领域命名，例如 `Texture.dsh`、`Color.dsh`。 |
 | Package 入口 | `Library/<Name>.dsh` |
 
@@ -52,4 +52,4 @@ import "Shared/Common.dsh";
 import "@typedreammoon/dream-noise/Library/Noise.dsh";
 ```
 
-避免在材质文件中深度 import 很多实现细节。这样 `.dsh` 改动后，DreamShader 可以更清楚地判断哪些 `.dsm` 需要刷新。
+避免在材质文件中深度 import 很多实现细节。这样 `.dsf` / `.dsh` 改动后，DreamShader 可以更清楚地判断哪些 `.dsm` 或函数文件需要刷新。

@@ -9,6 +9,66 @@ description: DreamShaderLang VSCode 扩展版本更新记录。
 
 [https://github.com/TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support)
 
+## 1.4.9 - 2026-05-29
+
+### Function Builtins
+
+- 新增统一的 Function builtin metadata，覆盖 HLSL 原生函数、GLSL 风格别名和 Unreal 纹理采样 helper。
+- 补全、Hover、Signature Help、Inlay Hint、语义高亮和本地诊断白名单共享同一份 builtin 列表。
+- README 和中文 README 记录支持的 Function builtin 列表。
+
+## 1.4.8 - 2026-05-29
+
+### Layout 与 Region
+
+- 新增 `Layout = { Node(...); Comment(...); }` section 的语言支持。
+- 新增 Graph `#Region` / `#EndRegion` 解析、诊断、折叠、snippet 和高亮。
+- snippets、templates、README、formatter、document symbols 和 semantic tokens 同步支持布局 metadata。
+
+## 1.4.6 - 2026-05-22
+
+### Volume Texture
+
+- 新增 `VolumeTexture` / `Texture3D` 语言支持、高亮、补全、snippets 和诊断覆盖。
+
+## 1.4.5 - 2026-05-18
+
+### MaterialExpression Fallback
+
+- 从 language core 加载内置 MaterialExpression completions 作为强 fallback，即使 VSCode adapter services 没有提供项目 manifest，`UE.` 建议也能包含 `material-expressions.json` 条目。
+
+## 1.4.4 - 2026-05-18
+
+### Reflected Expressions
+
+- reflected `UE.` MaterialExpression 补全改为插入 `UE.Expression(Class="...", ...)` snippet，同时保持 `Abs`、`TextureSampleParameter2D` 等短 label。
+
+## 1.4.3 - 2026-05-18
+
+### Manifest 配置
+
+- 扩展内置 fallback `material-expressions.json` manifest，让没有自动识别 Unreal 项目时也能补全 reflected `UE.Expression(Class="...")`。
+- 新增 `dreamshader.materialExpressionManifestPath`，可显式指向生成的 `Saved/DreamShader/Bridge/material-expressions.json`。
+- 新增 manifest-backed reflected MaterialExpression class completion 的 language smoke test。
+
+## 1.4.2 - 2026-05-10
+
+### MaterialExpression Metadata
+
+- 语言 metadata 同步当前 DreamShader reflected MaterialExpression 支持。
+- 新增 reflected texture sampler metadata 的补全、Hover、格式化和诊断，例如 `SAMPLERTYPE_*`、`SSM_*`、`TMVM_*`、`TGM_*`。
+- 新增 `UE.StaticComponentMaskParameter(...)`、`UE.CurveAtlasRowParameter(...)` 和 reflected TextureSample helper snippets。
+- 修复 document-specific reflected UE expression manifest 的 inlay hint signature lookup。
+
+## 1.4.1 - 2026-05-10
+
+### Dream Shader Function Files
+
+- 新增 `.dsf` 文件关联、命令面板模板创建、import 补全、可点击 import 和 workspace indexing。
+- `.dsf` 诊断允许 `ShaderFunction`、`Function`、`GraphFunction`、`Namespace` 和 `VirtualFunction`，并拒绝 material / layer 资产块。
+- 新增 statement-style 多输出 `ShaderFunction` / `VirtualFunction` 调用的本地诊断。
+- 保留显式 import 扩展名，`import "Functions/F_Tint.dsf";` 会按函数文件解析，不会改写成 `.dsh`。
+
 ## 1.4.0 - 2026-05-10
 
 ### Parser-based 语言服务

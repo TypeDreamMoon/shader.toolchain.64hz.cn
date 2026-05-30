@@ -11,7 +11,7 @@ DreamShaderLang 由 Unreal 插件 DreamShader 编译。写语言文件前，需�
 | --- | --- |
 | Unreal 项目 | 插件放在项目 `Plugins/DreamShader` 下。 |
 | 源文件根目录 | 默认是项目根目录下的 `DShader`。 |
-| 文件扩展名 | `.dsm` 和 `.dsh`。 |
+| 文件扩展名 | `.dsm`、`.dsf` 和 `.dsh`。 |
 | 自动编译 | 默认开启，保存源文件后生成或刷新资产。 |
 
 ## 基本步骤
@@ -42,10 +42,10 @@ VSCode 扩展提供命令：
 
 ```text
 DreamShaderLang: Recompile Current Source
-DreamShaderLang: Recompile All DSM
+DreamShaderLang: Recompile All Sources
 ```
 
-对 `.dsh` 执行当前文件重编时，会扩展为重编依赖它的 `.dsm`，而不是尝试从 `.dsh` 直接生成资产。
+对 `.dsh` 执行当前文件重编时，会扩展为重编依赖它的 `.dsm` / `.dsf`，而不是尝试从 `.dsh` 直接生成资产。`.dsf` 可以生成 `ShaderFunction` 资产，也可以被 `.dsm` 或其他 `.dsf` import。
 
 ## 生成位置
 

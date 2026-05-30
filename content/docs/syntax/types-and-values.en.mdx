@@ -1,0 +1,108 @@
+---
+title: Types and Values
+description: Scalars, vectors, textures, Path values, and literal rules in DreamShaderLang.
+---
+
+DreamShaderLang uses shader-style scalar and vector types, plus Unreal-facing texture and
+parameter node types.
+
+## Scalar Types
+
+| Type | Meaning |
+| --- | --- |
+| `float` | Floating-point scalar. |
+| `int` | Integer scalar. |
+| `bool` | Boolean value. |
+
+## Vector Types
+
+| Type | Components |
+| --- | --- |
+| `vec2` / `float2` | 2-component vector. |
+| `vec3` / `float3` | 3-component vector. |
+| `vec4` / `float4` | 4-component vector. |
+
+## GLSL-style Aliases
+
+DreamShaderLang accepts common GLSL-style names such as `vec2`, `vec3`, and `vec4`.
+HLSL-style aliases such as `float2`, `float3`, and `float4` are also commonly used.
+
+## Texture Types
+
+| Type | Notes |
+| --- | --- |
+| `Texture2D` | 2D texture. |
+| `TextureCube` | Cube texture. |
+| `Texture3D` / `VolumeTexture` | Volume texture support used by plugin and editor completion. |
+
+## MaterialAttributes
+
+`MaterialAttributes` represents Unreal material attribute structs, useful for Material
+Layer and Layer Blend workflows.
+
+```c
+Inputs = {
+    MaterialAttributes BaseMaterial;
+}
+```
+
+## Parameter Node Types
+
+Use explicit parameter node types when you need Unreal parameter metadata:
+
+| Type | Typical value |
+| --- | --- |
+| `ScalarParameter` | `1.0` |
+| `VectorParameter` | `float4(1, 1, 1, 1)` |
+| `TextureObjectParameter` | `Path("/Game/...")` or default texture reference |
+| `StaticSwitchParameter` | `true` / `false` |
+
+## Literals
+
+### Scalars
+
+```c
+float Roughness = 0.5;
+int Count = 4;
+bool Enabled = true;
+```
+
+### Vector Construction
+
+```c
+vec3 Color = vec3(1.0, 0.2, 0.1);
+float4 Packed = float4(Color, 1.0);
+```
+
+### Brace Initializer
+
+Brace initializers are used in sections and metadata lists:
+
+```c
+Properties = {
+    float Strength = 1.0;
+}
+```
+
+### Strings
+
+Strings are used for Unreal setting values, class names, package paths, and metadata:
+
+```c
+Settings = {
+    Domain = "UI";
+}
+```
+
+## `Path(...)`
+
+`Path(...)` is used for Unreal asset references:
+
+```c
+TextureObjectParameter Noise = Path("/Game/Textures/T_Noise.T_Noise");
+```
+
+## Removed Aliases
+
+Avoid relying on old aliases that have been removed or deprecated. Prefer the explicit
+types documented here, especially for texture and parameter node declarations.

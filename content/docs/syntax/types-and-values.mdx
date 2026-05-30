@@ -45,9 +45,10 @@ DreamShaderLang 的公开语法主要围绕材质图与 HLSL helper。`Propertie
 | `Texture2D` | 2D 纹理对象。 |
 | `TextureCube` | Cube 纹理对象。 |
 | `Texture2DArray` | 2D Array 纹理对象。 |
+| `VolumeTexture` / `Texture3D` | 3D / Volume 纹理对象。 |
 | `SamplerState` | 采样器类型，主要用于 helper 参数。 |
 
-纹理值可以作为 `Properties`，也可以作为 `Function` / `ShaderFunction` 参数。`ShaderFunction.Properties` 中的 `const Texture2D PreviewTex;` 会生成 Texture Object helper，可作为 `Inputs` 的预览默认值。`Graph if` 不能在两条分支之间选择纹理对象。
+纹理值可以作为 `Properties`，也可以作为 `Function` / `ShaderFunction` 参数。`ShaderFunction.Properties` 中的 `const Texture2D PreviewTex;` 会生成 Texture Object helper，可作为 `Inputs` 的预览默认值。`const TextureCube`、`const Texture2DArray` 和 `const VolumeTexture` 建议显式指定默认资产，避免目标项目缺少合适默认资源。`Graph if` 不能在两条分支之间选择纹理对象。
 
 ## MaterialAttributes
 
@@ -153,6 +154,7 @@ Properties = {
     Texture2D PluginTex = Path(Plugins.MoonToon, "/Textures/T_Plugin");
     Texture2D DefaultTex = Path("/Engine/EngineResources/DefaultTexture");
     TextureCube SkyTex = Path(Engine, "/EngineResources/DefaultTextureCube");
+    VolumeTexture NoiseVolume = Path(Game, "/Textures/T_NoiseVolume");
 }
 ```
 

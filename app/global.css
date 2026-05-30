@@ -740,3 +740,3120 @@ body {
     min-height: auto;
   }
 }
+
+.tutorial-shell {
+  min-height: 100svh;
+}
+
+.tutorial-layout {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.72fr) minmax(0, 2fr) minmax(14rem, 0.82fr);
+  gap: 1.25rem;
+  width: min(var(--fd-layout-width), calc(100% - 2.5rem));
+  margin-inline: auto;
+  padding-block: clamp(6rem, 11vw, 8rem) clamp(2rem, 6vw, 4rem);
+}
+
+.tutorial-sidebar,
+.tutorial-aside {
+  align-self: start;
+  position: sticky;
+  top: 5rem;
+}
+
+.tutorial-sidebar,
+.tutorial-version-panel,
+.tutorial-highlight-panel {
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-card) 90%, transparent);
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--dream-ink) 7%, transparent);
+}
+
+.tutorial-sidebar {
+  animation: tutorial-enter-left 580ms ease both;
+}
+
+.tutorial-main {
+  animation: tutorial-enter-up 640ms ease both;
+}
+
+.tutorial-aside {
+  animation: tutorial-enter-right 620ms ease both;
+}
+
+.tutorial-sidebar {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem;
+}
+
+.tutorial-sidebar-heading {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.2rem 0.35rem 0.65rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 23%, var(--color-fd-border));
+}
+
+.tutorial-sidebar-heading span,
+.tutorial-eyebrow,
+.tutorial-routes-header p {
+  color: var(--dream-miku);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.tutorial-sidebar-heading strong {
+  color: var(--color-fd-foreground);
+  font-size: 0.98rem;
+  letter-spacing: 0;
+}
+
+.tutorial-link-group {
+  display: grid;
+  gap: 0.18rem;
+  padding-block: 0.35rem;
+}
+
+.tutorial-link-group h2 {
+  margin: 0.45rem 0.35rem 0.15rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.tutorial-link-group a {
+  border-radius: 6px;
+  padding: 0.42rem 0.45rem;
+  color: color-mix(in oklab, var(--color-fd-foreground) 78%, var(--color-fd-muted-foreground));
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.tutorial-link-group a:hover {
+  background: color-mix(in oklab, var(--dream-miku) 13%, transparent);
+  color: var(--color-fd-foreground);
+}
+
+.tutorial-main {
+  min-width: 0;
+}
+
+.tutorial-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.tutorial-eyebrow svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--dream-pink);
+}
+
+.tutorial-main h1 {
+  max-width: 13ch;
+  color: var(--color-fd-foreground);
+  font-size: clamp(2.6rem, 6.2vw, 5rem);
+  font-weight: 880;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.tutorial-lede {
+  max-width: 44rem;
+  margin-top: 1rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: clamp(1rem, 1.45vw, 1.18rem);
+  line-height: 1.85;
+}
+
+.tutorial-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.3rem;
+}
+
+.tutorial-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.7rem 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.tutorial-button:hover,
+.tutorial-route-card:hover {
+  transform: translateY(-1px);
+}
+
+.tutorial-button svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.tutorial-button-primary {
+  background: linear-gradient(135deg, var(--dream-miku), var(--dream-cyan));
+  color: hsl(190 76% 8%);
+  box-shadow: 0 12px 26px color-mix(in oklab, var(--dream-miku) 25%, transparent);
+}
+
+.tutorial-button-secondary {
+  border-color: color-mix(in oklab, var(--dream-miku) 30%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--color-fd-card) 84%, transparent);
+  color: var(--color-fd-foreground);
+}
+
+.tutorial-article {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: clamp(2rem, 5vw, 3rem);
+  padding-top: 1.6rem;
+  border-top: 1px solid color-mix(in oklab, var(--dream-miku) 28%, var(--color-fd-border));
+}
+
+.tutorial-article h2,
+.tutorial-article p,
+.tutorial-article ul,
+.tutorial-code {
+  animation: tutorial-soft-rise 560ms ease both;
+}
+
+.tutorial-article h2:nth-of-type(2) {
+  animation-delay: 60ms;
+}
+
+.tutorial-article h2:nth-of-type(3) {
+  animation-delay: 120ms;
+}
+
+.tutorial-article h2:nth-of-type(4),
+.tutorial-code {
+  animation-delay: 180ms;
+}
+
+.tutorial-article h2 {
+  margin-top: 0.8rem;
+  color: var(--color-fd-foreground);
+  font-size: 1.35rem;
+  font-weight: 820;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.tutorial-article p,
+.tutorial-article li {
+  color: var(--color-fd-muted-foreground);
+  line-height: 1.8;
+}
+
+.tutorial-article ul,
+.tutorial-highlight-panel ul {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 1.15rem;
+}
+
+.tutorial-code {
+  overflow-x: auto;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 28%, var(--color-fd-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--dream-miku) 7%, transparent), transparent),
+    color-mix(in oklab, var(--color-fd-card) 82%, hsl(190 45% 8%));
+  padding: 1rem;
+  color: color-mix(in oklab, var(--color-fd-foreground) 84%, var(--dream-miku));
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.tutorial-aside {
+  display: grid;
+  gap: 1rem;
+}
+
+.tutorial-version-panel,
+.tutorial-highlight-panel {
+  padding: 1rem;
+}
+
+.tutorial-version-panel h2,
+.tutorial-highlight-panel h2 {
+  margin-bottom: 0.85rem;
+  color: var(--color-fd-foreground);
+  font-size: 1rem;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+
+.tutorial-version-panel dl {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.tutorial-version-panel dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  padding-bottom: 0.52rem;
+}
+
+.tutorial-version-panel dt,
+.tutorial-highlight-panel li {
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.tutorial-version-panel dd {
+  flex: none;
+  color: var(--color-fd-foreground);
+  font-family:
+    var(--font-geist-mono),
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.tutorial-routes {
+  width: min(var(--fd-layout-width), calc(100% - 2.5rem));
+  margin-inline: auto;
+  padding-block: clamp(2rem, 5vw, 4rem) clamp(3rem, 7vw, 5rem);
+  border-top: 1px solid color-mix(in oklab, var(--dream-miku) 26%, var(--color-fd-border));
+}
+
+.tutorial-routes-header {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 42rem;
+  margin-bottom: 1.2rem;
+}
+
+.tutorial-routes-header h2 {
+  color: var(--color-fd-foreground);
+  font-size: clamp(1.75rem, 4vw, 2.7rem);
+  font-weight: 850;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.tutorial-route-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.tutorial-route-card {
+  display: grid;
+  gap: 0.65rem;
+  min-height: 12.5rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--dream-miku) 8%, transparent), transparent 68%),
+    color-mix(in oklab, var(--color-fd-card) 88%, transparent);
+  padding: 1rem;
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--dream-ink) 7%, transparent);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+  animation: tutorial-soft-rise 560ms ease both;
+}
+
+.tutorial-route-card:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.tutorial-route-card:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.tutorial-route-card:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.tutorial-route-card:hover {
+  border-color: color-mix(in oklab, var(--dream-pink) 40%, var(--color-fd-border));
+  box-shadow: 0 16px 34px color-mix(in oklab, var(--dream-miku) 13%, transparent);
+}
+
+.tutorial-route-icon {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-card));
+  color: var(--dream-miku);
+}
+
+.tutorial-route-icon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.tutorial-route-card strong {
+  color: var(--color-fd-foreground);
+  font-size: 1.02rem;
+  letter-spacing: 0;
+}
+
+.tutorial-route-card span:last-child {
+  color: var(--color-fd-muted-foreground);
+  line-height: 1.72;
+}
+
+@keyframes tutorial-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tutorial-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tutorial-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tutorial-soft-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-button,
+  .tutorial-route-card,
+  .tutorial-sidebar,
+  .tutorial-main,
+  .tutorial-aside,
+  .tutorial-article h2,
+  .tutorial-article p,
+  .tutorial-article ul,
+  .tutorial-code {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  .tutorial-layout {
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.6fr);
+  }
+
+  .tutorial-aside {
+    position: static;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tutorial-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .tutorial-layout,
+  .tutorial-routes {
+    width: min(100% - 2rem, var(--fd-layout-width));
+  }
+
+  .tutorial-layout {
+    grid-template-columns: 1fr;
+    padding-block-start: 5.5rem;
+  }
+
+  .tutorial-sidebar,
+  .tutorial-aside {
+    position: static;
+  }
+
+  .tutorial-sidebar {
+    order: 2;
+  }
+
+  .tutorial-main {
+    order: 1;
+  }
+
+  .tutorial-aside {
+    order: 3;
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-main h1 {
+    font-size: clamp(2.5rem, 14vw, 3.6rem);
+  }
+
+  .tutorial-route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-route-card {
+    min-height: auto;
+  }
+}
+
+#nd-home-layout.snap-home {
+  min-height: 100svh;
+  overflow: hidden;
+  color: var(--color-fd-foreground);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--dream-miku) 11%, transparent), transparent 24rem),
+    linear-gradient(115deg, color-mix(in oklab, var(--dream-pink) 7%, transparent), transparent 28rem),
+    var(--color-fd-background);
+}
+
+.snap-home-scroll {
+  height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+  scrollbar-color: color-mix(in oklab, var(--dream-miku) 42%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+@supports not (height: 100svh) {
+  .snap-home-scroll {
+    height: 100vh;
+  }
+}
+
+.snap-home-scroll::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.snap-home-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.snap-home-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--dream-miku) 38%, transparent);
+}
+
+.snap-slide {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  min-height: 100svh;
+  align-items: center;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  padding: 6.35rem max(1.25rem, calc((100vw - var(--fd-layout-width)) / 2)) 4.4rem;
+}
+
+.snap-slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--dream-miku) 8%, transparent) 1px,
+      transparent 1px
+    )
+    0 0 / 4.25rem 4.25rem,
+    linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--dream-miku) 7%, transparent) 1px,
+      transparent 1px
+    )
+    0 0 / 4.25rem 4.25rem;
+  mask-image: linear-gradient(180deg, transparent, black 16%, black 82%, transparent);
+}
+
+.snap-slide::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--dream-miku) 34%, transparent),
+    color-mix(in oklab, var(--dream-pink) 22%, transparent),
+    transparent
+  );
+}
+
+.snap-hero {
+  grid-template-columns: minmax(0, 0.9fr) minmax(28rem, 1.1fr);
+  gap: 3.8rem;
+}
+
+.snap-workflow,
+.snap-tools,
+.snap-reading {
+  align-content: center;
+  gap: 2rem;
+}
+
+.snap-hero-copy,
+.snap-section-copy {
+  min-width: 0;
+  animation: snap-fade-up 620ms ease both;
+}
+
+.snap-section-copy {
+  max-width: 48rem;
+}
+
+.snap-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.95rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 30%, var(--color-fd-border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-fd-card) 76%, transparent);
+  color: var(--dream-miku);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.snap-eyebrow svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+.snap-hero h1 {
+  max-width: 13ch;
+  color: var(--color-fd-foreground);
+  font-size: 5.75rem;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.snap-section-copy h2 {
+  max-width: 17ch;
+  color: var(--color-fd-foreground);
+  font-size: 3.15rem;
+  font-weight: 880;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.snap-lede,
+.snap-section-copy p {
+  max-width: 43rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 1.08rem;
+  line-height: 1.82;
+}
+
+.snap-lede {
+  margin-top: 1.1rem;
+}
+
+.snap-section-copy p {
+  margin-top: 0.85rem;
+}
+
+.snap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.6rem;
+}
+
+.snap-button {
+  display: inline-flex;
+  min-height: 2.9rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.72rem 1rem;
+  font-weight: 820;
+  line-height: 1;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.snap-button:hover {
+  transform: translateY(-2px);
+}
+
+.snap-button svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
+}
+
+.snap-button-primary {
+  background: linear-gradient(135deg, var(--dream-miku), var(--dream-cyan));
+  color: hsl(190 76% 8%);
+  box-shadow: 0 14px 34px color-mix(in oklab, var(--dream-miku) 26%, transparent);
+}
+
+.snap-button-secondary {
+  border-color: color-mix(in oklab, var(--dream-miku) 34%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--color-fd-card) 82%, transparent);
+  color: var(--color-fd-foreground);
+}
+
+.snap-button-secondary:hover {
+  border-color: color-mix(in oklab, var(--dream-pink) 44%, var(--color-fd-border));
+}
+
+.snap-version-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  max-width: 42rem;
+  margin-top: 1.25rem;
+}
+
+.snap-version-strip span {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  gap: 0.48rem;
+  align-items: baseline;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--color-fd-card) 70%, transparent);
+  padding: 0.45rem 0.6rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.86rem;
+}
+
+.snap-version-strip strong {
+  color: var(--color-fd-foreground);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.snap-graph-scene {
+  position: relative;
+  min-height: 36rem;
+  overflow: hidden;
+  border-inline-start: 1px solid color-mix(in oklab, var(--dream-miku) 22%, transparent);
+  animation: snap-scene-in 720ms ease 90ms both;
+}
+
+.snap-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--dream-cyan) 13%, transparent) 1px,
+      transparent 1px
+    )
+    0 0 / 3.4rem 3.4rem,
+    linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--dream-pink) 9%, transparent) 1px,
+      transparent 1px
+    )
+    0 0 / 3.4rem 3.4rem,
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--dream-yellow) 6%, transparent) 0 1px,
+      transparent 1px 1.35rem
+    );
+  mask-image: linear-gradient(90deg, transparent, black 16%, black);
+}
+
+.snap-wire {
+  position: absolute;
+  z-index: 1;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--dream-miku),
+    var(--dream-pink),
+    transparent
+  );
+  background-size: 200% 100%;
+  opacity: 0.65;
+  transform-origin: left center;
+  animation: snap-wire-flow 3.8s linear infinite;
+}
+
+.snap-wire-a {
+  top: 29%;
+  left: 18%;
+  width: 48%;
+  transform: rotate(13deg);
+}
+
+.snap-wire-b {
+  top: 58%;
+  left: 28%;
+  width: 42%;
+  transform: rotate(-18deg);
+  animation-delay: 700ms;
+}
+
+.snap-wire-c {
+  top: 44%;
+  left: 48%;
+  width: 36%;
+  transform: rotate(28deg);
+  animation-delay: 1300ms;
+}
+
+.snap-node,
+.snap-code-window {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 34%, var(--color-fd-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-card) 78%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, var(--dream-miku) 15%, transparent) inset,
+    0 18px 46px color-mix(in oklab, var(--dream-ink) 14%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.snap-node {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 10.5rem;
+  padding: 0.82rem 0.9rem;
+  animation: snap-node-float 4.8s ease-in-out infinite alternate;
+}
+
+.snap-node span,
+.snap-window-bar span {
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.snap-node strong {
+  color: var(--color-fd-foreground);
+  font-size: 0.98rem;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+
+.snap-node-main {
+  top: 21%;
+  left: 20%;
+}
+
+.snap-node-cyan {
+  top: 17%;
+  right: 9%;
+  border-color: color-mix(in oklab, var(--dream-cyan) 45%, var(--color-fd-border));
+  animation-delay: 500ms;
+}
+
+.snap-node-pink {
+  right: 6%;
+  bottom: 33%;
+  border-color: color-mix(in oklab, var(--dream-pink) 42%, var(--color-fd-border));
+  animation-delay: 900ms;
+}
+
+.snap-node-yellow {
+  left: 25%;
+  bottom: 15%;
+  min-width: 14.5rem;
+  border-color: color-mix(in oklab, var(--dream-yellow) 48%, var(--color-fd-border));
+  animation-delay: 1300ms;
+}
+
+.snap-code-window {
+  right: 8%;
+  bottom: 6%;
+  width: min(27rem, 76%);
+  overflow: hidden;
+  animation: snap-fade-up 620ms ease 180ms both;
+}
+
+.snap-window-bar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 20%, var(--color-fd-border));
+  padding: 0.65rem 0.75rem;
+}
+
+.snap-window-bar i {
+  width: 0.62rem;
+  height: 0.62rem;
+  flex: none;
+  border-radius: 999px;
+  background: var(--dream-miku);
+}
+
+.snap-window-bar i:nth-child(2) {
+  background: var(--dream-yellow);
+}
+
+.snap-window-bar i:nth-child(3) {
+  background: var(--dream-pink);
+}
+
+.snap-window-bar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snap-code-window pre {
+  margin: 0;
+  overflow-x: auto;
+  padding: 0.9rem 1rem 1rem;
+  color: color-mix(in oklab, var(--color-fd-foreground) 88%, var(--dream-miku));
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.82rem;
+  line-height: 1.62;
+}
+
+.snap-next {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-end: 1.15rem;
+  z-index: 4;
+  display: inline-grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 34%, var(--color-fd-border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-fd-card) 74%, transparent);
+  color: var(--dream-miku);
+  transform: translateX(-50%);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+  animation: snap-next-bob 1.8s ease-in-out infinite;
+}
+
+.snap-next:hover {
+  border-color: color-mix(in oklab, var(--dream-pink) 44%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--dream-miku) 14%, var(--color-fd-card));
+  transform: translate(-50%, -2px);
+}
+
+.snap-next svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.snap-workflow-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.snap-workflow-stage::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 2.4rem;
+  inset-inline: 1rem;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--dream-miku),
+    color-mix(in oklab, var(--dream-cyan) 74%, transparent),
+    color-mix(in oklab, var(--dream-pink) 72%, transparent)
+  );
+  opacity: 0.42;
+}
+
+.snap-step,
+.snap-tool,
+.snap-reading-link {
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--dream-miku) 8%, transparent), transparent 72%),
+    color-mix(in oklab, var(--color-fd-card) 84%, transparent);
+  box-shadow: 0 14px 32px color-mix(in oklab, var(--dream-ink) 8%, transparent);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.snap-step {
+  position: relative;
+  display: grid;
+  min-height: 13.8rem;
+  align-content: start;
+  gap: 0.8rem;
+  padding: 1.1rem;
+  animation: snap-fade-up 560ms ease both;
+}
+
+.snap-step:nth-child(2),
+.snap-tool:nth-child(2),
+.snap-reading-link:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.snap-step:nth-child(3),
+.snap-tool:nth-child(3),
+.snap-reading-link:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.snap-tool:nth-child(4),
+.snap-reading-link:nth-child(4) {
+  animation-delay: 240ms;
+}
+
+.snap-step:hover,
+.snap-tool:hover,
+.snap-reading-link:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--dream-pink) 44%, var(--color-fd-border));
+  box-shadow: 0 18px 40px color-mix(in oklab, var(--dream-miku) 14%, transparent);
+}
+
+.snap-step span {
+  display: inline-grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--dream-miku) 18%, var(--color-fd-card));
+  color: var(--dream-miku);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+.snap-step h3,
+.snap-tool strong,
+.snap-reading-link strong {
+  color: var(--color-fd-foreground);
+  font-weight: 830;
+  letter-spacing: 0;
+}
+
+.snap-step h3 {
+  font-size: 1.18rem;
+}
+
+.snap-step p,
+.snap-tool small,
+.snap-reading-link span {
+  color: var(--color-fd-muted-foreground);
+  line-height: 1.72;
+}
+
+.snap-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.snap-tool {
+  display: grid;
+  min-height: 15.5rem;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 1.05rem;
+  animation: snap-fade-up 560ms ease both;
+}
+
+.snap-tool > span {
+  display: inline-grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--dream-miku) 17%, var(--color-fd-card));
+  color: var(--dream-miku);
+}
+
+.snap-tool svg {
+  width: 1.24rem;
+  height: 1.24rem;
+}
+
+.snap-tool strong {
+  font-size: 1.04rem;
+}
+
+.snap-tool small {
+  font-size: 0.9rem;
+}
+
+.snap-reading {
+  grid-template-columns: minmax(0, 0.78fr) minmax(24rem, 1fr);
+  gap: 2.6rem;
+}
+
+.snap-reading-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.snap-reading-link {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  animation: snap-fade-up 560ms ease both;
+}
+
+.snap-reading-link strong {
+  font-size: 1rem;
+}
+
+.snap-reading-link span {
+  font-size: 0.93rem;
+}
+
+@keyframes snap-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes snap-scene-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes snap-node-float {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes snap-wire-flow {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes snap-next-bob {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+
+  50% {
+    transform: translate(-50%, -5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snap-home-scroll {
+    scroll-behavior: auto;
+  }
+
+  .snap-hero-copy,
+  .snap-section-copy,
+  .snap-graph-scene,
+  .snap-wire,
+  .snap-node,
+  .snap-code-window,
+  .snap-next,
+  .snap-step,
+  .snap-tool,
+  .snap-reading-link,
+  .snap-button {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .snap-hero {
+    grid-template-columns: minmax(0, 0.95fr) minmax(24rem, 1.05fr);
+    gap: 2.2rem;
+  }
+
+  .snap-hero h1 {
+    font-size: 4.7rem;
+  }
+
+  .snap-section-copy h2 {
+    font-size: 2.65rem;
+  }
+
+  .snap-tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .snap-tool {
+    min-height: 12.5rem;
+  }
+}
+
+@media (max-width: 920px) {
+  #nd-home-layout.snap-home {
+    overflow: visible;
+  }
+
+  .snap-home-scroll {
+    scroll-snap-type: y proximity;
+  }
+
+  .snap-slide {
+    align-items: start;
+    align-content: start;
+    min-height: 100svh;
+    padding: 5.6rem 1.25rem 3.25rem;
+  }
+
+  .snap-hero,
+  .snap-reading {
+    grid-template-columns: 1fr;
+    gap: 1.65rem;
+  }
+
+  .snap-hero h1 {
+    max-width: 11ch;
+    font-size: 3.6rem;
+  }
+
+  .snap-section-copy h2 {
+    max-width: 18ch;
+    font-size: 2.28rem;
+  }
+
+  .snap-lede,
+  .snap-section-copy p {
+    font-size: 1rem;
+    line-height: 1.76;
+  }
+
+  .snap-graph-scene {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    min-height: 0;
+    border-inline-start: 0;
+    padding: 1rem;
+  }
+
+  .snap-grid {
+    mask-image: linear-gradient(180deg, black, transparent 92%);
+  }
+
+  .snap-wire {
+    display: none;
+  }
+
+  .snap-node,
+  .snap-code-window {
+    position: relative;
+    inset: auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .snap-node-yellow,
+  .snap-code-window {
+    grid-column: 1 / -1;
+  }
+
+  .snap-code-window pre {
+    max-height: 18rem;
+  }
+
+  .snap-workflow-stage,
+  .snap-tool-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .snap-workflow-stage::before {
+    inset-block: 1rem;
+    inset-inline-start: 2.2rem;
+    width: 2px;
+    height: auto;
+    background: linear-gradient(
+      180deg,
+      var(--dream-miku),
+      color-mix(in oklab, var(--dream-cyan) 74%, transparent),
+      color-mix(in oklab, var(--dream-pink) 72%, transparent)
+    );
+  }
+
+  .snap-step,
+  .snap-tool {
+    min-height: auto;
+  }
+
+  .snap-next {
+    display: none;
+  }
+}
+
+@media (max-width: 540px) {
+  .snap-slide {
+    min-height: auto;
+    padding: 5.25rem 1rem 2.7rem;
+  }
+
+  .snap-hero h1 {
+    font-size: 2.8rem;
+  }
+
+  .snap-section-copy h2 {
+    font-size: 2rem;
+  }
+
+  .snap-actions,
+  .snap-button {
+    width: 100%;
+  }
+
+  .snap-version-strip,
+  .snap-version-strip span {
+    width: 100%;
+  }
+
+  .snap-version-strip span {
+    justify-content: space-between;
+  }
+
+  .snap-graph-scene {
+    grid-template-columns: 1fr;
+    padding-inline: 0;
+  }
+
+  .snap-node-yellow {
+    grid-column: auto;
+  }
+
+  .snap-node,
+  .snap-code-window {
+    backdrop-filter: none;
+  }
+}
+
+/* Refined homepage presentation */
+#nd-home-layout.snap-home {
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--color-fd-background) 88%, var(--dream-miku) 12%),
+      var(--color-fd-background) 42rem
+    ),
+    var(--color-fd-background);
+}
+
+.dark #nd-home-layout.snap-home {
+  background:
+    linear-gradient(180deg, hsl(184 42% 9%), hsl(190 40% 5%) 42rem),
+    var(--color-fd-background);
+}
+
+.snap-home-scroll {
+  position: relative;
+  height: calc(100svh - 3.5rem);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--dream-miku) 8%, transparent) 1px,
+      transparent 1px
+    )
+    0 0 / 5.2rem 5.2rem,
+    linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--dream-miku) 6%, transparent) 1px,
+      transparent 1px
+    )
+    0 0 / 5.2rem 5.2rem;
+  scroll-padding-block-start: 0;
+}
+
+.snap-section-nav {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-end: max(1rem, calc((100vw - var(--fd-layout-width)) / 2 + 0.3rem));
+  z-index: 25;
+  display: grid;
+  gap: 0.45rem;
+  transform: translateY(-50%);
+}
+
+.snap-section-nav a {
+  display: grid;
+  min-width: 4.75rem;
+  gap: 0.1rem;
+  border-inline-end: 2px solid color-mix(in oklab, var(--dream-miku) 25%, transparent);
+  padding: 0.3rem 0.65rem 0.3rem 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 720;
+  letter-spacing: 0;
+  text-align: end;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.snap-section-nav a:hover {
+  border-color: var(--dream-miku);
+  color: var(--color-fd-foreground);
+  transform: translateX(-3px);
+}
+
+.snap-section-nav span {
+  color: var(--dream-miku);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.68rem;
+}
+
+.snap-slide {
+  min-height: calc(100svh - 3.5rem);
+  padding: clamp(3rem, 6vh, 4.7rem) max(4.8rem, calc((100vw - var(--fd-layout-width)) / 2)) clamp(2.5rem, 5vh, 4rem);
+}
+
+.snap-slide::before {
+  opacity: 0.5;
+  mask-image: linear-gradient(180deg, transparent, black 12%, black 80%, transparent);
+}
+
+.snap-slide::after {
+  inset-inline: max(4.8rem, calc((100vw - var(--fd-layout-width)) / 2));
+  background: color-mix(in oklab, var(--dream-miku) 24%, transparent);
+}
+
+.snap-hero {
+  grid-template-columns: minmax(25rem, 0.74fr) minmax(38rem, 1.26fr);
+  gap: clamp(2.8rem, 5vw, 5rem);
+}
+
+.snap-eyebrow {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--dream-miku);
+  font-size: 0.76rem;
+}
+
+.snap-hero h1 {
+  max-width: 12ch;
+  font-size: 5.25rem;
+  line-height: 0.96;
+}
+
+.snap-section-copy h2 {
+  max-width: 18ch;
+  font-size: 3rem;
+}
+
+.snap-lede,
+.snap-section-copy p {
+  max-width: 42rem;
+  font-size: 1.02rem;
+  line-height: 1.85;
+}
+
+.snap-actions {
+  gap: 0.7rem;
+  margin-top: 1.45rem;
+}
+
+.snap-button {
+  border-radius: 6px;
+  min-height: 2.65rem;
+  padding: 0.68rem 0.9rem;
+  box-shadow: none;
+}
+
+.snap-button:hover {
+  transform: translateY(-1px);
+}
+
+.snap-button-primary {
+  background: color-mix(in oklab, var(--dream-miku) 92%, white 8%);
+  box-shadow: 0 10px 30px color-mix(in oklab, var(--dream-miku) 18%, transparent);
+}
+
+.snap-button-secondary {
+  border-color: color-mix(in oklab, var(--dream-miku) 28%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--color-fd-card) 72%, transparent);
+}
+
+.snap-version-strip {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 0;
+  width: fit-content;
+  margin-top: 1.15rem;
+  border-block: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+}
+
+.snap-version-strip span {
+  border: 0;
+  border-inline-end: 1px solid color-mix(in oklab, var(--dream-miku) 20%, var(--color-fd-border));
+  border-radius: 0;
+  background: transparent;
+  padding: 0.55rem 0.8rem;
+}
+
+.snap-version-strip span:last-child {
+  border-inline-end: 0;
+}
+
+.snap-graph-scene {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr) 13rem;
+  grid-template-rows: auto minmax(16rem, 1fr) minmax(10rem, 0.5fr);
+  gap: 0.85rem;
+  min-height: min(38rem, calc(100svh - 11rem));
+  overflow: visible;
+  border: 0;
+  animation: snap-scene-in 620ms ease 80ms both;
+}
+
+.snap-workbench-top,
+.snap-asset-rail,
+.snap-code-window,
+.snap-node-map,
+.snap-output-panel {
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-card) 62%, transparent);
+  box-shadow: 0 20px 60px color-mix(in oklab, var(--dream-ink) 10%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.dark .snap-workbench-top,
+.dark .snap-asset-rail,
+.dark .snap-code-window,
+.dark .snap-node-map,
+.dark .snap-output-panel {
+  background: color-mix(in oklab, var(--color-fd-card) 76%, transparent);
+  box-shadow: 0 24px 70px hsl(190 60% 2% / 0.34);
+}
+
+.snap-workbench-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3rem;
+  padding: 0.55rem 0.8rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.82rem;
+}
+
+.snap-workbench-top strong {
+  color: var(--dream-miku);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.snap-asset-rail,
+.snap-output-panel {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding: 0.8rem;
+}
+
+.snap-asset-rail {
+  grid-row: 2 / span 2;
+}
+
+.snap-asset-rail span,
+.snap-output-panel span {
+  color: var(--dream-miku);
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.snap-asset-rail strong,
+.snap-output-panel strong,
+.snap-asset-rail em {
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, transparent);
+  padding-bottom: 0.45rem;
+  color: var(--color-fd-foreground);
+  font-size: 0.86rem;
+  font-style: normal;
+  font-weight: 680;
+  overflow-wrap: anywhere;
+}
+
+.snap-asset-rail em {
+  color: var(--color-fd-muted-foreground);
+}
+
+.snap-code-window {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  inset: auto;
+  width: auto;
+  min-width: 0;
+  overflow: hidden;
+  animation: none;
+}
+
+.snap-window-bar {
+  justify-content: space-between;
+  min-height: 2.65rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.snap-window-bar strong {
+  color: var(--dream-miku);
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.snap-code-window pre {
+  max-height: 27rem;
+  padding: 0.95rem 1rem 1.1rem;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+.snap-node-map {
+  grid-column: 2;
+  grid-row: 3;
+  position: relative;
+  min-height: 11rem;
+  overflow: hidden;
+}
+
+.snap-grid {
+  opacity: 0.85;
+  mask-image: linear-gradient(90deg, black, black);
+}
+
+.snap-node,
+.snap-code-window {
+  box-shadow: none;
+}
+
+.snap-node {
+  min-width: 9.25rem;
+  padding: 0.65rem 0.72rem;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--color-fd-background) 64%, var(--color-fd-card));
+  animation: snap-node-float 6s ease-in-out infinite alternate;
+}
+
+.snap-node-main {
+  top: 20%;
+  left: 8%;
+}
+
+.snap-node-cyan {
+  top: 15%;
+  right: 7%;
+}
+
+.snap-node-pink {
+  right: 20%;
+  bottom: 18%;
+}
+
+.snap-node-yellow {
+  display: none;
+}
+
+.snap-output-panel {
+  grid-column: 3;
+  grid-row: 2 / span 2;
+}
+
+.snap-next {
+  inset-block-end: 0.8rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.snap-workflow,
+.snap-tools {
+  grid-template-columns: minmax(24rem, 0.78fr) minmax(0, 1.22fr);
+  align-content: center;
+  gap: clamp(2rem, 4vw, 4rem);
+}
+
+.snap-workflow-stage {
+  grid-template-columns: 1fr;
+  gap: 0;
+  border-block: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+}
+
+.snap-workflow-stage::before {
+  inset-block: 1.8rem;
+  inset-inline-start: 1.22rem;
+  width: 1px;
+  height: auto;
+  background: color-mix(in oklab, var(--dream-miku) 42%, transparent);
+}
+
+.snap-step,
+.snap-tool,
+.snap-reading-link {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.snap-step {
+  grid-template-columns: 2.45rem minmax(0, 1fr);
+  min-height: auto;
+  gap: 0.2rem 1rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  padding: 1.1rem 0;
+}
+
+.snap-step:last-child {
+  border-bottom: 0;
+}
+
+.snap-step:hover,
+.snap-tool:hover,
+.snap-reading-link:hover {
+  box-shadow: none;
+  transform: translateX(4px);
+}
+
+.snap-step span {
+  grid-row: 1 / span 2;
+  width: 2.45rem;
+  height: 2.45rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 32%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--dream-miku) 10%, transparent);
+}
+
+.snap-step h3 {
+  font-size: 1.08rem;
+}
+
+.snap-step p {
+  max-width: 34rem;
+}
+
+.snap-compiler-strip {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.snap-compiler-strip span {
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+  border-radius: 999px;
+  padding: 0.32rem 0.58rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.78rem;
+}
+
+.snap-tool-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.snap-tool {
+  position: relative;
+  min-height: 12.2rem;
+  align-content: start;
+  gap: 0.65rem;
+  border-inline-end: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--dream-miku) 6%, transparent), transparent),
+    color-mix(in oklab, var(--color-fd-card) 58%, transparent);
+  padding: 1rem;
+}
+
+.snap-tool:nth-child(2n) {
+  border-inline-end: 0;
+}
+
+.snap-tool:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.snap-tool-index {
+  color: var(--color-fd-muted-foreground);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.72rem;
+}
+
+.snap-tool-icon {
+  position: absolute;
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  display: inline-grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--dream-miku) 8%, transparent);
+  color: var(--dream-miku);
+}
+
+.snap-tool > span:not(.snap-tool-icon):not(.snap-tool-index) {
+  display: none;
+}
+
+.snap-tool svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.snap-tool strong {
+  max-width: calc(100% - 3.2rem);
+  margin-top: 0.8rem;
+}
+
+.snap-reading {
+  grid-template-columns: minmax(24rem, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(2rem, 5vw, 5rem);
+}
+
+.snap-reading-list {
+  gap: 0;
+  border-block: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+}
+
+.snap-reading-link {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  padding: 1.05rem 0;
+}
+
+.snap-reading-link:last-child {
+  border-bottom: 0;
+}
+
+.snap-reading-link span {
+  grid-column: 1;
+}
+
+.snap-reading-link em {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  color: var(--dream-miku);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 820;
+}
+
+@media (max-width: 1280px) {
+  .snap-section-nav {
+    display: none;
+  }
+
+  .snap-slide {
+    padding-inline: 2rem;
+  }
+
+  .snap-slide::after {
+    inset-inline: 2rem;
+  }
+
+  .snap-hero {
+    grid-template-columns: minmax(22rem, 0.76fr) minmax(31rem, 1.24fr);
+  }
+
+  .snap-graph-scene {
+    grid-template-columns: 11rem minmax(0, 1fr);
+  }
+
+  .snap-output-panel {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    grid-template-columns: repeat(4, auto);
+    align-items: center;
+  }
+}
+
+@media (max-width: 980px) {
+  .snap-home-scroll {
+    height: auto;
+    min-height: calc(100svh - 3.5rem);
+    scroll-snap-type: y proximity;
+  }
+
+  .snap-slide,
+  .snap-workflow,
+  .snap-tools,
+  .snap-reading {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding: 3.2rem 1.25rem;
+  }
+
+  .snap-hero {
+    gap: 1.6rem;
+  }
+
+  .snap-hero h1 {
+    font-size: 3.65rem;
+  }
+
+  .snap-section-copy h2 {
+    font-size: 2.25rem;
+  }
+
+  .snap-graph-scene {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .snap-asset-rail,
+  .snap-code-window,
+  .snap-node-map,
+  .snap-output-panel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .snap-asset-rail,
+  .snap-output-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .snap-asset-rail span,
+  .snap-output-panel span {
+    grid-column: 1 / -1;
+  }
+
+  .snap-node-map {
+    min-height: 14rem;
+  }
+
+  .snap-compiler-strip {
+    grid-column: auto;
+  }
+
+  .snap-next {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .snap-slide {
+    padding: 2.6rem 1rem;
+  }
+
+  .snap-hero h1 {
+    font-size: 2.75rem;
+  }
+
+  .snap-version-strip,
+  .snap-tool-grid {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .snap-version-strip span,
+  .snap-tool,
+  .snap-tool:nth-child(2n),
+  .snap-tool:nth-last-child(-n + 2) {
+    border-inline-end: 0;
+    border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  }
+
+  .snap-version-strip span:last-child,
+  .snap-tool:last-child {
+    border-bottom: 0;
+  }
+
+  .snap-asset-rail,
+  .snap-output-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .snap-code-window pre {
+    max-height: 18rem;
+  }
+
+  .snap-workbench-top {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .snap-step,
+  .snap-reading-link {
+    grid-template-columns: 1fr;
+  }
+
+  .snap-step span,
+  .snap-reading-link em {
+    grid-row: auto;
+    grid-column: auto;
+  }
+}
+
+/* Homepage layout polish after visual review */
+.snap-home-scroll {
+  scroll-snap-type: y mandatory;
+}
+
+.snap-slide {
+  min-height: calc(100svh - 3.5rem);
+  padding-block: clamp(2.2rem, 4.8vh, 3.6rem);
+}
+
+.snap-hero {
+  grid-template-columns: minmax(27rem, 0.8fr) minmax(45rem, 1.2fr);
+  align-items: center;
+  gap: clamp(3rem, 4.5vw, 5.5rem);
+}
+
+.snap-hero-copy {
+  max-width: 34rem;
+}
+
+.snap-hero h1 {
+  display: grid;
+  max-width: none;
+  font-size: clamp(4.25rem, 5.6vw, 6.8rem);
+  line-height: 0.9;
+}
+
+.snap-hero h1 span {
+  display: block;
+}
+
+.snap-graph-scene {
+  grid-template-columns: minmax(11rem, 0.54fr) minmax(25rem, 1fr) minmax(10.5rem, 0.5fr);
+  grid-template-rows: auto minmax(16rem, 0.95fr) minmax(9rem, 0.45fr);
+  min-height: min(34rem, calc(100svh - 10rem));
+  transform: translateZ(0);
+}
+
+.snap-section-nav {
+  inset-inline-end: max(1.1rem, calc((100vw - var(--fd-layout-width)) / 2 - 0.6rem));
+  opacity: 0.78;
+}
+
+.snap-section-nav a {
+  min-width: 3.8rem;
+  padding-inline-end: 0.55rem;
+}
+
+.snap-workbench-top,
+.snap-asset-rail,
+.snap-code-window,
+.snap-node-map,
+.snap-output-panel {
+  animation: snap-panel-reveal 700ms ease both;
+}
+
+.snap-asset-rail {
+  animation-delay: 70ms;
+}
+
+.snap-code-window {
+  animation-delay: 130ms;
+}
+
+.snap-node-map {
+  animation-delay: 190ms;
+}
+
+.snap-output-panel {
+  animation-delay: 250ms;
+}
+
+.snap-node {
+  animation: snap-node-breathe 7s ease-in-out infinite alternate;
+}
+
+.snap-wire {
+  opacity: 0.42;
+  animation: snap-wire-fade 5.5s ease-in-out infinite;
+}
+
+.snap-wire-b {
+  animation-delay: 900ms;
+}
+
+.snap-wire-c {
+  animation-delay: 1700ms;
+}
+
+.snap-next {
+  animation: snap-next-fade 2.6s ease-in-out infinite;
+}
+
+@keyframes snap-panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes snap-node-breathe {
+  from {
+    opacity: 0.88;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes snap-wire-fade {
+  0%,
+  100% {
+    opacity: 0.22;
+  }
+
+  50% {
+    opacity: 0.62;
+  }
+}
+
+@keyframes snap-next-fade {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: translate(-50%, 0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -4px);
+  }
+}
+
+@media (min-width: 1281px) and (max-width: 1760px) {
+  .snap-section-nav {
+    display: none;
+  }
+
+  .snap-slide {
+    padding-inline: max(2rem, calc((100vw - 1280px) / 2));
+  }
+}
+
+@media (max-width: 1500px) and (orientation: landscape) {
+  .snap-hero {
+    grid-template-columns: minmax(25rem, 0.72fr) minmax(40rem, 1.28fr);
+  }
+
+  .snap-graph-scene {
+    grid-template-columns: minmax(10rem, 0.5fr) minmax(24rem, 1fr) minmax(10rem, 0.5fr);
+  }
+
+  .snap-hero h1 {
+    font-size: clamp(4rem, 5vw, 5.5rem);
+  }
+
+  .snap-code-window pre {
+    font-size: 0.76rem;
+  }
+}
+
+@media (orientation: portrait), (max-width: 1100px) {
+  #nd-home-layout.snap-home {
+    overflow: visible;
+  }
+
+  .snap-home-scroll {
+    height: auto;
+    min-height: calc(100svh - 3.5rem);
+    scroll-snap-type: y proximity;
+    overflow-y: visible;
+  }
+
+  .snap-section-nav {
+    display: none;
+  }
+
+  .snap-slide,
+  .snap-workflow,
+  .snap-tools,
+  .snap-reading {
+    grid-template-columns: 1fr;
+    min-height: calc(100svh - 3.5rem);
+    align-content: start;
+    gap: clamp(1.4rem, 4vw, 2.4rem);
+    padding: clamp(2.2rem, 4vh, 3.2rem) clamp(1.25rem, 5vw, 3rem);
+  }
+
+  .snap-hero-copy {
+    max-width: 46rem;
+  }
+
+  .snap-hero h1 {
+    font-size: clamp(4.4rem, 12vw, 7.4rem);
+  }
+
+  .snap-lede {
+    max-width: 40rem;
+  }
+
+  .snap-graph-scene {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    grid-template-rows: auto auto auto;
+    min-height: auto;
+    gap: 0.75rem;
+  }
+
+  .snap-workbench-top,
+  .snap-output-panel {
+    grid-column: 1 / -1;
+  }
+
+  .snap-asset-rail {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .snap-code-window {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .snap-node-map {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    min-height: 11rem;
+  }
+
+  .snap-output-panel {
+    grid-row: 4;
+    grid-template-columns: repeat(4, auto);
+    align-items: center;
+  }
+
+  .snap-output-panel span {
+    grid-column: auto;
+  }
+
+  .snap-node {
+    animation: snap-panel-reveal 700ms ease both;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 760px), (max-width: 760px) {
+  .snap-slide,
+  .snap-workflow,
+  .snap-tools,
+  .snap-reading {
+    min-height: auto;
+    align-content: start;
+    padding: 2.35rem 1rem;
+  }
+
+  .snap-hero h1 {
+    font-size: clamp(3.1rem, 16vw, 5rem);
+  }
+
+  .snap-graph-scene {
+    grid-template-columns: 1fr;
+  }
+
+  .snap-workbench-top,
+  .snap-asset-rail,
+  .snap-code-window,
+  .snap-node-map,
+  .snap-output-panel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .snap-output-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .snap-output-panel span {
+    grid-column: auto;
+  }
+
+  .snap-version-strip {
+    width: 100%;
+  }
+
+  .snap-version-strip span {
+    justify-content: space-between;
+  }
+}
+
+/* 64Hz-style fullpage home */
+#nd-home-layout.ds-home {
+  min-height: 100svh;
+  overflow: hidden;
+  color: var(--color-fd-foreground);
+  background: var(--color-fd-background);
+}
+
+.ds-home-stage {
+  position: relative;
+  height: calc(100svh - 3.5rem);
+  overflow: hidden;
+  outline: none;
+  background:
+    radial-gradient(
+      720px 460px at 18% 22%,
+      color-mix(in oklab, var(--dream-miku) 15%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      780px 520px at 86% 72%,
+      color-mix(in oklab, var(--dream-pink) 10%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(180deg, color-mix(in oklab, var(--color-fd-background) 78%, var(--dream-miku) 10%), var(--color-fd-background));
+}
+
+.dark .ds-home-stage {
+  background:
+    radial-gradient(760px 480px at 18% 22%, hsl(176 80% 45% / 0.14), transparent 68%),
+    radial-gradient(780px 520px at 86% 72%, hsl(330 88% 62% / 0.1), transparent 72%),
+    linear-gradient(180deg, hsl(184 42% 8%), hsl(190 42% 4%));
+}
+
+.ds-home-stage::before {
+  content: '';
+  position: fixed;
+  inset: 3.5rem 0 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--dream-miku) 10%, transparent) 1px, transparent 1px) 0 0 / 5.2rem 5.2rem,
+    linear-gradient(0deg, color-mix(in oklab, var(--dream-miku) 8%, transparent) 1px, transparent 1px) 0 0 / 5.2rem 5.2rem;
+  opacity: 0.6;
+}
+
+.ds-home-stack {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  transition: transform 720ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  will-change: transform;
+}
+
+.ds-screen {
+  position: relative;
+  display: grid;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ds-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 800ms ease,
+    transform 900ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  transform: scale(1.02);
+}
+
+.ds-screen.active .ds-bg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.ds-bg-code {
+  position: absolute;
+  inset-inline-end: 8vw;
+  inset-block-start: 14vh;
+  display: grid;
+  gap: 0.72rem;
+  width: min(34rem, 34vw);
+  color: color-mix(in oklab, var(--dream-miku) 34%, transparent);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.ds-bg-code span {
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 20%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-card) 28%, transparent);
+  padding: 0.9rem 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.ds-bg-graph {
+  position: absolute;
+  inset-inline-end: 6vw;
+  inset-block-end: 9vh;
+  width: min(25rem, 28vw);
+  aspect-ratio: 16 / 9;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 24%, transparent);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--dream-yellow) 8%, transparent) 0 1px,
+      transparent 1px 1.3rem
+    ),
+    color-mix(in oklab, var(--color-fd-card) 22%, transparent);
+}
+
+.ds-bg-graph i {
+  position: absolute;
+  width: 8.5rem;
+  height: 3.2rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 38%, var(--color-fd-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-background) 60%, transparent);
+}
+
+.ds-bg-graph i:nth-child(1) {
+  inset-block-start: 18%;
+  inset-inline-start: 12%;
+}
+
+.ds-bg-graph i:nth-child(2) {
+  inset-block-start: 34%;
+  inset-inline-end: 11%;
+}
+
+.ds-bg-graph i:nth-child(3) {
+  inset-inline-start: 42%;
+  inset-block-end: 18%;
+  border-color: color-mix(in oklab, var(--dream-pink) 44%, var(--color-fd-border));
+}
+
+.ds-bg-graph strong {
+  position: absolute;
+  inset-inline-start: 1rem;
+  inset-block-end: 0.8rem;
+  color: color-mix(in oklab, var(--dream-miku) 66%, transparent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.ds-bg-workflow {
+  background:
+    linear-gradient(90deg, transparent 0 18%, color-mix(in oklab, var(--dream-miku) 16%, transparent) 18% 18.08%, transparent 18.08%),
+    linear-gradient(120deg, transparent, color-mix(in oklab, var(--dream-miku) 9%, transparent));
+}
+
+.ds-bg-tools {
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--dream-cyan) 9%, transparent), transparent 52%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 7rem,
+      color-mix(in oklab, var(--dream-miku) 7%, transparent) 7rem 7.05rem
+    );
+}
+
+.ds-bg-docs {
+  background:
+    linear-gradient(180deg, transparent, color-mix(in oklab, var(--dream-miku) 8%, transparent)),
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--dream-miku) 7%, transparent) 0 1px,
+      transparent 1px 4rem
+    );
+}
+
+.ds-content {
+  position: relative;
+  z-index: 2;
+  opacity: 0;
+  width: min(92vw, 1200px);
+  margin-inline: auto;
+  transition:
+    opacity 520ms ease,
+    transform 680ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  transform: translateY(22px);
+}
+
+.ds-screen.active .ds-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ds-hero-content {
+  align-self: end;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  max-width: min(88vw, 58rem);
+  margin-block-end: clamp(4rem, 9vh, 7rem);
+  text-align: center;
+}
+
+.ds-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--dream-miku);
+  font-size: 0.8rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.ds-kicker svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ds-hero-content h1,
+.ds-content h2 {
+  margin: 0.85rem 0 0;
+  color: var(--color-fd-foreground);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.ds-hero-content h1 {
+  display: grid;
+  gap: 0.08em;
+  font-size: clamp(4.1rem, 6.2vw, 7.2rem);
+  line-height: 0.86;
+}
+
+.ds-hero-content h1 span:last-child {
+  font-size: 0.86em;
+}
+
+.ds-content h2 {
+  max-width: 16ch;
+  font-size: clamp(2.6rem, 5vw, 5rem);
+  line-height: 1.02;
+}
+
+.ds-lead {
+  max-width: 40rem;
+  margin: 1.3rem auto 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
+
+.ds-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.45rem;
+}
+
+.ds-btn {
+  display: inline-flex;
+  min-height: 2.72rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 26%, var(--color-fd-border));
+  border-radius: 8px;
+  padding: 0.68rem 1rem;
+  font-weight: 820;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ds-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--dream-ink) 12%, transparent);
+}
+
+.ds-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ds-btn-primary {
+  background: color-mix(in oklab, var(--dream-miku) 92%, white 8%);
+  color: hsl(190 76% 8%);
+}
+
+.ds-btn-ghost {
+  background: color-mix(in oklab, var(--color-fd-card) 58%, transparent);
+  color: var(--color-fd-foreground);
+  backdrop-filter: blur(10px);
+}
+
+.ds-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+}
+
+.ds-tags span {
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-fd-card) 48%, transparent);
+  padding: 0.42rem 0.68rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.82rem;
+  backdrop-filter: blur(8px);
+}
+
+.ds-tags strong {
+  margin-inline-end: 0.45rem;
+  color: var(--color-fd-foreground);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.ds-dots {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-end: 1rem;
+  z-index: 20;
+  display: grid;
+  gap: 0.65rem;
+  transform: translateY(-50%);
+}
+
+.ds-dots button {
+  width: 0.68rem;
+  height: 0.68rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 32%, var(--color-fd-border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-fd-card) 54%, transparent);
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--dream-ink) 18%, transparent);
+  transition:
+    transform 160ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.ds-dots button:hover {
+  transform: scale(1.12);
+}
+
+.ds-dots button.active {
+  background: linear-gradient(180deg, var(--dream-miku), var(--dream-pink));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--dream-miku) 16%, transparent);
+}
+
+.ds-next {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-end: 1rem;
+  z-index: 8;
+  display: inline-grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 34%, var(--color-fd-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-card) 46%, transparent);
+  color: var(--dream-miku);
+  transform: translateX(-50%);
+  animation: ds-next 2.6s ease-in-out infinite;
+  backdrop-filter: blur(8px);
+}
+
+.ds-next svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ds-split-content {
+  align-self: end;
+  display: grid;
+  grid-template-columns: minmax(22rem, 0.78fr) minmax(0, 1.22fr);
+  gap: clamp(2rem, 6vw, 5rem);
+  margin-block-end: clamp(3.5rem, 10vh, 8rem);
+  text-align: center;
+}
+
+.ds-process {
+  display: grid;
+  gap: 0;
+  border-block: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+}
+
+.ds-process article {
+  display: grid;
+  justify-items: center;
+  gap: 0.28rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  padding: 1rem 0;
+}
+
+.ds-process article:last-child {
+  border-bottom: 0;
+}
+
+.ds-process span {
+  color: var(--dream-miku);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+.ds-process strong,
+.ds-doc-list strong,
+.ds-tool-card strong {
+  color: var(--color-fd-foreground);
+  font-weight: 840;
+  letter-spacing: 0;
+}
+
+.ds-process p,
+.ds-doc-list span,
+.ds-tool-card small {
+  max-width: 38rem;
+  margin-inline: auto;
+  color: var(--color-fd-muted-foreground);
+  line-height: 1.72;
+}
+
+.ds-tools-content {
+  align-self: end;
+  margin-block-end: clamp(3.5rem, 10vh, 8rem);
+  text-align: center;
+}
+
+.ds-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.6rem;
+}
+
+.ds-tool-card {
+  display: grid;
+  min-height: 13.5rem;
+  align-content: start;
+  justify-items: center;
+  gap: 0.72rem;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 22%, var(--color-fd-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-fd-card) 54%, transparent);
+  padding: 1rem;
+  box-shadow: 0 14px 36px color-mix(in oklab, var(--dream-ink) 8%, transparent);
+  transition:
+    transform 170ms ease,
+    border-color 170ms ease,
+    background 170ms ease;
+  backdrop-filter: blur(10px);
+}
+
+.ds-tool-card:hover {
+  border-color: color-mix(in oklab, var(--dream-pink) 38%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--color-fd-card) 70%, transparent);
+  transform: translateY(-2px);
+}
+
+.ds-tool-card > span {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+  border-radius: 8px;
+  color: var(--dream-miku);
+}
+
+.ds-tool-card svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.ds-doc-list {
+  display: grid;
+  border-block: 1px solid color-mix(in oklab, var(--dream-miku) 24%, var(--color-fd-border));
+}
+
+.ds-doc-list a {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--dream-miku) 16%, var(--color-fd-border));
+  padding: 1rem 0;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.ds-doc-list a:last-child {
+  border-bottom: 0;
+}
+
+.ds-doc-list a:hover {
+  color: var(--dream-miku);
+  transform: translateX(4px);
+}
+
+@keyframes ds-next {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translate(-50%, 0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-home-stack,
+  .ds-bg,
+  .ds-content,
+  .ds-btn,
+  .ds-dots button,
+  .ds-tool-card,
+  .ds-next {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .ds-bg-code,
+  .ds-bg-graph {
+    opacity: 0.55;
+  }
+
+  .ds-tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (orientation: portrait), (max-width: 900px) {
+  .ds-home-stage {
+    height: calc(100svh - 3.5rem);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ds-home-stage::before {
+    position: fixed;
+    inset-block-start: 3.5rem;
+  }
+
+  .ds-home-stack {
+    height: 100%;
+  }
+
+  .ds-screen {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ds-screen[aria-hidden='true'] {
+    display: grid;
+  }
+
+  .ds-content {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  .ds-screen.active .ds-content {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .ds-hero-content,
+  .ds-split-content,
+  .ds-tools-content {
+    align-self: center;
+    justify-self: center;
+    width: min(86vw, 720px);
+    margin: 0 auto;
+  }
+
+  .ds-hero-content {
+    justify-self: center;
+  }
+
+  .ds-hero-content h1 {
+    font-size: clamp(3.9rem, 11.5vw, 6.8rem);
+  }
+
+  .ds-content h2 {
+    max-width: 12ch;
+    margin-inline: auto;
+    font-size: clamp(2.3rem, 8.5vw, 4.6rem);
+    line-height: 1.08;
+  }
+
+  .ds-split-content {
+    grid-template-columns: 1fr;
+    gap: 1.6rem;
+  }
+
+  .ds-bg-code {
+    inset-inline: 6vw;
+    inset-block-start: 8vh;
+    width: auto;
+    opacity: 0.26;
+  }
+
+  .ds-bg-graph {
+    inset-inline-end: 5vw;
+    inset-block-end: 8vh;
+    width: 62vw;
+    opacity: 0.28;
+  }
+
+  .ds-dots {
+    inset-block: auto 1rem;
+    inset-inline: 50% auto;
+    grid-auto-flow: column;
+    transform: translateX(-50%);
+  }
+
+  .ds-tool-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-tool-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .ds-dots {
+    inset-block: auto 1rem;
+    inset-inline: 50% auto;
+    grid-auto-flow: column;
+    transform: translateX(-50%);
+  }
+
+  .ds-hero-content,
+  .ds-split-content,
+  .ds-tools-content {
+    align-self: center;
+    justify-self: center;
+    width: min(100% - 3rem, 680px);
+    max-height: calc(100svh - 8.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 0.5rem 3rem;
+    scrollbar-width: none;
+  }
+
+  .ds-hero-content::-webkit-scrollbar,
+  .ds-split-content::-webkit-scrollbar,
+  .ds-tools-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ds-hero-content h1 {
+    font-size: clamp(3rem, 16vw, 4.7rem);
+  }
+
+  .ds-content h2 {
+    max-width: 10ch;
+    font-size: clamp(2.15rem, 9vw, 3.1rem);
+  }
+
+  .ds-lead {
+    font-size: 1rem;
+    line-height: 1.72;
+  }
+
+  .ds-actions,
+  .ds-btn {
+    width: 100%;
+  }
+
+  .ds-tags {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ds-tags span {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .ds-bg-code {
+    display: none;
+  }
+
+  .ds-bg-graph {
+    width: min(82vw, 24rem);
+    opacity: 0.16;
+  }
+
+  .ds-process article,
+  .ds-doc-list a {
+    padding: 0.78rem 0;
+  }
+
+  .ds-tool-grid {
+    gap: 0.7rem;
+    margin-top: 1rem;
+  }
+
+  .ds-tool-card {
+    gap: 0.45rem;
+    padding: 0.82rem;
+  }
+
+  .ds-tool-card small,
+  .ds-process p,
+  .ds-doc-list span {
+    font-size: 0.92rem;
+    line-height: 1.58;
+  }
+}

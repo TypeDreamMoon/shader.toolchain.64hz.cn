@@ -3,7 +3,7 @@ title: 安装插件
 description: 在 Unreal 项目中添加 DreamShader 插件并准备语言源目录。
 ---
 
-DreamShader 作为 Unreal 项目插件使用。安装后，项目可以识别 `.dsm` / `.dsh` 源文件，并在保存或手动重编时生成材质、材质函数和 Material Layer 函数资产。
+DreamShader 作为 Unreal 项目插件使用。安装后，项目可以识别 `.dsm` / `.dsf` / `.dsh` 源文件，并在保存或手动重编时生成材质、材质函数和 Material Layer 函数资产。
 
 ## 获取插件
 
@@ -13,7 +13,7 @@ DreamShader 作为 Unreal 项目插件使用。安装后，项目可以识别 `.
 
 可以通过 Git 克隆或下载源码包，再放入 Unreal 项目的插件目录。目录名建议保持为 `DreamShader`，便于团队成员和文档统一。
 
-当前公开文档对应插件版本 `1.3.2`。该版本基于 Unreal Engine `5.7` 开发，其他引擎版本需要按项目情况自行验证。
+当前公开文档对应插件版本 `1.3.9`。该版本基于 Unreal Engine `5.7` 开发，其他引擎版本需要按项目情况自行验证。
 
 ## 启用流程
 
@@ -68,7 +68,7 @@ Shader(Name="DreamMaterials/M_InstallCheck")
 
 | 项目 | 建议 |
 | --- | --- |
-| 源文件 | 把 `.dsm` / `.dsh` 纳入版本管理。 |
+| 源文件 | 把 `.dsm` / `.dsf` / `.dsh` 纳入版本管理。 |
 | 生成资产 | 视项目策略决定是否提交。 |
 | 共享库 | 推荐通过 Package 或项目共享 `.dsh` 管理。 |
 | 错误定位 | 先看 VSCode 诊断，再看 Unreal Output Log。 |

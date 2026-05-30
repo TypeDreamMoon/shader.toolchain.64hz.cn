@@ -3,6 +3,7 @@
 import { createTokenizer } from '@orama/tokenizers/mandarin';
 import { create } from '@orama/orama';
 import { useDocsSearch } from 'fumadocs-core/search/client';
+import { useI18n } from 'fumadocs-ui/contexts/i18n';
 import {
   SearchDialog,
   SearchDialogClose,
@@ -15,7 +16,14 @@ import {
   type SharedProps,
 } from 'fumadocs-ui/components/dialog/search';
 
-function initOrama() {
+function initOrama(locale?: string) {
+  if (locale !== 'zh') {
+    return create({
+      schema: { _: 'string' },
+      language: 'english',
+    });
+  }
+
   return create({
     schema: { _: 'string' },
     components: {
@@ -25,9 +33,11 @@ function initOrama() {
 }
 
 export default function StaticSearchDialog(props: SharedProps) {
+  const { locale } = useI18n();
   const { search, setSearch, query } = useDocsSearch({
     type: 'static',
     initOrama,
+    locale,
     search: {
       threshold: 0,
       tolerance: 0,

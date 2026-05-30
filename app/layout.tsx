@@ -1,7 +1,6 @@
 import './global.css';
 
-import StaticSearchDialog from '@/components/search';
-import { RootProvider } from 'fumadocs-ui/provider/next';
+import { SiteProvider } from '@/components/site-provider';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
@@ -23,15 +22,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
-      <body className="flex min-h-screen flex-col">
-        <RootProvider
-          search={{
-            SearchDialog: StaticSearchDialog,
-          }}
-        >
-          {children}
-        </RootProvider>
+    <html lang="zh-CN" suppressHydrationWarning data-darkreader-ignore>
+      <body className="flex min-h-screen flex-col" suppressHydrationWarning data-darkreader-ignore>
+        <SiteProvider>{children}</SiteProvider>
       </body>
     </html>
   );

@@ -1,0 +1,96 @@
+---
+title: Import and Namespace
+description: Organize shared .dsh files, packages, and namespaced helper functions.
+---
+
+Imports connect `.dsm`, `.dsf`, `.dsh`, and package files. Namespaces keep shared helper
+APIs predictable.
+
+## Import Syntax
+
+```c
+import "Shared/Common.dsh";
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+```
+
+Imports should appear before declarations that use imported symbols.
+
+## Path Resolution
+
+| Import form | Meaning |
+| --- | --- |
+| `"Shared/Common.dsh"` | Project-local path under `DShader`. |
+| `"../Shared/Common.dsh"` | Relative path when supported by the source layout. Prefer stable root-relative imports for public files. |
+| `"@scope/package/Library/File.dsh"` | Package import under `DShader/Packages`. |
+
+Keep package entrypoints stable so materials do not import implementation files directly.
+
+## Dependency Graph
+
+DreamShader tracks imports to decide what must be recompiled. When a `.dsh` changes,
+dependent `.dsm` / `.dsf` files are refreshed.
+
+| Change | Expected compile scope |
+| --- | --- |
+| `.dsm` changed | That material or layer asset. |
+| `.dsf` changed | That function asset and dependents that import it. |
+| `.dsh` changed | `.dsm` / `.dsf` files that import it directly or indirectly. |
+| Package changed | Sources that import package files. |
+
+## Namespace Syntax
+
+```c
+Namespace ColorTools
+{
+    Function float Luma(vec3 color)
+    {
+        return dot(color, vec3(0.2126, 0.7152, 0.0722));
+    }
+}
+```
+
+Call:
+
+```c
+float y = ColorTools::Luma(Tint);
+```
+
+## Namespace Rules
+
+| Rule | Reason |
+| --- | --- |
+| Keep public namespaces stable | Materials and packages reference them directly. |
+| Avoid overloading names with different meanings | Improves completion, diagnostics, and reviews. |
+| Use domain names | `ColorTools`, `Noise`, `UV`, `SDF`, and similar names make imports self-explanatory. |
+
+## Shared Header Pattern
+
+Recommended `.dsh` entrypoint:
+
+```c
+import "Shared/Color.dsh";
+import "Shared/Texture.dsh";
+
+Namespace Project
+{
+    Function vec3 ApplyTint(vec3 color, vec3 tint)
+    {
+        return color * tint;
+    }
+}
+```
+
+Then material files import one stable file:
+
+```c
+import "Shared/Common.dsh";
+```
+
+## Naming Suggestions
+
+| Item | Suggestion |
+| --- | --- |
+| Project namespace | Short project or module name. |
+| Package namespace | Package name or scoped owner name. |
+| Internal helpers | Put in implementation files and avoid documenting them as package API. |
+| Public helpers | Keep names stable and include examples. |

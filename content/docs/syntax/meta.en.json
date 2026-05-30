@@ -1,0 +1,13 @@
+{
+  "title": "Language Core",
+  "pages": [
+    "file-model",
+    "declarations",
+    "sections",
+    "types-and-values",
+    "functions",
+    "graph",
+    "layout",
+    "imports-and-namespaces"
+  ]
+}

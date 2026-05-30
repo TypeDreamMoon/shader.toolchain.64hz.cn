@@ -1,0 +1,148 @@
+---
+title: Patterns
+description: Examples for minimal materials, shared headers, function files, packages, Function, UE nodes, ShaderFunction, and VirtualFunction.
+---
+
+Use these patterns as starting points for common DreamShaderLang files.
+
+## Minimal UI Material
+
+```c
+Shader(Name="DreamMaterials/M_Minimal")
+{
+    Properties = {
+        vec3 Tint = vec3(1.0, 0.2, 0.2);
+    }
+
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Color = Tint;
+    }
+}
+```
+
+## Shared `.dsh`
+
+```c
+Namespace ColorTools
+{
+    Function float Luma(vec3 color)
+    {
+        return dot(color, vec3(0.2126, 0.7152, 0.0722));
+    }
+}
+```
+
+## Import `.dsh` from `.dsm`
+
+```c
+import "Shared/ColorTools.dsh";
+
+Shader(Name="DreamMaterials/M_Luma")
+{
+    Properties = {
+        vec3 Tint = vec3(0.8, 0.9, 1.0);
+    }
+
+    Outputs = {
+        float Mask;
+        Base.Opacity = Mask;
+    }
+
+    Graph = {
+        Mask = ColorTools::Luma(Tint);
+    }
+}
+```
+
+## Package Texture Sampling
+
+```c
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+```
+
+Expose a stable package entrypoint and call package helpers through a namespace.
+
+## `SelfContained` Function
+
+```c
+SelfContained Function float Pulse(float x)
+{
+    return saturate(sin(x) * 0.5 + 0.5);
+}
+```
+
+Use this for helpers that should carry their own Custom-node body.
+
+## `ShaderFunction`
+
+```c
+ShaderFunction(Name="DreamFunctions/F_Tint")
+{
+    Inputs = {
+        vec3 Color;
+        float Strength = 1.0;
+    }
+
+    Outputs = {
+        vec3 Result;
+    }
+
+    Graph = {
+        Result = Color * Strength;
+    }
+}
+```
+
+## `VirtualFunction`
+
+```c
+VirtualFunction(Name="Game/Materials/Functions/MF_ProjectTint")
+{
+    Inputs = {
+        vec3 Color;
+    }
+
+    Outputs = {
+        vec3 Result;
+    }
+}
+```
+
+Use `VirtualFunction` to call existing Unreal functions without generating them.
+
+## Parameter Metadata and Static Switch
+
+```c
+Properties = {
+    VectorParameter Tint = float4(0.2, 0.6, 1.0, 1.0) [
+        Group="Color";
+        SortPriority=10;
+    ];
+
+    StaticSwitchParameter UseTint = true [
+        Group="Switches";
+    ];
+}
+```
+
+## Material Parameter Collection
+
+```c
+Graph = {
+    float Wind = UE.CollectionParam(
+        Collection=Path("/Game/MPC_Global.MPC_Global"),
+        ParameterName="Wind");
+}
+```
+
+Use reflected metadata and diagnostics to confirm the exact node signature in your project.

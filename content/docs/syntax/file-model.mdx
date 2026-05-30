@@ -1,9 +1,9 @@
 ---
 title: 文件模型
-description: .dsm、.dsh、顶层块和 import 的基本规则。
+description: .dsm、.dsf、.dsh、顶层块和 import 的基本规则。
 ---
 
-DreamShaderLang 使用两类源文件：`.dsm` 负责生成资产，`.dsh` 负责共享代码。解析器会把一个入口 `.dsm` 和它 import 的 `.dsh` 合并成一次编译上下文。
+DreamShaderLang 使用三类源文件：`.dsm` 负责材质和资产入口，`.dsf` 负责可复用生成函数，`.dsh` 负责共享 helper 和声明。解析器会把入口文件和它 import 的 `.dsf` / `.dsh` 合并成一次编译上下文。
 
 ## `.dsm`
 
@@ -34,16 +34,63 @@ Shader(Name="DreamMaterials/M_Example")
 | 顶层块 | 是否推荐放在 `.dsm` |
 | --- | --- |
 | `Shader` | 推荐。 |
-| `ShaderFunction` | 推荐，可放在独立 `.dsm`。 |
+| `ShaderFunction` | 可以；更推荐放在独立 `.dsf`。 |
 | `ShaderLayer` | 推荐，可放在独立 `.dsm`。 |
 | `ShaderLayerBlend` | 推荐，可放在独立 `.dsm`。 |
 | `VirtualFunction` | 可以，用于声明已有材质函数资产。 |
 | `Function` | 可以，但复用逻辑更推荐放 `.dsh`。 |
 | `GraphFunction` | 可以，但复用逻辑更推荐放 `.dsh`。 |
 | `Namespace` | 可以，但共享 namespace 更推荐放 `.dsh`。 |
-| `import` | 推荐，用于引入 `.dsh` 或 Package。 |
+| `import` | 推荐，用于引入 `.dsf`、`.dsh` 或 Package。 |
 
-当前一个 `.dsm` 中只建议放一个主要生成资产声明，例如一个 `Shader`、`ShaderFunction`、`ShaderLayer` 或 `ShaderLayerBlend`。同一个文件可以同时声明共享 helper，但从维护性看，建议按资产拆文件。
+当前一个 `.dsm` 中只建议放一个主要生成资产声明，例如一个 `Shader`、`ShaderLayer` 或 `ShaderLayerBlend`。`ShaderFunction` 更推荐拆到 `.dsf`。同一个文件可以同时声明共享 helper，但从维护性看，建议按资产拆文件。
+
+## `.dsf`
+
+`.dsf` 是 Dream Shader Function 文件。它适合放可复用的生成函数资产，以及这个函数需要的局部 helper：
+
+```c
+ShaderFunction(Name="Functions/F_PulseTint")
+{
+    Inputs = {
+        vec3 Color;
+        vec3 Tint;
+        float Pulse;
+        opt float Strength = 1.0;
+    }
+
+    Outputs = {
+        vec3 OutColor;
+        float OutMask;
+    }
+
+    Graph = {
+        OutMask = saturate(Pulse * Strength);
+        OutColor = Color * Tint * OutMask;
+    }
+}
+```
+
+推荐只放：
+
+| 顶层块 | 用途 |
+| --- | --- |
+| `ShaderFunction` | 生成可复用 `UMaterialFunction`。 |
+| `Function` | 该函数文件内或被导入后可用的 HLSL helper。 |
+| `GraphFunction` | 可复用 Custom 节点 helper。 |
+| `Namespace` | 一组 helper。 |
+| `VirtualFunction` | 声明已有 `UMaterialFunction` 签名。 |
+| `import` | 引入 `.dsh`、其他 `.dsf` 或 Package。 |
+
+`.dsf` 不应包含 `Shader`、`ShaderLayer` 或 `ShaderLayerBlend`。从 `.dsm` 导入 `.dsf` 后，可以在 `Graph` 中调用其中生成的 `ShaderFunction`：
+
+```c
+import "Functions/F_PulseTint.dsf";
+
+Graph = {
+    F_PulseTint(BaseColor.rgb, Tint, Pulse, Strength, Color, Mask);
+}
+```
 
 ## `.dsh`
 
@@ -70,7 +117,7 @@ Namespace(Name="Color")
 | `Namespace` | 一组 helper。 |
 | `VirtualFunction` | 只声明已有 `UMaterialFunction` 签名，不直接生成资产。 |
 
-`.dsh` 不直接生成 `Shader` / `ShaderFunction` 资产。保存 `.dsh` 后，DreamShader 会根据 import graph 找到依赖它的 `.dsm` 并重编。
+`.dsh` 不直接生成 `Shader` / `ShaderFunction` 资产。保存 `.dsh` 后，DreamShader 会根据 import graph 找到依赖它的 `.dsm` / `.dsf` 并重编。
 
 ## 顶层块
 

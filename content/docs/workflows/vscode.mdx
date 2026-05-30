@@ -1,24 +1,31 @@
 ---
-title: VSCode 支持
-description: DreamShaderLang 扩展的高亮、补全、跳转、诊断和命令。
+title: 编辑器支持
+description: DreamShaderLang 的 VSCode 与 Rider 语言插件支持。
 ---
 
-DreamShaderLang 的 VSCode 扩展让 `.dsm` / `.dsh` 的编辑体验接近常见编程语言服务。
+DreamShaderLang 目前提供 VSCode 和 JetBrains Rider 两套编辑器语言支持。两者都围绕 `.dsm` / `.dsf` / `.dsh` 文件，提供高亮、补全、导航、诊断和 Unreal Bridge 相关工作流。
 
-扩展仓库：
+## 支持矩阵
 
-[https://github.com/TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support)
+| 编辑器 | 仓库 | 主要能力 |
+| --- | --- | --- |
+| VSCode | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support/releases) | 语法高亮、snippets、补全、Go to Definition、Find References、Hover、Signature Help、本地诊断、Unreal 桥接诊断、Package 命令和快速模板。 |
+| Rider | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) | `.dsm` / `.dsf` / `.dsh` 文件类型、语法和 PSI 解析、高亮、补全、导航、诊断、Unreal Bridge 集成、语义 token、inlay hints 和 Package 工具。 |
 
-当前扩展版本：`1.4.0`。版本记录见 [VSCode 扩展 ChangeLog](../changelog/vscode-extension.mdx)。
+Unreal 编辑器的 `Tools > DreamShader` 菜单和 DreamShader 工具栏可以打开生成的 `DShader/DreamShader.code-workspace`。VSCode 扩展的发布记录见 [VSCode 扩展 ChangeLog](../changelog/vscode-extension.mdx)。
 
-`1.4.0` 版本重写了语言服务核心。补全、诊断、语义高亮、折叠和文档符号现在通过 scanner / parser / context / symbol / provider 模块处理，减少不同 section 和作用域之间的误判。
+## VSCode 扩展
 
-## 能力概览
+当前 VSCode 扩展版本：`1.4.9`。
+
+`1.4.x` 系列重写了语言服务核心，并补齐 `.dsf`、动态 MaterialExpression fallback、`VolumeTexture` / `Texture3D`、`Layout` / Graph region 和 Function 内置函数 metadata。补全、诊断、语义高亮、折叠和文档符号现在通过 scanner / parser / context / symbol / provider 模块处理，减少不同 section 和作用域之间的误判。
+
+### VSCode 能力概览
 
 | 能力 | 内容 |
 | --- | --- |
-| 语法高亮 | 顶层块、section、类型、流程关键字、HLSL helper 和 `Graph`。 |
-| 补全 | section、类型、变量、函数、namespace、`UE.*`、动态 MaterialExpression、`Path(...)`、Root / Path 插件名、import 路径、`MaterialAttributes` 成员。 |
+| 语法高亮 | 顶层块、section、类型、流程关键字、HLSL helper、`Graph`、`Layout` 和 region。 |
+| 补全 | section、类型、变量、函数、namespace、`UE.*`、动态 MaterialExpression、HLSL/GLSL builtin、`Path(...)`、Root / Path 插件名、import 路径、`MaterialAttributes` 成员。 |
 | 作用域感知 | `Function` 体、`Graph` 主体和基础 `if` / `else` 分支有不同可见变量。 |
 | 跳转 | import、`Function`、`Namespace::Function`。 |
 | Hover | 函数、property、output、局部变量、`UE.*`。 |
@@ -27,8 +34,9 @@ DreamShaderLang 的 VSCode 扩展让 `.dsm` / `.dsh` 的编辑体验接近常见
 | 格式化 | 文档级格式化。 |
 | 诊断 | 本地语法诊断、Graph 分支诊断和 Unreal 桥接诊断。 |
 | 操作入口 | 状态栏、CodeLens、编辑器标题栏和底部 Panel 中的 Bridge 视图。 |
+| `.dsf` | 函数文件关联、模板创建、import 跳转、workspace indexing 和文件形状诊断。 |
 
-## 编辑体验
+### VSCode 编辑体验
 
 | 区域 | 支持重点 |
 | --- | --- |
@@ -38,9 +46,10 @@ DreamShaderLang 的 VSCode 扩展让 `.dsm` / `.dsh` 的编辑体验接近常见
 | `Properties` | 显式 Parameter 节点、`const` helper、`StaticSwitchParameter`、分号式反射属性块、`UE.CollectionParam(...)`。 |
 | `Outputs` | `Base.*` / `Base.MaterialAttributes` 材质属性绑定和 `Expression(...).Pin[n]` 输出节点绑定。 |
 | `Settings` | 常见材质设置、枚举值、`Path(...)` 对象引用。 |
-| `import` | 项目 `.dsh`、插件内置库和 Package 路径提示。 |
+| `Layout` | `Node(...)`、`Comment(...)`、布局参数补全和格式化。 |
+| `import` | 项目 `.dsh`、`.dsf` 和 Package 路径提示。 |
 
-## 本地诊断
+### VSCode 本地诊断
 
 扩展会在编辑时标记：
 
@@ -63,38 +72,40 @@ DreamShaderLang 的 VSCode 扩展让 `.dsm` / `.dsh` 的编辑体验接近常见
 | `Path(...)` 错误 | 纹理默认资产路径或 `UE.CollectionParam(Collection=Path(...))` 写法不合法。 |
 | Material Layer 形状错误 | `ShaderLayer` 输出不是单个 `MaterialAttributes`，或 `ShaderLayerBlend` 缺少两个 `MaterialAttributes` 输入。 |
 | GraphFunction 错误 | 普通 `Function` 里调用 `UE.*`，或 helper 递归调用。 |
+| Layout 错误 | `Node` / `Comment` 参数缺失、重复、类型错误或缺分号。 |
+| Region 错误 | `#Region` 缺名称、`#EndRegion` 不匹配或 region 未闭合。 |
 
-## Unreal 桥接诊断
+### Unreal 桥接诊断
 
-Unreal 侧的诊断会通过桥接诊断文件回传给 VSCode。扩展会读取并回显到对应 `.dsm` / `.dsh`。对于 import 后的错误，DreamShader 会尽量通过 source map 映射回真实源文件行列。
+Unreal 侧的诊断会通过桥接诊断文件回传给编辑器。VSCode 扩展会读取并回显到对应 `.dsm` / `.dsf` / `.dsh`。对于 import 后的错误，DreamShader 会尽量通过 source map 映射回真实源文件行列。
 
 底部 Panel 中的 `DreamShader Bridge` 视图会按项目、源文件和具体问题分组显示桥接诊断，使用方式接近 VSCode 内置的“问题 / 输出”窗口。材质编译错误会保留 stage、asset path、shader platform、quality level 和原始 detail，便于在 VSCode 里直接定位生成链路问题。
 
 Unreal 插件还会导出 `Saved/DreamShader/Bridge/material-expressions.json`。扩展会读取这个 manifest，把当前项目可见的 `UMaterialExpression` 类、属性、输入和输出 pin 用于动态补全、Hover 和 Signature Help。
 
-## 常用命令
+### VSCode 常用命令
 
 ```text
 DreamShaderLang: Recompile Current Source
-DreamShaderLang: Recompile All DSM
+DreamShaderLang: Recompile All Sources
 DreamShaderLang: Clean Generated Shaders
 DreamShaderLang: Refresh Bridge Diagnostics
 DreamShaderLang: Install Package from GitHub
 DreamShaderLang: Browse Package Store
 DreamShaderLang: Update Installed Packages
-DreamShaderLang: Remove Installed Package
-DreamShaderLang: Package Uninstall
+DreamShaderLang: Remove Package
 DreamShaderLang: Open Packages Folder
 DreamShaderLang: Add Package Store Index Source
 DreamShaderLang: Remove Package Store Index Source
 DreamShaderLang: Create Package Step by Step
 DreamShaderLang: Create DreamShader Material
+DreamShaderLang: Create DreamShader Function File
 DreamShaderLang: Create DreamShader Header
 DreamShaderLang: Create DreamShader Texture Sample
 DreamShaderLang: Create DreamShader Noise Material
 ```
 
-## 工作区设置
+### VSCode 工作区设置
 
 如果 VSCode 打开的不是 Unreal 项目根目录，可以在扩展设置中指定 `dreamshader.projectRoot`。面向公开文档时，建议只说明配置项含义，不写个人机器上的绝对路径。
 
@@ -111,6 +122,23 @@ Package store：
 
 旧配置 `dreamshader.packageStoreIndexUrl` 仍兼容，但推荐使用 `dreamshader.packageStoreIndexUrls`。
 
+## Rider 插件
+
+Rider 插件仓库：
+
+[https://github.com/tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support)
+
+Rider 插件侧重 JetBrains 平台内的语言体验，README 中列出的能力包括：
+
+| 能力 | 说明 |
+| --- | --- |
+| 文件类型 | 识别 `.dsm`、`.dsf` 和 `.dsh`。 |
+| PSI 解析 | 提供 JetBrains 平台语法树基础，用于高亮、导航和诊断。 |
+| 补全与导航 | 支持语言关键字、符号、import、函数和 Package 相关工作流。 |
+| 语义信息 | 提供 semantic token、inlay hints 等编辑器增强。 |
+| Unreal Bridge | 集成 Unreal 侧诊断和 Bridge 工作流。 |
+| Package 工具 | 支持 DreamShader Package 相关操作。 |
+
 ## 推荐使用方式
 
 | 场景 | 建议 |
@@ -119,4 +147,4 @@ Package store：
 | 新共享库 | 使用 `Create DreamShader Header` 或手写 `.dsh`。 |
 | 纹理采样 | 使用 texture sample 模板、项目共享 `.dsh` 或 Package。 |
 | Package | 通过 Package Store 安装，避免手动复制依赖。 |
-| 排错 | 先看 VSCode 本地诊断，再看 Unreal 桥接诊断。 |
+| 排错 | 先看编辑器本地诊断，再看 Unreal 桥接诊断。 |

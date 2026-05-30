@@ -1,0 +1,103 @@
+---
+title: DreamShader Plugin
+description: DreamShader plugin release notes.
+---
+
+## 1.3.9 - 2026-05-29
+
+### Maintenance
+
+| Area | Change |
+| --- | --- |
+| Documentation sync | Current docs were updated against plugin `1.3.9`, VSCode extension `1.4.9`, README content, and recent commits. |
+| Language coverage | `.dsf`, decompile export, Layout, Graph Region, Material Layer, GraphFunction, and dynamic MaterialExpression metadata are documented as current capabilities. |
+
+## 1.3.8 - 2026-05-25
+
+### Texture Support
+
+Added `VolumeTexture` / `Texture3D` support across plugin and editor metadata.
+
+### Plugin Cleanup
+
+Improved plugin internals and generation behavior around reflected MaterialExpression data.
+
+## 1.3.7 - 2026-05-18
+
+### Decompiler
+
+Added decompile export flow for existing Material and Material Function assets. Common
+nodes are emitted as Graph syntax, while unsupported nodes fall back to `UE.Expression(...)`.
+
+### Performance
+
+Improved generation and metadata handling for larger source sets.
+
+## 1.3.6 - 2026-05-12
+
+### Build Fixes
+
+Fixed compatibility issues around Unreal project builds and plugin integration.
+
+## 1.3.5 - 2026-05-11
+
+### ShaderFunction Calls
+
+Improved `ShaderFunction` call generation and preservation of material-function inputs and
+outputs.
+
+### Dream Shader Function Files
+
+Introduced `.dsf` files for reusable `ShaderFunction` assets.
+
+### Decompiler
+
+Expanded source export behavior for Material Function migration.
+
+## 1.3.4 - 2026-05-11
+
+### Output Initializers
+
+Improved output initializer handling in generated material/function assets.
+
+## 1.3.3 - 2026-05-11
+
+### Graph Swizzles
+
+Improved Graph swizzle support for vector expressions.
+
+## 1.3.2 - 2026-05-11
+
+### Material Function Generation
+
+Improved generation stability for material-function assets.
+
+## 1.3.1 - 2026-05-09
+
+### Function Calls
+
+Improved helper-call behavior in Graph code.
+
+### Graph Functions
+
+Added or refined `GraphFunction` support for helpers that can use graph-node calls.
+
+## 1.3.0 - 2026-05-08
+
+### Shader Layer Functions
+
+Added `ShaderLayer` and `ShaderLayerBlend` workflows for native Unreal Material Layer
+function assets.
+
+## Earlier 1.2.x and 1.1.x
+
+Earlier releases added VirtualFunction support, project settings, editor entrypoints,
+parameter reflection, MaterialAttributes, ShaderFunction properties, root completion,
+asset generation improvements, package workflows, and the first public language/generator
+foundation.
+
+## 1.0.0 - 2026-04-21
+
+### Initial Version
+
+Initial DreamShader plugin and DreamShaderLang generation workflow.

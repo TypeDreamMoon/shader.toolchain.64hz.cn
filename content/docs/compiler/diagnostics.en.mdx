@@ -1,0 +1,84 @@
+---
+title: Diagnostics and Troubleshooting
+description: Common DreamShaderLang errors, their sources, and how to fix them.
+---
+
+Diagnostics can come from the parser, semantic checker, generator, Unreal material
+compiler, or the editor bridge.
+
+## Diagnostic Sources
+
+| Source | Examples |
+| --- | --- |
+| Parser | Missing braces, invalid section syntax, malformed imports. |
+| Semantic checker | Unknown symbol, duplicate output, type mismatch. |
+| Generator | Unsupported `UE.*` call, invalid asset path, layout reference error. |
+| Unreal compiler | Material compile errors after asset generation. |
+| Editor bridge | Reflected metadata or asset-generation diagnostics shown in VSCode/Rider. |
+
+## Source Map
+
+DreamShader tries to report diagnostics against the source file and range that produced
+the problem. For generated Custom-node code, the location may point to the helper or Graph
+statement that emitted the code.
+
+## Common Parse Errors
+
+| Error | Fix |
+| --- | --- |
+| Missing `}` | Check section and declaration braces. |
+| Missing `;` | End statements and section entries with semicolons where required. |
+| Invalid import | Use quoted paths and check package spelling. |
+
+## Common Graph Errors
+
+| Error | Fix |
+| --- | --- |
+| Unknown variable | Declare the value or check imports. |
+| Type mismatch | Match scalar/vector dimensions or add constructors. |
+| Unsupported expression | Move complex logic into `Function` or `GraphFunction`. |
+
+## Function Call Errors
+
+| Error | Fix |
+| --- | --- |
+| Helper not found | Check namespace and import path. |
+| Wrong argument count | Use signature help or inspect the declaration. |
+| Multi-output helper used as value | Use explicit `out` variables. |
+
+## UE Builtin Errors
+
+| Error | Fix |
+| --- | --- |
+| Unknown `UE.*` call | Use `UE.Expression(...)` or update reflected metadata. |
+| Missing `OutputType` | Add `OutputType` to generic expressions. |
+| Invalid node property | Check Unreal class metadata and plugin diagnostics. |
+
+## Layout Errors
+
+| Error | Fix |
+| --- | --- |
+| Unknown node in `Node(...)` | Check the generated variable or node name. |
+| Bad comment size | Provide valid `W` and `H`. |
+| Region not closed | Add matching `#EndRegion`. |
+
+## Material Layer Errors
+
+Check that `ShaderLayer` / `ShaderLayerBlend` uses `MaterialAttributes` inputs and outputs
+that match Unreal's expectations for layer assets.
+
+## Material Output Errors
+
+| Error | Fix |
+| --- | --- |
+| No visible output | Bind a value to `Base.*`. |
+| Wrong output type | Match the expected `float`, `vec3`, or `MaterialAttributes` type. |
+| Reserved `return` misuse | Use `return` only as a binding, not a normal variable. |
+
+## Troubleshooting Order
+
+1. Fix parser errors first.
+2. Fix missing imports and unknown symbols.
+3. Fix type and signature mismatches.
+4. Check generated Unreal material compile errors.
+5. Re-export bridge metadata if editor completion looks stale.

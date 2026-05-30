@@ -48,6 +48,8 @@ DShader/Shared/Common.dsh:12:5
 | `input ... is not optional and cannot use default` | 非 `opt` 的 `ShaderFunction` / `VirtualFunction` 输入使用了 `default`。 | 给输入加 `opt`，或传入真实表达式。 |
 | `StaticSwitchParameter ... requires True=... and False=...` | 静态开关调用缺少分支。 | 同时提供 `True` 和 `False` 命名参数。 |
 | `StaticSwitchParameter ... cannot switch Texture object values` | 静态开关直接选择纹理对象。 | 改为选择采样后的数值。 |
+| `Graph #Region must include a name` | region 缺少名称。 | 写成 `#Region "Surface"`。 |
+| `Graph #EndRegion has no matching #Region` | 多写或错放 `#EndRegion`。 | 检查 region 配对。 |
 
 ## Function 调用错误
 
@@ -71,7 +73,17 @@ DShader/Shared/Common.dsh:12:5
 | `UE.CollectionParam requires Collection=Path(...)` | MPC 读取缺少 Collection。 | 写 `Collection=Path(Game, "Collections/MPC_Name")`。 |
 | `UE.CollectionParam collection ... does not contain parameter ...` | 指定的 MPC 中没有该参数。 | 检查 Material Parameter Collection 里的参数名。 |
 
-VSCode 扩展 `1.2.26` 起，`UE.CollectionParam(Collection=Path(...), ...)` 中的 `Path(...)` 会被当作 DreamShader helper 处理，不再误报 `Unknown function 'Path'`。扩展 `1.4.0` 起，本地诊断改由新的 parser-based language core 提供，能更稳定地区分 `Inputs`、`Graph`、`Function`、`Settings`、`Outputs` 和 metadata context。
+VSCode 扩展 `1.2.26` 起，`UE.CollectionParam(Collection=Path(...), ...)` 中的 `Path(...)` 会被当作 DreamShader helper 处理，不再误报 `Unknown function 'Path'`。扩展 `1.4.x` 起，本地诊断改由新的 parser-based language core 提供，并陆续覆盖 `.dsf`、`Layout`、Graph region、`VolumeTexture` / `Texture3D` 和 Function builtin，能更稳定地区分 `Inputs`、`Graph`、`Function`、`Settings`、`Outputs` 和 metadata context。
+
+## Layout 错误
+
+| 错误 | 原因 | 处理 |
+| --- | --- | --- |
+| `Layout statement is missing a trailing ';'` | `Node(...)` 或 `Comment(...)` 后缺少分号。 | 补上 `;`。 |
+| `Layout statement should be Node(...) or Comment(...)` | `Layout` 中写了其他调用。 | 只使用 `Node` 和 `Comment`。 |
+| `Layout argument ... must use Key=Value syntax` | 参数使用了位置写法。 | 改为 `X=0`、`Var="Name"`。 |
+| `Layout argument 'X' must be an integer` | 坐标或尺寸不是整数。 | 使用整数坐标。 |
+| `Layout Comment Color must be a float4 literal` | `Color` 不是 `float4(...)` 字面量。 | 写成 `Color=float4(0.10, 0.16, 0.22, 0.35)`。 |
 
 ## Material Layer 错误
 

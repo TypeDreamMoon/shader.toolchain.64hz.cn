@@ -1,0 +1,72 @@
+---
+title: Package Reference
+description: DreamShaderLang shared-library format, manifest, install location, and import rules.
+---
+
+Packages distribute reusable `.dsh` / `.dsf` libraries. They are installed under
+`DShader/Packages` and imported by package path.
+
+## Recommended Structure
+
+```text
+DShader/Packages/
+└─ @typedreammoon/
+   └─ dream-noise/
+      ├─ dreamshader.package.json
+      └─ Library/
+         └─ Noise.dsh
+```
+
+## Manifest
+
+`dreamshader.package.json` describes the package. Keep metadata stable enough for editor
+commands and team workflows.
+
+```json
+{
+  "name": "@typedreammoon/dream-noise",
+  "version": "1.0.0",
+  "entry": "Library/Noise.dsh"
+}
+```
+
+## Install Location
+
+Packages are installed under:
+
+```text
+DShader/Packages/<scope>/<name>/
+```
+
+The exact install flow is handled by editor tooling and the Package Store Index.
+
+## Import
+
+```c
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+```
+
+Prefer documented entry files over deep implementation files.
+
+## VSCode Commands
+
+The VSCode extension includes package-related commands such as package installation,
+workspace setup, and source recompilation. Command names are surfaced in the command
+palette under `DreamShaderLang`.
+
+## Package Store
+
+The Package Store Index is maintained at:
+
+[TypeDreamMoon/dreamshader-package-index](https://github.com/TypeDreamMoon/dreamshader-package-index)
+
+Use it to publish installable package metadata and links to reusable libraries.
+
+## Author Suggestions
+
+| Practice | Reason |
+| --- | --- |
+| Keep a small public API | Easier versioning and fewer breaking imports. |
+| Put examples near the package | Users can copy working material snippets. |
+| Version semantically | Teams can pin dependency behavior. |
+| Avoid hard-coded project paths | Packages should work across projects. |
