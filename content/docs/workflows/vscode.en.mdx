@@ -26,7 +26,7 @@ documented here; Rider support is available through a separate JetBrains plugin 
 | Item | Value |
 | --- | --- |
 | Repository | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) |
-| Current documented version | `1.4.9` |
+| Current documented version | `1.5.3` |
 | File types | `.dsm`, `.dsf`, `.dsh` |
 
 ### VSCode Capability Overview
@@ -39,13 +39,15 @@ The VSCode extension provides:
 | IntelliSense | Completion, hover, signature help, inlay hints. |
 | Navigation | Go to definition for symbols and imports. |
 | Diagnostics | Parser, scope, type, section, output, metadata, and bridge diagnostics. |
-| Commands | Recompile current source, recompile all sources, package operations, templates. |
+| Commands | Recompile current source, recompile all sources, material preview, package operations, templates. |
 
 ### VSCode Editing Experience
 
-The `1.4.x` extension uses a scanner / parser / context / symbol / provider architecture.
-This reduces scope leakage between `Inputs`, `Graph`, `Function`, `Settings`, `Outputs`,
-and metadata blocks.
+The extension uses a scanner / parser / context / symbol / provider architecture. This
+reduces scope leakage between `Inputs`, `Graph`, `Function`, `Settings`, `Outputs`, and
+metadata blocks. The `1.5.x` line adds Template-block language support, bridge commands,
+package tooling, authoring templates, callable output hover metadata, and a `.dsm`
+material preview panel.
 
 ### VSCode Local Diagnostics
 
@@ -63,11 +65,28 @@ Saved/DreamShader/Bridge/material-expressions.json
 This powers reflected `UMaterialExpression` completion, hover, and signature help. A
 built-in fallback manifest is used when project metadata is not available.
 
+### Material Preview
+
+`DreamShaderLang: Show Material Preview` works on the active `.dsm` material file. The
+extension saves the current document, sends a `previewMaterial` request to Unreal, and
+renders the latest result in a VSCode Webview.
+
+| Transport | Behavior |
+| --- | --- |
+| WebSocket | Default. Connects to `127.0.0.1:17864` for preview results and live frames. |
+| File bridge | Fallback or forced mode. Writes request files and reads `Saved/DreamShader/Bridge/preview.json` plus `Preview/*.png`. |
+
+The panel follows the active `.dsm` file, supports sphere / plane / cube preview meshes,
+and can auto-refresh after edits.
+
 ### VSCode Common Commands
 
 ```text
 DreamShaderLang: Recompile Current Source
 DreamShaderLang: Recompile All Sources
+DreamShaderLang: Clean Generated Shaders
+DreamShaderLang: Show Bridge Panel
+DreamShaderLang: Show Material Preview
 ```
 
 Package and template commands are also exposed under the `DreamShaderLang` command group.
@@ -81,6 +100,15 @@ Keep the workspace pointed at the Unreal project root so the extension can resol
 | `DShader` | Source root. |
 | `DShader/Packages` | Installed packages. |
 | `Saved/DreamShader/Bridge` | Unreal bridge metadata. |
+
+Preview settings:
+
+| Setting | Default | Use |
+| --- | --- | --- |
+| `dreamshader.previewWebSocketPort` | `17864` | Local Unreal preview WebSocket port. |
+| `dreamshader.previewAutoRefreshDelayMs` | `1200` | Delay before saving and refreshing after edits. |
+| `dreamshader.previewTransport` | `websocket` | Use WebSocket or force `file` bridge requests. |
+| `dreamshader.previewLiveFrameRate` | `2` | Maximum streamed preview FPS; set `0` to disable continuous frames. |
 
 ## Rider Plugin
 

@@ -102,8 +102,8 @@ Shader(Name="DreamMaterials/M_Minimal")
 
 | 项目 | 内容 |
 | --- | --- |
-| DreamShader 插件 | `1.3.9` |
-| VSCode 扩展 | `1.4.9` |
+| DreamShader 插件 | `1.4.0` |
+| VSCode 扩展 | `1.5.3` |
 | Rider 插件 | `tsdaer/dreamshader-language-support` |
 | 文档站 | `lang.64hz.cn` |
 | 语言 | `DreamShaderLang` |
@@ -111,21 +111,26 @@ Shader(Name="DreamMaterials/M_Minimal")
 | 作者 | TypeDreamMoon |
 | 主要产物 | `UMaterial` / `UMaterialFunction` / Material Layer 函数资产 |
 
-## 1.3.9 / 1.4.9 重点
+## 1.4.0 / 1.5.3 重点
 
 | 能力 | 说明 |
 | --- | --- |
+| UE 5.3-5.7 兼容 | DreamShader 插件 `1.4.0` 基于 UE `5.7` 持续开发，并已通过单插件 `RunUAT BuildPlugin` 验证 UE `5.3` 到 `5.7`。 |
+| Substrate 生成 | 插件支持 UE 5.7 `Substrate` 图值、`Base.FrontMaterial` 输出绑定和 `Substrate.*` wrapper，并向编辑器导出 Substrate builtin metadata。 |
+| 材质预览 | VSCode 扩展 `1.5.3` 新增 `.dsm` 材质预览面板，优先通过本机 WebSocket 直播预览帧，并在不可用时回退到 `Saved/DreamShader/Bridge/preview.json` 文件桥。 |
+| Callable Hover | VSCode 扩展 `1.5.2` 在 Hover 中显示 DreamShader 函数、UE builtin 和 Substrate helper 的返回值与输出 pin 信息。 |
+| Template / Bridge / Package | VSCode 扩展 `1.5.1` 补齐 `Template` 块语言支持、Bridge 命令、状态栏、诊断面板、Package 工具和常用创作模板。 |
 | `.dsf` 函数文件 | 新增 Dream Shader Function 文件，用于生成可复用 `ShaderFunction` 资产，并支持 `.dsm` / `.dsf` 之间 import。 |
 | 反编译导出 | Content Browser 可将已有 `Material` / `Material Function` 导出为 `.dsm` / `.dsf` 初稿，常见节点转成 Graph 文本，少见节点回退到 `UE.Expression(...)`。 |
 | Layout 与 Region | `Layout = { Node(...); Comment(...); }` 和 Graph `#Region` / `#EndRegion` 可保留或约束生成图布局。 |
 | VolumeTexture | 插件和 VSCode 扩展支持 `VolumeTexture` / `Texture3D` 类型、默认纹理、补全和诊断。 |
-| Function 内置函数 | VSCode 扩展 `1.4.9` 统一 HLSL intrinsic、GLSL 别名和 Unreal 纹理采样 helper metadata，用于补全、Hover、Signature Help、Inlay Hint、诊断和语义高亮。 |
+| Function 内置函数 | VSCode 扩展统一 HLSL intrinsic、GLSL 别名和 Unreal 纹理采样 helper metadata，用于补全、Hover、Signature Help、Inlay Hint、诊断和语义高亮。 |
 | 动态 MaterialExpression | 插件导出 `Saved/DreamShader/Bridge/material-expressions.json`，VSCode 可读取 reflected `UMaterialExpression` 元数据用于补全、Hover 和 Signature Help，并带内置 fallback manifest。 |
 | Material Layer | 新增推荐顶层块 `ShaderLayer` / `ShaderLayerBlend`，生成 Unreal 原生 Material Layer / Layer Blend 函数资产。 |
 | GraphFunction | 新增 `GraphFunction` helper，可在 Custom 节点 body 中写 `UE.*` 调用，生成器会把这些图节点作为自动输入接入 Custom。 |
 | helper 值表达式 | 单输出 `Function` / `GraphFunction` 调用可作为 Graph 值表达式；多输出调用仍使用显式 `out` 变量。 |
 | Material Function 稳定性 | 重新生成 `ShaderFunction` 时保留输入输出 ID，减少普通 Unreal 材质中 `MaterialFunctionCall` 断线风险。 |
 | 生成图布局 | 生成节点布局更稳定，避免对 DreamShader 生成图执行 Unreal 全量自动布局。 |
-| VSCode 语言核心 | 扩展 `1.4.x` 使用 scanner / parser / context / symbol / provider 模块重写语言服务。 |
+| VSCode 语言核心 | 扩展使用 scanner / parser / context / symbol / provider 模块组织语言服务。 |
 | 作用域诊断 | 补全、诊断、语义高亮、折叠和文档符号改走新语言核心，减少 `Inputs`、`Graph`、`Function`、`Settings`、`Outputs`、metadata 之间的作用域串漏。 |
 | Substrate / Strata | VSCode 扩展增加 Substrate / Strata 类型、语法、补全和诊断提示。 |

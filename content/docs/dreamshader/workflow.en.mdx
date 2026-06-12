@@ -14,6 +14,7 @@ Unreal plugin owns generation.
 3. Save the source file.
 4. DreamShader resolves imports and recompiles affected assets.
 5. Inspect the generated Unreal asset and material compilation output.
+6. For `.dsm` materials, use `DreamShaderLang: Show Material Preview` in VSCode to inspect the current generated material.
 
 ## `.dsm` Workflow
 
@@ -61,6 +62,23 @@ These are the recommended top-level blocks for native Unreal Material Layer asse
 DreamShader tracks source hashes and dependency relationships. If source content and
 relevant imported files have not changed, regeneration can be skipped or limited to
 affected assets.
+
+## Material Preview
+
+The VSCode `Show Material Preview` command requests a preview for the active `.dsm`
+material through the Unreal bridge. Unreal resolves the source, generates the material if
+needed, and writes preview output under:
+
+```text
+Saved/DreamShader/Bridge/preview.json
+Saved/DreamShader/Bridge/Preview/*.png
+```
+
+When the local preview WebSocket is available, the extension connects to
+`127.0.0.1:17864` and receives preview results plus live frames. If WebSocket is
+unavailable, or `dreamshader.previewTransport` is set to `file`, it falls back to request
+files and the preview manifest. Preview is for `.dsm` material sources, not `.dsf` or
+`.dsh` files.
 
 ## Decompile Migration
 

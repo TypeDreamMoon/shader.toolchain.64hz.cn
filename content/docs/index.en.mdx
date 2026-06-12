@@ -104,8 +104,8 @@ Shader(Name="DreamMaterials/M_Minimal")
 
 | Project | Value |
 | --- | --- |
-| DreamShader plugin | `1.3.9` |
-| VSCode extension | `1.4.9` |
+| DreamShader plugin | `1.4.0` |
+| VSCode extension | `1.5.3` |
 | Rider plugin | `tsdaer/dreamshader-language-support` |
 | Docs site | `lang.64hz.cn` |
 | Language | `DreamShaderLang` |
@@ -113,15 +113,20 @@ Shader(Name="DreamMaterials/M_Minimal")
 | Author | TypeDreamMoon |
 | Main outputs | `UMaterial` / `UMaterialFunction` / Material Layer function assets |
 
-## 1.3.9 / 1.4.9 Highlights
+## 1.4.0 / 1.5.3 Highlights
 
 | Capability | Notes |
 | --- | --- |
+| UE 5.3-5.7 compatibility | DreamShader plugin `1.4.0` is developed against UE `5.7` and verified with single-plugin `RunUAT BuildPlugin` builds on UE `5.3` through `5.7`. |
+| Substrate generation | The plugin supports UE 5.7 `Substrate` graph values, `Base.FrontMaterial` output binding, `Substrate.*` wrappers, and editor-exported Substrate builtin metadata. |
+| Material preview | VSCode extension `1.5.3` adds a `.dsm` material preview panel with local WebSocket streaming and `Saved/DreamShader/Bridge/preview.json` file-bridge fallback. |
+| Callable hover metadata | VSCode extension `1.5.2` shows return and output-pin details for DreamShader callables, UE builtins, and Substrate helpers. |
+| Template / Bridge / Package tools | VSCode extension `1.5.1` adds Template-block language support, bridge commands, status bar integration, diagnostics panel wiring, package tooling, and authoring templates. |
 | `.dsf` function files | Dream Shader Function files generate reusable `ShaderFunction` assets and support import between `.dsm` / `.dsf` files. |
 | Decompile export | Existing `Material` and `Material Function` assets can be exported as initial `.dsm` / `.dsf` sources. |
 | Layout and Region | `Layout = { Node(...); Comment(...); }` plus Graph `#Region` / `#EndRegion` preserves readable graph structure. |
 | VolumeTexture | Plugin and editor extension support `VolumeTexture` / `Texture3D`, default textures, completion, and diagnostics. |
-| Function builtins | VSCode extension `1.4.9` unifies HLSL intrinsics, GLSL aliases, and Unreal sampling helpers for completion, hover, signature help, inlay hints, diagnostics, and semantic highlighting. |
+| Function builtins | The VSCode extension unifies HLSL intrinsics, GLSL aliases, and Unreal sampling helpers for completion, hover, signature help, inlay hints, diagnostics, and semantic highlighting. |
 | Dynamic MaterialExpression metadata | The plugin exports `Saved/DreamShader/Bridge/material-expressions.json`; VSCode reads reflected `UMaterialExpression` metadata with a built-in fallback manifest. |
 | Material Layer | `ShaderLayer` and `ShaderLayerBlend` generate native Unreal Material Layer / Layer Blend function assets. |
 | GraphFunction | `GraphFunction` helpers can use `UE.*` calls inside Custom-node bodies. |

@@ -3,9 +3,9 @@ title: 插件概览
 description: DreamShader 插件的目标、能力和与 DreamShaderLang 的关系。
 ---
 
-DreamShader 是一个 Unreal Engine 材质生成插件。它提供 DreamShaderLang 源语言，让材质、材质函数、Material Layer 和共享 helper 可以像代码一样维护，并生成标准 Unreal `UMaterial`、`UMaterialFunction`、`UMaterialFunctionMaterialLayer` 与 `UMaterialFunctionMaterialLayerBlend` 资产。
+DreamShader 是一个 Unreal Engine 材质生成插件。它提供 DreamShaderLang 源语言，让材质、材质函数、Material Layer、Substrate 图值和共享 helper 可以像代码一样维护，并生成标准 Unreal `UMaterial`、`UMaterialFunction`、`UMaterialFunctionMaterialLayer` 与 `UMaterialFunctionMaterialLayerBlend` 资产。
 
-当前插件版本：`1.3.9`。插件目前基于 Unreal Engine `5.7` 开发，其他版本尚未完整测试。
+当前插件版本：`1.4.0`。插件目前基于 Unreal Engine `5.7` 持续开发，并已通过单插件 `RunUAT BuildPlugin` 构建验证 Unreal Engine `5.3`、`5.4`、`5.5`、`5.6` 和 `5.7`。
 
 插件仓库：
 
@@ -21,10 +21,12 @@ DreamShader 是一个 Unreal Engine 材质生成插件。它提供 DreamShaderLa
 | 重复连接节点 | 用 `Function`、`Namespace` 和 Package 复用逻辑。 |
 | 材质函数分发麻烦 | 用 `ShaderFunction` 生成 `UMaterialFunction`，或用 `VirtualFunction` 声明已有函数资产。 |
 | Material Layer 资产难以文本化维护 | 用 `ShaderLayer` / `ShaderLayerBlend` 生成 Unreal 原生 Layer Function 资产。 |
+| UE 5.7 Substrate 节点难以稳定复用 | 用 `Substrate` 类型、`Base.FrontMaterial` 和 `Substrate.*` wrapper 把 Substrate 图生成纳入语言层。 |
 | 共享函数修改后难以追踪影响 | 通过 import graph 刷新依赖 `.dsf` / `.dsh` 的源文件。 |
 | 生成资产难以追溯来源 | 在资产 metadata 中记录源文件和 hash。 |
 | 现有材质迁移成本高 | 从 Content Browser 导出 `.dsm` / `.dsf` 初稿，再逐步整理。 |
 | 大型生成图难以阅读 | 用 `Layout` 和 Graph `#Region` 保存节点位置与注释框。 |
+| 编辑器里调材质缺少快速反馈 | 通过 VSCode 材质预览请求和 Unreal Bridge 预览输出查看当前 `.dsm` 生成材质。 |
 
 ## 核心能力
 
@@ -40,12 +42,14 @@ DreamShader 是一个 Unreal Engine 材质生成插件。它提供 DreamShaderLa
 | 参数生成 | `Properties` 可生成 Scalar / Vector / Texture / Static Switch 等参数节点，并支持分组、排序和说明。 |
 | 外部参数 | 通过 `UE.CollectionParam(...)` 读取 Material Parameter Collection。 |
 | 函数默认输入 | `ShaderFunction` / `VirtualFunction` 可用 `opt` 输入复用 Unreal FunctionInput 的预览默认值。 |
+| Substrate | `Substrate` 可作为 Graph 值、函数输入输出和 `Base.FrontMaterial` 绑定，常用 UE 5.7 Substrate 节点通过 `Substrate.*` 调用。 |
 | `Function` | 编写 HLSL 风格 Custom 节点 helper。 |
 | `GraphFunction` | 编写可复用 Custom 节点 helper，并允许函数体内的 `UE.*` 调用先生成图节点再传入 Custom。 |
 | `Namespace` | 组织共享 helper，降低命名冲突。 |
 | `SelfContained` / `Inline` | 把 helper 依赖嵌入 Custom 节点。 |
 | `Layout` / `#Region` | 显式材质图布局 metadata 和命名节点区域。 |
 | 反编译导出 | 将已有 `Material` / `Material Function` 导出为 `.dsm` / `.dsf` 初稿。 |
+| 材质预览桥接 | Unreal 侧响应 VSCode 的 preview 请求，输出 `preview.json`、预览 PNG，或通过本机 WebSocket 推送预览帧。 |
 | VolumeTexture | 支持 `VolumeTexture` / `Texture3D` 属性、函数输入和默认资源。 |
 | Package | 通过 GitHub 分发 `.dsh` 共享库。 |
 | 编辑器支持 | VSCode 和 Rider 语言插件提供高亮、补全、跳转、诊断和 Package 工具。 |
@@ -55,8 +59,8 @@ DreamShader 是一个 Unreal Engine 材质生成插件。它提供 DreamShaderLa
 | 部分 | 负责 |
 | --- | --- |
 | DreamShaderLang | 描述材质资产、Material Layer、Graph、helper、导入关系和 Package 依赖。 |
-| DreamShader 插件 | 解析源文件、生成 Unreal 节点、写入资产、保存 metadata，并导出 Bridge 诊断和 MaterialExpression manifest。 |
-| VSCode 扩展 | 提供编辑器语言服务、动态 MaterialExpression 补全、Bridge 诊断和 Package 工作流入口。 |
+| DreamShader 插件 | 解析源文件、生成 Unreal 节点、写入资产、保存 metadata，并导出 Bridge 诊断、MaterialExpression manifest 和材质预览结果。 |
+| VSCode 扩展 | 提供编辑器语言服务、动态 MaterialExpression 补全、Bridge 诊断、材质预览和 Package 工作流入口。 |
 | Rider 插件 | 提供 `.dsm` / `.dsf` / `.dsh` 文件类型、PSI 解析、高亮、补全、导航、诊断、Unreal Bridge、semantic token、inlay hints 和 Package 工具。 |
 | Package Store Index | 提供可发现的社区 Package 列表。 |
 

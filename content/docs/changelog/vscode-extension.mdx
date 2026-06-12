@@ -9,6 +9,34 @@ description: DreamShaderLang VSCode 扩展版本更新记录。
 
 [https://github.com/TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support)
 
+## 1.5.3 - 2026-06-06
+
+### 材质预览
+
+- 新增 `DreamShaderLang: Show Material Preview` 命令，只对活动 `.dsm` 材质文件生效。
+- 新增 VSCode Webview 预览面板，支持 `sphere`、`plane` 和 `cube` mesh 选择。
+- 默认通过 `127.0.0.1:17864` 本机 WebSocket 向 Unreal 发送 `previewMaterial` 请求，并接收预览结果和连续帧。
+- WebSocket 不可用时会回退到文件桥，写入 request JSON 并读取 `Saved/DreamShader/Bridge/preview.json` 与 `Preview/*.png`。
+- 新增 `dreamshader.previewWebSocketPort`、`dreamshader.previewAutoRefreshDelayMs`、`dreamshader.previewTransport` 和 `dreamshader.previewLiveFrameRate` 设置。
+
+## 1.5.2 - 2026-06-06
+
+### Callable Hover
+
+- DreamShader 函数、UE builtin 和 Substrate helper 的 Hover 会显示返回值和输出 pin metadata。
+- 补充 `Substrate.ThinFilm` 等 helper 的输出 pin Hover，并保留旧 bridge manifest 的 fallback。
+
+## 1.5.1 - 2026-06-06
+
+### Bridge、Package 与模板
+
+- 新增 `Template` block 的解析、补全、格式化、语义 token 和语法高亮。
+- 新增 DreamShader Bridge 命令、状态栏和诊断面板集成。
+- 新增 Package 安装、浏览、更新、移除和 scaffold 命令。
+- 新增命令面板创作模板：材质、函数文件、头文件、纹理采样和噪声材质。
+- extension activation 模块拆分后恢复 CodeLens 与 Inlay Hint 注册。
+- Unreal 更新 `Saved/DreamShader/Bridge/diagnostics.json` 时会刷新 bridge 诊断。
+
 ## 1.4.9 - 2026-05-29
 
 ### Function Builtins

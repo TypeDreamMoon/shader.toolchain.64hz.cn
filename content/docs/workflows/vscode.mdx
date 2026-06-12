@@ -16,9 +16,9 @@ Unreal 编辑器的 `Tools > DreamShader` 菜单和 DreamShader 工具栏可以�
 
 ## VSCode 扩展
 
-当前 VSCode 扩展版本：`1.4.9`。
+当前 VSCode 扩展版本：`1.5.3`。
 
-`1.4.x` 系列重写了语言服务核心，并补齐 `.dsf`、动态 MaterialExpression fallback、`VolumeTexture` / `Texture3D`、`Layout` / Graph region 和 Function 内置函数 metadata。补全、诊断、语义高亮、折叠和文档符号现在通过 scanner / parser / context / symbol / provider 模块处理，减少不同 section 和作用域之间的误判。
+`1.5.x` 系列在 parser-based 语言服务基础上补齐 Template 块、Bridge 命令、Package 工具、创作模板、callable 返回值 Hover，以及 `.dsm` 材质预览面板。`1.4.x` 中完成的 `.dsf`、动态 MaterialExpression fallback、`VolumeTexture` / `Texture3D`、`Layout` / Graph region 和 Function 内置函数 metadata 仍是当前能力的一部分。
 
 ### VSCode 能力概览
 
@@ -33,8 +33,9 @@ Unreal 编辑器的 `Tools > DreamShader` 菜单和 DreamShader 工具栏可以�
 | References | 查找函数和 namespace 函数引用。 |
 | 格式化 | 文档级格式化。 |
 | 诊断 | 本地语法诊断、Graph 分支诊断和 Unreal 桥接诊断。 |
-| 操作入口 | 状态栏、CodeLens、编辑器标题栏和底部 Panel 中的 Bridge 视图。 |
+| 操作入口 | 状态栏、CodeLens、编辑器标题栏、右键菜单、底部 Panel 中的 Bridge 视图和材质预览 Webview。 |
 | `.dsf` | 函数文件关联、模板创建、import 跳转、workspace indexing 和文件形状诊断。 |
+| 预览 | `.dsm` 材质预览面板，支持 sphere / plane / cube，优先 WebSocket 直播帧并回退到文件桥。 |
 
 ### VSCode 编辑体验
 
@@ -83,12 +84,25 @@ Unreal 侧的诊断会通过桥接诊断文件回传给编辑器。VSCode 扩展
 
 Unreal 插件还会导出 `Saved/DreamShader/Bridge/material-expressions.json`。扩展会读取这个 manifest，把当前项目可见的 `UMaterialExpression` 类、属性、输入和输出 pin 用于动态补全、Hover 和 Signature Help。
 
+### 材质预览
+
+`DreamShaderLang: Show Material Preview` 只对当前活动的 `.dsm` 材质文件生效。扩展会先保存当前文档，然后向 Unreal 侧发送 `previewMaterial` 请求：
+
+| 通道 | 行为 |
+| --- | --- |
+| WebSocket | 默认通道，连接 `127.0.0.1:17864`，用于实时接收预览结果和连续帧。 |
+| 文件桥 | WebSocket 不可用或设置为 `file` 时，写入 `Saved/DreamShader/Bridge/Requests/request-*.json`，再读取 `preview.json` 与 `Preview/*.png`。 |
+
+预览面板会跟随活动 `.dsm` 文件，提供 `Refresh` 和 mesh 选择。自动刷新会在编辑后保存当前 `.dsm`，再延迟发送预览请求。
+
 ### VSCode 常用命令
 
 ```text
 DreamShaderLang: Recompile Current Source
 DreamShaderLang: Recompile All Sources
 DreamShaderLang: Clean Generated Shaders
+DreamShaderLang: Show Bridge Panel
+DreamShaderLang: Show Material Preview
 DreamShaderLang: Refresh Bridge Diagnostics
 DreamShaderLang: Install Package from GitHub
 DreamShaderLang: Browse Package Store
@@ -121,6 +135,15 @@ Package store：
 ```
 
 旧配置 `dreamshader.packageStoreIndexUrl` 仍兼容，但推荐使用 `dreamshader.packageStoreIndexUrls`。
+
+预览相关设置：
+
+| 设置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `dreamshader.previewWebSocketPort` | `17864` | 本机 Unreal 预览 WebSocket 端口。 |
+| `dreamshader.previewAutoRefreshDelayMs` | `1200` | 编辑 `.dsm` 后自动保存并刷新预览前的延迟。 |
+| `dreamshader.previewTransport` | `websocket` | 使用 `websocket`，或强制使用 `file` 文件桥。 |
+| `dreamshader.previewLiveFrameRate` | `2` | 连续预览帧率上限；设为 `0` 可关闭连续帧。 |
 
 ## Rider 插件
 

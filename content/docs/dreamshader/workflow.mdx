@@ -13,6 +13,7 @@ DreamShader 的推荐工作流是：文本源文件作为真实来源，Unreal �
 4. 在 `Shader` / `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` 的 `Graph` 中描述节点连接。
 5. 保存源文件，或通过 VSCode 扩展执行重编命令。
 6. 在 Unreal Editor 中查看生成的材质或材质函数。
+7. 对 `.dsm` 材质，可以在 VSCode 中打开 `DreamShaderLang: Show Material Preview`，快速查看当前生成材质的预览结果。
 
 ## `.dsm` 工作流
 
@@ -150,6 +151,25 @@ DreamShader.GeneratedAtUtc
 如果源内容没有变化，可以跳过重复生成。这个机制适合全量扫描或自动保存场景。
 
 从 `1.3.2` 起，生成 `ShaderFunction` 时会尽量保留输入输出 ID，减少普通 Unreal 材质中已有 `MaterialFunctionCall` 节点在函数重生成后断线的风险。
+
+## 材质预览
+
+VSCode 扩展的 `Show Material Preview` 命令会向 Unreal Bridge 请求当前 `.dsm` 材质预览。Unreal 侧会先解析并生成对应材质，再输出预览状态和图片：
+
+```text
+Saved/DreamShader/Bridge/preview.json
+Saved/DreamShader/Bridge/Preview/*.png
+```
+
+如果 Unreal Bridge 的本机 WebSocket 正常监听，扩展会通过 `127.0.0.1:17864` 接收预览结果和连续帧；否则会回退到文件桥。预览只面向 `.dsm` 材质源文件，不用于 `.dsf` 函数文件或 `.dsh` 共享头文件。
+
+可用场景：
+
+| 场景 | 建议 |
+| --- | --- |
+| 快速调参数 | 保持 Unreal Editor 打开，在 VSCode 预览面板中刷新当前 `.dsm`。 |
+| WebSocket 被占用 | 将 `dreamshader.previewTransport` 设为 `file`，使用文件桥。 |
+| 减少实时刷新 | 降低 `dreamshader.previewLiveFrameRate`，或设为 `0` 关闭连续帧。 |
 
 ## 反编译迁移
 

@@ -7,6 +7,10 @@ DreamShader is the Unreal plugin that compiles DreamShaderLang source files into
 material assets. DreamShaderLang is the source language; the plugin handles parsing,
 generation, diagnostics, cache tracking, decompilation, and editor integration.
 
+Current plugin version: `1.4.0`. It is actively developed against Unreal Engine `5.7`
+and has been verified with single-plugin `RunUAT BuildPlugin` builds on Unreal Engine
+`5.3`, `5.4`, `5.5`, `5.6`, and `5.7`.
+
 ## Problem It Solves
 
 Unreal material graphs become hard to review, diff, reuse, and migrate as they grow.
@@ -17,7 +21,9 @@ DreamShader moves the repeatable parts into text:
 | Large graphs are hard to review | Store graph structure in `.dsm` / `.dsf` files. |
 | Shared logic is duplicated | Put helpers in `.dsh`, `.dsf`, `Function`, `GraphFunction`, or packages. |
 | Material functions are easy to break on regeneration | Preserve stable inputs and outputs for `ShaderFunction` assets. |
+| UE 5.7 Substrate graphs need text authoring | Use the `Substrate` type, `Base.FrontMaterial`, and `Substrate.*` wrappers. |
 | Existing graphs need migration | Export `Material` and `Material Function` assets as `.dsm` / `.dsf` starting points. |
+| Material iteration needs faster feedback | Request a `.dsm` material preview from VSCode through the Unreal bridge. |
 
 ## Core Capabilities
 
@@ -26,8 +32,10 @@ DreamShader moves the repeatable parts into text:
 | Source scanning | Watches the configured `DShader` source directory. |
 | Asset generation | Generates `UMaterial`, `UMaterialFunction`, Material Layer, and Layer Blend assets. |
 | Graph generation | Converts Graph DSL statements into Unreal `MaterialExpression` nodes. |
+| Substrate generation | Supports `Substrate` graph values, `Base.FrontMaterial`, and current UE 5.7 Substrate wrappers. |
 | Diagnostics | Reports parse, semantic, generation, and bridge diagnostics back to the editor. |
 | MaterialExpression metadata | Exports reflected node metadata for editor completion and hover. |
+| Material preview bridge | Writes preview results under `Saved/DreamShader/Bridge` and can stream local WebSocket preview frames to VSCode. |
 | Decompile export | Creates initial `.dsm` / `.dsf` sources from existing Unreal assets. |
 | Package workflow | Resolves package imports from `DShader/Packages`. |
 
@@ -36,8 +44,8 @@ DreamShader moves the repeatable parts into text:
 | Part | Responsibility |
 | --- | --- |
 | DreamShaderLang | Syntax, declarations, Graph expressions, helper functions, imports, and package references. |
-| DreamShader plugin | Finds files, parses sources, resolves imports, creates Unreal assets, writes metadata, and reports diagnostics. |
-| Editor extensions | Provide syntax highlighting, completion, hover, navigation, diagnostics, package commands, and templates. |
+| DreamShader plugin | Finds files, parses sources, resolves imports, creates Unreal assets, writes metadata, reports diagnostics, and serves preview results. |
+| Editor extensions | Provide syntax highlighting, completion, hover, navigation, diagnostics, material preview, package commands, and templates. |
 
 ## Outputs
 

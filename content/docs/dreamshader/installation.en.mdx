@@ -12,7 +12,7 @@ This page focuses on the Unreal plugin. For the first language file, see
 | --- | --- |
 | GitHub | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
 | Expected project path | `Plugins/DreamShader` |
-| Current documented version | `1.3.9` |
+| Current documented version | `1.4.0` |
 
 Put the plugin directory under the Unreal project:
 
@@ -31,6 +31,32 @@ ProjectRoot/
 5. Save a `.dsm`, `.dsf`, or `.dsh` file under the configured source root.
 
 The plugin should detect changes and compile affected assets when auto-compile is enabled.
+
+## Engine Compatibility
+
+DreamShader `1.4.0` is actively developed against Unreal Engine `5.7` and has been
+verified on Windows with single-plugin `RunUAT BuildPlugin` builds:
+
+| Unreal Engine | Status |
+| --- | --- |
+| `5.7` | Verified |
+| `5.6` | Verified |
+| `5.5` | Verified |
+| `5.4` | Verified |
+| `5.3` | Verified |
+
+To validate the plugin without building a full project target, use:
+
+```powershell
+& "<EngineDir>\Engine\Build\BatchFiles\RunUAT.bat" BuildPlugin `
+  -Plugin="<ProjectDir>\Plugins\DreamShader\DreamShader.uplugin" `
+  -Package="<OutputDir>\DreamShader" `
+  -TargetPlatforms=Win64 `
+  -Rocket
+```
+
+On Windows, UE `5.3` and `5.4` may require the MSVC `14.38` toolchain. Newer compiler
+toolchains can fail while compiling older engine headers before DreamShader code is reached.
 
 ## Project Settings
 
@@ -58,6 +84,7 @@ Project Settings > DreamPlugin > Dream Shader
 | A `.dsm` file is saved | A `UMaterial` asset is generated or refreshed. |
 | VSCode extension installed | Commands and diagnostics appear for DreamShaderLang files. |
 | Bridge metadata exported | `Saved/DreamShader/Bridge/material-expressions.json` is available after plugin export. |
+| Preview bridge active | `Saved/DreamShader/Bridge/preview.json` and preview images update after a VSCode preview request. |
 
 ## Notes
 
