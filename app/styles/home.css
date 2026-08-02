@@ -1,0 +1,598 @@
+/* =============================================================================
+   home — the marketing page (`.ds-*`).
+
+   The page is ordinary document flow: a hero, three bands, a foot rule. No
+   scroll capture, no fixed-height screens, no bottom-anchored content. Every
+   band shares one container width, one heading scale and one card recipe.
+   ============================================================================= */
+
+#nd-home-layout.ds-home {
+  min-height: 100svh;
+  background: var(--color-fd-background);
+  color: var(--color-fd-foreground);
+}
+
+.ds-container {
+  width: min(100% - 2.5rem, 1140px);
+  margin-inline: auto;
+}
+
+/* -----------------------------------------------------------------------------
+   shared: kicker, heading, lead, buttons
+   -------------------------------------------------------------------------- */
+
+.ds-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--ds-brand-text);
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ds-kicker svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.ds-hero-copy h1,
+.ds-head h2 {
+  margin: var(--ds-space-4) 0 0;
+  color: var(--color-fd-foreground);
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  /* a hard guard: a display size may never push the page sideways */
+  overflow-wrap: break-word;
+}
+
+.ds-hero-copy h1 {
+  display: grid;
+  gap: 0.04em;
+  font-size: clamp(2.9rem, 4.6vw, 4.4rem);
+  line-height: 0.94;
+}
+
+.ds-hero-copy h1 span:last-child {
+  color: var(--ds-brand-text);
+}
+
+.ds-head h2 {
+  max-width: 22ch;
+  font-size: clamp(1.75rem, 2.9vw, 2.5rem);
+  line-height: 1.14;
+}
+
+.ds-lead {
+  max-width: 54ch;
+  margin: var(--ds-space-4) 0 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading-body);
+}
+
+.ds-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-3);
+  margin-block-start: var(--ds-space-6);
+}
+
+.ds-btn {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding: 0.7rem var(--ds-space-5);
+  font-size: var(--ds-text-base);
+  font-weight: 700;
+  transition:
+    transform var(--ds-dur-fast) ease,
+    border-color var(--ds-dur-fast) ease,
+    background var(--ds-dur-fast) ease,
+    box-shadow var(--ds-dur-fast) ease;
+}
+
+.ds-btn:hover {
+  box-shadow: var(--ds-shadow-lift);
+  transform: translateY(-1px);
+}
+
+.ds-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ds-btn-primary {
+  background: var(--dream-miku);
+  color: var(--ds-on-brand);
+}
+
+.ds-btn-ghost {
+  border-color: var(--ds-rule-strong);
+  background: var(--color-fd-card);
+  color: var(--color-fd-foreground);
+}
+
+/* -----------------------------------------------------------------------------
+   hero
+   -------------------------------------------------------------------------- */
+
+.ds-hero {
+  position: relative;
+  /* fills the first screen without locking to it — the page scrolls past */
+  min-height: min(calc(100svh - var(--ds-nav-height)), 46rem);
+  display: grid;
+  align-items: center;
+  padding-block: clamp(var(--ds-space-7), 8vh, var(--ds-space-8))
+    clamp(var(--ds-space-8), 10vh, 6rem);
+  overflow: clip;
+}
+
+/* one soft wash behind the hero only, so the band boundaries stay legible */
+.ds-aurora {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    radial-gradient(
+      64rem 34rem at 12% -10%,
+      color-mix(in oklab, var(--dream-miku) 17%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      46rem 30rem at 96% 8%,
+      color-mix(in oklab, var(--dream-pink) 11%, transparent),
+      transparent 64%
+    );
+  pointer-events: none;
+}
+
+.dark .ds-aurora {
+  background:
+    radial-gradient(64rem 34rem at 12% -10%, hsl(176 80% 45% / 0.16), transparent 62%),
+    radial-gradient(46rem 30rem at 96% 8%, hsl(330 88% 62% / 0.12), transparent 64%);
+}
+
+.ds-hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(var(--ds-space-6), 5vw, 4rem);
+}
+
+.ds-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  margin-block-start: var(--ds-space-6);
+}
+
+.ds-tags li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  border: 1px solid var(--ds-rule);
+  border-radius: var(--ds-radius-pill);
+  background: var(--color-fd-card);
+  padding: 0.35rem 0.7rem;
+  color: var(--color-fd-foreground);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-tags strong {
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* -----------------------------------------------------------------------------
+   hero code panel
+   -------------------------------------------------------------------------- */
+
+/* the panel carries its own two-step surface so it reads as a distinct object
+   in both themes: the body takes the card colour, the chrome a brand tint */
+.ds-code-panel {
+  --ds-panel-bg: var(--color-fd-card);
+  --ds-panel-chrome: color-mix(in oklab, var(--dream-miku) 10%, var(--color-fd-card));
+
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--ds-rule);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-panel-bg);
+  box-shadow: var(--ds-shadow-soft);
+}
+
+.dark .ds-code-panel {
+  --ds-panel-bg: var(--ds-code-surface);
+  --ds-panel-chrome: color-mix(in oklab, var(--dream-miku) 8%, var(--color-fd-card));
+}
+
+.ds-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  border-block-end: 1px solid var(--ds-rule);
+  background: var(--ds-panel-chrome);
+  padding: 0.6rem var(--ds-space-4);
+}
+
+.ds-code-file {
+  color: var(--color-fd-foreground);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+}
+
+.ds-code-lang {
+  color: var(--ds-brand-text);
+  font-size: var(--ds-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ds-code-body {
+  overflow-x: auto;
+  padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-4) 0;
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-sm);
+  line-height: 1.7;
+  /* the gutter numbers are drawn from a counter, so a copy never picks them up */
+  counter-reset: ds-code-line;
+  tab-size: 4;
+}
+
+.ds-code-line {
+  display: block;
+  min-height: 1.7em;
+  white-space: pre;
+  counter-increment: ds-code-line;
+}
+
+.ds-code-line::before {
+  content: counter(ds-code-line);
+  display: inline-block;
+  width: 3.25rem;
+  padding-inline-end: var(--ds-space-4);
+  color: color-mix(in oklab, var(--color-fd-muted-foreground) 80%, transparent);
+  text-align: end;
+  user-select: none;
+}
+
+.ds-code-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  border-block-start: 1px solid var(--ds-rule);
+  background: var(--ds-panel-chrome);
+  padding: 0.65rem var(--ds-space-4);
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-xs);
+}
+
+.ds-code-foot svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+  color: var(--ds-brand-text);
+}
+
+/* token colours — the same four hues the docs code blocks use */
+.ds-t-kw {
+  color: var(--ds-pink-text);
+  font-weight: 700;
+}
+
+.ds-t-type {
+  color: var(--ds-cyan-text);
+}
+
+.ds-t-fn {
+  color: var(--ds-brand-text);
+}
+
+.ds-t-str {
+  color: var(--ds-yellow-text);
+}
+
+.ds-t-num {
+  color: var(--ds-cyan-text);
+}
+
+.ds-t-prop {
+  color: var(--ds-brand-text);
+}
+
+/* punctuation recedes from identifiers but is still code, so it stays readable */
+.ds-t-punct {
+  color: var(--color-fd-muted-foreground);
+}
+
+/* -----------------------------------------------------------------------------
+   bands
+   -------------------------------------------------------------------------- */
+
+.ds-section {
+  border-block-start: 1px solid var(--ds-rule-faint);
+  padding-block: clamp(var(--ds-space-8), 8vw, 6.5rem);
+}
+
+.ds-section-tools {
+  background: var(--ds-tint-weak);
+}
+
+.ds-head {
+  max-width: 62ch;
+  margin-block-end: clamp(var(--ds-space-6), 4vw, var(--ds-space-8));
+}
+
+/* -----------------------------------------------------------------------------
+   workflow
+   -------------------------------------------------------------------------- */
+
+.ds-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-5);
+}
+
+.ds-step {
+  position: relative;
+  border-block-start: 2px solid var(--ds-rule-strong);
+  padding-block-start: var(--ds-space-4);
+}
+
+.ds-step-index {
+  color: var(--ds-brand-text);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.ds-step h3 {
+  margin: var(--ds-space-2) 0 0;
+  color: var(--color-fd-foreground);
+  font-size: var(--ds-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ds-step p {
+  margin: var(--ds-space-2) 0 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-base);
+  line-height: var(--ds-leading-snug);
+}
+
+/* -----------------------------------------------------------------------------
+   tools
+   -------------------------------------------------------------------------- */
+
+.ds-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ds-space-4);
+}
+
+.ds-tool-card {
+  display: grid;
+  align-content: start;
+  border: 1px solid var(--ds-rule);
+  border-radius: var(--ds-radius-lg);
+  background: var(--color-fd-card);
+  padding: var(--ds-space-5);
+  transition:
+    transform var(--ds-dur-fast) ease,
+    border-color var(--ds-dur-fast) ease,
+    box-shadow var(--ds-dur-fast) ease;
+}
+
+.ds-tool-card:hover {
+  border-color: var(--ds-rule-strong);
+  box-shadow: var(--ds-shadow-lift);
+  transform: translateY(-2px);
+}
+
+.ds-tool-icon {
+  display: inline-grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 1px solid var(--ds-rule);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-tint-weak);
+  color: var(--ds-brand-text);
+}
+
+.ds-tool-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.ds-tool-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: var(--ds-space-4) 0 0;
+  color: var(--color-fd-foreground);
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ds-tool-card h3 svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--color-fd-muted-foreground);
+}
+
+.ds-tool-card p {
+  margin: var(--ds-space-2) 0 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-base);
+  line-height: var(--ds-leading-snug);
+}
+
+/* -----------------------------------------------------------------------------
+   reading paths
+   -------------------------------------------------------------------------- */
+
+.ds-route-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--ds-rule);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-rule);
+  overflow: hidden;
+}
+
+.ds-route {
+  display: grid;
+  align-content: start;
+  background: var(--color-fd-background);
+  padding: var(--ds-space-5);
+  transition:
+    background var(--ds-dur-fast) ease,
+    color var(--ds-dur-fast) ease;
+}
+
+.ds-route:hover {
+  background: var(--ds-tint-hover);
+}
+
+.ds-route h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  color: var(--color-fd-foreground);
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ds-route h3 svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  color: var(--ds-brand-text);
+  opacity: 0;
+  transition:
+    opacity var(--ds-dur-fast) ease,
+    translate var(--ds-dur-fast) ease;
+  translate: -4px 0;
+}
+
+.ds-route:hover h3 svg {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.ds-route p {
+  margin: var(--ds-space-2) 0 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-base);
+  line-height: var(--ds-leading-snug);
+}
+
+/* -----------------------------------------------------------------------------
+   foot
+   -------------------------------------------------------------------------- */
+
+.ds-foot {
+  border-block-start: 1px solid var(--ds-rule-faint);
+  padding-block: var(--ds-space-6);
+}
+
+.ds-foot .ds-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+}
+
+.ds-foot-brand {
+  color: var(--color-fd-foreground);
+  font-size: var(--ds-text-base);
+  font-weight: 700;
+}
+
+.ds-foot-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-sm);
+}
+
+.ds-foot-links a:hover {
+  color: var(--ds-brand-text);
+}
+
+/* -----------------------------------------------------------------------------
+   narrow viewports
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .ds-tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ds-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .ds-hero {
+    min-height: 0;
+  }
+
+  .ds-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ds-space-7);
+  }
+
+  .ds-steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ds-space-6);
+  }
+}
+
+@media (max-width: 620px) {
+  .ds-tool-grid,
+  .ds-route-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ds-actions,
+  .ds-btn {
+    width: 100%;
+  }
+
+  .ds-code-body {
+    font-size: var(--ds-text-xs);
+  }
+
+  .ds-code-line::before {
+    width: 2.5rem;
+    padding-inline-end: var(--ds-space-3);
+  }
+}

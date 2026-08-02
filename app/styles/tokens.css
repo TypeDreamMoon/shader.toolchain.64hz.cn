@@ -1,0 +1,206 @@
+/* =============================================================================
+   tokens — the single source of truth for colour, type, space, radius, motion.
+
+   Light values live in `@theme` (the fumadocs surface palette, so Tailwind's
+   `*-fd-*` utilities resolve to the Miku palette) and in `:root` (brand and
+   derived tokens). Dark values live in `.dark`. Nothing below this file
+   re-declares a raw colour.
+   ============================================================================= */
+
+@theme {
+  /* fumadocs surface palette — light */
+  --color-fd-background: hsl(186 48% 97%);
+  --color-fd-foreground: hsl(193 46% 13%);
+  --color-fd-muted: hsl(184 38% 93%);
+  --color-fd-muted-foreground: hsl(192 23% 36%);
+  --color-fd-popover: hsl(0 0% 100%);
+  --color-fd-popover-foreground: hsl(193 46% 13%);
+  --color-fd-card: hsl(185 48% 95%);
+  --color-fd-card-foreground: hsl(193 46% 13%);
+  --color-fd-border: hsl(184 35% 74% / 0.62);
+  --color-fd-primary: hsl(176 66% 42%);
+  --color-fd-primary-foreground: hsl(190 76% 8%);
+  --color-fd-secondary: hsl(184 44% 91%);
+  --color-fd-secondary-foreground: hsl(193 45% 16%);
+  --color-fd-accent: hsl(178 56% 84% / 0.72);
+  --color-fd-accent-foreground: hsl(191 72% 14%);
+  --color-fd-ring: hsl(178 68% 48%);
+  --color-fd-overlay: hsl(190 60% 8% / 0.22);
+}
+
+:root {
+  /* --- brand ------------------------------------------------------------- */
+  --dream-miku: #39c5bb;
+  --dream-cyan: #00d4ff;
+  --dream-pink: #ff5aa5;
+  --dream-yellow: #ffd166;
+  --dream-ink: #10272c;
+
+  /* --- type -------------------------------------------------------------- */
+  --ds-font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+
+  /* modest ~1.2 ratio; body sits at 15px so an h3 still reads as a divider */
+  --ds-text-2xs: 0.6875rem; /* 11 */
+  --ds-text-xs: 0.75rem; /* 12 */
+  --ds-text-sm: 0.8125rem; /* 13 */
+  --ds-text-base: 0.9375rem; /* 15 */
+  --ds-text-md: 1.0625rem; /* 17 */
+  --ds-text-lg: 1.1875rem; /* 19 */
+  --ds-text-xl: 1.5rem; /* 24 */
+  --ds-text-2xl: 1.8125rem; /* 29 */
+  --ds-text-3xl: 2.25rem; /* 36 */
+
+  --ds-leading-tight: 1.2;
+  --ds-leading-snug: 1.45;
+  --ds-leading-body: 1.78;
+
+  /* comfortable measure on the docs column */
+  --ds-measure: 76ch;
+
+  /* --- space ------------------------------------------------------------- */
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.5rem;
+  --ds-space-6: 2rem;
+  --ds-space-7: 3rem;
+  --ds-space-8: 4rem;
+
+  /* --- radius ------------------------------------------------------------ */
+  --ds-radius-xs: 4px;
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 12px;
+  --ds-radius-pill: 999px;
+
+  /* --- layout ------------------------------------------------------------ */
+  --ds-nav-height: 3.5rem; /* fumadocs' #nd-nav is h-14 */
+
+  /* --- motion ------------------------------------------------------------ */
+  --ds-ease: cubic-bezier(0.22, 0.9, 0.3, 1);
+  --ds-dur-fast: 160ms;
+  --ds-dur-mid: 320ms;
+  --ds-dur-slow: 720ms;
+
+  /* --- derived: brand ink, contrast-checked against the light background -- */
+  --ds-brand-text: color-mix(in oklab, var(--dream-miku) 65%, black);
+  --ds-cyan-text: color-mix(in oklab, var(--dream-cyan) 60%, black);
+  --ds-pink-text: color-mix(in oklab, var(--dream-pink) 68%, black);
+  --ds-yellow-text: color-mix(in oklab, var(--dream-yellow) 52%, black);
+  /* ink that sits on top of a full-strength brand fill, both themes */
+  --ds-on-brand: hsl(190 76% 8%);
+
+  /* --- derived: rules and surfaces --------------------------------------- */
+  --ds-rule-faint: color-mix(in oklab, var(--color-fd-border) 52%, transparent);
+  --ds-rule: color-mix(in oklab, var(--dream-miku) 14%, var(--color-fd-border));
+  --ds-rule-strong: color-mix(in oklab, var(--dream-miku) 45%, var(--color-fd-border));
+
+  --ds-surface-raised: color-mix(in oklab, var(--color-fd-card) 76%, white);
+  --ds-surface-sunken: color-mix(in oklab, var(--dream-miku) 5%, var(--color-fd-card));
+  --ds-tint-weak: color-mix(in oklab, var(--dream-miku) 7%, transparent);
+  --ds-tint-hover: color-mix(in oklab, var(--dream-miku) 6%, transparent);
+
+  --ds-shadow-soft: 0 14px 34px color-mix(in oklab, var(--dream-ink) 10%, transparent);
+  --ds-shadow-lift: 0 12px 28px color-mix(in oklab, var(--dream-ink) 14%, transparent);
+  --ds-scroll-shadow: color-mix(in oklab, var(--dream-ink) 18%, transparent);
+  --ds-scrollbar-thumb: color-mix(in oklab, var(--dream-miku) 42%, transparent);
+  --ds-focus-ring: color-mix(in oklab, var(--dream-miku) 78%, var(--dream-ink));
+
+  /* --- derived: code ------------------------------------------------------ */
+  --ds-code-inline-bg: color-mix(in oklab, var(--dream-miku) 12%, transparent);
+  --ds-code-inline-fg: color-mix(in oklab, var(--dream-pink) 34%, var(--ds-brand-text));
+  --ds-code-surface: color-mix(in oklab, var(--color-fd-card) 62%, white);
+  --ds-synopsis-surface: color-mix(in oklab, var(--dream-miku) 5%, var(--color-fd-card));
+  --ds-synopsis-fg: color-mix(in oklab, var(--color-fd-foreground) 76%, transparent);
+
+  /* --- derived: tables ---------------------------------------------------- */
+  --ds-table-head-bg: color-mix(in oklab, var(--dream-miku) 8%, var(--color-fd-card));
+  --ds-table-row-hover: color-mix(in oklab, var(--dream-miku) 5%, transparent);
+  --ds-table-max-block: min(76vh, 44rem);
+
+  /* --- derived: version pills --------------------------------------------- */
+  --ds-since-bg: color-mix(in oklab, var(--dream-miku) 14%, transparent);
+  --ds-since-fg: var(--ds-brand-text);
+  --ds-since-ue-bg: color-mix(in oklab, var(--dream-cyan) 13%, transparent);
+  --ds-since-ue-fg: var(--ds-cyan-text);
+
+  /* --- callout intents ----------------------------------------------------
+     fumadocs reads these through `--callout-color`, so the four intents map
+     straight onto the brand palette. Declared unlayered so they win over the
+     preset's `@theme static` defaults. */
+  --color-fd-info: var(--ds-cyan-text);
+  --color-fd-warning: var(--ds-yellow-text);
+  --color-fd-error: var(--ds-pink-text);
+  --color-fd-success: var(--ds-brand-text);
+  --color-fd-idea: var(--ds-brand-text);
+}
+
+.dark {
+  /* fumadocs surface palette — dark */
+  --color-fd-background: hsl(190 35% 7%);
+  --color-fd-foreground: hsl(177 43% 92%);
+  --color-fd-muted: hsl(190 30% 12%);
+  --color-fd-muted-foreground: hsl(178 22% 70%);
+  --color-fd-popover: hsl(190 34% 9%);
+  --color-fd-popover-foreground: hsl(177 43% 92%);
+  --color-fd-card: hsl(190 32% 10%);
+  --color-fd-card-foreground: hsl(177 43% 92%);
+  --color-fd-border: hsl(178 45% 46% / 0.24);
+  --color-fd-primary: hsl(176 84% 66%);
+  --color-fd-primary-foreground: hsl(190 72% 8%);
+  --color-fd-secondary: hsl(190 30% 13%);
+  --color-fd-secondary-foreground: hsl(177 43% 92%);
+  --color-fd-accent: hsl(178 55% 27% / 0.48);
+  --color-fd-accent-foreground: hsl(176 74% 86%);
+  --color-fd-ring: hsl(176 84% 66%);
+  --color-fd-overlay: hsl(190 72% 3% / 0.48);
+
+  /* brand ink — the raw hues already clear 5:1 on the dark background */
+  --ds-brand-text: color-mix(in oklab, var(--dream-miku) 90%, white);
+  --ds-cyan-text: color-mix(in oklab, var(--dream-cyan) 94%, white);
+  --ds-pink-text: color-mix(in oklab, var(--dream-pink) 92%, white);
+  --ds-yellow-text: var(--dream-yellow);
+
+  --ds-rule-faint: color-mix(in oklab, var(--color-fd-border) 60%, transparent);
+  --ds-rule: color-mix(in oklab, var(--dream-miku) 12%, var(--color-fd-border));
+  --ds-rule-strong: color-mix(in oklab, var(--dream-miku) 34%, var(--color-fd-border));
+
+  --ds-surface-raised: color-mix(in oklab, var(--color-fd-card) 88%, white);
+  --ds-surface-sunken: color-mix(in oklab, var(--color-fd-background) 80%, black);
+  --ds-tint-weak: color-mix(in oklab, var(--dream-miku) 10%, transparent);
+  --ds-tint-hover: color-mix(in oklab, var(--dream-miku) 9%, transparent);
+
+  --ds-shadow-soft: 0 18px 42px hsl(190 80% 3% / 0.44);
+  --ds-shadow-lift: 0 12px 28px hsl(190 80% 3% / 0.55);
+  --ds-scroll-shadow: hsl(190 80% 2% / 0.55);
+  --ds-scrollbar-thumb: color-mix(in oklab, var(--dream-miku) 34%, transparent);
+  --ds-focus-ring: color-mix(in oklab, var(--dream-miku) 86%, white);
+
+  --ds-code-inline-bg: color-mix(in oklab, var(--dream-miku) 15%, transparent);
+  --ds-code-inline-fg: color-mix(in oklab, var(--dream-pink) 26%, var(--ds-brand-text));
+  --ds-code-surface: color-mix(in oklab, var(--color-fd-background) 72%, black);
+  --ds-synopsis-surface: color-mix(in oklab, var(--dream-miku) 7%, var(--ds-code-surface));
+  --ds-synopsis-fg: color-mix(in oklab, var(--color-fd-foreground) 72%, transparent);
+
+  --ds-table-head-bg: color-mix(in oklab, var(--dream-miku) 7%, var(--color-fd-card));
+  --ds-table-row-hover: color-mix(in oklab, var(--dream-miku) 7%, transparent);
+
+  --ds-since-bg: color-mix(in oklab, var(--dream-miku) 18%, transparent);
+  --ds-since-ue-bg: color-mix(in oklab, var(--dream-cyan) 16%, transparent);
+
+  --color-fd-info: var(--ds-cyan-text);
+  --color-fd-warning: var(--ds-yellow-text);
+  --color-fd-error: var(--ds-pink-text);
+  --color-fd-success: var(--ds-brand-text);
+  --color-fd-idea: var(--ds-brand-text);
+}
+
+/* the sidebar keeps its own muted ramp so it separates from the page in dark */
+.dark #nd-sidebar {
+  --color-fd-muted: hsl(190 30% 12%);
+  --color-fd-secondary: hsl(190 30% 13%);
+  --color-fd-muted-foreground: hsl(178 22% 70%);
+}

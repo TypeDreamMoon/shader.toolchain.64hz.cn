@@ -1,16 +1,16 @@
 import './global.css';
 
 import { SiteProvider } from '@/components/site-provider';
+import { SITE_DESCRIPTION_ZH, SITE_TITLE } from '@/lib/site';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | DreamShaderLang',
-    default: 'DreamShaderLang',
+    template: `%s | ${SITE_TITLE}`,
+    default: SITE_TITLE,
   },
-  description:
-    'DreamShaderLang 是为了代替虚幻引擎材质“连连看”而生的文本化材质语言。',
+  description: SITE_DESCRIPTION_ZH,
 };
 
 export const viewport: Viewport = {

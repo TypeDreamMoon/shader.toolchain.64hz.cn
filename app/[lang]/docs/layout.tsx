@@ -1,8 +1,7 @@
-import { defaultLocale, isLocale, type Locale } from '@/lib/i18n';
-import { baseOptions } from '@/lib/layout.shared';
-import { source } from '@/lib/source';
-import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { notFound, redirect } from 'next/navigation';
+import { DocsShell } from '@/lib/docs-layout';
+import { defaultLocale } from '@/lib/i18n';
+import { resolveLocaleParam } from '@/lib/locale-param';
+import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 export default async function DocsRootLayout(props: {
@@ -10,24 +9,11 @@ export default async function DocsRootLayout(props: {
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await props.params;
+  const locale = resolveLocaleParam(lang);
 
-  if (!isLocale(lang)) {
-    notFound();
-  }
-
-  if (lang === defaultLocale) {
+  if (locale === defaultLocale) {
     redirect('/docs');
   }
 
-  const locale = lang as Locale;
-
-  return (
-    <DocsLayout
-      {...baseOptions(locale)}
-      tree={source.getPageTree(locale)}
-      githubUrl="https://github.com/TypeDreamMoon/DreamShader"
-    >
-      {props.children}
-    </DocsLayout>
-  );
+  return <DocsShell locale={locale}>{props.children}</DocsShell>;
 }

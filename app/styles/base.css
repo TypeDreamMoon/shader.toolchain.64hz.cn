@@ -1,0 +1,116 @@
+/* =============================================================================
+   base — element defaults, brand wordmark, selection, focus, scrollbars,
+   overflow guards and the global reduced-motion contract.
+   ============================================================================= */
+
+body {
+  /* the Miku plotting-grid: two hairline grids plus a faint pink hatch */
+  background:
+    linear-gradient(
+        90deg,
+        color-mix(in oklab, var(--dream-miku) 9%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 44px 44px,
+    linear-gradient(
+        0deg,
+        color-mix(in oklab, var(--dream-miku) 8%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 44px 44px,
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--dream-pink) 5%, transparent) 0 1px,
+      transparent 1px 18px
+    ),
+    var(--color-fd-background);
+  font-feature-settings:
+    'rlig' 1,
+    'calt' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The page body never scrolls sideways. `clip` (not `hidden`) keeps the
+   viewport the scrollport, so sticky headers and the TOC still work. */
+html {
+  overflow-x: clip;
+  scrollbar-color: var(--ds-scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+/* Grid and flex children default to `min-width: auto`, which lets a wide table
+   push the whole document sideways. Zero it on the doc column. */
+#nd-page,
+#nd-docs-layout,
+#nd-home-layout {
+  min-width: 0;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--dream-miku) 35%, transparent);
+  color: var(--dream-ink);
+}
+
+.dark ::selection {
+  background: color-mix(in oklab, var(--dream-miku) 46%, transparent);
+  color: var(--ds-on-brand);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+/* --- brand wordmark --------------------------------------------------------
+   Lives in `base` rather than `home` because the nav and the docs sidebar both
+   render it; it is site chrome, not homepage furniture. */
+
+.miku-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-fd-foreground);
+}
+
+.miku-brand-text {
+  overflow: hidden;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- motion ----------------------------------------------------------------
+   One honest contract: if the reader asked for less motion, nothing animates
+   and nothing transitions. Durations collapse rather than being removed so
+   transitionend/animationend listeners still fire. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-delay: 0s !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
