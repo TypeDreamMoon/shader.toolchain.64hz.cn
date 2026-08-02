@@ -1,0 +1,392 @@
+---
+title: Section
+description: Properties、Inputs、Outputs、Results、Settings、Options、Graph 与 Layout —— 哪个块接受哪个、重复出现时怎么处理，以及 Group 分组作用域。
+---
+
+带属性的块，其函数体就是一串 section。一个 section 由名字、可选的 `=`，以及一对花括号里以 `;` 分隔的
+语句组成。
+
+<Synopsis>
+
+```c
+<section> := <section-name> [=] { <statement>… } [;]
+```
+
+</Synopsis>
+
+<Grammar />
+
+Section 名按**大小写不敏感**匹配，可以任意顺序出现，也可以重复。`=` 是可选的语法糖
+<Since v="1.5.0" />，闭合 `}` 之后的 `;` 也是可选的。下面四种写法是同一个 section：
+
+```c
+Properties = { float A = 1.0; }
+Properties   { float A = 1.0; }
+properties = { float A = 1.0; };
+PROPERTIES   { float A = 1.0 }
+```
+
+## 支持矩阵
+
+| Section | `Shader` | `ShaderFunction` | `ShaderLayer` / `Blend` | `VirtualFunction` |
+| :-- | :-- | :-- | :-- | :-- |
+| `Properties` | 参数节点 | 参数节点 | 参数节点 | **`Inputs` 的别名** |
+| `Inputs` | 未知 section | 引脚声明 | 引脚声明，受 arity 约束 | 引脚声明 |
+| `Outputs` | 声明 **+ 绑定** | 引脚声明 | 引脚声明，受 arity 约束 | 引脚声明 |
+| `Results` | 未知 section | `Outputs` 的别名 | `Outputs` 的别名 | `Outputs` 的别名 |
+| `Settings` | 材质设置 | 四个函数键 | 四个函数键 | `Options` 的别名 |
+| `Options` | 未知 section | 未知 section | 未知 section | `Asset` 引用 |
+| `Graph` | 必需¹ | 必需 | 必需 | **硬错误** |
+| `Layout` | 支持 | 支持 | 支持 | 未知 section |
+| `Code` | **硬错误** | **硬错误** | **硬错误** | **硬错误** |
+
+1. 除非至少有一条输出声明带初始化式 <Since v="1.3.4" />。
+
+`Function` 和 `GraphFunction` 完全没有 section —— 它们的 `{ … }` 是原始 HLSL。
+
+## 重复出现时的行为
+
+重复的 section 并不总是追加。搞错这一点会静默丢语句。
+
+| Section | 重复时 |
+| :-- | :-- |
+| `Properties`、`Inputs`、`Outputs`、`Results` | **追加**到之前的列表 |
+| `Settings`、`Options` | **合并**；后写的键胜出 |
+| `Graph` | **覆盖**之前的函数体 |
+| `Layout` | **重置** —— 第二个 `Layout` 会把第一个整个丢掉 |
+
+<Callout type="warn">
+
+`Layout` 是唯一会扔掉前一个自己的 section。一个函数体里只有最后一个 `Layout` 块有效。见
+[Layout 与 #Region](/docs/language/layout)。
+
+</Callout>
+
+## `Properties`
+
+声明一个块生成到**它自己的图里**的参数节点、常量节点和 `UE.*` 内置节点。
+
+<Synopsis>
+
+```c
+property-declaration := [ const ] <type-token> <name> [ = <default> ] [ [ <metadata> ] ] ;
+
+group-scope          := Group( "<group-name>" ) { { <property-declaration> | <group-scope> }… } [ ; ]
+```
+
+</Synopsis>
+
+`<metadata>` 外面最内层的那对 `[ … ]` 是**字面的** DreamShaderLang 标点，外面那对是"可选"的元语法。
+所以带元数据的声明写起来是 `float Roughness = 0.5 [Group="Surface"];`。
+
+```c
+Properties = {
+    const float DebugScale = 1.0;                 // UMaterialExpressionConstant
+    float Strength         = 1.0;                 // UMaterialExpressionScalarParameter
+    vec3  Tint             = vec3(1.0, 1.0, 1.0); // UMaterialExpressionVectorParameter
+    UE.TexCoord(Index = 0) UV;                    // 一个内置节点，不是参数
+}
+```
+
+一条语句按固定顺序拆解，正是这个顺序让含空格和括号的类型 token 能工作：
+
+| 步骤 | 操作 | 后果 |
+| :-- | :-- | :-- |
+| 1 | 从末尾剥掉尾随的 `[ … ]` 块 | 语句必须以 `]` **结尾**，元数据才会被看见 |
+| 2 | 在 `()`、`[]`、`"…"` 之外的第一个 `=` 处切分 | 有没有这个 `=` 是"有默认值"的唯一判据 |
+| 3 | 左半边在**最后一个**顶层空白处切分 | 前面是类型，后面是名字 |
+| 4 | 从类型 token 前端剥掉 `const` | `const` 是在类型 / 名字切分*之后*才被识别的 |
+
+因为第 3 步感知括号且接受任意空白，`UE.TexCoord(Index = 0) UV;` 会切成类型 `UE.TexCoord(Index = 0)`
+和名字 `UV`。
+
+<Callout type="warn">
+
+属性名只检查**非空**，不按标识符校验。`Properties { float 1Bad = 0; }` 解析通过、没有诊断；这条声明
+只是永远无法从 `Graph` 引用。相比之下 `Inputs` / `Outputs` 的名字必须符合 `[A-Za-z_][A-Za-z0-9_]*`。
+
+</Callout>
+
+属性节点是**惰性创建的，在 `Graph` 第一次引用时才建** <Since v="1.3.2" />。`Graph` 从没提过的属性
+根本不会产生节点，所以声明顺序不影响名字解析 —— 它只影响生成节点的纵向排列和下面那个自动排序计数器。
+
+类型 token、`const`、默认值和元数据块见 [Properties 类型](/docs/parameters/properties) 和
+[元数据与分组](/docs/parameters/metadata)。
+
+### `Group("Name") { … }` 作用域
+
+<Since v="1.5.0" />
+
+`Group` 作用域把自己的名字盖到内部每一条声明上，省得在每条声明的元数据里重复写同一个分组。
+
+```c
+Properties {
+    Group("Surface") {
+        ScalarParameter Roughness = 0.5 [Slider(0, 1)];
+        VectorParameter BaseColor = float4(1, 1, 1, 1);
+    }
+}
+```
+
+| 规则 | 细节 |
+| :-- | :-- |
+| 关键字 | `Group`，大小写不敏感 |
+| 参数 | 一对配平的 `( … )`，其内部文本去空白后**必须以 `"` 开头**；名字随后被反引号处理，且必须非空 |
+| 函数体 | `{ … }`；遍历器同时感知花括号、圆括号、方括号和字符串 |
+| 终止符 | 闭合 `}` 之后紧跟的单个 `;` 会被静默吞掉 |
+
+`Group(…)` 是 `Properties` 里**唯一**可以打开 `{` 的构造。其他任何 `{` 都会失败于
+`Unexpected '{' in Properties near '{Statement}'. Only Group("Name") { ... } may open a brace here.`
+
+作用域可以嵌套任意深度，嵌套作用域的有效名字是外层名字、一个 `|`、内层名字 —— 这正是 Unreal 自己的
+子分类写法：
+
+```c
+Properties {
+    Group("Surface") {
+        float A = 0;                    // Group = "Surface"
+        Group("Detail") {
+            float B = 0;                // Group = "Surface|Detail"
+            Group("Micro") {
+                float C = 0;            // Group = "Surface|Detail|Micro"
+            }
+        }
+    }
+}
+```
+
+声明上写的显式键总是胜出。只有当成员的元数据里既没写 `Group` 也没写 `Category` 时，继承来的分组才会
+生效：
+
+```c
+Group("Surface") {
+    float A = 0;                        // Group = "Surface"    （继承）
+    float B = 0 [Group="Override"];     // Group = "Override"   （显式胜出）
+    float C = 0 [Category="Other"];     // Group = "Other"      （Category 是别名）
+}
+```
+
+### 自动 `SortPriority`
+
+分组作用域里的成员按声明顺序自动编号。
+
+| 规则 | 取值 |
+| :-- | :-- |
+| 计数器起点 | `0` |
+| 计数器步长 | `10` |
+| 计数器范围 | **同一个 `Properties` section 内所有分组共用一个计数器**，不是每组一个 |
+| 显式 `SortPriority` / `Sort` | 胜出，并且**不占用槽位** |
+| 未分组（顶层）的声明 | 既不自动编号，也不会被赋予分组 |
+
+```c
+Properties {
+    Group("Surface") {
+        ScalarParameter A = 0.5;                    // SortPriority = 0
+        VectorParameter B = float4(1, 1, 1, 1);     // SortPriority = 10
+    }
+    Group("Detail") {
+        ScalarParameter C = 1.0 [SortPriority=99];  // SortPriority = 99，不占槽位
+        ScalarParameter D = 2.0;                    // SortPriority = 20（计数器接着走）
+    }
+    ScalarParameter Loose = 3.0;                    // 无分组，不自动排序
+}
+```
+
+<Callout type="info">
+
+计数器是**按 `Properties` section** 播种一次的。一个块声明了两次 `Properties`，第二个 section 会拿到
+一个从 `0` 重新开始的新计数器，于是两个 section 里的两个分组可能撞上相同的排序值。
+
+</Callout>
+
+当分组作用域和显式元数据都没提供值时，**根本不会写入 `SortPriority`**，生成的节点保留它自己的类默认值。
+
+## `Inputs`、`Outputs` 与 `Results`
+
+类型化参数 section。它们声明生成的材质函数的引脚，或者 `VirtualFunction` 所描述的接口。
+
+<Synopsis>
+
+```c
+parameter-declaration := [ opt ] <type> <name> [ = <default-expression> ] [ [ <metadata> ] ] ;
+```
+
+</Synopsis>
+
+`Results` 是 `Outputs` 的纯同义词 —— 它追加进同一个列表，没有任何警告。
+
+| 成员 | 必需 | 说明 |
+| :-- | :-- | :-- |
+| `opt` <Since v="1.2.3" /> | 否 | 在 Unreal 中把输入标记为可选（`bUsePreviewValueAsDefault`）。 |
+| `<type>` | 是 | 见 [类型与值](/docs/language/types-and-values)。 |
+| `<name>` | 是 | 必须符合 `[A-Za-z_][A-Za-z0-9_]*`，会成为引脚名。 |
+| `= <default>` | 否 | 预览值或预览图。对函数的输出无意义。 |
+| `[ <metadata> ]` | 否 | 只有 `Description` / `Desc` / `Tooltip` 和 `SortPriority` / `Sort` 有效。 |
+
+### 空白规则与 `Properties` 不同
+
+| | `Properties` | `Inputs` / `Outputs` / `Results` |
+| :-- | :-- | :-- |
+| 类型 / 名字切分点 | 最后一个**顶层空白**，感知括号 | 最后一个**字面空格** |
+| 用制表符分隔 | 接受 | **不**接受 |
+| 类型 token 可含 `( … )` | 可以 | 不可以 |
+| 名字按标识符校验 | 否 | **是** |
+
+<Callout type="warn">
+
+`opt` 被识别为字面三个字母加一个**空格**。`opt<TAB>float Strength;` 解析时没有任何诊断，却产出一个
+*必需*输入，其类型 token 是 `opt` + 制表符 + 真正的类型，随后在生成阶段失败于
+`{Kind} '{Function}' input '{Name}' uses unsupported type '{Type}'.`
+
+</Callout>
+
+<Callout type="info">
+
+`in` 和 `out` 在这些 section 里**不是**限定符。它们只存在于
+[`Function` / `GraphFunction`](/docs/language/functions) 的签名形式里，那是另一套语法。写
+`Inputs = { in float X; }` 会切成类型 `in float` 和名字 `X`，生成阶段报
+`uses unsupported type 'in float'`。
+
+</Callout>
+
+### 输入默认值
+
+| 情况 | 行为 |
+| :-- | :-- |
+| 类型是普通标量 / 向量**且**默认值能解析为数字字面量 | 直接写进 `PreviewValue` |
+| 其他任何情况 | 作为**图表达式**求值，接到输入的 `Preview` 引脚上 |
+
+正是这条图表达式路径，让预览默认值可以引用块自身生成的节点 <Since v="1.2.6" />：
+
+```c
+ShaderFunction(Name="Functions/F_Sample")
+{
+    Properties = {
+        const Texture2D PreviewTex = Path(Engine, "EngineResources/DefaultTexture");
+    }
+    Inputs = {
+        opt Texture2D Tex = PreviewTex;      // 预览图，不是字面量
+        opt float     Mix = 0.5;             // 字面量 → PreviewValue
+    }
+    Outputs = { vec4 OutColor; }
+    Graph   = { OutColor = Tex(Coordinates = UE.TexCoord(Index = 0)) * Mix; }
+}
+```
+
+把引脚标记为可选的只有 `opt` 一个。非 `opt` 输入上的默认值仍然会构建预览图，但引脚仍然是必需的。
+
+<Callout type="warn">
+
+材质函数 `Outputs` / `Results` 条目上的 `= <expression>` **会被解析然后忽略**。函数输出只可能由
+`Graph` 驱动。这一条不适用于 `Shader` 的 `Outputs`，那里的初始化式是有意义的 <Since v="1.3.4" />。
+
+</Callout>
+
+### `Properties` 与 `Inputs` 的区别
+
+两者都往生成的函数里放东西，但它们是产出不同节点的不同语法。
+
+| | `Properties` | `Inputs` |
+| :-- | :-- | :-- |
+| 产出 | 函数图*内部*的参数、常量或 `UE.*` 节点 | 函数接口*上*的 `FunctionInput` 引脚 |
+| 对调用方可见性 | 作为材质参数出现在任何使用该函数的材质上 | 作为可连线的输入引脚 |
+| 名字校验 | 只要非空 | 必须符合标识符规则 |
+| 类型 / 名字分隔符 | 任意空白 | 只能是字面空格 |
+
+属性名在块内必须唯一，且不能和输入名冲突。两项检查都忽略大小写，共用一条诊断：
+`{Kind} '{Function}' property '{Name}' conflicts with another property or input name.`
+
+## `Shader` 里的 `Outputs`
+
+`Shader` 的 `Outputs` 用一段函数体填**两个**列表，逐条语句独立分类。
+
+| 语句形态 | 归类为 |
+| :-- | :-- |
+| 没有顶层 `=` | 裸的输出变量声明 |
+| 有顶层 `=`，左半边是合法的类型化声明 | **带初始化式**的输出声明 <Since v="1.3.4" /> |
+| 有顶层 `=`，左半边**不是**合法的类型化声明 | 输出**绑定** |
+
+```c
+Outputs = {
+    vec3  Color;
+    float Alpha;
+
+    Base.EmissiveColor = Color;
+    Base.Opacity       = Alpha;
+}
+```
+
+- 声明和绑定可以自由交错；绑定可以引用同一 section 中后面才声明的变量。
+- 名字 `return` 是保留的。它不能被声明，作为绑定源时只能连到 `Base.*` 目标 —— 而且在有 `Graph` 块的
+  `Shader` 里根本不能用。
+- `Shader` 的 `Outputs` 语句上**不接受 `[ … ]` 元数据块**。那里根本不会调用元数据解析器，所以方括号块
+  会留在语句文本里，产出 `Invalid typed declaration` 或 `Invalid output binding` 错误。
+
+完整的 `Base.*` 目录和 `Expression( … ).Pin[i]` 形式见 [输出绑定](/docs/generation/outputs)。
+
+## `Settings` 与 `Options`
+
+两者共用一套语句语法：`<Key> = <Value> ;`，在 `()`、`[]`、`"…"` 之外的第一个 `=` 处切分。键被去空白并
+转成小写；值会被剥掉一对外围 `"…"`；重复的键静默覆盖先前的。
+
+| 块 | `Settings` 的含义 |
+| :-- | :-- |
+| `Shader` | 材质设置 —— 特殊键加上反射写入的 `UMaterial` 属性。见 [材质 Settings](/docs/settings/material)。 |
+| `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 只有四个键有效：`Description`、`UserExposedCaption`、`ExposeToLibrary`、`LibraryCategories`。其他键会被解析、存储，然后静默忽略。 |
+| `VirtualFunction` | `Options` 的别名，唯一被消费的键是 `Asset`。 |
+
+<Callout type="info">
+
+那四个材质函数键在**缺省时会被重置**，所以从源码里删掉一个键就等于从资产上删掉它。`LibraryCategories`
+按逗号切分，每项去空白，空项丢弃。
+
+</Callout>
+
+## `Graph`
+
+节点图的函数体。声明解析器不看它内部 —— 它把 `Graph = {` 和配对 `}` 之间的文本原样存下来，在生成阶段
+交给另一套表达式语法。它里面的注释**不会**被剥掉，而 `#Region` 指令只在这里被识别。
+
+```c
+Graph = {
+    vec2 UV  = UE.TexCoord(Index = 0);
+    vec4 Tex = BaseTex(Coordinates = UV);
+    Color = Tex.rgb * Tint;
+}
+```
+
+语句和表达式语言见 [Graph 求值模型](/docs/graph/overview)。
+
+## `Layout`
+
+固定生成节点的位置并声明注释框。见 [Layout 与 #Region](/docs/language/layout)。
+
+## 诊断
+
+<Diag>
+  <D msg="Invalid property declaration '{Statement}'." cause="Properties 的类型 token 和名字之间没有顶层空白。" />
+  <D msg="Missing property name in declaration '{Statement}'." cause="切分后名字一侧为空。" />
+  <D msg="Missing property type after const in declaration '{Statement}'." cause="const 后面什么都没有。" />
+  <D msg="Unsupported property type '{Type}'." cause="这个 token 既不是紧凑 token，也不是参数节点 token，也没有 UE. 前缀。" href="/docs/language/types-and-values" />
+  <D msg="Metadata must follow a declaration." cause="整条语句只有一个 [ … ] 块。" />
+  <D msg={`Unexpected '{' in Properties near '{Statement}'. Only Group("Name") { ... } may open a brace here.`} cause="Properties 里出现了不是 Group 作用域头的 {。" />
+  <D msg="Group(...) requires a non-empty name." cause='写了 Group("")，或参数不以引号开头。' />
+  <D msg={`Unterminated Group("{Name}") { ... } block.`} cause="作用域的 { 从未闭合。" />
+  <D msg="Invalid typed declaration '{Statement}'." cause="Inputs / Outputs / Results 里类型和名字之间没有字面空格、某一侧为空，或名字不是标识符。" fix="用空格，不要用制表符。" href="/docs/language/lexical" />
+  <D msg="Invalid setting declaration '{Statement}'." cause="Settings 或 Options 语句没有顶层 =。" />
+  <D msg="Invalid empty setting key in '{Statement}'." cause="Settings 或 Options 语句的键一侧为空。" />
+  <D msg="Metadata entry '{Entry}' must use Key=Value syntax." cause="元数据条目没有顶层 =，且不是 Slider(…)。" href="/docs/parameters/metadata" />
+  <D msg="Metadata key '{Key}' is declared more than once." cause="规范化之后出现重复的元数据键。" />
+  <D msg="Metadata SortPriority value '{Value}' is not an integer." cause="排序优先级不是整数。" />
+  <D msg="{Kind} '{Function}' property '{Name}' conflicts with another property or input name." cause="属性名重复，或属性遮蔽了输入名。两项都忽略大小写比较。" />
+  <D msg="{File}: Property '{Name}' is declared more than once. Property names must be unique." cause="两个 Shader 属性名在忽略大小写后相同。" />
+</Diag>
+
+## 继续阅读
+
+<Cards>
+  <Card title="类型与值" href="/docs/language/types-and-values" description="哪个类型 token 在哪个 section 里合法。" />
+  <Card title="Properties 类型" href="/docs/parameters/properties" description="紧凑类型、const，以及 22 个显式参数节点。" />
+  <Card title="元数据与分组" href="/docs/parameters/metadata" description="[ … ] 块、Slider(…) 与反射透传。" />
+  <Card title="输出绑定" href="/docs/generation/outputs" description="Base.* 目录与 Expression( … ).Pin[i]。" />
+</Cards>

@@ -1,66 +1,49 @@
 ---
-title: DreamShaderLang
-description: A text-first material language for replacing Unreal Engine material spaghetti graphs.
+title: Overview
+description: DreamShaderLang is a text language for Unreal Engine materials, compiled by the DreamShader plugin into ordinary material assets.
 ---
 
-DreamShaderLang is the source language used by the DreamShader Unreal plugin.
-It describes Unreal materials, material functions, Material Layers, shared helpers,
-package dependencies, and graph connections with `.dsm`, `.dsf`, and `.dsh` files.
-The plugin then generates regular `UMaterial`, `UMaterialFunction`,
-`UMaterialFunctionMaterialLayer`, and `UMaterialFunctionMaterialLayerBlend` assets.
+DreamShaderLang is a text language for Unreal Engine materials. You write `.dsm`, `.dsf` and
+`.dsh` files; the **DreamShader** plugin parses them inside the editor and builds standard Unreal
+assets — `UMaterial`, `UMaterialFunction`, `UMaterialFunctionMaterialLayer` and
+`UMaterialFunctionMaterialLayerBlend`.
 
-This documentation is organized around the language, so DreamShaderLang can be learned,
-searched, and referenced like a normal programming language.
+The source file is the authoring surface. The asset is build output, and can always be thrown away
+and regenerated.
 
-## Tutorial Path
-
-| Stage | Read | Goal |
-| --- | --- | --- |
-| Start | [Installation](./getting-started/installation.mdx), [First Material](./getting-started/first-material.mdx) | Save a `.dsm` file in an Unreal project and generate a material. |
-| Language basics | [File Model](./syntax/file-model.mdx), [Top-level Declarations](./syntax/declarations.mdx), [Sections](./syntax/sections.mdx) | Understand what belongs in `.dsm`, `.dsf`, and `.dsh` files. |
-| Graphs and helpers | [Graph Language](./syntax/graph.mdx), [Function and Namespace](./syntax/functions.mdx), [Layout and Region](./syntax/layout.mdx) | Write node connections, Custom-node helpers, and graph layout as text. |
-| Toolchain | [Plugin Overview](./dreamshader/overview.mdx), [Editor Support](./workflows/vscode.mdx), [Asset Generation](./compiler/asset-generation.mdx) | Understand generation, decompilation, diagnostics, and packages. |
-
-## Core Model
-
-| Concept | Role |
+| | |
 | --- | --- |
-| `.dsm` | Dream Shader Material. Usually generates a material, Material Layer, or project-level asset entry. |
-| `.dsf` | Dream Shader Function. Generates reusable `ShaderFunction` assets and can be imported by `.dsm` or other `.dsf` files. |
-| `.dsh` | Dream Shader Header. Stores shared `Function`, `GraphFunction`, `Namespace`, and import declarations. |
-| `Shader` | Top-level material declaration that generates an Unreal `UMaterial`. |
-| `ShaderFunction` | Top-level material-function declaration that generates an Unreal `UMaterialFunction`. |
-| `ShaderLayer` | Top-level Material Layer declaration that generates `UMaterialFunctionMaterialLayer`. |
-| `ShaderLayerBlend` | Top-level Material Layer Blend declaration that generates `UMaterialFunctionMaterialLayerBlend`. |
-| `VirtualFunction` | Declares an existing Unreal material function for Graph calls without generating or overwriting the asset. |
-| `Graph` | Graph DSL that creates Unreal material nodes. |
-| `Function` | HLSL-style helper callable from Graph code. |
-| `GraphFunction` | Reusable Custom-node helper that can call `UE.*` graph nodes inside its body. |
-| `Layout` | Optional graph metadata. `Node(...)` pins generated node positions and `Comment(...)` creates comment boxes. |
-| `#Region` | Named group inside `Graph`, useful for generated layout comments. |
-| `Namespace` | Groups shared helpers, called as `Namespace::Function(...)`. |
-| `Package` | Distributable `.dsh` / `.dsf` library installed under `DShader/Packages`. |
+| Plugin version | `1.5.0` |
+| Engines | Unreal Engine `5.3` – `5.8`, Win64 verified |
+| Modules | `DreamShader` (Runtime), `DreamShaderCompiler` (Runtime), `DreamShaderEditor` (Editor) |
+| Source extensions | `.dsm` · `.dsf` · `.dsh` |
+| Project settings | *Project Settings ▸ DreamPlugin ▸ Dream Shader* |
+| License | MIT |
 
-## Public Repositories
+## Three kinds of source file
 
-| Project | Link |
+| Extension | Name | Holds | Generates |
+| --- | --- | --- | --- |
+| `.dsm` | Dream Shader Material | at most one `Shader`, plus any function, layer, namespace or virtual-function block | the material, and every function asset declared beside it |
+| `.dsf` | Dream Shader Function | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` and helper blocks — no `Shader` | the function assets it declares |
+| `.dsh` | Dream Shader Header | `Function`, `GraphFunction`, `Namespace`, `VirtualFunction`, imports | nothing directly; it is consumed through `import` |
+
+`import` directives are inlined into one text before parsing, so a translation unit is the
+whole import closure, not the single file. That is why "one `Shader` per file" really means
+one `Shader` per closure. See [Source Files](/en/docs/language/file-model).
+
+## What a block generates
+
+| Block | Unreal asset |
 | --- | --- |
-| DreamShader plugin | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
-| VSCode extension | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) |
-| Rider plugin | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) |
-| Package Store Index | [TypeDreamMoon/dreamshader-package-index](https://github.com/TypeDreamMoon/dreamshader-package-index) |
+| `Shader` | `UDreamShaderMaterialInstance` over a hidden `UMaterial` base (`ThinCustom`, the default), or a plain `UMaterial` (`Graph` backend) |
+| `ShaderFunction` | `UMaterialFunction` |
+| `ShaderLayer` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` | `UMaterialFunctionMaterialLayerBlend` |
+| `VirtualFunction` | nothing — it declares an existing `UMaterialFunction` so `Graph` can call it |
+| `Function` / `GraphFunction` | `Custom` node code, plus one generated `.ush` helper include |
 
-## Language Layers
-
-DreamShaderLang is not just raw HLSL pasted into a material file. It has three layers:
-
-| Layer | Written in | Best for |
-| --- | --- | --- |
-| Asset layer | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | Unreal asset names, properties, settings, output bindings, and existing function signatures. |
-| Graph layer | `Graph = { ... }` | Variables, nodes, expressions, `UE.*`, material-function calls, helper calls, and simple `if` / `else`. |
-| Helper layer | `Function`, `GraphFunction`, `Namespace` | Reusable HLSL computation, loops, complex flow, and self-contained Custom-node code. |
-
-## Minimal Material
+## A minimal material
 
 ```c
 Shader(Name="DreamMaterials/M_Minimal")
@@ -85,50 +68,71 @@ Shader(Name="DreamMaterials/M_Minimal")
 }
 ```
 
-## Recommended Reading Order
+Saving that file under `DShader/` builds `/Game/DreamMaterials/M_Minimal`.
 
-| Goal | Pages |
-| --- | --- |
-| Write the first material | [Installation](./getting-started/installation.mdx), [First Material](./getting-started/first-material.mdx) |
-| Understand project structure | [Project Layout](./getting-started/project-layout.mdx), [File Model](./syntax/file-model.mdx) |
-| Learn the language core | [Top-level Declarations](./syntax/declarations.mdx), [Sections](./syntax/sections.mdx), [Types and Values](./syntax/types-and-values.mdx) |
-| Write shared logic | [Function and Helper](./syntax/functions.mdx), [Import and Namespace](./syntax/imports-and-namespaces.mdx) |
-| Write material graphs | [Graph Language](./syntax/graph.mdx), [UE Node Entry Reference](./reference/ue-nodes.mdx) |
-| Check generated assets | [Material Settings](./reference/material-settings.mdx), [Output Bindings](./reference/outputs.mdx), [Package Reference](./reference/packages.mdx) |
-| Learn by example | [Patterns](./examples/patterns.mdx), [Recipes](./examples/recipes.mdx) |
-| Debug generation | [Asset Generation](./compiler/asset-generation.mdx), [Diagnostics](./compiler/diagnostics.mdx), [Limitations](./compiler/limitations.mdx) |
-| Learn tools | [DreamShader Plugin](./dreamshader/overview.mdx), [Editor Support](./workflows/vscode.mdx), [Package Authoring](./workflows/package-authoring.mdx) |
-| Track changes | [ChangeLog](./changelog/index.mdx), [Plugin Updates](./changelog/dreamshader.mdx), [VSCode Updates](./changelog/vscode-extension.mdx), [Website Updates](./changelog/website.mdx) |
+<Callout type="info">
+  With the default `ThinCustom` backend the generated material lives **in memory only** and does not
+  appear in the Content Browser. That is deliberate, and there are three ways to reach it — see
+  [Your First Material](/en/docs/start/first-material).
+</Callout>
 
-## Current Versions
+## What DreamShader does, and what it does not
 
-| Project | Value |
-| --- | --- |
-| DreamShader plugin | `1.4.0` |
-| VSCode extension | `1.5.3` |
-| Rider plugin | `tsdaer/dreamshader-language-support` |
-| Docs site | `lang.64hz.cn` |
-| Language | `DreamShaderLang` |
-| File extensions | `.dsm` / `.dsf` / `.dsh` |
-| Author | TypeDreamMoon |
-| Main outputs | `UMaterial` / `UMaterialFunction` / Material Layer function assets |
+It generates material assets in the Unreal editor. That is the whole scope. Specifically:
 
-## 1.4.0 / 1.5.3 Highlights
+- **`Graph` is a node-graph builder, not a shader compiler.** It has four arithmetic operators,
+  `if` / `else`, and nothing else. No loops, no ternary, no `%`, no bitwise or comparison operators
+  outside an `if` condition, no matrices, no arrays or indexing, no compound assignment. Several of
+  those **truncate silently** rather than erroring — read
+  [What Graph Is Not](/en/docs/graph/unsupported) before you write your first non-trivial graph.
+  Genuinely imperative code belongs in a `Function`, whose body is real HLSL.
+- **Generation is editor-only.** There is no runtime path that builds a material from
+  DreamShaderLang, and none of the tooling exists in a packaged game.
+- **A generated asset is output, not a document.** Regeneration tears the graph down and rebuilds
+  it, destroying hand edits; parameter overrides set directly on a generated instance are cleared on
+  every rebuild. See [Regeneration](/en/docs/generation/regeneration).
+- **`Substrate.*` requires <Since v="5.4" ue />** and a plugin binary built against 5.4 or newer —
+  the gate is compile-time.
+- **Some spellings are already deprecated.** These are the `Instance` backend value and the
+  `MaterialLayer` / `MaterialLayerBlend` block spellings.
 
-| Capability | Notes |
-| --- | --- |
-| UE 5.3-5.7 compatibility | DreamShader plugin `1.4.0` is developed against UE `5.7` and verified with single-plugin `RunUAT BuildPlugin` builds on UE `5.3` through `5.7`. |
-| Substrate generation | The plugin supports UE 5.7 `Substrate` graph values, `Base.FrontMaterial` output binding, `Substrate.*` wrappers, and editor-exported Substrate builtin metadata. |
-| Material preview | VSCode extension `1.5.3` adds a `.dsm` material preview panel with local WebSocket streaming and `Saved/DreamShader/Bridge/preview.json` file-bridge fallback. |
-| Callable hover metadata | VSCode extension `1.5.2` shows return and output-pin details for DreamShader callables, UE builtins, and Substrate helpers. |
-| Template / Bridge / Package tools | VSCode extension `1.5.1` adds Template-block language support, bridge commands, status bar integration, diagnostics panel wiring, package tooling, and authoring templates. |
-| `.dsf` function files | Dream Shader Function files generate reusable `ShaderFunction` assets and support import between `.dsm` / `.dsf` files. |
-| Decompile export | Existing `Material` and `Material Function` assets can be exported as initial `.dsm` / `.dsf` sources. |
-| Layout and Region | `Layout = { Node(...); Comment(...); }` plus Graph `#Region` / `#EndRegion` preserves readable graph structure. |
-| VolumeTexture | Plugin and editor extension support `VolumeTexture` / `Texture3D`, default textures, completion, and diagnostics. |
-| Function builtins | The VSCode extension unifies HLSL intrinsics, GLSL aliases, and Unreal sampling helpers for completion, hover, signature help, inlay hints, diagnostics, and semantic highlighting. |
-| Dynamic MaterialExpression metadata | The plugin exports `Saved/DreamShader/Bridge/material-expressions.json`; VSCode reads reflected `UMaterialExpression` metadata with a built-in fallback manifest. |
-| Material Layer | `ShaderLayer` and `ShaderLayerBlend` generate native Unreal Material Layer / Layer Blend function assets. |
-| GraphFunction | `GraphFunction` helpers can use `UE.*` calls inside Custom-node bodies. |
-| Helper value expressions | Single-output `Function` / `GraphFunction` calls can be used as Graph value expressions. |
-| Material Function stability | Regeneration preserves input/output IDs for `ShaderFunction` assets to reduce broken Unreal `MaterialFunctionCall` links. |
+## Where to go next
+
+<Cards>
+  <Card title="Getting Started" href="/en/docs/start/installation">
+    Install the plugin, generate a first material, and learn the daily save-and-compile loop.
+  </Card>
+  <Card title="Language" href="/en/docs/language/file-model">
+    Source files, lexical rules, top-level blocks, sections, types, functions, imports, layout.
+  </Card>
+  <Card title="The Graph Language" href="/en/docs/graph/overview">
+    Statements, expressions, conversions, `if` / `else`, calls — and what Graph is not.
+  </Card>
+  <Card title="Builtins" href="/en/docs/builtins/ue-nodes">
+    The `UE.*` catalogue, the generic `UE.Expression` escape hatch, math builtins, `Substrate.*`.
+  </Card>
+  <Card title="Parameters" href="/en/docs/parameters/properties">
+    Property types, parameter nodes, metadata and groups, asset references.
+  </Card>
+  <Card title="Settings" href="/en/docs/settings/material">
+    Material settings and enum values, the backend, and all thirteen project settings.
+  </Card>
+  <Card title="Generation" href="/en/docs/generation/pipeline">
+    The pipeline, asset paths, in-memory materials, output bindings, regeneration.
+  </Card>
+  <Card title="Tooling" href="/en/docs/tools/editor">
+    Editor tools, the decompiler, VSCode and Rider, the headless commandlet, packages.
+  </Card>
+  <Card title="Diagnostics" href="/en/docs/diagnostics">
+    Every error and warning, with cause and fix, plus the current limitations.
+  </Card>
+  <Card title="Examples" href="/en/docs/examples/patterns">
+    Common patterns and complete, copy-pasteable sources.
+  </Card>
+  <Card title="HLSL / GLSL Background" href="/en/docs/shader-languages/hlsl">
+    Background reading for the shading languages DreamShaderLang borrows from.
+  </Card>
+  <Card title="Changelog" href="/en/docs/changelog">
+    Plugin, VSCode extension and website release notes.
+  </Card>
+</Cards>

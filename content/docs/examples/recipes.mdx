@@ -1,155 +1,176 @@
 ---
-title: 配方
-description: 可组合的 DreamShaderLang 材质片段。
+title: 完整示例
+description: 可直接编译的完整 DreamShaderLang 材质 —— 动画着色、UV 平移、分支、静态开关变体、半透明 UI、PBR、MaterialAttributes、Substrate、参数集合与 Settings 一览。
 ---
 
-## 时间脉冲
+下面每个配方都是一个能独立编译的完整 `.dsm`。它们按"参数、设置、输出、图"的顺序写，方便从上往下读。
+凡是有坑的地方，都直接写在代码旁边，而不是留给你自己踩。
+
+| | |
+| :-- | :-- |
+| 适用于 | DreamShaderLang `1.5.0` |
+| 引擎 | UE 5.3 – 5.8；Substrate 那个配方需要 <Since v="5.4" ue /> |
+| 假定源码根目录 | `<Project>/DShader` |
+| 生成产物 | 默认只在内存里 —— 见[内存材质](/docs/generation/in-memory) |
+
+想看这些材质是由哪些语言构件拼出来的，见[常用写法](/docs/examples/patterns)。
+
+## 动画着色
+
+`UE.Time()` 给出一个标量时钟；`sin` 是[数学内置](/docs/builtins/math)之一，所以裸调用、按位置传参。
 
 ```c
-Graph = {
-    float t = UE.Time();
-    float pulse = UE.Expression(
-        Class="Sine",
-        OutputType="float1",
-        Input=t);
-
-    Color = Tint * (pulse * 0.5 + 0.5);
-}
-```
-
-## UV 平移
-
-```c
-Graph = {
-    vec2 uv = UE.TexCoord(Index=0);
-    float t = UE.Time();
-    vec2 moved = UE.Panner(Coordinate=uv, Time=t, SpeedX=0.1, SpeedY=0.0);
-}
-```
-
-## 条件着色
-
-```c
-Graph = {
-    vec2 uv = UE.TexCoord(Index=0);
-    float mask = UE.Expression(
-        Class="ComponentMask",
-        OutputType="float1",
-        Input=uv,
-        R=true);
-
-    if (mask > 0.5) {
-        Color = vec3(1.0, 0.2, 0.2);
-    } else {
-        Color = vec3(0.0, 0.0, 0.0);
-    }
-}
-```
-
-## 透明 UI 材质
-
-```c
-Shader(Name="DreamMaterials/M_UI_Transparent")
+// DShader/Materials/M_Pulse.dsm
+Shader(Name="Materials/M_Pulse")
 {
     Properties = {
-        vec3 Tint = vec3(1.0, 1.0, 1.0);
-        float Alpha = 0.75;
+        vec3            Tint  = vec3(1.0, 0.4, 0.1);
+        ScalarParameter Speed = 2.0 [Slider(0, 10)];
     }
 
     Settings = {
-        Domain = "UI";
+        Domain       = "UI";
         ShadingModel = "Unlit";
-        BlendMode = "Translucent";
     }
 
     Outputs = {
         vec3 Color;
-        float OpacityValue;
-
         Base.EmissiveColor = Color;
-        Base.Opacity = OpacityValue;
     }
 
     Graph = {
-        Color = Tint;
-        OpacityValue = Alpha;
+        float t     = UE.Time();
+        float pulse = sin(t * Speed) * 0.5 + 0.5;
+        Color = Tint * pulse;
     }
 }
 ```
 
-## Surface PBR 骨架
+写两次 `sin(X)` 只会产生**一个** `Sine` 节点 —— 数学内置做公共子表达式缓存。已注册的 `UE.*` 内置不做：
+两次 `UE.Time()` 会创建两个 `Time` 节点。
+
+## UV 平移
 
 ```c
-Shader(Name="DreamMaterials/M_Surface_PBR")
+// DShader/Materials/M_Panned.dsm
+Shader(Name="Materials/M_Panned")
 {
     Properties = {
-        vec3 BaseTint = vec3(0.8, 0.6, 0.4);
-        float Rough = 0.5;
-        float Metal = 0.0;
+        TextureSampleParameter2D BaseTex  = Path(Engine, "EngineResources/WhiteSquareTexture");
+        ScalarParameter          PanSpeed = 0.1 [Slider(-1, 1)];
     }
 
     Settings = {
-        Domain = "Surface";
-        BlendMode = "Opaque";
-        ShadingModel = "DefaultLit";
+        Domain       = "UI";
+        ShadingModel = "Unlit";
     }
 
     Outputs = {
-        vec3 Base;
-        float RoughnessValue;
-        float MetallicValue;
-
-        Base.BaseColor = Base;
-        Base.Roughness = RoughnessValue;
-        Base.Metallic = MetallicValue;
+        vec3 Color;
+        Base.EmissiveColor = Color;
     }
 
     Graph = {
-        Base = BaseTint;
-        RoughnessValue = Rough;
-        MetallicValue = Metal;
+        vec2 uv    = UE.TexCoord(Index = 0);
+        vec2 moved = UE.Panner(Coordinate = uv, Time = UE.Time(), Speed = vec2(PanSpeed, 0.0));
+        vec4 texel = BaseTex(Coordinates = moved);
+
+        Color = texel.rgb;
     }
 }
 ```
 
-## 参数分组与排序
+<Callout type="info">
+`UE.Panner` 的参数分两类。`Coordinate`、`Time`、`Speed` 是**输入 pin**，接受表达式 —— 所以上面能用
+`PanSpeed` 参数驱动平移。而 `SpeedX`、`SpeedY`、`FractionalPart` 是节点上的**字面量属性**：写
+`SpeedX = PanSpeed` 会悄悄什么都不写，节点按默认速率平移。已注册的 `UE.*` 内置不校验参数列表，
+所以拼错的参数名同样被静默丢弃。
+</Callout>
+
+## 按阈值分支
+
+两个分支都会被无条件地建进图里，运行时由 `UMaterialExpressionIf` 二选一。条件必须带括号，
+每个分支体必须带花括号。
 
 ```c
-Properties = {
-    VectorParameter BaseColor = float4(0.8, 0.6, 0.4, 1.0) [
-        Group="Surface";
-        SortPriority=10;
-        Description="Base material color";
-    ];
-    ScalarParameter Roughness = 0.5 [
-        Group="Surface";
-        SortPriority=20;
-    ];
-    ScalarParameter Metallic = 0.0 [
-        Group="Surface";
-        SortPriority=30;
-    ];
+// DShader/Materials/M_Branch.dsm
+Shader(Name="Materials/M_Branch")
+{
+    Properties = {
+        ScalarParameter Threshold = 0.5  [Group="Surface"];
+        VectorParameter Lit       = float4(1.0, 0.85, 0.2, 1.0) [Group="Surface"];
+        VectorParameter Dark      = float4(0.05, 0.05, 0.1, 1.0) [Group="Surface"];
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "Unlit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float2 uv   = UE.TexCoord(Index = 0);
+        float  mask = uv.x;
+
+        if (mask > Threshold) {
+            Color = Lit.rgb;
+        } else if (mask > Threshold * 0.5) {
+            Color = Lit.rgb * 0.5;
+        } else {
+            Color = Dark.rgb;
+        }
+    }
 }
 ```
 
-## Static Switch 分支
+| 条件 | 含义 |
+| :-- | :-- |
+| `a > b`、`a < b`、`a >= b`、`a <= b`、`a == b`、`a != b` | 六个比较运算符 |
+| `if (x)` | 真值判断 —— 接的是 `x != 0`，所以**负值**走 then 分支 |
+
+- 比较的两侧都必须求值为**标量**。
+- 在一个分支里写过的变量必须在另一个分支里也写，否则合并失败：
+  `Graph if statement could not resolve both branch values for '…'.` 只在一个分支内*声明*的变量
+  同样算。
+- 分支值的形状必须一致，否则报
+  `Graph if branches assign variable '…' with inconsistent types`。
+- 在分支里读参数没问题 —— 参数永远不是分支输出。
+- `if` **区分大小写**；`If (x) { … }` 不是条件语句。
+
+<Callout type="warn">
+`&&` 和 `||` 不存在，而且会被**静默丢弃**。`if (a > 0 && b > 0)` 会按 `if (a > 0)` 编译，没有任何
+诊断。请改成两层嵌套的 `if`。同样的截断也发生在普通表达式里的 `%`、`?:`、`&`、`|`、`^`、`<<`
+和 `v[i]` 上 —— 见[不支持的写法](/docs/graph/unsupported)。
+</Callout>
+
+## 静态开关变体
+
+`StaticSwitchParameter` 不是运行时分支 —— 它产出的是不同的 permutation。和 `if` 不同，它写成**调用**。
 
 ```c
-Shader(Name="DreamMaterials/M_StaticSwitch")
+// DShader/Materials/M_Variant.dsm
+Shader(Name="Materials/M_Variant")
 {
     Properties = {
-        VectorParameter BaseColor = float4(0.1, 0.2, 0.3, 1.0) [
-            Group="Surface";
-            SortPriority=10;
-        ];
-        VectorParameter DetailColor = float4(1.0, 0.8, 0.3, 1.0) [
-            Group="Surface";
-            SortPriority=20;
-        ];
-        StaticSwitchParameter UseDetail = true [
-            Group="Switches";
-            SortPriority=30;
-        ];
+        Group("Surface") {
+            VectorParameter BaseColor   = float4(0.1, 0.2, 0.3, 1.0);
+            VectorParameter DetailColor = float4(1.0, 0.8, 0.3, 1.0);
+        }
+
+        Group("Switches") {
+            StaticSwitchParameter UseDetail = true [Description="Use the detail colour"];
+        }
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
     }
 
     Outputs = {
@@ -158,89 +179,189 @@ Shader(Name="DreamMaterials/M_StaticSwitch")
     }
 
     Graph = {
-        Color = UseDetail(True=DetailColor.rgb, False=BaseColor.rgb);
+        Color = UseDetail(True = DetailColor.rgb, False = BaseColor.rgb);
     }
 }
 ```
 
-## Material Parameter Collection
+`True=` / `False=`、`A=` / `B=` 和位置形式都可以。**不行**的是 `if (UseDetail) { … }` 和裸写
+`Color = UseDetail;` —— 两者都会失败于 `Unknown Graph identifier 'UseDetail'.`
+两个分支值的分量数必须一致。
+
+## 半透明 UI 材质
 
 ```c
-Graph = {
-    float windStrength = UE.CollectionParam(
-        Collection=Path(Game, "Collections/MPC_Wind"),
-        Parameter="WindStrength");
-
-    Color = Tint * windStrength;
-}
-```
-
-## 可选材质函数输入
-
-推荐放在 `.dsf` 函数文件中，例如 `DShader/Functions/F_DebugColor.dsf`。
-
-```c
-ShaderFunction(Name="Functions/F_DebugColor")
-{
-    Inputs = {
-        float3 InColor;
-        opt float4 ColorA = float4(0.3, 0.3, 0.7, 0.7) [
-            Description="Preview color A";
-        ];
-        opt float4 ColorB = float4(0.0, 0.35, 1.0, 0.65) [
-            Description="Preview color B";
-        ];
-    }
-
-    Outputs = {
-        float3 Result;
-    }
-
-    Graph = {
-        Result = InColor;
-    }
-}
-```
-
-调用时可以传 `default` 跳过可选输入：
-
-```c
-Graph = {
-    float3 debug = F_DebugColor(BaseColor, default, default, Output="Result");
-}
-```
-
-## 自定义 MaterialExpression 输出
-
-```c
-Graph = {
-    vec2 uv = UE.TexCoord(Index=0);
-    float r = UE.Expression(
-        Class="ComponentMask",
-        OutputType="float1",
-        Input=uv,
-        R=true);
-
-    Color = vec3(r, r, r);
-}
-```
-
-## 多输出 helper
-
-```c
-Function SplitBrightness(in vec3 color, out vec3 normalized, out float brightness) {
-    brightness = max(max(color.r, color.g), color.b);
-    normalized = color / max(brightness, 0.0001);
-}
-
-Shader(Name="DreamMaterials/M_Brightness")
+// DShader/Materials/M_UI_Glass.dsm
+Shader(Name="Materials/M_UI_Glass")
 {
     Properties = {
-        vec3 Tint = vec3(1.0, 0.5, 0.25);
+        vec3            Tint    = vec3(1.0, 1.0, 1.0);
+        ScalarParameter Opacity = 0.75 [Slider(0, 1)];
     }
 
     Settings = {
-        Domain = "UI";
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+        BlendMode    = "Translucent";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        Color = Tint;
+        Alpha = Opacity;
+    }
+}
+```
+
+`Domain = "UI"` 加 `ShadingModel = "Unlit"` 是 UMG 材质想要的组合；而让 `Base.Opacity` 真正起作用的
+是 `BlendMode`。所有可接受写法见[枚举取值](/docs/settings/enums)。
+
+## Surface PBR 骨架
+
+```c
+// DShader/Materials/M_Surface.dsm
+Shader(Name="Materials/M_Surface")
+{
+    Properties = {
+        Group("Surface") {
+            VectorParameter Albedo    = float4(0.8, 0.6, 0.4, 1.0);
+            ScalarParameter Roughness = 0.5 [Slider(0, 1)];
+            ScalarParameter Metallic  = 0.0 [Slider(0, 1)];
+        }
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Rough;
+        float Metal;
+
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
+        Base.Metallic  = Metal;
+    }
+
+    Graph = {
+        Color = Albedo.rgb;
+        Rough = Roughness;
+        Metal = Metallic;
+    }
+}
+```
+
+输出*变量*和绑定*目标*处在不同的命名空间里，但把它们写得明显不同（`Color` → `Base.BaseColor`）
+能让文件更好读。完整的目标清单见[输出绑定](/docs/generation/outputs)。
+
+## 写 `MaterialAttributes`
+
+绑定 `Base.MaterialAttributes` 会自动为生成的材质打开 *Use Material Attributes*。一个
+`MaterialAttributes` 变量就是一个 `MakeMaterialAttributes` 节点，它的成员按名字写。
+
+```c
+// DShader/Materials/M_Attrs.dsm
+Shader(Name="Materials/M_Attrs")
+{
+    Properties = {
+        vec3  BaseTint = vec3(0.6, 0.8, 1.0);
+        float R        = 0.35;
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        Base.MaterialAttributes = Attrs;
+    }
+
+    Graph = {
+        MaterialAttributes Attrs;
+
+        Attrs.BaseColor = BaseTint;
+        Attrs.Roughness = R;
+        Attrs.Metallic  = 0.0;
+
+        // 成员可以通过 BreakMaterialAttributes 节点读回来。
+        float Echo = Attrs.Roughness;
+        Attrs.Specular = Echo;
+    }
+}
+```
+
+<Callout type="info">
+绑定被求值之前，`Attrs` 必须已经是一个图上的值。要么像上面那样**在 `Graph` 里**声明它，要么给
+`Outputs` 声明加一个初始化式。`MaterialAttributes` 在 `Outputs`、`Inputs` 和函数签名里都是合法的
+类型 token，但在 `Properties` 里**不是**。
+</Callout>
+
+- 成员名就是材质属性名（`BaseColor`、`Metallic`、`Specular`、`Roughness`、`EmissiveColor`、
+  `Opacity`、`Normal` …）—— 和 `Base.<X>` 绑定目标是同一套目录。
+- 算术运算符拒绝 `MaterialAttributes` 操作数：
+  `Arithmetic operators cannot be applied to MaterialAttributes values.`
+- 一个 `Shader` 不能同时使用 `Base.MaterialAttributes` 和 `Base.FrontMaterial`。
+
+## Substrate 表面
+
+<Since v="5.4" ue />
+
+`Substrate.*` 构建 Substrate BSDF 节点；消费它们的绑定是 `Base.FrontMaterial`。
+
+```c
+// DShader/Materials/M_Substrate.dsm
+Shader(Name="Materials/M_Substrate")
+{
+    Properties = {
+        vec3 Color = vec3(0.1, 0.6, 1.0);
+    }
+
+    Outputs = {
+        Substrate Surface;
+        Base.FrontMaterial = Surface;
+    }
+
+    Graph = {
+        Surface = Substrate.Unlit(EmissiveColor = Color);
+    }
+}
+```
+
+- `Substrate` 类型 token、`Substrate.*` 命名空间和 `Base.FrontMaterial` 都要求 **UE 5.4 或更新**，
+  不是 5.7。更低版本上编译失败于
+  `Substrate builtin call '…' requires Unreal Engine 5.4 or newer.`
+- `Base.FrontMaterial` 会强制把着色模型设为 Substrate，因此显式的 `ShadingModel` 设置要么不写，
+  要么写 `"Substrate"`。写成别的会失败于
+  `Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.`
+- 每个 `Substrate.*` 参数都必须**带名字** —— 已注册 `UE.*` 的那套语法糖在这里不适用 —— 并且
+  `Class=` 被拒绝，因为每个名字都固定映射到一个表达式类。
+- `Substrate.*` 调用**不会**被提升出 `GraphFunction` 体；只有 `UE.*` 会。
+- Substrate 值不能 swizzle、不能参与算术运算符，也不能被 `if` 语句选择。
+
+## 用参数集合驱动材质
+
+```c
+// DShader/Materials/M_Wind.dsm
+Shader(Name="Materials/M_Wind")
+{
+    Properties = {
+        vec3 Tint = vec3(0.4, 0.7, 0.3);
+    }
+
+    Settings = {
+        Domain       = "Surface";
         ShadingModel = "Unlit";
     }
 
@@ -250,11 +371,148 @@ Shader(Name="DreamMaterials/M_Brightness")
     }
 
     Graph = {
-        vec3 normalized;
-        float brightness;
+        float wind = UE.CollectionParam(
+            Collection = Path(Game, "Collections/MPC_Wind"),
+            Parameter  = "WindStrength");
 
-        SplitBrightness(Tint, normalized, brightness);
-        Color = normalized * brightness;
+        Color = Tint * wind;
     }
 }
 ```
+
+- `Collection`（别名 `Asset`）和 `Parameter`（别名 `ParameterName`）都是**必填**。
+  `UE.CollectionParameter` 是这个内置的第二种可接受写法。
+- 集合资产在生成时被加载，参数按名字在里面查找。向量参数得到 `float4`，标量参数得到 `float1`，
+  其他情况是错误。
+- `Group` 和 `SortPriority` 参数存在，但在 <Since v="5.7" ue /> 以下会被静默丢弃。
+
+<Callout type="warn">
+这个内置的输出宽度**不是权威的**，因此它不能在混宽度的二元运算中充当加宽伙伴。`Tint * wind` 之所以
+可行，是因为 `wind` 是标量；拿一个 `vec3` 去乘一个宽度未知的集合*向量*参数就得不到同样的救援。见
+[运算符与转换](/docs/graph/expressions)。
+</Callout>
+
+## 多输出 helper
+
+两个及以上 `out` 参数意味着使用语句调用形式，尾部的实参就是接收结果的名字。
+
+```c
+// DShader/Materials/M_Brightness.dsm
+Function SplitBrightness(in vec3 color, out vec3 normalized, out float brightness) {
+    brightness = max(max(color.r, color.g), color.b);
+    normalized = color / max(brightness, 0.0001);
+}
+
+Shader(Name="Materials/M_Brightness")
+{
+    Properties = {
+        vec3 Tint = vec3(1.0, 0.5, 0.25);
+    }
+
+    Settings = {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        SplitBrightness(Tint, Normalized, Brightness);
+        Color = Normalized * Brightness;
+    }
+}
+```
+
+- 函数体是 **HLSL**，所以这里的 `max` 是 HLSL 内建函数，不是 `Graph` 的数学内置。
+- 声明了返回类型就意味着恰好一个输出，并且禁止任何 `out` 参数。所以
+  `Function void Name(…, out float r)` 是错误 —— 想要多个结果时就别写返回类型。
+- out 目标由调用本身创建，不需要事先声明。
+
+## Settings 一览：带显式 backend 的玻璃
+
+```c
+// DShader/Materials/M_Glass.dsm
+Shader(Name="Materials/M_Glass")
+{
+    Properties = {
+        vec3  Tint    = vec3(0.7, 0.9, 1.0);
+        float Opacity = 0.35;
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Translucent";
+        TwoSided     = true;
+        Wireframe    = false;
+        Backend      = "Graph";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.BaseColor = Color;
+        Base.Opacity   = Alpha;
+    }
+
+    Graph = {
+        Color = Tint;
+        Alpha = Opacity;
+    }
+}
+```
+
+<Wide>
+
+| 键 | 别名 | 取值 |
+| :-- | :-- | :-- |
+| `MaterialDomain` | `Domain` | `Surface`、`DeferredDecal` / `Decal`、`LightFunction`、`Volume`、`PostProcess`、`UI` / `UserInterface`、`RuntimeVirtualTexture` / `VirtualTexture` |
+| `ShadingModel` | — | `Unlit`、`DefaultLit` / `Lit`、`Subsurface`、`PreintegratedSkin`、`ClearCoat`、`SubsurfaceProfile`、`TwoSidedFoliage`、`Hair`、`Cloth`、`Eye`、`SingleLayerWater`、`ThinTranslucent`，以及 UE 5.4+ 上的 `Substrate` / `Strata` |
+| `BlendMode` | `RenderType` | `Opaque`、`Masked` / `Cutout`、`Translucent` / `Transparent`、`Additive`、`Modulate`、`AlphaComposite` / `PremultipliedAlpha` / `Premultiplied`、`AlphaHoldout`、`TranslucentColoredTransmittance` |
+| `Backend` | — | `Graph`、`ThinCustom`、`Instance`（`ThinCustom` 的弃用别名） |
+
+</Wide>
+
+- 枚举值在比较前会去掉空格、`_` 和 `-`，并且不区分大小写：`"Default Lit"`、`"DefaultLit"`、
+  `"default_lit"` 和 `"DEFAULT-LIT"` 是同一个别名。所有设置值的引号都可省。
+- 上面这四个键，加上 `RenderType` 和 `Domain`，是仅有的手写处理的键。**其余每个键都被直接反射到
+  `UMaterial` 上** —— 上面的 `TwoSided` 和 `Wireframe` 就是真实的 `UMaterial` 属性。`Shader` 的
+  `Settings` 块里出现未知键是硬错误。
+- 重复的键静默覆盖，最后一个生效。重复的 `Settings` section 会合并。
+- 省略 `Backend` 会回退到项目的 **Default Compiler Backend**，也就是 `ThinCustom`。
+
+<Callout type="warn">
+`Backend = "";` 解析成 **`Graph`**，而不是项目默认值。只有*省略*这个键才会回退到项目设置。见
+[Backend](/docs/settings/backend)。
+</Callout>
+
+## 怎么跑这些文件
+
+1. 把它们保存到 `<Project>/DShader` 下，或者 `SourceDirectory` 指向的位置。
+2. 开着 *Auto Compile On Save*（默认开），编辑器会在保存后经过 0.25 秒防抖重新编译，并**在内存中**
+   生成材质。在 cook、显式 *Materialize* 或命令行之前，不会写出任何 `.uasset`。
+3. 无头编译单个文件：
+
+```powershell
+& "<Engine>/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" `
+  "<Project>/MyProject.uproject" `
+  -run=DreamShader compile -Source="<Project>/DShader/Materials/M_Minimal.dsm" -Force `
+  -unattended -nopause -nosplash -stdout -log
+```
+
+把 `-Source=` 换成 `-All` 就能编译项目里所有 `.dsf` 和 `.dsm`。和编辑器不同，命令行写出的是
+**持久化**资产。
+
+## 接下来
+
+<Cards>
+  <Card title="常用写法" href="/docs/examples/patterns" description="这些材质是由哪些构件拼起来的。" />
+  <Card title="if / else" href="/docs/graph/control-flow" description="条件语句、真值语义与分支合并规则。" />
+  <Card title="材质 Settings" href="/docs/settings/material" description="每一个 Settings 键，以及反射是怎么解析它的。" />
+  <Card title="输出绑定" href="/docs/generation/outputs" description="每一个 Base.* 目标及其接受的值。" />
+  <Card title="命令行" href="/docs/tools/commandlet" description="无头编译及其开关。" />
+</Cards>

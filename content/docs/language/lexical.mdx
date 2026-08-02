@@ -1,0 +1,330 @@
+---
+title: 词法与大小写
+description: 大小写敏感性、注释、标识符、字符串与数字字面量，以及几个对空白字符看法不一致的语句切分器。
+---
+
+这一页讲字符级别的规则：哪些 token 在意大小写、注释和字面量怎么读、section 的内容怎么被切成语句。
+大部分内容不会让人意外。真正需要记住的是三点 —— 大小写敏感性矩阵、宽容到有点危险的数字转换，以及
+制表符的坑。
+
+## 大小写敏感性
+
+**顶层块关键字是整门语言里唯一大小写敏感的 token。** 其余所有类关键字的东西都忽略大小写匹配。
+
+| 构造 | 大小写敏感 |
+| :-- | :-- |
+| 顶层块关键字 —— `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`MaterialLayer`、`MaterialLayerBlend`、`VirtualFunction`、`Namespace`、`Function`、`GraphFunction` | **是** |
+| Section 名 —— `Properties`、`Settings`、`Outputs`、`Inputs`、`Results`、`Options`、`Graph`、`Code`、`Layout` | 否 |
+| 头部属性键 —— `Name=`、`Root=`、`Asset=` | 否 |
+| `Settings` / `Options` 键、元数据键、`UE.*` 参数键、`Expression( … )` 参数键、`Layout` 参数键 | 否 —— 而且存储时会转成小写 |
+| 类型 token —— `float3`、`vec3`、`Texture2D`、`ScalarParameter`… | 否 |
+| `Properties` 中的 `const` 前缀 | 否 |
+| `Inputs` 中的 `opt` 前缀 | 否 |
+| `Function` 之后的 `SelfContained` / `Inline` | 否 |
+| `in` / `out` 参数限定符 | 否 |
+| 默认值里的 `true` / `false` | 否 |
+| `Path(` 资产引用关键字 | 否 |
+| `Base.` 绑定前缀与 `Expression(` | 否 |
+| `.Pin[` 引脚选择器 | 否 |
+| `Group("…")` 属性分组头 | 否 |
+| `Slider(` 元数据简写 | 否 |
+| `UE.` 内置前缀 | 否 |
+| `#Region` / `#EndRegion` | 否 |
+| `Node(` / `Comment(` layout 调用 | 否 |
+| `import` | 否 |
+| 调用参数哨兵 `default` | 否 |
+| `.dsm` / `.dsf` / `.dsh` 扩展名 | 否 |
+
+所以 `shader(Name="X")` 和 `SHADER(Name="X")` 都是语法错误，而
+`properties = { … }`、`settings { domain = "ui"; }` 和 `Shader(name="X")` 都能被接受。
+
+关键字匹配还要求**右侧词边界**：关键字后面的字符不能是字母、数字或 `_`。正是这条规则让
+`ShaderFunction` 不会被当成 `Shader`，`ShaderLayerBlend` 不会被当成 `ShaderLayer`。
+
+<Callout type="warn">
+
+块关键字写错大小写不会被报成"大小写错误"。它根本匹配不上任何顶层关键字，失败信息是
+`Unexpected token near index {Index}.`
+
+</Callout>
+
+## 语法概览
+
+<Synopsis>
+
+```c
+<token> := <identifier> | <keyword> | <string-literal> | <numeric-text> | <punctuation>
+
+<identifier>     := { <letter> | _ } { <letter> | <digit> | _ }…
+<qualified-name> := <identifier> :: <identifier>
+<string-literal> := " { <character> | \<escape> }… "
+<punctuation>    := { | } | ( | ) | [ | ] | ; | = | , | . | :: | #
+```
+
+</Synopsis>
+
+<Grammar />
+
+空白和注释可以出现在任意两个 token 之间，除此之外没有意义。
+
+## 空白
+
+引擎认定为空白的任何字符都能分隔 token：空格、制表符、回车、换行以及其他 Unicode 空白字符。换行在
+声明语法里没有任何语法作用 —— 只有面向行的处理才关心它：
+[`import`](/docs/language/imports) 指令、`Graph` 体内的 `#Region` 指令，以及诊断的行号。
+
+<Callout type="warn">
+
+有两种语句形式是按**字面空格字符**切分的，而不是按空白类。类型和名字之间写制表符会变成语法错误。见
+[语句切分](#语句切分)。
+
+</Callout>
+
+## 注释
+
+| 形式 | 规则 |
+| :-- | :-- |
+| `// …` | 行注释；一直到下一个换行为止，不含换行本身 |
+| `/* … */` | 块注释；在第一个 `*/` 处结束 |
+
+- **块注释不嵌套。** `/* a /* b */ c */` 在第一个 `*/` 处结束，后面的 `c */` 又变回代码。
+- **未闭合的块注释会被静默接受。** 只有 `/*` 没有 `*/` 会吞掉文件剩余部分，且不产生任何诊断。相比之下
+  未闭合的 `{` 块会失败于 `Unterminated block.`
+- 注释在声明语法的每个位置都被同样识别，包括统计 `{}`、`()`、`[]` 嵌套时，所以注释里的花括号或引号
+  永远不会让块失衡。
+- 在 `Properties`、`Settings`、`Outputs`、`Layout` 和类型化参数 section 里切分语句之前，还会再做一次
+  文本级去注释。那一遍是感知字符串的，并且保留终止行注释的那个换行，所以行号不会错位。
+- **声明解析器不会去掉 `Graph` 体里的注释。** `Graph` 块中的注释原样和函数体一起存下来，之后交给表达式
+  分词器处理。
+- 声明层面没有 `#` 预处理器。`#Region` / `#EndRegion` 只在 `Graph` 体内被识别 —— 见
+  [Layout 与 #Region](/docs/language/layout)。
+
+<Callout type="warn">
+
+注释不能把文本藏起来躲开文件类型扫描，也躲不开 `import` 行扫描。把 `.dsh` 里的 `Shader(` 块注释掉，
+它照样报错；用 `/* … */` 注释掉一批 import，它们照样被导入。见
+[文件模型](/docs/language/file-model) 与 [import 与命名空间](/docs/language/imports)。
+
+</Callout>
+
+## 标识符
+
+| 位置 | 可用字符 |
+| :-- | :-- |
+| 首字符 | 字母或 `_` |
+| 后续字符 | 字母、数字或 `_` |
+
+没有长度上限，而且**没有任何关键字对标识符是保留的**：叫 `Shader`、`Graph` 或 `float` 的属性、变量、
+参数、函数都不会被拒绝。至于这个名字之后能不能解析成功，那是它所处上下文的事。
+
+`Inputs`、`Outputs`、`Results` 和 `Layout` 调用里的声明*名字*有更严的检查：整个去空白后的 token 必须
+符合标识符规则。`Properties` 里的名字只要求非空，所以 `Properties { float 1Bad = 0; }` 能解析通过 ——
+它只是永远无法从 `Graph` 里被引用。
+
+带命名空间的名字用 `::`，例如 `Common::ApplyTint`。见 [函数](/docs/language/functions)。
+
+### 名字净化
+
+名字进入生成的 HLSL 时会被净化：`A–Z a–z 0–9 _` 之外的每个字符变成 `_`，开头是数字则加一个 `_` 前缀，
+连续的 `__` 塌缩成一个，结果为空或全是下划线时变成 `DreamShaderSymbol`。
+
+```text
+Common::ApplyTint   →   Common__ApplyTint   →   Common_ApplyTint
+```
+
+正是这次塌缩，让 `Common::ApplyTint` 和顶层的 `Common_ApplyTint` 在生成代码里撞名。
+
+## 字符串字面量
+
+带引号的值以 `"` 开始，到下一个未转义的 `"` 结束，读入时完成反转义。反斜杠总是吞掉紧随其后的那个字符，
+所以 `\"` 永远不会终结字面量。
+
+任何可以写引号的地方 —— settings 值、元数据值、属性值、参数值 —— **引号都是可选的**。原始文本先被去掉
+首尾空白，只有当结果至少两个字符长、且首尾都是 `"` 时才剥掉引号。所以 `Domain = UI;` 和
+`Domain = "UI";` 等价。
+
+| 转义 | 产生 |
+| :-- | :-- |
+| `\n` | 换行 |
+| `\r` | 回车 |
+| `\t` | 制表符 |
+| `\"` | `"` |
+| `\\` | `\` |
+| `\<any other character>` | 那个字符本身；反斜杠被丢弃，没有诊断 |
+| 文本末尾孤零零的一个 `\` | 一个字面反斜杠 |
+
+没有数字转义。`\0`、`\xNN`、`\uNNNN` 都落进"其他字符"那一行，所以 `\0` 得到 `0`，`\x41` 得到 `x41`。
+
+`Graph` 表达式语法使用同样的五个转义和同样的透传规则；区别是那里未闭合的字符串会在输入结束时静默闭合，
+而不是报错。
+
+<Callout type="info">
+
+`Settings` 和 `Options` 的值在剥掉引号之后**不会**再次去空白，所以 `Domain = " UI ";` 存下来的是带空格
+的 `UI`。元数据的值在反引号处理后*会*再去一次空白。`"…"` 里的裸换行和其他字符一样被吞掉。
+
+</Callout>
+
+## 数字字面量
+
+声明语法和 `Graph` 表达式语法在这里并不一致，这个差异是常见的意外来源。
+
+### 声明语法
+
+声明语法**没有数字 token**。值以原始文本捕获，只有当某个消费者要一个数字时才转换。
+
+| 消费者 | 接受什么 |
+| :-- | :-- |
+| 标量默认值 | 引擎 double 转换能接受的任意文本，外加 `true` → `1.0`、`false` → `0.0` |
+| 整数参数 | 引擎 `int32` 转换能接受的任意文本 |
+| 布尔默认值 | 严格的 `true` 或 `false` |
+| 向量默认值 | `<anything>( <part> [, <part>]… )` —— 见下 |
+
+<Callout type="warn">
+
+底层转换非常宽容：只有当解析结果为零时它才回头复核文本。下面这些全都是静默的。
+
+| 写法 | 解析为 | 诊断 |
+| :-- | :-- | :-- |
+| `float Strength = 1.0f;` | `1.0` | 无 |
+| `float Strength = 1abc;` | `1.0` | 无 |
+| `float Strength = 0.0f;` | `0.0` | 无 |
+| `float Strength = abc;` | — | `Invalid scalar default value 'abc' for property 'Strength'.` |
+
+没有十六进制、八进制、二进制字面量形式。`0x1F` 和其他文本一样被交给同一个宽容转换。
+
+</Callout>
+
+向量字面量的形式故意写得很松。第一个 `(` 和**最后一个** `)` 界定分量，而 **`(` 之前的文本被完全忽略**
+—— `float3(1,0,0)`、`vec3(1,0,0)`、`(1,0,0)` 和 `Nonsense(1,0,0)` 解析结果完全一样。内部按 `,` 切分且
+不跟踪嵌套，所以某个分量里再嵌一层调用就会切错。每个分量可以是数字，也可以是 `true` / `false`。
+
+| 分量个数 | 结果 |
+| :-- | :-- |
+| 1 | `(a, a, a, 1)` —— 铺满 x、y、z |
+| 2 | `(a, b, 0, 0)` |
+| 3 | `(a, b, c, 1)` |
+| 4 或更多 | 取前四个，多出来的会被解析然后丢弃 |
+
+未填充时的默认值是 `(0, 0, 0, 1)`。
+
+### Graph 表达式语法
+
+在 `Graph` 块里，数字是真正的 token。
+
+| 元素 | 规则 |
+| :-- | :-- |
+| 起始 | 一个数字，**或者**紧跟数字的 `.` —— 所以 `.5` 合法 |
+| 主体 | 数字和 `.`；词法上允许出现多个 `.`，之后在转换阶段失败 |
+| 指数 | 最多一个 `e` 或 `E`，后面可跟 `+` 或 `-` |
+| 后缀 | `f` `F` `h` `H` `u` `U` `l` `L` 之中恰好一个 |
+| 十六 / 八 / 二进制 | 不支持 —— `0x1F` 词法上是数字 `0` 后面跟标识符 `x1F` |
+
+只有当后缀后面的字符不是字母、数字或 `_` 时后缀才会被消费，而且它**不进入 token 文本**：`0.55f` 就是
+数字 `0.55`。因为只消费一个后缀，`1.0ul` 会被读成数字 `1.0` 后面跟标识符 `ul`。
+
+表达式分词器接受这些单字符 token：`(` `)` `,` `.` `+` `-` `*` `/` `=`，外加双字符的 `::`。
+
+<Callout type="warn">
+
+**其他任何字符 —— 包括单独的 `:`、`{`、`}`、`[`、`]`、`<`、`>`、`%`、`!`、`&` 和 `|` —— 都会终止
+表达式。** 如果此时还在等一个值，解析失败于 `Unexpected token '{Token}' in Graph expression.`；如果
+表达式已经完整，剩下的文本**不带任何诊断**地被丢弃。见 [不支持的写法](/docs/graph/unsupported)。
+
+</Callout>
+
+## 语句切分
+
+section 的内容是一串以 `;` 分隔的语句。
+
+- `;` 只在圆括号深度 0 **且**方括号深度 0 时才分隔语句，字符串字面量内部永远不分。
+- 通用切分器**不跟踪花括号**。`Properties` 有自己的感知花括号的遍历器，才让 `Group("…") { … }` 生效；
+  其余每个 section 都把 `{` 当普通字符。
+- 空语句被丢弃，所以多余的 `;;` 无害。
+- 最后一条语句即使没有终止符也会被提交 —— **块内最后一个 `;` 是可选的**。
+- section 闭合 `}` 之后的 `;` 是可选的，section 名和它的块之间的 `=` 也是可选的 <Since v="1.5.0" />。
+
+随后有三种切分器把一条语句拆成几部分，它们对"什么算空白"的看法**并不一致**：
+
+| 切分 | 使用者 | 规则 |
+| :-- | :-- | :-- |
+| 深度 0、字符串外的第一个 `=` | `Settings`、`Options`、元数据条目、`Outputs`、`Layout` 参数、`UE.*` 参数 | `Color = (R=1,G=0,B=0);` 在外层 `=` 处切分 |
+| 深度 0 的最后一个**空白** | `Properties` 声明 | 制表符没问题；`UE.TexCoord(Index = 0) UV` 切成类型 `UE.TexCoord(Index = 0)` 和名字 `UV` |
+| 最后一个**字面空格** | `Inputs`、`Outputs`、`Results` 的类型化参数，以及 `Shader` 的输出声明 | 既不感知深度，也不感知空白类 |
+| 任意一段空白 | `Function` / `GraphFunction` 参数列表 | 每个参数必须切出恰好 2 或 3 个 token |
+
+<Callout type="warn">
+
+**制表符只在两个地方咬人。** 在 `Inputs`、`Outputs`、`Results` 或 `Shader` 的 `Outputs` 里写
+`float3<TAB>Color;` 会失败于 `Invalid typed declaration '{Statement}'.` 同样的声明在 `Properties` 里
+是合法的，因为它按任意空白切分。
+
+可选的 `opt` 前缀被识别为 `opt` 加一个**空格**；`opt<TAB>float X` 不会把输入标记为可选 —— 它产出的是
+一个必需输入，类型 token 是 `opt` + 制表符 + 真正的类型，随后在生成阶段以"不支持的类型"失败。
+
+</Callout>
+
+参数列表按 `,` 切分，深度和字符串跟踪规则相同，所以不带引号的属性值里不能含 `,` 或 `)`：`Root=Game`
+可以，`Name=Foo(1,2)` 不行。
+
+## 示例
+
+```c
+// 顶层声明之前的行注释。
+Shader(Name="Materials/M_Comments")
+{
+    /* 跨多行的
+       块注释。 */
+    Settings = {
+        Domain = "UI";        // 行尾注释
+        ShadingModel = Unlit; // 引号可选
+    }
+
+    Properties {
+        // Properties 的类型和名字之间可以用任意空白。
+        ScalarParameter Rough = 0.5 [Group="Surface"; Slider(0, 1)];
+        vec3            Tint  = vec3(1.0, 0.4, 0.1);
+        float           Fudge = 1.0f;   // 解析为 1.0 —— 后缀被忽略，不是被拒绝
+    }
+
+    Outputs {
+        vec3 Color;                     // 这里必须是字面空格
+        Base.EmissiveColor = Color
+    }                                   // 块内最后一个 ';' 可省略
+
+    Graph {
+        vec2 UV = UE.TexCoord(Index = 0);
+        Color = vec3(Rough, Rough, UV.x) * Tint;
+    }
+}
+```
+
+## 诊断
+
+<Diag>
+  <D msg="Unexpected token near index {Index}." cause="该位置没有匹配上任何顶层关键字 —— 包括大小写写错的正确关键字，以及被直接交给解析器的 import 行。" fix="检查块关键字的大小写。" href="/docs/language/blocks" />
+  <D msg="Expected identifier near index {Index}." cause="此处需要标识符，但下一个字符不是字母或 _。" />
+  <D msg="Expected '{Char}' near index {Index}." cause="缺少一个必需的标点字符。" />
+  <D msg="Unterminated block." cause="在匹配的 } 之前就到了输入末尾。" />
+  <D msg="Unterminated '{Char}' block." cause="在匹配的定界符之前就到了输入末尾，例如未闭合的参数列表 (。" />
+  <D msg="Unterminated string literal." cause="在带引号的属性值内部到达输入末尾。" />
+  <D msg="Expected value near index {Index}." cause="属性值为空。" />
+  <D msg="Expected ',' or ')' near index {Index}." cause="属性列表格式错误。" />
+  <D msg="Invalid typed declaration '{Statement}'." cause="类型和名字之间没有字面空格、类型为空，或名字不是合法标识符。" fix="把类型和名字之间的制表符换成空格。" href="/docs/language/sections" />
+  <D msg="Invalid scalar default value '{Value}' for property '{Name}'." cause="文本无法转换成数字，且没有被解析成零。" />
+  <D msg="Invalid vector default value '{Value}' for property '{Name}'." cause="某个分量既不是数字也不是 true / false。" />
+  <D msg="Invalid boolean default value '{Value}' for property '{Name}'." cause="写了 true / false 之外的文本。" />
+  <D msg="Unexpected token '{Token}' in Graph expression." cause="在需要值的位置出现了 token，包括表达式分词器字符集之外的任何字符。" href="/docs/graph/unsupported" />
+</Diag>
+
+只有以 `near index {Index}` 结尾的消息才带位置，诊断映射器才能把它变成文件、行、列。见
+[import 与命名空间](/docs/language/imports)。
+
+## 继续阅读
+
+<Cards>
+  <Card title="顶层块" href="/docs/language/blocks" description="那七种块，它们的关键字就是唯一大小写敏感的部分。" />
+  <Card title="Section" href="/docs/language/sections" description="每种语句切分器分别用在哪里。" />
+  <Card title="类型与值" href="/docs/language/types-and-values" description="完整的类型 token 目录及其分上下文的有效性。" />
+  <Card title="不支持的写法" href="/docs/graph/unsupported" description="哪些字符会终止表达式，以及那些静默截断。" />
+</Cards>

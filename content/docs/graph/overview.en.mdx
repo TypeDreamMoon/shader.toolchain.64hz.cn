@@ -1,0 +1,217 @@
+---
+title: Evaluation Model
+description: What a Graph block actually is, how it runs at generation time, and why it is a different language from the declarations around it.
+---
+
+A `Graph` block is where a DreamShaderLang file stops describing a material and starts *building*
+one. Its body is a sequence of statements that the compiler executes **once, in order, at generation
+time**. Each statement materialises one or more `UMaterialExpression` nodes on the target
+`UMaterial` or `UMaterialFunction`.
+
+Nothing in a `Graph` body survives to runtime as code. What survives is the graph it built.
+
+## Graph is not the declaration language
+
+This is the single most useful thing to know before reading any further. The blocks around a
+`Graph` — `Shader(...)`, `Properties`, `Settings`, `Outputs`, `[Metadata]` — are parsed by the
+declaration parser. The body of a `Graph` block is handed to a **separate parser with a separate
+tokenizer and separate rules**. They only look alike.
+
+| | Declaration language | Graph language |
+| :-- | :-- | :-- |
+| Unit | blocks, sections, key/value entries | statements terminated by `;` |
+| Keywords | block names, section names | exactly two: `if` and `else` |
+| Case | section and block names have their own rules | `if` / `else` and `SampleTexture2D` are case-sensitive; everything else is not |
+| Literals | the declaration-level literal grammar | its own numeric grammar with suffixes, no hex, no integer type |
+| Unknown text | diagnosed | often *silently discarded* — see [What Graph Is Not](/en/docs/graph/unsupported) |
+
+The practical consequence: a construct that is perfectly legal in `Properties` may mean something
+else entirely, or nothing at all, inside `Graph`. When something in a `Graph` body behaves oddly, the
+rules on these six pages are the ones that apply — not the ones on
+[Top-level Blocks](/en/docs/language/blocks).
+
+## Where a `Graph` block may appear
+
+| Block | `Graph` |
+| :-- | :-- |
+| [`Shader`](/en/docs/language/blocks) | required, unless an `Outputs` declaration carries an initializer |
+| `ShaderFunction` | always required |
+| `ShaderLayer` / `ShaderLayerBlend` | always required |
+| `VirtualFunction` | hard error — it declares an existing asset, it does not build one |
+| [`Function` / `GraphFunction`](/en/docs/language/functions) | the body is HLSL, not a `Graph` block |
+
+The section name is matched **case-insensitively**, and the `=` before the `{` is optional
+<Since v="1.5.0" />, so `Graph = { … }` and `Graph { … }` are the same thing.
+
+<Callout type="warn">
+`Code = { … }` is rejected in every block that reaches the parser. The rejection message still reads
+`Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported.`, but no
+grammar entry point accepts a `Code` section any more. Use `Graph`.
+</Callout>
+
+The same statement language is reused, in reduced form, in two other places:
+
+| Place | Shape |
+| :-- | :-- |
+| An `Outputs` binding's right-hand side | one full expression, no statements |
+| An `Outputs` declaration's `= <default>` | one expression, lowered into a declaration statement prepended to the `Graph` body |
+
+## Synopsis
+
+<Synopsis>
+```c
+Graph [=] {
+    <graph-statement> …
+}
+```
+</Synopsis>
+
+<Grammar />
+
+## The evaluation model
+
+1. **Initialized `Outputs` declarations run first.** Every `Outputs` declaration carrying a default
+   value becomes a synthesized declaration statement placed *before* the first statement of the
+   body. Those statements have no source location, so their diagnostics carry no line number.
+2. **The body is split into statements** at top-level `;`. Parentheses, braces, brackets and string
+   literals are tracked, so a `;` inside them does not split. An `if` statement is recognised before
+   the `;` scan and delimited by brace matching instead.
+3. **Statements execute once each, top to bottom.** There is no loop, no `return`, no recursion, no
+   re-entry. Statement *n* can only see values produced by statements 1 … *n*−1.
+4. **Every expression evaluates to a value descriptor**, not to a number: the
+   `UMaterialExpression` that produced it, an output index, an optional channel mask, a component
+   count, and flags marking texture object / `MaterialAttributes` / `Substrate` /
+   authoritative-width / integer-constructor. A variable name is a binding to one such descriptor.
+5. **Nodes are created eagerly** as expressions are evaluated, and wired immediately.
+6. **`Outputs` binding sources are evaluated last**, each as a full expression against the value map
+   the body left behind.
+
+## What follows from that
+
+### There is no runtime control flow
+
+An `if` executes **both** branches at build time. Both branch node sets exist in the finished
+material, and a `UMaterialExpressionIf` selects between them per pixel. `if` is a select, not a jump
+— a branch that is never taken still costs shader instructions. See
+[Control Flow](/en/docs/graph/control-flow).
+
+### A declared variable is not storage
+
+Assigning to a name rebinds it to a different node and pin. The previously bound node stays in the
+graph if something else still references it, and is dropped otherwise. There is no memory cell to
+increment, which is why `a = a + 1;` is a rewiring and `a++;` is nothing at all.
+
+### Identical subexpressions collapse
+
+The builder caches values under a structural key, so the same literal, the same `A + B`, the same
+`UE.Expression(Class = "TextureCoordinate", OutputType = "float2")` produce **one** node no matter
+how many times they are written. The cache lives for one generated asset and is not scoped to a
+block — a subexpression first built inside an `if` branch is reused in the other branch and after
+the merge.
+
+<Callout type="warn">
+Not everything dedupes. The registered `UE.*` sugar builtins — `UE.TexCoord`, `UE.Time`,
+`UE.Panner`, `UE.TransformVector`, `UE.CollectionParam` and the no-argument state reads, 27 names in
+all — are dispatched by a handler that runs *before* any cache key is computed, so every call site
+gets a fresh node. `UE.TexCoord(Index = 0)` written five times is five `TextureCoordinate` nodes.
+The generic reflected form, `UE.Expression(Class = "TextureCoordinate", …)`, and every
+`Substrate.*` call **do** dedupe, as do the math builtins. Read a sugar builtin once into a variable
+when the duplicates matter. See [UE.* Nodes](/en/docs/builtins/ue-nodes).
+</Callout>
+
+`Function` and `GraphFunction` calls are never reused either: each call site builds its own `Custom`
+node. Neither are `MakeMaterialAttributes` / `SetMaterialAttributes` / `BreakMaterialAttributes`
+nodes, nor `UMaterialExpressionIf` nodes.
+
+### Some constructs create no nodes at all
+
+An ordered, non-repeating swizzle (`.rgb`, `.ga`) becomes a channel mask on the *connection*, not a
+`ComponentMask` node. `Src.rgb` used ten times costs nothing. Grouping parentheses generate nothing
+either. See [Expressions and Conversions](/en/docs/graph/expressions).
+
+### Type errors are shape errors
+
+`int`, `bool`, `half` and `float` are the same thing to the builder. What it checks is the component
+count and the opaque-value flags. There is no integer arithmetic and no truncation; `7 / 2` is
+`3.5`.
+
+### Unknown characters are discarded in silence
+
+The Graph tokenizer maps every character it does not recognise to the end-of-input token, and the
+parser accepts an expression followed by end-of-input. So `a % b` compiles as `a`, and
+`if (a > 0 && b > 0)` compiles as `if (a > 0)` — with no diagnostic. This is the highest-value
+pitfall in the language and it has its own page:
+[What Graph Is Not](/en/docs/graph/unsupported).
+
+## Comments and `#Region`
+
+Comments are not stripped by the section parser — they reach the graph parser intact and are then
+replaced by spaces, with newlines kept, so every diagnostic line and column still points at the
+original source. Block comments do not nest; the first `*/` closes. String literals are honoured, so
+a `//` inside `"…"` is not a comment.
+
+`#Region "Name"` / `#EndRegion` lines group the nodes produced by the statements between them into a
+comment box in the generated graph. They nest, they change nothing about evaluation or scope, and
+they are replaced by an equal-length run of spaces before parsing, so they cost no line or column
+offsets. Full syntax on [Layout and #Region](/en/docs/language/layout).
+
+## Where diagnostics point
+
+Graph diagnostics are reported against the **source file**, not against the block:
+
+```text
+<file>(<line>,<column>): <message>
+```
+
+The line is the `Graph` block's first content line plus the in-block line, minus one; the column is
+offset by the block's start column only on the block's first line. Errors raised inside a branch are
+prefixed `In Graph if body: ` / `In Graph else body: ` *after* the location, so the file and line
+always come first.
+
+## Example
+
+```c
+Shader(Name="Docs/M_Arithmetic")
+{
+    Properties = {
+        vec3  A = vec3(1.0, 0.5, 0.2);
+        vec3  B = vec3(0.1, 0.2, 0.3);
+        float K = 2.0;
+    }
+    Settings = { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs  = { vec3 Color; Base.EmissiveColor = Color; }
+    Graph = {
+        vec3 Sum    = A + B;
+        vec3 Diff   = A - B;
+        vec3 Scaled = A * K;
+        vec3 Ratio  = A / K;
+        Color = Sum + Diff - Scaled + Ratio;
+    }
+}
+```
+
+The nodes this produces:
+
+```text
+VectorParameter A, VectorParameter B, ScalarParameter K   (property nodes)
+Add       (A, B)          -> Sum
+Subtract  (A, B)          -> Diff
+Multiply  (A, K)          -> Scaled
+Divide    (A, K)          -> Ratio
+Add       (Sum, Diff)
+Subtract  (.., Scaled)
+Add       (.., Ratio)     -> Base.EmissiveColor
+```
+
+Five statements, seven nodes, and the three property nodes they read. No control flow, no order of
+operations beyond the one written, and nothing left over at runtime.
+
+## Where to next
+
+<Cards>
+  <Card title="Statements" href="/en/docs/graph/statements" />
+  <Card title="Expressions and Conversions" href="/en/docs/graph/expressions" />
+  <Card title="Control Flow" href="/en/docs/graph/control-flow" />
+  <Card title="Calls" href="/en/docs/graph/calls" />
+  <Card title="What Graph Is Not" href="/en/docs/graph/unsupported" />
+</Cards>

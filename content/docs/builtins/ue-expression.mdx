@@ -1,0 +1,623 @@
+---
+title: 通用 UE.Expression
+description: 按类名创建任意 UMaterialExpression 的通用反射调用，以及它的参数规则。
+---
+
+[已注册内置节点](/docs/builtins/ue-nodes)只覆盖了 Unreal 数百个材质表达式中的 27 个。`UE.Expression`
+是其余部分的逃生舱：它按名字创建任意非抽象的 `UMaterialExpression` 子类，并用命名参数填充它的输入 pin
+和 `UPROPERTY`。
+
+```c
+float pulse = UE.Expression(Class = "Sine", OutputType = "float1", Input = UE.Time());
+```
+
+还有一种更短的写法。`Class` 默认取函数名，所以 `UE.Sine(…)` 和 `UE.Expression(Class = "Sine", …)`
+是同一个实现里的同一个调用：
+
+```c
+float pulse = UE.Sine(OutputType = "float1", Input = UE.Time());
+```
+
+`Expression` 这个名字并不特殊，唯一的特别之处是它永远解析不出一个类 —— 这正是第一种写法必须写 `Class=`
+的原因。
+
+<Synopsis>
+```c
+UE.Expression( Class = <class-specifier> , { OutputType | ResultType } = <type-token>
+               [, { { Output | OutputName } = <text> | OutputIndex = <int> } ]
+               [, <arg-name> = <expression> ] … )
+
+UE.<ClassName>( { OutputType | ResultType } = <type-token> [, <arg-name> = <expression> ] … )
+```
+</Synopsis>
+
+<Grammar />
+
+所有参数都必须是命名参数。位置参数会失败：
+`Generic {Namespace}.{Function} calls require named arguments.` 文本参数可以带引号也可以不带：
+`Class = Sine` 与 `Class = "Sine"` 相同，`OutputType = float3` 与 `OutputType = "float3"` 也相同。
+
+和已注册内置节点不同，这条路径会**校验每一个参数名**。既匹配不上 pin 也匹配不上属性的名字是错误，
+而不是被静默丢弃。
+
+## 类解析
+
+`Class` 必须是字面量 —— 带引号的字符串、裸标识符或带点的名字。说明符会先去掉首尾空白，然后按下列规则解析：
+
+| # | 规则 |
+| :-- | :-- |
+| 1 | 去空白后为空 → 解析失败 |
+| 2 | 文本中含 `/` 或 `.` 时，直接按 object path 加载，且只有加载出的类派生自 `UMaterialExpression` 才接受 —— `Class = "/Script/Engine.MaterialExpressionSine"` |
+| 3 | 否则构建候选名列表，见下 |
+| 4 | 扫描所有已加载的 `UClass`；第一个派生自 `UMaterialExpression`、**非**抽象、且名字忽略大小写等于任一候选名的类胜出 |
+
+对说明符 `S` 的候选名：
+
+| 候选名 | 加入条件 |
+| :-- | :-- |
+| `S` | 总是 |
+| `U` + `S` | `S` 不以 `U` 开头 |
+| `MaterialExpression` + `S` | `S` 不以 `MaterialExpression` 开头 |
+| `UMaterialExpression` + `S` | `S` 不以 `UMaterialExpression` 开头 |
+
+前缀判断和最终比较都不区分大小写。
+
+<Callout type="warn">
+**不要写 `U` 前缀。** 扫描比较的是*反射*类名，而反射名不带 `U`。`UMaterialExpressionSine` 的反射名是
+`MaterialExpressionSine`，因此任何以 `U` 开头的说明符 —— `USine`、`UMaterialExpressionSine` ——
+永远匹配不上，上表中两行带 `U` 前缀的候选名在实践中根本无法命中。
+
+能解析到 `UMaterialExpressionSine` 的写法是 `Sine`、`sine`、任意大小写的 `MaterialExpressionSine`，
+以及 object path `/Script/Engine.MaterialExpressionSine`。
+</Callout>
+
+<Callout type="info">
+扫描只覆盖**已加载**的类。位于编辑器尚未加载的插件模块中的表达式类找不到，调用会以
+`UE.{Function} could not resolve MaterialExpression class '{Class}'.` 失败。抽象类即使名字完全匹配
+也会被跳过。
+</Callout>
+
+在 [`Substrate.*`](/docs/builtins/substrate) 路径上，类由内置描述符固定，`Class=` 会被直接拒绝。
+
+## 解析顺序
+
+调用按下列顺序处理。这个顺序是可观察的，因为只有第一个失败的步骤会被报出来。
+
+| # | 步骤 | 失败消息 |
+| :-- | :-- | :-- |
+| 1 | 拒绝位置参数 | `Generic {Namespace}.{Function} calls require named arguments.` |
+| 2 | `Substrate.*` 描述符查找与引擎版本门槛 | 见 [Substrate](/docs/builtins/substrate) |
+| 3 | 解析 `OutputType` / `ResultType` | `Unsupported UE builtin call …`、`… OutputType must be a literal value.`、`… OutputType '{Token}' is not supported.` |
+| 4 | 解析 `Class` | `… Class must be a literal value.`、`UE.Expression requires Class="MaterialExpressionName".`、`… could not resolve MaterialExpression class '{Class}'.` |
+| 5 | 拒绝 `Output`/`OutputName` 与 `OutputIndex` 同时出现 | `… cannot use OutputName/Output together with OutputIndex.` |
+| 6 | 查节点复用缓存 | — |
+| 7 | 创建节点 | `UE.{Function} failed to create '{Class}'.` |
+| 8 | `UMaterialExpressionCustom` 初始化 | `… OutputType="Substrate" is not supported by UMaterialExpressionCustom.` 等 |
+| 9 | 把剩余参数分派到 pin、属性或 Custom 输入 | `… '{Argument}' is not a property on '{Class}'.` |
+| 10 | 合成 Custom 节点的输出 | `… OutputName must be a non-empty literal value.` |
+| 11 | 解析输出索引 | `… OutputIndex is out of range …`、`… output '{Name}' was not found …` |
+| 12 | 在材质上注册 static switch / static component mask 参数 | — |
+| 13 | 推导结果类型和分量数 | `{Namespace}.{Function} output is not a Substrate value.` |
+| 14 | 组装结果并写入复用缓存 | — |
+
+<Callout type="info">
+完全不带参数的 `UE.Expression()` 报的是 **`OutputType`** 错误，而不是缺少 `Class` —— 因为步骤 3
+在步骤 4 之前。
+</Callout>
+
+## OutputType
+
+`OutputType`（别名 `ResultType`，只在没写 `OutputType` 时才会被读取）在这条路径上是**必需的**。
+不写会得到：
+
+```text
+Unsupported UE builtin call '{Function}' in Graph. For generic MaterialExpression calls, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture/Substrate".
+```
+
+这条提示里列了九种写法。实际接受的集合有 **44** 个 token。
+
+<Callout type="warn">
+对生成器能识别的类来说，`OutputType` **只是建议值**。Substrate、`MaterialAttributes` 和纹理输出会从
+节点真实的输出值类型重新推导，[已知宽度表](#结果类型与分量数)里的类也是如此 —— 这就是为什么
+`UE.Expression(Class = "WorldPosition", OutputType = "float1")` 仍然得到 3 分量的值。
+
+对其他所有类，声明的 token *就是*宽度，不管节点真实的输出类型是什么。在 Custom 节点上，这个 token
+的权威性更强：它会被写入节点，并决定 HLSL 的返回类型。
+</Callout>
+
+### 接受的 token
+
+全部 token 及其在各个使用面上的可用性。匹配全程不区分大小写。
+
+<Wide>
+
+| Token | 类别 | 分量数 | 通用 `UE.*` | Custom 节点 | property 声明 |
+| :-- | :-- | :-- | :-: | :-: | :-: |
+| `float` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `float1` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `half` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `half1` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `int` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `uint` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `bool` | 数值 | 1 | ✔ | ✔ | ✔ |
+| `float2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `half2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `vec2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `int2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `uint2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `bool2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `ivec2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `uvec2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `bvec2` | 数值 | 2 | ✔ | ✔ | ✔ |
+| `float3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `half3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `vec3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `int3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `uint3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `bool3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `ivec3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `uvec3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `bvec3` | 数值 | 3 | ✔ | ✔ | ✔ |
+| `float4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `half4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `vec4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `int4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `uint4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `bool4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `ivec4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `uvec4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `bvec4` | 数值 | 4 | ✔ | ✔ | ✔ |
+| `MaterialAttributes` | material attributes | 0 | ✔ | ✔ | ✘ |
+| `Substrate` | Substrate | 0 | ✔ <Since v="5.4" ue /> | ✘ | ✘ |
+| `StaticBool` | 数值 | 1 | ✔ | ✘ | ✘ |
+| `StaticBoolParameter` | 数值 | 1 | ✔ | ✘ | ✘ |
+| `Texture2D` | 纹理对象 —— 2D | 0 | ✔ | ✘ | ✔ † |
+| `SamplerState` | 纹理对象 —— 2D | 0 | ✔ | ✘ | ✘ |
+| `TextureCube` | 纹理对象 —— cube | 0 | ✔ | ✘ | ✔ † |
+| `Texture2DArray` | 纹理对象 —— 2D array | 0 | ✔ | ✘ | ✔ † |
+| `Texture3D` | 纹理对象 —— volume | 0 | ✔ | ✘ | ✔ † |
+| `VolumeTexture` | 纹理对象 —— volume | 0 | ✔ | ✘ | ✔ † |
+
+</Wide>
+
+† 在 property 声明这个使用面上，五个纹理 token 解析成**同一种**声明类别 —— 0 分量的纹理对象 property，
+维度不会被记录。这和 `Graph` 使用面不同，那里 `TextureCube` 和 `Texture2DArray` 会产生类型不同的值。
+维度要紧时请用普通类型 token 声明（`TextureCube Tex;`），参见[类型与值](/docs/language/types-and-values)。
+
+`SamplerState` 只在 `Graph` 使用面上是 `Texture2D` 的可接受写法。`StaticBool` 和 `StaticBoolParameter`
+都解析为 1 分量值；它们存在只是为了让值能与 `StaticBool` 函数输入做类型检查，除此之外和 `float` 没有区别。
+
+### 归一化
+
+token 的归一化并不统一 —— 用了三种不同的比较方式，当 token 带多余空白时差异是可观察的。
+
+| token 组 | 比较方式 |
+| :-- | :-- |
+| 34 个数值 token 和 `MaterialAttributes` | 去首尾空白、转小写，并去掉**所有**内部空格 |
+| `Substrate` | 去首尾空白并去掉内部空格，忽略大小写比较 |
+| `StaticBool`、`StaticBoolParameter`、`Texture2D`、`SamplerState`、`TextureCube`、`Texture2DArray`、`Texture3D`、`VolumeTexture` | 忽略大小写，与**书写原样**比较 —— 不去空白，也不去空格 |
+
+<Callout type="info">
+所以在 `Graph` 使用面上 `OutputType = " float4 "` 能解析，`OutputType = " Texture2D "` 不能。
+这只有通过带引号的字面量才会碰到 —— 裸 token 里不可能有空白。在 property 声明使用面上值会先去空白再解析，
+所以那里不存在这种不对称。下划线和连字符永远不会被去掉：`float_4` 和 `Material-Attributes`
+都不是可接受的写法。
+</Callout>
+
+归一化后的 token 也参与[节点复用键](#节点复用)。两个只在 `OutputType` 写法上不同的调用 ——
+`float3` 与 `vec3` —— 会构成不同的键，因此产生两个节点，尽管得到的值完全一样。
+
+## 参数分派
+
+有六个参数名是保留的，永远不会分派给节点：
+
+| 保留名 | 用途 |
+| :-- | :-- |
+| `Class` | 类说明符 |
+| `OutputType` | 声明的输出类型 |
+| `ResultType` | `OutputType` 的别名 |
+| `Output` | 按名字选择输出 |
+| `OutputName` | `Output` 的别名 |
+| `OutputIndex` | 按索引选择输出 |
+
+其余每个参数按下列顺序对创建出的节点解析，第一个匹配上的胜出。
+
+| # | 判断 | 结果 |
+| :-- | :-- | :-- |
+| a | 归一化后的参数名等于节点某个**输入 pin** 的归一化名字 | 把表达式连到该 pin |
+| b | 归一化后的参数名等于该类或任意父类上某个反射 `FProperty` 的归一化名字 | 属性是表达式输入结构体则走 pin 路径，否则走字面量路径 |
+| c | 节点是 `UMaterialExpressionCustom` | 新建一个按书写原样命名的 Custom 输入 pin |
+| d | — | `UE.{Function}: '{Argument}' is not a property on '{Class}'.` |
+
+<Callout type="warn">
+**同名时输入 pin 优先于反射属性。** 好几个引擎表达式两者都有 —— 一个叫 `Input` 的 pin 和一个相关名字的
+`UPROPERTY` —— 而 pin 总是赢。被 pin 名遮蔽的属性没有别的写法可以触达；只能用属性真正的 `UPROPERTY`
+名字，那正是第二遍匹配所比较的东西。
+</Callout>
+
+属性匹配分两遍：
+
+| 遍次 | 匹配 | 说明 |
+| :-- | :-- | :-- |
+| 1 | 任何名字在去空白转小写后等于参数名的 `FProperty` | **不**限于可编辑属性 —— private 和非 `EditAnywhere` 的 `UPROPERTY` 也能触达 |
+| 2 | 仅 `FBoolProperty`：属性名转小写后去掉开头的 `b` | `FractionalPart` 就是这样触达 `bFractionalPart` 的 |
+
+<Callout type="warn">
+第二遍是**先**转小写再去掉开头的 `b`，而且会对*任意* bool 属性做这件事。所以名为 `bTangent` 的 bool
+属性也能用 `Tangent` 触达，名为 `BaseColor` 的 bool 属性也能用 `aseColor` 触达。只有 bool 属性受影响。
+两个属性在这些规则下冲突时，第一遍先跑，因此第一遍胜出。
+</Callout>
+
+### 输入 pin
+
+解析到 pin 的参数 —— 无论是通过 pin 名，还是通过类型为表达式输入结构体（`FExpressionInput`，
+或名为 `MaterialAttributesInput` 的结构体）的属性 —— 其值会作为 `Graph` 表达式求值并连接。
+值携带的通道掩码会一并传递到连接上。
+
+随后会用 pin 声明的值类型检查这个值：
+
+| pin 类型 | 值 | 结果 |
+| :-- | :-- | :-- |
+| Substrate | 非 Substrate | `{Namespace}.{Function} input '{Pin}' expects a Substrate value.` |
+| `MaterialAttributes` | 非 attributes | `{Namespace}.{Function} input '{Pin}' expects a MaterialAttributes value.` |
+| 数值 | Substrate | `{Namespace}.{Function} input '{Pin}' does not accept Substrate values.` |
+| 数值 | `MaterialAttributes` | `{Namespace}.{Function} input '{Pin}' does not accept MaterialAttributes values.` |
+| 其他 | 任意 | 连接成功 |
+
+pin 上不做宽度检查：把 `float4` 连到标量 pin 是引擎要处理的问题，不是 DreamShader 的。
+
+### 字面量属性
+
+其他匹配上的属性都用字面量写入。对象类型的属性按资产引用读取，其余按字面文本读取。
+
+| 属性类型 | 接受的值语法 | 失败消息 |
+| :-- | :-- | :-- |
+| `FBoolProperty` | `true` / `false`，不区分大小写 | `'{Value}' is not a valid boolean value for '{Property}'.` |
+| `FIntProperty` | 十进制整数 | `'{Value}' is not a valid integer value for '{Property}'.` |
+| `FUInt32Property` | `0 … 4294967295` 范围内的整数 | `'{Value}' is not a valid unsigned integer value for '{Property}'.` |
+| `FFloatProperty` | 任意数值字面量 | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FDoubleProperty` | 任意数值字面量 | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FStrProperty` | 去空白后的文本，原样写入 —— **永远成功** | — |
+| `FNameProperty` | 去空白后的文本作为 `FName` —— **永远成功** | — |
+| `FObjectPropertyBase` | `Path(…)` 或绝对 Unreal object path | 见[对象属性](#对象属性) |
+| `FEnumProperty` | 见[枚举值](#枚举值) | `'{Value}' is not a valid enum value for '{Property}'.` |
+| 由枚举支撑的 `FByteProperty` | 见[枚举值](#枚举值) | `'{Value}' is not a valid enum value for '{Property}'.` |
+| 无枚举的 `FByteProperty` | `0 … 255` 范围内的整数 | `'{Value}' is not a valid byte value for '{Property}'.` |
+| 其他 —— 结构体、数组、set、map | Unreal 自己的导入文本，例如 `(R=1,G=0,B=0,A=1)`、`(X=1,Y=2,Z=3)` | `Property '{Property}' on '{Class}' is not a supported literal type yet.` |
+
+这些消息都会再包一层：`UE.{Function} property '{Property}': {Message}`。
+
+<Callout type="warn">
+`FStrProperty` 和 `FNameProperty` 永远不会失败。参数携带的任何文本 —— 包括拼错的枚举名或解析不了的
+路径 —— 都会被原样存下来。既不报诊断，也不回退到默认值。
+</Callout>
+
+### 枚举值
+
+枚举值会以四种写法与该枚举的每个非隐藏条目比较。比较前双方都转小写，并去掉空格、`_`、`-`、`:`、`.`、`/`
+这些字符。
+
+| # | 参与比较的写法 |
+| :-- | :-- |
+| 1 | 条目短名 —— `PPI_PostProcessInput0` |
+| 2 | 条目完全限定名 —— `ESceneTextureId::PPI_PostProcessInput0` |
+| 3 | 条目显示名 |
+| 4 | 短名去掉第一个 `_` 及其之前的全部内容 —— `PostProcessInput0` |
+
+规则 4 正是不带前缀的写法能生效的原因，也是
+[`UE.SceneTexture`](/docs/builtins/ue-nodes#uescenetexture) 所依赖的机制。
+
+### 对象属性
+
+对象类型的属性接受 `Path(<root>, "<asset>")`、`Path("/Game/…")` 或裸的绝对 object path。参见
+[Path 资产引用](/docs/parameters/path)。
+
+| 情况 | 结果 |
+| :-- | :-- |
+| 参数既不是字面量也不是 `Path(…)` 调用 | `UE.{Function} property '{Property}' must use Path(...) or an Unreal object path.` |
+| 文本以 `Path(` 或 `/` 开头但解析不了 | 报解析器自己的消息 |
+| 文本是字面量、不是资产引用、也不以上述两者开头 | `Object property '{Property}' expects Path(...) or an absolute Unreal object path.` |
+| 资产加载失败，且属性是名为 `Texture` 或 `TextureObject` 的 `UTexture` 属性 | 属性被设为 **null**，并算作**成功** |
+| 资产加载失败，其他属性 | `Failed to load asset '{Path}' for '{Property}'.` |
+| 资产加载成功但类型不对 | `Asset '{Path}' is not compatible with '{Property}'. Expected '{Class}'.` |
+
+<Callout type="warn">
+**失败置空这条规则是静默的。**
+
+```c
+UE.Expression(Class = "TextureSample", OutputType = "float4",
+              Texture = Path(Game, "Missing/T_Nope"))
+```
+
+会带着一个未赋值的纹理编译通过，而不是报告资产缺失。只有 `UTexture` 类型属性上的 `Texture` 和
+`TextureObject` 这两个名字会这样。
+</Callout>
+
+## 选择输出
+
+多输出的节点通过两个互斥的选择器之一读取。两个都写是错误；都不写则选择 output 0。
+
+| 参数 | 别名 | 类型 | 语义 |
+| :-- | :-- | :-- | :-- |
+| `Output` | `OutputName` | 文本字面量 | 先按名字解析，再按掩码伪名解析 |
+| `OutputIndex` | — | ≥ 0 的整数 | 直接索引节点的输出 |
+
+按名字解析时会按顺序遍历所有输出：
+
+| 输出 | 匹配方式 |
+| :-- | :-- |
+| 有名字的输出 | 按 `FName` 比较名字 —— 不区分大小写 |
+| 无名字的输出 | 用下面的掩码伪名按顺序与输出的通道掩码比较 |
+
+说明符会去掉首尾空白；空说明符选择 output 0。
+
+| 伪名 | 匹配掩码为下列内容的无名输出 |
+| :-- | :-- |
+| `RG` | R 和 G |
+| `RGB` | R、G 和 B |
+| `RGBA` | R、G、B 和 A |
+| `R` | 仅 R |
+| `G` | 仅 G |
+| `B` | 仅 B |
+| `A` | 仅 A |
+
+<Callout type="info">
+这些不是 `OutputType` 的取值，`OutputType` 的 token 也永远不是合法的 `Output` 选择器。
+`UE.Expression(Class = "BreakMaterialAttributes", OutputType = "float3", Output = "BaseColor")`
+是按输出*名字*选择；`Output = "RGB"` 是按掩码选择。
+</Callout>
+
+## Custom 节点
+
+`UMaterialExpressionCustom` 是唯一被专门处理的类 —— 它是把原始 HLSL 塞进 `Graph` 的方式。
+
+| 方面 | 行为 |
+| :-- | :-- |
+| `OutputType = "Substrate"` | 拒绝 —— `UE.{Function} OutputType="Substrate" is not supported by UMaterialExpressionCustom.` |
+| 其他 `OutputType` 值 | 必须能映射到 Custom 输出类型；`Texture2D`、`SamplerState`、`TextureCube`、`Texture2DArray`、`Texture3D`、`VolumeTexture`、`StaticBool` 和 `StaticBoolParameter` 在别处是合法 `OutputType`，但在这里**不是** |
+| 声明的 `OutputType` | 权威 —— 会写入节点，并决定 HLSL 的返回类型 |
+| 未匹配的参数 | 变成按书写原样命名的新 Custom 输入 pin；Substrate 值会被拒绝：`UE.{Function} Custom input '{Name}' does not accept Substrate values.` |
+| 新建节点 | 应用参数之前会清空它的 `Inputs` 和 `AdditionalOutputs` 数组 |
+| `OutputName` | 必须是非空字面量，并意味着请求附加输出索引 1 |
+| 缺少的附加输出 | 会合成名为 `Output1`、`Output2`… 的占位输出直到请求的索引，然后重建节点的输出 |
+| 结果宽度 | 取自节点**真实**的输出值类型，所以次要输出的尺寸是对的 |
+| 节点复用 | **禁用** —— 每次 Custom 调用都新建节点 |
+
+```c
+float3 tinted = UE.Expression(Class = "Custom", OutputType = "float3",
+                              Code = "return In * 0.5f;",
+                              In   = baseColor);
+```
+
+## 结果类型与分量数
+
+结果按下列顺序从解析出的输出的真实值类型推导。
+
+| # | 条件 | 结果 |
+| :-- | :-- | :-- |
+| 1 | `OutputType = "Substrate"` 但实际输出不是 Substrate | `{Namespace}.{Function} output is not a Substrate value.` |
+| 2 | 实际输出是 Substrate | 0 分量，Substrate 值，权威 |
+| 3 | 实际输出是 `MaterialAttributes` | 0 分量，attributes 值，权威 |
+| 4 | 实际输出是任意纹理类型 | 纹理对象，权威 |
+| 5 | `Substrate.*` 工具类内置节点 | 宽度取自输出的值类型 |
+| 6 | Custom 节点 | 宽度取自输出的值类型 |
+| 7 | `TextureCoordinate`、`Panner` 或 `Rotator` | 2 分量 |
+| 8 | 其他 | 查硬编码的已知宽度表，查不到则用声明的 `OutputType` |
+
+已知宽度表：
+
+| 宽度 | 类 |
+| :-- | :-- |
+| 2 | `TextureCoordinate`、`Panner`、`ScreenPosition`、`Rotator`、`SceneTexelSize` |
+| 3 | `WorldPosition`、`ObjectPositionWS`、`CameraVectorWS`、`VertexNormalWS`、`VertexTangentWS`、`Transform`、`TransformPosition`、`SkyAtmosphereLightDirection`、`PixelNormalWS`、`CrossProduct` |
+| 1 | `PixelDepth`、`TwoSidedSign`、`Arctangent2Fast`、`Length`、`MaterialXLuminance` |
+
+另有五个类的宽度由实际连到输入上的值决定：
+
+| 类 | 宽度 |
+| :-- | :-- |
+| `Saturate` | 所连 `Input` 的宽度 |
+| `StaticSwitchParameter` | 所连 `True` 和 `False` 中较大的一个 |
+| `If` | 所连 `AGreaterThanB`、`AEqualsB`、`ALessThanB` 中最大的一个 |
+| `StaticComponentMaskParameter` | 已设置的 `DefaultR`/`DefaultG`/`DefaultB`/`DefaultA` 个数，最小 1 |
+| `CurveAtlasRowParameter` | 所选输出掩码的通道数，最小 1 |
+
+分量数为 0、又不是纹理也不是 Substrate 的结果，就是 `MaterialAttributes` 值。参见
+[类型与值](/docs/language/types-and-values)。
+
+## 对材质的副作用
+
+有两个类通过这条路径创建时会被注册为材质参数，因而出现在材质实例编辑器里：
+
+| 类 | 注册内容 |
+| :-- | :-- |
+| 带参数名的 `UMaterialExpressionStaticSwitchParameter` | 材质或材质函数上的「仅编辑器」静态开关值 |
+| `UMaterialExpressionStaticComponentMaskParameter` | 「仅编辑器」静态通道掩码值，取自节点的四个默认通道 |
+
+两者的 expression GUID 无效时都会被重新分配一个。
+
+## 节点复用
+
+这条使用面是**会**去重的。每次调用会构建两个缓存键：
+
+| 键 | 内容 |
+| :-- | :-- |
+| 表达式键 | 所有非保留参数，加上解析出的类名和归一化后的 `OutputType` 文本 |
+| 输出键 | 表达式键加上输出选择器（`OutputName=…`、`OutputIndex=…`，或 `OutputIndex=0`） |
+
+输出键命中会直接返回上一次的结果。表达式键命中会复用**节点**、只重新解析输出 —— 这正是一个多输出节点
+可以用不同 `Output=` 选择器服务两次读取的原因。键中的字面文本会做归一化：合并连续空格、统一换行符。
+`UMaterialExpressionCustom` 的子类从不参与复用。
+
+<Callout type="info">
+节点被复用时，它的输入和属性参数**不会**重新应用。这在语言层面观察不到 —— 参数本来就是键的一部分，
+被复用的节点必然是用同样的参数构建的 —— 但这确实意味着一个节点会对应源码中的多个调用点。
+</Callout>
+
+与之相对，[已注册内置节点](/docs/builtins/ue-nodes)完全不查缓存，每次调用都新建节点。
+
+## SampleTexture2D
+
+```c
+float4 texel = SampleTexture2D(BaseTex, uv);
+```
+
+一个保留的双参数形式，在用户 property 和函数之前解析，且**区分大小写** ——
+`sampletexture2d(t, uv)` 不是它。它会被改写成
+
+```c
+UE.Expression(Class = "TextureSample", OutputType = "float4",
+              TextureObject = <arg0>, Coordinates = <arg1>)
+```
+
+两个参数都是位置参数，且都必需：
+`SampleTexture2D expects exactly two positional arguments: (textureObject, uv).`
+
+<Callout type="info">
+如果要采样已声明的纹理*参数*，优先用参数自己的 pin 调用形式 —— `BaseTex(Coordinates = uv)` ——
+它会复用参数节点，而不是新建一个普通的 `TextureSample`。参见
+[Properties 类型](/docs/parameters/properties)。
+</Callout>
+
+## 声明形式
+
+通用的 `UE.<Name>(…)` 也可以作为 property 类型出现在 `Properties` section 中，
+[声明形式目录](/docs/builtins/ue-nodes#properties-声明形式)之外的名字都由同一套反射机制创建。
+它的规则和 `Graph` 形式不同：
+
+<Wide>
+
+| 方面 | 声明形式 | `Graph` 形式 |
+| :-- | :-- | :-- |
+| `OutputType` / `ResultType` | 必需，取自缩减 token 集 | 必需，取自完整集合 |
+| `Class` | 默认取内置节点名，可覆盖 | 相同 |
+| 输入 pin 名匹配 | **不执行** —— 只匹配反射属性 | 优先执行 |
+| 未匹配的参数 | Custom 节点上变成 Custom 输入，否则 `'{Argument}' is not a property on '{Class}'.` | 相同 |
+| 输入值 | 先前声明的 property、标量字面量，或 2–4 分量向量字面量 | 任意 `Graph` 表达式 |
+| `ParameterName` | 类暴露了该属性且作者没写时，**自动取 property 名** | 从不设置 |
+| 输出选择 | `Output` / `OutputName` / `OutputIndex`；Custom 占位输出的合成方式相同 | 相同 |
+| 元数据 `[ … ]` | 创建后应用到节点上 | 不适用 |
+| 节点画布 X | -800 | 520 |
+
+</Wide>
+
+```c
+Properties {
+    UE.Expression(Class = "ObjectRadius", OutputType = "float1") Radius;
+}
+```
+
+这个使用面额外的消息：
+
+| 消息 | 原因 |
+| :-- | :-- |
+| `Unsupported vector literal '{Value}'.` | 输入字面量不是 2–4 个数值分量 |
+| `Failed to create a scalar constant expression.` | 标量输入字面量的常量节点创建失败 |
+| `Failed to create a float{N} constant expression.` | 向量输入字面量的常量节点创建失败 |
+| `'{Value}' is not a valid property reference or literal input.` | 输入值既不是已声明的 property 也不是字面量 |
+| `'{Class}' does not expose a ParameterName property.` | 在没有该属性的类上写了 `ParameterName` 元数据 |
+| `OutputIndex is out of range for '{Class}'.` | 所选索引不存在 |
+
+通常写在 `Graph` 里更清晰，因为输入关系在调用点就能看见。
+
+## 一些值得知道的细节
+
+- 属性名是**扁平**的。这里不接受带点的路径和 `[index]` 选择器，那些只存在于
+  [材质 Settings](/docs/settings/material) 中，那是另一个解析器。
+- 没有办法故意让引擎的必需 pin 保持未连接，也没有办法断开一个 pin。参数要么连一个值，要么不写。
+- 因为 `Class` 默认取函数名，类名写错时报的是 `could not resolve MaterialExpression class`
+  而不是「未知内置节点」。`UE.Sinee(OutputType="float1")` 和
+  `UE.Expression(Class="Sinee", OutputType="float1")` 报的是同一条消息。
+- 通用调用可以像任何表达式一样 swizzle：
+  `UE.Expression(Class = "VertexColor", OutputType = "float4").rgb`。
+- 编辑器会把反射出的表达式清单导出到
+  `Saved/DreamShader/Bridge/material-expressions.json`，其中列出每个可解析类及其 pin 和属性。
+  这是查参数名最实用的办法 —— 参见[编辑器工具](/docs/tools/editor)。
+
+## 诊断
+
+`{Function}` 保留作者书写的名字和大小写；`{Namespace}` 就是字面上的 `UE` 或 `Substrate`。
+
+<Diag>
+  <D msg={'Unsupported UE builtin call \'{Function}\' in Graph. For generic MaterialExpression calls, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture/Substrate".'} cause="既没写 OutputType 也没写 ResultType。" fix="补上 OutputType。注意实际接受的集合远大于提示里的九种写法。" />
+  <D msg={'UE.Expression requires Class="MaterialExpressionName".'} cause="函数名字面上就是 Expression，却没有给 Class。" />
+  <D msg="UE.{Function} could not resolve MaterialExpression class '{Class}'." cause="没有已加载的非抽象 UMaterialExpression 子类匹配上任何候选名。" fix="去掉 U 前缀 —— 写 Sine，不要写 USine 或 UMaterialExpressionSine。并确认该类所在模块已加载。" />
+  <D msg="UE.{Function} OutputType '{Token}' is not supported." cause="token 不在 44 个之列。" />
+  <D msg="UE.{Function} OutputType must be a literal value." cause="值是表达式而不是字面量。" />
+  <D msg="Generic {Namespace}.{Function} calls require named arguments." cause="通用路径上出现了位置参数。" fix="所有参数都写名字。只有已注册内置节点和数学内置接受位置参数。" />
+  <D msg="UE.{Function}: '{Argument}' is not a property on '{Class}'." cause="参数既匹配不上输入 pin 也匹配不上反射属性。" fix="在 Saved/DreamShader/Bridge/material-expressions.json 里查 pin 名和属性名。" />
+  <D msg="UE.{Function} input '{Pin}': {Message}" cause="连到 pin 上的值求值失败。" />
+  <D msg="UE.{Function} property '{Property}': {Message}" cause="字面量无法转换成属性的类型。" />
+  <D msg="UE.{Function} property '{Property}' must use Path(...) or an Unreal object path." cause="对象属性的值既不是字面量也不是 Path(…) 调用。" href="/docs/parameters/path" />
+  <D msg="UE.{Function} cannot use OutputName/Output together with OutputIndex." cause="两个输出选择器都写了。" />
+  <D msg="UE.{Function} output '{Name}' was not found on '{Class}'." cause="既没有同名输出，也没有匹配上掩码伪名。" />
+  <D msg="UE.{Function} OutputIndex is out of range for '{Class}'." cause="索引为负、不是整数，或超出节点输出数量。" />
+  <D msg="UE.{Function} created '{Class}', but it has no material outputs." cause="节点没有暴露任何输出。" />
+  <D msg="UE.{Function} failed to create '{Class}'." cause="节点创建返回空。" />
+  <D msg={'UE.{Function} OutputType="Substrate" is not supported by UMaterialExpressionCustom.'} cause="向 Custom 节点索要 Substrate 输出。" href="/docs/builtins/substrate" />
+  <D msg="UE.{Function} OutputType '{Token}' is not a valid Custom node output type." cause="在 Custom 节点上用了纹理或 static bool 类的 OutputType。" />
+  <D msg="{Namespace}.{Function} output is not a Substrate value." cause={'在真实输出不是 Substrate 的节点上写了 OutputType="Substrate"。'} />
+  <D msg="SampleTexture2D expects exactly two positional arguments: (textureObject, uv)." cause="参数个数不对，或者用了命名参数。" />
+</Diag>
+
+完整清单见[错误速查](/docs/diagnostics)。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_Generic")
+{
+    Properties {
+        Texture2D BaseTex = Path(Game, "Textures/T_Noise");
+        vec3      Dimmed  = vec3(0.2, 0.2, 0.2);
+    }
+
+    Settings { ShadingModel = "Unlit"; }
+
+    Outputs {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        // Class 默认取函数名。
+        float pulse = UE.Sine(OutputType = "float1", Input = UE.Time());
+
+        // 显式 Class，以及不带前缀写法的枚举属性。
+        float3 scene = UE.Expression(Class = "SceneTexture", OutputType = "float4",
+                                     SceneTextureId = "PostProcessInput0").rgb;
+
+        // 通过 Path(...) 写对象属性，并按 pin 名连接输入。
+        float4 tex = UE.Expression(Class = "TextureSample", OutputType = "float4",
+                                   Texture     = Path(Game, "Textures/T_Noise"),
+                                   Coordinates = UE.TexCoord(Index = 0));
+
+        // 宽度由所连输入决定的类。
+        float3 sel = UE.Expression(Class = "StaticSwitch", OutputType = "float3",
+                                   True = Dimmed, False = tex.rgb, Value = true);
+
+        Color = (scene + sel) * pulse;
+    }
+}
+```
+
+生成的节点：
+
+```text
+Time                                  -> Sine                       (pulse)
+SceneTexture (PPI_PostProcessInput0)  -> mask .rgb                  (scene)
+TextureCoordinate (Index 0)           -> TextureSample.Coordinates
+TextureSample (Texture = T_Noise)                                   (tex)
+Constant3Vector (0.2, 0.2, 0.2)       -> StaticSwitch.True
+StaticSwitch  (Value = true)                                        (sel)
+Add, Multiply                                                       (Color)
+```
+
+## 接下来
+
+<Cards>
+  <Card title="UE.* 节点" href="/docs/builtins/ue-nodes" description="本页作为兜底路径所服务的 27 个已注册内置节点。" />
+  <Card title="Substrate 节点" href="/docs/builtins/substrate" description="共用这条代码路径的姊妹命名空间。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="无前缀的数值调用面。" />
+  <Card title="Path 资产引用" href="/docs/parameters/path" description="对象属性使用的 Path(...) 语法。" />
+</Cards>

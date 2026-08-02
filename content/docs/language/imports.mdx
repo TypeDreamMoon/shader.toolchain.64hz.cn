@@ -1,0 +1,279 @@
+---
+title: import 与命名空间
+description: import 如何把多个文件拼成一个翻译单元 —— 识别规则、specifier 规范化、搜索根、循环，以及源码行映射。
+---
+
+`import` 把另一个 DreamShaderLang 源文件内联进当前翻译单元。它**不属于**任何一套语法：编辑器源加载器
+会在声明解析器被调用之前逐行剥掉它，所以解析器并不认识这个关键字。
+
+```text
+<file>.dsm
+  │
+  ├─ 编辑器源加载器         剥掉 `import` 行、深度优先内联目标，
+  │                         执行 .dsh / .dsf 内容规则
+  │
+  ├─ 声明解析器             块、section、语句  ->  定义树
+  │
+  └─ 材质生成器             Graph 表达式语法  ->  材质节点  ->  资产
+```
+
+## 语法
+
+<Synopsis>
+
+```c
+import "<specifier>" [;] [// <comment>]
+import '<specifier>' [;] [// <comment>]
+```
+
+</Synopsis>
+
+指令必须是所在行的第一个内容 —— 允许前导空白，其他一律不允许。闭合引号之后只能跟一个可选的 `;`
+<Since v="1.2.2" /> 和一个可选的 `//` 注释。`import` 本身按大小写不敏感匹配。
+
+```c
+import "Shared/Common";                                   // -> DShader/Shared/Common.dsh
+import '@typedreammoon/dream-noise/Library/Noise.dsh';    // -> DShader/Packages/@typedreammoon/…
+import "../Functions/F_Tint.dsf"                          // -> DShader/Functions/F_Tint.dsf
+```
+
+### 识别规则
+
+每个物理行按顺序过一遍下列规则。任何一条不满足，这行就不是 import，原样交给解析器。
+
+| # | 规则 |
+| :-- | :-- |
+| 1 | 去空白后的行不能以 `//` 开头 |
+| 2 | 去空白后的行必须以 `import` 开头，忽略大小写 |
+| 3 | `import` 之后的字符必须是空白，除非整行就是 `import` —— 这条规则用来拒绝 `importfoo` |
+| 4 | 剩余部分去空白后必须以 `"` 或 `'` 开头 |
+| 5 | 闭合引号必须与开引号一致；引号内的 `\` 会转义下一个字符 |
+| 6 | 引号未闭合时这行变成普通行，而不是报错 |
+| 7 | 闭合引号之后可以跟一个可选的 `;` |
+| 8 | 再之后，本行剩余部分必须为空或以 `//` 开头 |
+| 9 | 提取出的 specifier 去空白后必须非空 |
+
+<Callout type="warn">
+
+规则 1 只认识 `//`。写在 `/* … */` 块注释里的 `import` 行**仍然生效** —— 加载器没有块注释的概念。用
+`/* … */` 注释掉一批 import，它们会被静默地继续导入。请在每行前面写 `//`。
+
+</Callout>
+
+<Callout type="info">
+
+`import` 必须独占一行。`Shader(Name="X") import "Common.dsh";` 不会被识别，文本原样交给解析器 —— 那个
+多余的 `import` 随后失败于 `Unexpected token near index {Index}.`
+
+</Callout>
+
+## Specifier 规范化
+
+| # | 步骤 |
+| :-- | :-- |
+| 1 | 去掉首尾空白 |
+| 2 | 把每个 `\` 换成 `/` |
+| 3 | 去掉**全部**前导 `./` |
+| 4 | 如果结果完全没有扩展名，追加 `.dsh` |
+
+所以 `import "Shared/Common"` 和 `import "Shared/Common.dsh"` 是同一条指令。导入 `.dsf` 或 `.dsm`
+因此**必须显式写扩展名**（`.dsf` <Since v="1.3.5" />）。
+
+<Callout type="info">
+
+第 4 步问的是路径有没有扩展名，而不是有没有*已知的*扩展名，而且它只看最后一段路径。
+`Shared/Common.v2` 算作"已经有扩展名"，所以不会追加 `.dsh`，这个 specifier 只有在恰好存在同名文件时
+才解析得到。*目录*名里的 `.` —— 比如 `@scope/pkg.v2/Lib` —— 不算，仍然会追加 `.dsh`。
+
+</Callout>
+
+## 解析
+
+按顺序尝试三个候选路径。每个候选都配一个**包含根**；解析结果落在根之外的候选会被跳过而不是报错，第一个
+在磁盘上存在的候选胜出。
+
+| # | 候选 | 包含根 |
+| :-- | :-- | :-- |
+| 1 | `<导入方文件所在目录>/<specifier>` | 源目录和 packages 目录中包含该导入方的、较长的那个；两者都不包含时是文件自己的目录 |
+| 2 | `<源目录>/<specifier>` | 源目录 |
+| 3 | `<packages 目录>/<specifier>` | packages 目录 |
+
+| 目录 | 默认值 | 项目设置 |
+| :-- | :-- | :-- |
+| 源目录 | `<Project>/DShader` | *Source Directory* |
+| Packages | `<Source>/Packages` | 推导得到，不能单独配置 |
+
+包含比较在所有平台上都忽略大小写；至于候选最终能不能被找到，仍然遵循文件系统自身的大小写行为。
+
+包含检查正是阻止 specifier 爬出目录树的机制。`..` 段会在检查*之前*被解析掉，因此：
+
+- 对于直接位于 `DShader` 下的文件，`import "../Secret.dsh"` 解析到源目录之上，候选 1 被跳过；候选 2 和 3
+  也会塌缩同样的 `..` 并落在各自的根之外，同样被跳过；
+- 对于位于 `DShader/Packages/@scope/pkg/` 下的文件，`..` 可以在 `DShader/Packages` 内任意穿行，因为那
+  才是为它选定的包含根；
+- 对于两个目录都不属于的源文件，包含根就是它自己的目录，任何带 `..` 的 specifier 都解析不了。
+
+### Package 风格路径
+
+`@scope/name/…` **不是**一种独立的路径语法。`@` 只是普通的目录名字符，
+`"@typedreammoon/dream-noise/Library/Noise.dsh"` 能通过候选 3 解析，纯粹是因为
+`DShader/Packages/@typedreammoon/dream-noise/Library/Noise.dsh` 在磁盘上存在。没有 scope 注册表，没有
+版本解析，也没有被特殊处理的根。
+
+<Callout type="info">
+
+候选 1 和 2 仍然会先被尝试，所以放在导入方旁边、或者放在 `DShader` 下的同名文件会**遮蔽** package 里
+的那一份。
+
+</Callout>
+
+这套约定假定的目录布局见 [Package](/docs/tools/packages)。
+
+## 内联、循环与顺序
+
+加载器深度优先遍历 import 图，产出交给解析器的一段扁平文本。
+
+| 行为 | 规则 |
+| :-- | :-- |
+| 顺序 | 一个 import 会在导入方文件的其余部分之前被完整内联，所以依赖总是排在被依赖方之前 |
+| 菱形依赖 | 本翻译单元里已经内联过的文件被静默跳过 —— 它的文本只出现一次 |
+| 循环 | 重新进入一个仍在内联中的文件会失败于 `DreamShader import cycle detected at '{Path}'.` |
+| 无法读取 | `DreamShader could not read '{Path}'.` |
+| 无法解析的 specifier | `DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved.` |
+
+每个文件的内容都被标记注释包起来，每一行 import 都被替换成**空行**，这样它下面各行的行号保持不变：
+
+```text
+// Begin DreamShader source: <Project>/DShader/Shared/Common.dsh
+Namespace(Name="Common")
+…
+// End DreamShader source: <Project>/DShader/Shared/Common.dsh
+
+// Begin DreamShader source: <Project>/DShader/Materials/M_Water.dsm
+                                     <- 原来 import 的位置留下空行
+Shader(Name="Materials/M_Water")
+…
+// End DreamShader source: <Project>/DShader/Materials/M_Water.dsm
+```
+
+<Callout type="warn">
+
+因为整个闭包变成一个解析单元，"最多一个 `Shader` 块"这条规则是**闭包范围**的。导入两个各自声明了
+`Shader` 的文件会失败于 `Only one top-level Shader block is currently supported.`，尽管这两个文件单独
+看都没违规。
+
+</Callout>
+
+<Callout type="info">
+
+`.dsh` / `.dsf` 的内容规则作用于每个文件**自己**的文本，而不是拼装后的闭包。`.dsh` 可以导入一个声明了
+`ShaderFunction` 块的 `.dsf`，那些块也会作为翻译单元的一部分被编译。见
+[文件模型](/docs/language/file-model)。
+
+</Callout>
+
+## 跨文件的命名空间
+
+`Namespace` 不是模块，和 `import` 没有关系。因为闭包是一段扁平文本，导入 header 里的命名空间无需任何
+额外声明就可见 —— 它们跨文件冲突的方式，也和在同一个文件里一模一样。
+
+```c
+// DShader/Lib/Common.dsh
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```c
+import "Lib/Common.dsh";
+
+Graph = {
+    vec3 Tinted;
+    Common::ApplyTint(Base, Tint, Tinted);
+}
+```
+
+| 规则 | 后果 |
+| :-- | :-- |
+| 重复打开是允许且不作检查的 | 两个导入 header 里的 `Namespace(Name="Common")` 都会加 `Common::` 前缀。 |
+| 成员只能通过限定名访问 | 没有 `using`，没有名字导入，也没有不限定的回退。 |
+| 在 `Namespace` 体内写 `import` 没有作用域效果 | 指令是逐行剥离的，目标被内联到整个文件之前。请把 import 写在文件作用域。 |
+| 限定名重复会被很晚才发现 | 不是在 import 时，而是在写出生成的 include 时。 |
+
+声明规则、`::` 解析和函数体规范化的陷阱见 [函数](/docs/language/functions)。
+
+## 源码行映射
+
+诊断会从拼装后的文本映射回你实际编写的那个文件。
+
+- 映射器在错误文本里找字面量 `near index `，读出后面的整数。**这是解析错误携带位置的唯一通道** ——
+  这也解释了为什么那么多消息以 `near index {Index}.` 结尾。
+- 然后它遍历拼装文本，跟踪当前的 `// Begin DreamShader source:` 文件和一个在每个标记处归零的按文件行
+  计数器。标记行本身不推进计数器。
+- 定位成功的消息格式是 `<file>(<line>,<column>): <message>`；映射失败时格式是 `<file>: <message>`。
+- `Graph` 错误单独锚定：解析器记录每个 `Graph` 体的起点，图内相对的行列再叠加到那个原点上。列偏移只对
+  函数体的第一行生效。
+
+<Callout type="info">
+
+报告的位置看起来不对时，有三个限制值得知道。
+
+1. section 体内抛出的错误携带的索引是相对**那段函数体**的，但映射器把每个索引都当成拼装文本里的偏移。
+   所以 section 内错误的位置并不可靠。
+2. 恰好落在某行第一个字符上的索引可能被归到上一行。
+3. 大多数语句级消息根本不带 `near index`，会被报成不含行列的 `<file>: <message>`。
+
+</Callout>
+
+## 组织一个项目
+
+| 变更 | 会重新编译什么 |
+| :-- | :-- |
+| 改了一个 `.dsm` | 那个材质，以及该文件声明的每个函数资产 |
+| 改了一个 `.dsf` | 它声明的那些函数资产 |
+| 改了一个 `.dsh` | 直接或间接导入它的 `.dsm` / `.dsf` |
+| 改了一个 package 文件 | 导入它的那些源文件 |
+
+给项目定一个稳定的入口 header，能让这张图保持很浅：
+
+```c
+// DShader/Shared/Common.dsh
+import "Shared/Color.dsh";
+import "Shared/Texture.dsh";
+
+Namespace(Name="Project")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```c
+// 每个材质只导入一个文件
+import "Shared/Common.dsh";
+```
+
+## 诊断
+
+<Diag>
+  <D msg="DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved." cause="三个候选都不存在，或存在的候选全都落在包含根之外。" fix="检查扩展名：无后缀的 specifier 会补 .dsh，所以 .dsf 或 .dsm 必须写全。" />
+  <D msg="DreamShader import cycle detected at '{Path}'." cause="文件直接或间接导入了自己。" fix="把共享声明抽到两边都导入的第三个 header 里。" />
+  <D msg="DreamShader could not read '{Path}'." cause="解析出的文件读取失败。" />
+  <D msg="Only one top-level Shader block is currently supported." cause="闭包里出现了两个 Shader 块 —— 常常是被误导入的。" href="/docs/language/file-model" />
+  <D msg="Unexpected token near index {Index}." cause="一行 import 因为没有独占一行而进入了声明解析器。" />
+  <D msg="DreamShader header '{Path}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports." cause="被导入的 .dsh 违反了它自己的内容规则。" href="/docs/language/file-model" />
+  <D msg="DreamShader function file '{Path}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks." cause="被导入的 .dsf 违反了它自己的内容规则。" href="/docs/language/file-model" />
+</Diag>
+
+## 继续阅读
+
+<Cards>
+  <Card title="文件模型" href="/docs/language/file-model" description="作用在每个被导入文件上的内容规则。" />
+  <Card title="函数" href="/docs/language/functions" description="Namespace 的声明规则与限定调用。" />
+  <Card title="Package" href="/docs/tools/packages" description="DShader/Packages 与 @scope/name 布局。" />
+  <Card title="项目设置" href="/docs/settings/project" description="Source Directory，它会移动全部搜索根。" />
+</Cards>

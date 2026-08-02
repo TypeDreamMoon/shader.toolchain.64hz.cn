@@ -1,0 +1,292 @@
+---
+title: 命令行
+description: -run=DreamShader —— 每个命令和开关、路径解析、退出码，以及为什么它写真资产而编辑器不写。
+---
+
+`-run=DreamShader` 是无头入口。它把 DreamShader 源文件编译成**持久化**资产，
+也把已有的材质资产反编译回源文件 —— 没有编辑器 UI，也没有 bridge 在跑。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 类 | `UDreamShaderCommandlet`，在 `DreamShaderEditor` 模块里 |
+| 调用 | `-run=DreamShader`，等价写法 `-run=DreamShaderCommandlet` |
+| 命令 | `compile`、`generate`、`decompile`、`export` |
+| 退出码 | `0` 成功，`1` 失败 |
+| 日志分类 | `LogDreamShader` |
+| Commandlet 标志 | `IsClient = false`、`IsEditor = true`、`IsServer = false`、`LogToConsole = true` |
+
+<Callout type="warn">
+**commandlet 写的是真 package。** 编译时 transient 标志是关的，所以 `/Game/…` 的 `.uasset` 会被创建并保存到磁盘。
+交互式编辑器正好相反 —— 那边每次编译都是纯内存的。这正是在 CI 里把整个项目的源文件落盘的正确方式，
+同时也意味着一次 commandlet 运行可能留下遮蔽编辑器内存材质的资产。见[内存材质](/docs/generation/in-memory)。
+</Callout>
+
+## 语法概要
+
+<Grammar />
+
+<Synopsis>
+```text
+UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
+
+<command> ::= { compile | generate | decompile | export }
+
+-run=DreamShader { compile | generate } { -Source=<path> | -File=<path> | -All } [-Force]
+-run=DreamShader { decompile | export } -Asset=<object-path> [{ -Out | -Output }=<path>]
+```
+</Synopsis>
+
+## 命令
+
+命令名是第一个**裸**（不以 `-` 开头）参数。没有裸参数时，改为查 `Command=<name>` 参数。
+匹配大小写不敏感，首尾空白会被 trim 掉。
+
+| 写法 | 等价于 | 效果 |
+| :-- | :-- | :-- |
+| `compile` | — | 把一个源文件、或全部项目源文件，编译成资产 |
+| `generate` | `compile` | 完全相同；另一种写法 |
+| `decompile` | — | 把 `UMaterial` / `UMaterialFunction` 图导出成源文件 |
+| `export` | `decompile` | 完全相同；另一种写法 |
+
+其他任何值都会失败于 `Unknown DreamShader command '{Command}'.` 加用法横幅，并以 `1` 退出。
+
+<Callout type="warn">
+第一个裸 token 会被**无条件**当成命令名，在做任何校验之前。把一个不带前导短横的选项写在*最前面* ——
+`-run=DreamShader Source=X compile` —— 会把 `Source=X` 吃成命令名，得到
+`Unknown DreamShader command 'Source=X'.` 请让命令保持为第一个裸参数。
+</Callout>
+
+## `compile` / `generate`
+
+| 选项 | 别名 | 类型 | 必需 | 默认 | 含义 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| `-Source=<path>` | `-File=<path>` | 字符串 | 三选一 | — | 只编译一个源文件 |
+| `-All` | — | 标志 | 三选一 | 关 | 编译全部项目 DreamShader 源文件 |
+| `-Force` | — | 标志 | 否 | 关 | 绕过 source hash 短路，无条件重新生成 |
+
+优先级：先查 `-Source`，再查 `-File`；两者都没取到值时才看 `-All`。`-Source` 和 `-All` 同时给出时，
+静默地只编译那一个文件。三者都没有时，用法横幅以 `Error` 记录，运行以 `1` 退出。
+
+`-Force` 只绕过 [source hash 短路](/docs/generation/regeneration)，它不删除任何东西。
+
+### `-Source` 路径解析
+
+按下列顺序尝试，第一个适用的胜出。
+
+| 顺序 | 条件 | 结果 |
+| :-- | :-- | :-- |
+| 1 | 值为空，或者是**绝对**路径 | 按给定值归一化 |
+| 2 | `<SourceDirectory>/<value>` **存在** | 用这个路径 |
+| 3 | `<ProjectDir>/<value>` **存在** | 用这个路径 |
+| 4 | 其他 | 按给定值归一化 —— 随后会卡在扩展名守卫或编译上 |
+
+`<SourceDirectory>` 是 *Source Directory* 项目设置，默认 `<Project>/DShader`。所以相对值先按
+DreamShader 源树解析，再按项目目录解析。
+
+### `-All` 的发现与排序
+
+| 步骤 | 规则 |
+| :-- | :-- |
+| 1 | 递归收集 `<SourceDirectory>` 下的 `*.dsm`、`*.dsh`、`*.dsf` |
+| 2 | 丢掉 `<SourceDirectory>/Packages` 下的**一切** |
+| 3 | 丢掉 `.dsh` 头文件 —— 它们不生成资产，会被依赖方内联 |
+| 4 | 排序：`.dsf` 函数文件在前（rank 0），`.dsm` 材质在后（rank 1）；同 rank 按大小写不敏感的路径比较 |
+
+第 4 步是保证，不是巧合：材质引用的函数资产必须在该材质生成之前存在，两级 rank 排序在单次运行内提供了这一点。
+第 2 步对住在 package 里的 `.dsf` 有一处锋利边缘 —— 见 [Package](/docs/tools/packages)。
+
+### 逐文件守卫
+
+编译列表里的每个文件在编译前都会被检查。不是 DreamShader 源文件的路径，或者*是* `.dsh` 头文件的路径，
+会记 `DreamShader compile requires a .dsm or .dsf file: {Path}`，把整次运行标记为失败，
+然后**继续**处理剩下的文件。所以一个坏文件不会阻止其余文件编译 —— 但进程仍然以 `1` 退出。
+
+### 结果消息
+
+每个文件的编译结果原样记录：成功记 `Display`，失败记 `Error`。一个文件产出多个资产时，消息用换行连接。
+
+| 消息 | 结果 |
+| :-- | :-- |
+| `Generated {Kind} {AssetPath} from {SourceFile}.` | 生成了 `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` 资产；`{Kind}` 是块关键字 |
+| `Generated {AssetPath} from {SourceFile}.` | 材质已生成，`Graph` backend |
+| `Generated DreamShader thin-custom material {AssetPath} from {SourceFile}.` | 材质已生成，`ThinCustom` backend |
+| `Skipped {AssetPath} from {SourceFile}; source hash is unchanged.` | 哈希一致 —— 传 `-Force` 强制重新生成 |
+| `Generated DreamShader helper include '{Path}' from {SourceFile}.` | 该文件只产出了一个生成的 `.ush` |
+| `DreamShader file '{Path}' contains VirtualFunction declarations only; no assets were generated.` | 成功，没有东西要写 |
+| `DreamShader file '{Path}' contains GraphFunction declarations only; no assets were generated.` | 成功，没有东西要写 |
+| `DreamShader file '{Path}' did not contain any material, ShaderFunction, ShaderLayer, or ShaderLayerBlend assets to generate.` | **失败** |
+| `DreamShader header '{Path}' does not generate assets directly. Recompile dependent .dsm or .dsf files instead.` | **失败** —— 一个 `.dsh` 进到了生成器 |
+| `{Path}: .dsf files cannot define top-level Shader blocks.` | **失败** |
+
+以 ` (virtual)` 结尾的消息表示 transient 资产；commandlet 从不产出那种。
+
+## `decompile` / `export`
+
+| 选项 | 别名 | 类型 | 必需 | 默认 | 含义 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| `-Asset=<object-path>` | — | 字符串 | **是** | — | 要反编译的资产 |
+| `-Out=<path>` | `-Output=<path>` | 字符串 | 否 | 计算得到 | 目标文件 |
+
+### 资产路径归一化
+
+| 步骤 | 规则 |
+| :-- | :-- |
+| 1 | 每个 `\` 变成 `/` |
+| 2 | 若路径以 `/` 开头且**不含** `.`，追加短名：`/Game/Path/Asset` → `/Game/Path/Asset.Asset` |
+
+先加载归一化后的路径。如果失败**且**归一化确实改变了字符串，再原样重试去掉引号的原始输入。
+
+### 支持的资产类
+
+| 类 | 产出 | 默认目标 |
+| :-- | :-- | :-- |
+| `UMaterial` | `.dsm` | `<SourceDirectory>/Decompiled/Materials/<package path>.dsm` |
+| `UMaterialFunction` | `.dsf` | `<SourceDirectory>/Decompiled/Functions/<package path>.dsf` |
+| `UMaterialFunctionMaterialLayer` | `.dsf` | `<SourceDirectory>/Decompiled/Layers/<package path>.dsf` |
+| `UMaterialFunctionMaterialLayerBlend` | `.dsf` | `<SourceDirectory>/Decompiled/LayerBlends/<package path>.dsf` |
+| 其他任何类 | — | 报错 |
+
+路径段会被净化：控制字符和 `< > : " / \ \| ? *` 变成 `_`；空目录段变成 `Folder<N>`，空资产段变成 `Asset<N>`。
+输出是 UTF-8 无 BOM。`-Out` 完全绕过计算出来的目标，必要时创建目录。导出器的完整行为见
+[反编译导出](/docs/tools/decompiler)。
+
+## 参数语法
+
+所有命令共用，并由自动化测试 `DreamShader.Commandlet.Args.SplitAndGet` 钉住。
+
+| 规则 | 行为 |
+| :-- | :-- |
+| 键归一化 | trim，然后剥掉**所有**前导 `-`，再 trim。`-Source`、`--Source` 和 `Source` 是同一个键 |
+| 名称匹配 | 大小写不敏感 —— `-source`、`-SOURCE`、`-Source` 等价 |
+| 值归一化 | trim，剥掉一层包裹引号，再 trim |
+| 赋值切分 | 在**第一个** `=` 处切；因此值里可以含 `=` |
+| 无短横赋值 | 凡是能写 `-Key=Value` 的地方都接受裸 `Key=Value` |
+| 查找顺序 | 先解析出的参数表，再开关列表，再裸 token 列表；第一个命中胜出 |
+| 空值 | `-Source=` 解析成空串，被当作**不存在** |
+| 缺失键 | 不存在 |
+
+### 布尔标志
+
+标志可以裸写，也可以带值。值在匹配前会转小写。
+
+| 写法 | 结果 |
+| :-- | :-- |
+| `-Force` | 开 |
+| `-Force=`（空值） | 开 |
+| `-Force=1` / `-Force=true` / `-Force=yes` / `-Force=on` | 开 |
+| `-Force=0` / `-Force=false` / `-Force=no` / `-Force=off` | 关 |
+| `-Force=<其他任何值>` | **开** |
+
+<Callout type="warn">
+无法识别的布尔值求值为**开**，既不是关，也不是错误。`-Force=banana`、`-Force=disable` 和 `-All=never`
+全都会*启用*该标志，而且没有任何诊断。请使用上表里的字面量。
+</Callout>
+
+## 退出码
+
+| 码 | 条件 |
+| :-- | :-- |
+| `0` | 所选命令报告成功 |
+| `0` | `compile -All` 解析出**空**的源文件列表 —— 记 `Warning`，视为成功 |
+| `1` | 既没有命令 token 也没有 `Command=` 值 |
+| `1` | 未知命令名 |
+| `1` | `compile` 但 `-Source` / `-File` / `-All` 一个都没给 |
+| `1` | `compile` 期间任何逐文件守卫失败或编译失败 |
+| `1` | `decompile` 没有 `-Asset`，或加载 / 反编译 / 写入失败 |
+
+## 哪些东西不会跑
+
+- **commandlet 里 editor bridge 从不启动。** 编辑器模块一检测到自己在 commandlet 进程里就从启动流程返回，
+  所以没有源目录 watcher、没有保存即编译、端口 `17864` 上没有 WebSocket 服务、没有 `diagnostics.json` 写入、
+  没有 `bridge.db`，也没有菜单注册。
+- 唯一的例外是 **cook** commandlet，它会装一个 post-engine-init 钩子。只在 cook director 上 ——
+  即 `-run=` 含 `Cook` 且不带 `-cookworker` 的进程 —— DreamShader 会在正式 cook 之前把每个项目源文件
+  落成持久资产。那里的生成失败是 `Fatal`，会中止整个 cook。
+- 给*非* commandlet 的自动化运行（例如 `-ExecCmds="Automation RunTests …"`）加上
+  `-NoDreamShaderEditorBridge`，同样能在那边压掉 bridge —— 见
+  [编辑器工具](/docs/tools/editor#关闭整套集成)。
+
+## 诊断
+
+所有消息都进 `LogDreamShader`。运行期替换写作 `{Placeholder}`。
+
+| 消息 | 严重度 | 原因 |
+| :-- | :-- | :-- |
+| *（用法横幅）* | Error | 既没有命令 token 也没有 `Command=` 值 |
+| `Unknown DreamShader command '{Command}'.` + 用法横幅 | Error | 命令不是 `compile` / `generate` / `decompile` / `export` |
+| *（用法横幅）* | Error | `compile` 但 `-Source` / `-File` 和 `-All` 都没给 |
+| `DreamShader commandlet found no source files to compile.` | **Warning** | 解析出的源文件列表为空；运行仍以 `0` 退出 |
+| `DreamShader compile requires a .dsm or .dsf file: {Path}` | Error | 该文件不是 DreamShader 源文件，或者是 `.dsh` 头文件 |
+| *（编译结果消息）* | Display / Error | 逐文件结果 —— 见[结果消息](#结果消息) |
+| *（用法横幅）* | Error | `decompile` 没有 `-Asset` |
+| `DreamShader could not load asset '{AssetPath}'.` | Error | 归一化路径和原始路径都加载失败 |
+| `DreamShader failed to decompile '{LoadPath}': {Error}` | Error | 反编译器报告失败 |
+| `DreamShader decompile supports Material and MaterialFunction assets only: {AssetPath}` | Error | 不支持的资产类 |
+| `Decompile did not produce source text.` | Error | 反编译失败但没有错误文本 |
+| `DreamShader failed to resolve an output file path.` | Error | 目标路径解析为空 |
+| `DreamShader failed to create output directory '{Directory}'.` | Error | 目标目录创建失败 |
+| `DreamShader failed to write decompiled source '{Path}'.` | Error | 文件写入失败 |
+| `DreamShader decompiled '{LoadPath}' to '{OutputPath}'.` | Display | 成功 |
+
+用法横幅，原文：
+
+```text
+Usage:
+  -run=DreamShader compile -Source="C:/Project/DShader/File.dsm" [-Force]
+  -run=DreamShader compile -All [-Force]
+  -run=DreamShader decompile -Asset="/Game/Path/Asset.Asset" [-Out="C:/Project/DShader/Decompiled/File.dsm"]
+Supported asset types: Material -> .dsm, MaterialFunction -> .dsf.
+```
+
+## 示例
+
+编译单个源文件，绕过哈希短路：
+
+```powershell
+& "C:\Program Files\Epic Games\UE_5.5\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
+  "C:\Projects\MyGame\MyGame.uproject" `
+  -run=DreamShader compile -Source="C:/Projects/MyGame/DShader/Materials/M_Sample.dsm" -Force `
+  -unattended -nopause -nosplash -stdout -log
+```
+
+作为 CI 关卡，编译全部项目源文件 —— `.dsf` 在前，`.dsm` 在后：
+
+```powershell
+& "C:\Program Files\Epic Games\UE_5.5\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
+  "C:\Projects\MyGame\MyGame.uproject" `
+  -run=DreamShader compile -All -Force `
+  -unattended -nopause -nosplash -stdout -log
+```
+
+把已有材质反编译到指定路径：
+
+```powershell
+& "C:\Program Files\Epic Games\UE_5.5\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
+  "C:\Projects\MyGame\MyGame.uproject" `
+  -run=DreamShader decompile -Asset="/Game/Materials/M_Existing" `
+  -Out="C:/Projects/MyGame/DShader/Decompiled/Materials/M_Existing.dsm" `
+  -unattended -nopause -nosplash -stdout -log
+```
+
+相对的 `-Source` 先按 `DShader/` 解析：
+
+```powershell
+-run=DreamShader compile -Source="Materials/M_Sample.dsm"
+```
+
+一次成功的两文件 `-All` 运行的控制台输出：
+
+```text
+LogDreamShader: Display: Generated ShaderFunction /Game/Functions/MF_Noise from C:/Projects/MyGame/DShader/Functions/MF_Noise.dsf.
+LogDreamShader: Display: Generated DreamShader thin-custom material /Game/Materials/M_Sample from C:/Projects/MyGame/DShader/Materials/M_Sample.dsm.
+```
+
+## 继续阅读
+
+<Cards>
+  <Card title="内存材质" href="/docs/generation/in-memory" description="持久化生成 vs transient 生成，以及 cook 行为。" />
+  <Card title="重新生成" href="/docs/generation/regeneration" description="-Force 绕过的那个 source hash 短路。" />
+  <Card title="反编译导出" href="/docs/tools/decompiler" description="decompile 命令驱动的那个导出器。" />
+  <Card title="Package" href="/docs/tools/packages" description="为什么 -All 跳过 DShader/Packages。" />
+  <Card title="编辑器工具" href="/docs/tools/editor" description="commandlet 刻意不启动的那一整套。" />
+</Cards>

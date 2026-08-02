@@ -1,0 +1,459 @@
+---
+title: 顶层块
+description: 七种顶层块 —— Shader、ShaderFunction、ShaderLayer / ShaderLayerBlend、VirtualFunction、Function、GraphFunction、Namespace —— 及其各自的产出。
+---
+
+一个源文件就是一串平铺的顶层块。它们可以按任意顺序出现，彼此之间没有分隔符，除 `Shader` 之外每种都
+可以在一个翻译单元里出现任意多次。编译一个文件一次，就会生成它所有块描述的全部资产。
+
+块关键字是整门语言里**唯一大小写敏感的 token**。`shader(…)` 和 `SHADER(…)` 什么都匹配不上，失败于
+`Unexpected token near index {Index}.` 见 [词法与大小写](/docs/language/lexical)。
+
+## 语法概览
+
+<Synopsis>
+
+```c
+<top-level-block> := { Shader | ShaderFunction | ShaderLayer | ShaderLayerBlend
+                     | MaterialLayer | MaterialLayerBlend | VirtualFunction | Namespace }
+                     ( <attribute> = <value> [, …] ) { <section>… }
+                   | { Function [ SelfContained | Inline ] | GraphFunction }
+                     [<return-type>] <name> ( [<parameter>, …] ) { <HLSL> }
+
+<section>          := <section-name> [=] { <statement>… } [;]
+```
+
+</Synopsis>
+
+<Grammar />
+
+也就是两种头部形态：五种资产型块用 `( Key = Value )` 属性列表加一组
+[section](/docs/language/sections)；两种函数型块用 C 风格签名加一段原始 HLSL。
+
+## 各个块产出什么
+
+| 块 | 头部 | 产出 | 起始版本 |
+| :-- | :-- | :-- | :-- |
+| `Shader` | `Shader(Name = "…"[, Root = "…"])` | `UMaterial`；在 ThinCustom 后端下是覆盖在隐藏基材质上的 `UDreamShaderMaterialInstance` | — |
+| `ShaderFunction` | `ShaderFunction(Name = "…"[, Root = "…"])` | `UMaterialFunction`（usage `Default`） | — |
+| `ShaderLayer` | `ShaderLayer(Name = "…"[, Root = "…"])` | `UMaterialFunctionMaterialLayer` | <Since v="1.3.0" /> |
+| `ShaderLayerBlend` | `ShaderLayerBlend(Name = "…"[, Root = "…"])` | `UMaterialFunctionMaterialLayerBlend` | <Since v="1.3.0" /> |
+| `VirtualFunction` | `VirtualFunction(Name = "…"[, Asset = "…"])` | **什么都不产出** —— 声明一个已存在的资产 | <Since v="1.2.0" /> |
+| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … )` | 生成的 `.ush` include 里的一个 HLSL 函数；每个调用点一个 `Custom` 节点 | — |
+| `GraphFunction` | `GraphFunction [<ret>] <Name>( … )` | 自身不产出；每个调用点一个 `Custom` 节点外加被提升出来的材质节点 | <Since v="1.3.1" /> |
+| `Namespace` | `Namespace(Name = "…")` | 什么都不产出 —— 给成员名加上 `Ns::` 前缀 | — |
+
+每个带属性的块都必须写 `Name`。`Root` 默认是 `/Game`；完整的路径语法见
+[资产路径](/docs/generation/asset-paths)。
+
+## `Shader`
+
+声明一个材质：它的参数、渲染状态、输出绑定，以及供给它们的图。
+
+<Synopsis>
+
+```c
+Shader(Name = "<asset-path>" [, Root = "<root>"])
+{
+    [Properties [=] { <property-declaration> ; … }]
+    [Settings   [=] { <key> = <value> ; … }]
+    [Outputs    [=] { { <output-declaration> | <output-binding> } ; … }]
+    [Graph      [=] { <graph-statement> … }]
+    [Layout     [=] { { Node( … ) | Comment( … ) } ; … }]
+}
+```
+
+</Synopsis>
+
+```c
+Shader(Name="Materials/M_Emissive", Root="Game")
+{
+    Properties = {
+        Group("Look") {
+            vec3  Tint      = vec3(1.0, 0.4, 0.1) [Description="Emissive tint"];
+            float Intensity = 2.0                 [Slider(0, 10)];
+        }
+        TextureSampleParameter2D BaseTex = Path(Game, "Textures/T_Noise");
+    }
+
+    Settings = {
+        ShadingModel = "Unlit";
+        BlendMode    = "Translucent";
+        TwoSided     = true;
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        vec2 UV  = UE.TexCoord(Index = 0);
+        vec4 Tex = BaseTex(Coordinates = UV);
+        Color = Tex.rgb * Tint * Intensity;
+        Alpha = Tex.a;
+    }
+}
+```
+
+只对这个块成立的规则：
+
+- **只能写在 `.dsm` 里。** 文本中含 `Shader(` 的 `.dsh` 或 `.dsf` 在解析之前就会被拒绝。
+- **每个翻译单元最多一个**，包括 import 闭包。
+- 必须有 `Graph` 块，**除非**至少有一条输出声明带初始化式 <Since v="1.3.4" />。否则解析失败于
+  `Shader must provide a Graph block.`
+- **真正让材质成立的是绑定。** 没有任何 `Base.*` 或 `Expression(…)` 绑定的 `Shader` 解析时只报一条
+  警告，然后在生成阶段失败于 `{File}: Outputs block is required.`
+- 绑定 `Base.MaterialAttributes` 会自动打开 *Use Material Attributes*。绑定 `Base.FrontMaterial` 会
+  强制把着色模型设为 Substrate，并且需要 <Since v="5.4" ue />。两者不能被同一个 `Shader` 同时使用。
+- `Inputs`、`Results`、`Options` 不是 `Shader` 认识的 section；`Code` 是硬错误。
+
+<Callout type="info">
+
+目标路径上最终落地的是哪个 UClass，取决于解析出的后端。默认的 `ThinCustom` 写出一个
+`UDreamShaderMaterialInstance`，其父级是名为 `MB_DreamThinBase_<leaf>` 的隐藏 `UMaterial` 子对象；
+`Graph` 写出普通的 `UMaterial`。`Instance` 是 `ThinCustom` 的已弃用别名。见
+[Backend](/docs/settings/backend)。
+
+</Callout>
+
+## `ShaderFunction`
+
+声明一个可复用的 `UMaterialFunction`：类型化的输入输出引脚、函数内部的参数节点，以及把它们连起来的图。
+
+<Synopsis>
+
+```c
+ShaderFunction(Name = "<asset-path>" [, Root = "<root>"])
+{
+    [Properties            [=] { <property-declaration> ; … }]
+    [Inputs                [=] { <parameter-declaration> ; … }]
+    { Outputs | Results }  [=] { <parameter-declaration> ; … }
+    Graph                  [=] { <graph-statement> … }
+    [Settings              [=] { <key> = <value> ; … }]
+    [Layout                [=] { { Node( … ) | Comment( … ) } ; … }]
+}
+```
+
+</Synopsis>
+
+```c
+ShaderFunction(Name="Functions/F_Tint", Root="Game")
+{
+    Properties = {
+        Group("Tint") {
+            float Boost = 1.0 [Slider(0, 4); Description="Extra gain applied after tinting"];
+        }
+        const float Epsilon = 0.001;
+    }
+
+    Inputs = {
+        vec3  InColor;
+        vec3  InTint             [Description="Multiplied with InColor"];
+        opt float Strength = 1.0 [Description="Blend amount"; SortPriority=10];
+    }
+
+    Outputs = {
+        vec3  OutColor;
+        float OutLuma;
+    }
+
+    Graph = {
+        vec3 Tinted = InColor * InTint * Boost;
+        OutColor    = lerp(InColor, Tinted, Strength);
+        OutLuma     = dot(OutColor, vec3(0.2126, 0.7152, 0.0722)) + Epsilon;
+    }
+}
+```
+
+`Graph` 和至少一个输出是必需的，其余全部可选。这里的 `Properties` 声明的是函数*内部*的节点，`Inputs`
+声明的是函数*上面*的引脚 —— 这个区别是本块最常见的困惑来源，详见 [Section](/docs/language/sections)。
+
+<Callout type="info">
+
+重新生成时，每个输入输出引脚的 `Id` GUID 会按名字缓存并还原 <Since v="1.3.2" />，所以已有的手工
+`MaterialFunctionCall` 节点能保住连线 —— **前提是引脚名没变**。改名等同于删掉再新建：调用点会丢连接。
+
+</Callout>
+
+## `ShaderLayer` 与 `ShaderLayerBlend`
+
+<Since v="1.3.0" />
+
+`ShaderFunction` 的材质层变体。它们共用 `ShaderFunction` 的函数体解析器和 section 表；区别只在生成阶段
+检查的五条 arity 规则。
+
+<Synopsis>
+
+```c
+ShaderLayer(Name = "<asset-path>" [, Root = "<root>"])
+{
+    [Inputs                [=] { MaterialAttributes <name> ; }]
+    { Outputs | Results }  [=] { MaterialAttributes <name> ; }
+    Graph                  [=] { <graph-statement> … }
+}
+
+ShaderLayerBlend(Name = "<asset-path>" [, Root = "<root>"])
+{
+    Inputs                 [=] { MaterialAttributes <name> ; MaterialAttributes <name> ; }
+    { Outputs | Results }  [=] { MaterialAttributes <name> ; }
+    Graph                  [=] { <graph-statement> … }
+}
+```
+
+</Synopsis>
+
+| 类型 | 输入 | 输出 |
+| :-- | :-- | :-- |
+| `ShaderLayer` | **至多一个**，且必须是 `MaterialAttributes` | 恰好一个 `MaterialAttributes` |
+| `ShaderLayerBlend` | **恰好两个**，都必须是 `MaterialAttributes` | 恰好一个 `MaterialAttributes` |
+
+标量、向量和纹理不能作为层或混合的输入，改用 `Properties` 暴露：它们会变成生成函数内部的参数节点，并
+出现在材质层堆栈的参数面板上。两条诊断都明说了这一点 —— `… Use Properties for layer controls.`
+
+```c
+ShaderLayer(Name="Layers/L_Rust", Root="Game")
+{
+    Properties = {
+        Group("Rust") {
+            vec3  RustColor = vec3(0.35, 0.13, 0.05);
+            float RustRough = 0.85 [Slider(0, 1)];
+        }
+    }
+
+    Outputs = { MaterialAttributes Attrs; }
+
+    Graph = {
+        Attrs.BaseColor = RustColor;
+        Attrs.Roughness = RustRough;
+        Attrs.Metallic  = 0.0;
+    }
+}
+```
+
+<Callout type="info">
+
+在 <Since v="5.7" ue /> 上，混合块的每个 `MaterialAttributes` 输入会根据名字得到一个
+`BlendInputRelevance` —— `Top` / `TopLayer` 映射为 `Top`，`Bottom` / `BottomLayer` / `Base` /
+`BaseLayer` 映射为 `Bottom`。其他名字按位置回退：第一个输入是 `Bottom`，第二个是 `Top`。UE 5.3–5.6
+上这个属性不存在，不会写入任何东西。
+
+</Callout>
+
+### 已弃用的写法
+
+<Deprecated since="1.3.0" use="ShaderLayer" />
+
+`MaterialLayer(...)` 和 `MaterialLayerBlend(...)` 仍然能解析，也仍然生成完全相同的资产，但各自会推一条
+解析警告并附加到编译消息上：`MaterialLayer is deprecated; use ShaderLayer instead.` 和
+`MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.`
+
+这种别名关系有两个后果值得注意。缺少 `Name` 时报的是你实际写的那个拼法
+（`MaterialLayer(Name="...") is required.`），而**其他所有诊断报的都是现代块名** —— 一个有两个输入的
+`MaterialLayer` 会失败于 `ShaderLayer '{Function}' must declare at most one input, …`，永远不会写
+`MaterialLayer …`。
+
+## `VirtualFunction`
+
+<Since v="1.2.0" />
+
+声明一个**已经存在**的 `UMaterialFunction` —— 它的路径和引脚签名 —— 好让 `Graph` 能调用它。它什么都不
+生成，在调用点需要它之前也什么都不校验。
+
+<Synopsis>
+
+```c
+VirtualFunction(Name = "<call-name>" [, Asset = "<asset-reference>"])
+{
+    [{ Options | Settings }   [=] { Asset = <asset-reference> ; … }]
+    [{ Inputs | Properties }  [=] { <parameter-declaration> ; … }]
+    { Outputs | Results }     [=] { <parameter-declaration> ; … }
+}
+```
+
+</Synopsis>
+
+```c
+VirtualFunction(Name="BufferWriter")
+{
+    Options = {
+        Asset       = Path(Game, "MaterialFunctions/F_BufferWriter");
+        Description = "Existing material function declared for Graph calls.";
+    }
+
+    Inputs = {
+        vec3  Color;
+        float Alpha;
+        opt float Exposure = 1.0;
+    }
+
+    Outputs = {
+        vec3  Result;
+        float Coverage;
+    }
+}
+```
+
+- `Name` 是**调用名**，不是资产路径。这里没有 `Root` 属性 —— 包根是资产引用自身的一部分。
+- 头部的 `Asset=` 属性优先于 `Options.Asset`；只有属性缺失或去空白后为空时才读 section 里的值。
+- `Graph` 和 `Code` 是硬错误：这个块声明资产，不构建资产。
+- 只含 `VirtualFunction` 块的文件编译成功，消息是
+  `DreamShader file '{File}' contains VirtualFunction declarations only; no assets were generated.`
+
+<Callout type="warn">
+
+**在 `VirtualFunction` 内部，而且只在这里，`Properties` 是 `Inputs` 的别名。** 它走的是类型化参数
+语法，不是参数节点语法。像 `const float X = 1;` 这种在 `Shader` 里合法的声明，在这里会失败于
+`VirtualFunction '{Name}' input 'X' uses unsupported type 'const float'.`
+
+</Callout>
+
+<Callout type="warn">
+
+不带引号的属性值在第一个 `,` 或 `)` 处结束。写在*头部*的 `Asset=Path(Game, "F/X")` 会被截断成
+`Path(Game`，失败于 `Expected identifier near index {Index}.` 请把 `Path(...)` 形式放进 `Options`。
+
+</Callout>
+
+## `Function`
+
+一个 HLSL helper。函数体原样写进生成的 `.ush` include，符号名为 `DreamShaderFn_<Name>`，每个调用点变成
+一个 `UMaterialExpressionCustom` 节点。
+
+<Synopsis>
+
+```c
+Function [ { Inline | SelfContained } ] [ <return-type> ] <name> ( [ <parameter-list> ] )
+{
+    <hlsl>
+}
+```
+
+</Synopsis>
+
+```c
+Function float Luma(in vec3 color)
+{
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
+Function SelfContained Remap01(in float value, out float result)
+{
+    result = saturate(value * 0.5 + 0.5);
+}
+```
+
+它没有属性头部、没有 `Settings`、也没有任何 section —— 参数列表之后的 `{ … }` 就是原始 HLSL。完整的
+参数、返回类型和产出规则见 [函数](/docs/language/functions)。
+
+## `GraphFunction`
+
+<Since v="1.3.1" />
+
+写法和 `Function` 完全一样，但函数体里的 `UE.*` 调用会被从文本中提取出来，构建成真正的材质节点，并作为
+自动命名的输入引脚接到生成的 `Custom` 节点上。
+
+<Synopsis>
+
+```c
+GraphFunction [ <return-type> ] <name> ( [ <parameter-list> ] )
+{
+    <hlsl-with-UE-calls>
+}
+```
+
+</Synopsis>
+
+```c
+GraphFunction WindPulse(in float2 uv, out float pulse)
+{
+    float t = UE.Time();
+    pulse = sin(uv.x * 8.0 + t);
+}
+```
+
+<Callout type="warn">
+
+`Inline` 和 `SelfContained` 在这里**不是修饰符**。`GraphFunction` 会跳过修饰符分支，于是这个 token 被
+当作*返回类型*消费掉，失败表现为
+`DreamShader GraphFunction 'Foo' has unsupported result type 'SelfContained'.`（如果还带任何 `out`
+参数，则会先在解析阶段以"有返回类型又有 out 参数"失败）。`GraphFunction` 没有自包含模式。
+
+</Callout>
+
+## `Namespace`
+
+给它包含的 `Function` 和 `GraphFunction` 声明的名字加上 `<Name>::` 前缀。
+
+<Synopsis>
+
+```c
+Namespace(Name = "<identifier>")
+{
+    { <function-declaration> | <graph-function-declaration> } …
+}
+```
+
+</Synopsis>
+
+```c
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+`Namespace` 不是一个实体：不会为它存储任何对象，它也**不创建作用域**。它唯一的作用是改写成员的记录名。
+它**不能嵌套**，而且只能包含那两种块 —— 其他任何东西都会失败于
+`Namespace '{Name}' may only contain Function or GraphFunction blocks.` 见
+[函数](/docs/language/functions)。
+
+## 对照
+
+<Wide>
+
+| | `Shader` | `ShaderFunction` | `ShaderLayer(Blend)` | `VirtualFunction` | `Function` | `GraphFunction` | `Namespace` |
+| :-- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| 写出 `.uasset` | 是 | 是 | 是 | 否 | 否 | 否 | 否 |
+| 允许在 `.dsh` 中 | 否 | 否 | 否 | 是 | 是 | 是 | 是 |
+| 每单元数量 | **1** | 任意 | 任意 | 任意 | 任意 | 任意 | 任意 |
+| 函数体 | section | section | section | section | HLSL | HLSL | 块 |
+| `Properties` | 参数节点 | 参数节点 | 参数节点 | `Inputs` 的别名 | — | — | — |
+| 必须有 `Graph` | 除非输出带初始化式 | 是 | 是 | 拒绝 | — | — | — |
+| 可从 `Graph` 调用 | 否 | 是 | 是 | 是 | 是 | 是 | 通过成员 |
+| 可当值调用 | — | 是 | 是 | 是 | 仅单输出 | 仅单输出 | — |
+
+</Wide>
+
+## 诊断
+
+<Diag>
+  <D msg="Unexpected token near index {Index}." cause="顶层出现了十个块关键字之外的文本 —— 包括大小写写错的正确关键字。" fix="检查大小写，块关键字是大小写敏感的。" href="/docs/language/lexical" />
+  <D msg='{Block}(Name="...") is required.' cause="块头部没有 Name 属性。{Block} 是你实际写的那个拼法。" />
+  <D msg="Only one top-level Shader block is currently supported." cause="import 闭包里出现了第二个 Shader 块。" href="/docs/language/imports" />
+  <D msg="Shader must provide a Graph block." cause="既没有 Graph section，也没有带初始化式的输出声明。" />
+  <D msg="Unknown shader section '{Section}'." cause="Shader 不接受的 section —— Inputs、Results、Options 都在其中。" href="/docs/language/sections" />
+  <D msg="Unknown material function section '{Section}'." cause="ShaderFunction / ShaderLayer / ShaderLayerBlend 不接受的 section。" href="/docs/language/sections" />
+  <D msg="Unknown VirtualFunction section '{Section}'." cause="VirtualFunction 不接受的 section。" />
+  <D msg="VirtualFunction declares an existing MaterialFunction asset and does not support Graph or Code sections." cause="VirtualFunction 里写了 Graph 或 Code section。" />
+  <D msg="ShaderLayer '{Function}' must declare at most one input, and it must be MaterialAttributes. Use Properties for layer controls." cause="层块有两个及以上输入，或有非 MaterialAttributes 的输入。" fix="把这个控制项挪到 Properties。" />
+  <D msg="ShaderLayerBlend '{Function}' must declare exactly two inputs, both MaterialAttributes. Use Properties for blend controls." cause="混合块输入数不等于二，或有非 MaterialAttributes 的输入。" />
+  <D msg="{Kind} '{Function}' must declare exactly one MaterialAttributes output." cause="层或混合块有多个输出，或输出不是 MaterialAttributes。" />
+  <D msg="Namespace '{Name}' may only contain Function or GraphFunction blocks." cause="Namespace 体内出现了其他任何 token，包括嵌套的 Namespace。" />
+  <D msg="Namespace name '{Name}' is not a valid identifier." cause="命名空间名里有非法字符，包括 ::、.、- 和空格。没有多段声明形式。" />
+  <D msg="Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported." cause="使用了 Code section。尽管消息这么写，实际上没有任何可达语法接受 Code。" fix="改用 Graph。" />
+</Diag>
+
+## 继续阅读
+
+<Cards>
+  <Card title="Section" href="/docs/language/sections" description="Properties、Inputs、Outputs、Settings、Graph、Layout，以及哪个块收哪个。" />
+  <Card title="函数" href="/docs/language/functions" description="Function、GraphFunction 与 Namespace 的完整规则。" />
+  <Card title="材质 Settings" href="/docs/settings/material" description="Shader 的 Settings 接受的每一个键。" />
+  <Card title="资产路径" href="/docs/generation/asset-paths" description="Name 和 Root 如何变成包路径。" />
+</Cards>

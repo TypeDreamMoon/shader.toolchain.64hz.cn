@@ -1,0 +1,402 @@
+---
+title: VSCode 与 Rider
+description: 语言扩展、生成的 DreamShader.code-workspace，以及两侧交换的 bridge 产物。
+---
+
+DreamShaderLang 是**两个相互独立的产品**：Unreal 插件，和你编辑器里的语言扩展。它们从不互相直接调用 ——
+交换发生在 `<Project>/Saved/DreamShader/Bridge/` 下的文件和一条回环 WebSocket 上。
+出问题时，先分清哪边负责什么能省很多时间。
+
+| 一侧 | 负责 |
+| :-- | :-- |
+| Unreal 插件 | 编译、诊断、bridge 产物、预览渲染器、`DreamShader.code-workspace` |
+| 编辑器扩展 | 语法高亮、补全、Hover、导航、预览面板及其相机、package 安装/更新、package manifest 和锁文件 |
+
+## 哪边实现了什么
+
+| 面 | 实现方 | 说明 |
+| :-- | :-- | :-- |
+| 菜单、工具栏、右键菜单、浏览器面板 | 插件 | [编辑器工具](/docs/tools/editor) |
+| 保存即编译、诊断存储 | 插件 | 写三个诊断 sink |
+| 预览渲染（PNG 帧） | 插件 | 渲染器、网格集合和各种钳制 |
+| 预览相机控制、pitch 钳制、帧确认 | **扩展** | 插件自己不做任何 pitch 钳制 |
+| 反编译器 | 插件 | [反编译导出](/docs/tools/decompiler) |
+| `.dsm` / `.dsh` / `.dsf` 高亮、补全、Hover | **扩展** | 数据来自插件导出的 manifest |
+| `DreamShader.code-workspace` | 插件 | 每次 *Open Dream Shader Workspace* 都重写 |
+| `dreamshader.package.json`、`dreamshader.lock.json`、安装/更新命令 | **扩展** | **插件里没有任何 C++ 读这两个文件** —— [Package](/docs/tools/packages) |
+| `DShader/Packages` 创建、import 解析、自动编译排除 | 插件 | [Package](/docs/tools/packages) |
+
+## 两个扩展
+
+两个扩展都不随插件一起发布，需要单独安装。
+
+| 编辑器 | 仓库 | 提供 |
+| :-- | :-- | :-- |
+| VSCode | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) | 语法高亮、snippets、补全、Go to Definition、Find References、Hover、Signature Help、本地诊断、Unreal 桥接诊断、Package 命令、快速模板、材质预览面板 |
+| JetBrains Rider | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) | `.dsm` / `.dsf` / `.dsh` 文件类型、语法与 PSI 解析、高亮、补全、导航、诊断、Unreal Bridge 集成、语义 token、inlay hints、Package 工具 |
+
+| 能力 | VSCode | Rider |
+| :-- | :-- | :-- |
+| 文件类型识别 | 有 | 有 |
+| 语法高亮 | 有 | 有 |
+| 解析模型 | parser-based 语言服务 | JetBrains PSI 解析器 |
+| 补全、Hover、Signature Help | 有 | 有 |
+| 跳转定义、查找引用 | 有 | 有 |
+| 本地诊断 | 有 | 有 |
+| Unreal 桥接诊断 | 有 | 有 |
+| Inlay hints / 语义 token | 有 | 有 |
+| 材质预览面板 | 有 | 取决于插件 |
+| Package 命令 | 有 | 取决于插件 |
+| 创作模板 | 有 | 取决于插件 |
+
+发布流程会把最新的 VSCode 扩展产物附到每个插件 GitHub release 上，所以两边版本大致同步。
+扩展侧的设置 —— 项目根目录覆盖、预览帧率、package store index URL —— 由扩展声明，
+不属于 `UDreamShaderSettings`，以扩展自己的仓库为准。
+
+## 生成的 workspace
+
+*Tools ▸ DreamShader ▸ Open Dream Shader Workspace (VSCode)* —— 以及同名的工具栏按钮 ——
+会写一个文件并用编辑器打开它。<Since v="1.2.1" />
+
+| 项目 | 值 |
+| :-- | :-- |
+| 路径 | `<SourceDirectory>/DreamShader.code-workspace` —— 默认 `<Project>/DShader/` |
+| 编码 | UTF-8 无 BOM，由 Unreal 的 JSON writer 美化输出（tab 缩进） |
+| 平台 | **仅 Windows** —— 探测用的是 Windows 环境变量、`;` 分隔的 `PATH`、`cmd.exe` 和 `notepad.exe` |
+
+源目录不存在时会被创建。文件的全部内容：
+
+```json
+{
+	"folders": [
+		{
+			"name": "DreamShader Source",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.dsm": "dreamshaderlang",
+			"*.dsh": "dreamshaderlang",
+			"*.dsf": "dreamshaderlang"
+		}
+	}
+}
+```
+
+writer 会写出的所有键。没有别的键，也没有任何条件分支。
+
+| 键 | 值 | 用途 |
+| :-- | :-- | :-- |
+| `folders[0].name` | `DreamShader Source` | 唯一那个 workspace 文件夹的显示名 |
+| `folders[0].path` | `.` | 存放 workspace 文件的目录 —— 也就是 `<SourceDirectory>` 本身 |
+| `settings["files.associations"]["*.dsm"]` | `dreamshaderlang` | 材质源文件的 language id |
+| `settings["files.associations"]["*.dsh"]` | `dreamshaderlang` | 头文件的 language id |
+| `settings["files.associations"]["*.dsf"]` | `dreamshaderlang` | 函数源文件的 language id <Since v="1.3.5" /> |
+
+<Callout type="warn">
+**这个文件每次调用都被整体重写。** writer 序列化的是一个固定对象；它从不读取、合并或保留原有内容。
+你手工加的任何 `launch`、`tasks`、`extensions` 或额外 `settings` 条目，都会在下次执行该命令时被摧毁。
+把个人配置放在**另一个** `.code-workspace` 文件里，或者放进 `<SourceDirectory>/.vscode/settings.json` ——
+这两处这条命令都不碰。
+</Callout>
+
+### 这条命令的执行顺序
+
+| 步骤 | 动作 | 失败时 |
+| :-- | :-- | :-- |
+| 1 | 重新导出 `material-expressions.json` | 记日志，命令继续 |
+| 2 | 重新导出 `settings.json` | 记日志，命令继续 |
+| 3 | 重新导出 `substrate-builtins.json` | 记日志，命令继续 |
+| 4 | 写 `DreamShader.code-workspace` | toast + warning，命令**中止** |
+| 5 | 用编辑器打开该 workspace 文件 | toast + warning |
+
+第 1–3 步重写的就是 bridge 在编辑器启动时写的那三份 manifest，所以刚装好的扩展不用重启编辑器就能拿到当前数据。
+见 [Bridge 产物](/docs/tools/editor#bridge-产物)。
+
+### 启动回退链
+
+第一个成功的机制胜出，其余不再尝试。
+
+| 顺序 | 机制 | 细节 |
+| :-- | :-- | :-- |
+| 1 | VSCode | 第一个能拿到有效进程句柄的已发现可执行文件。`.cmd` / `.bat` 候选经由 `%ComSpec%`（回退到 `C:/Windows/System32/cmd.exe`）带 `/C` 隐藏运行；`.exe` 候选直接启动 |
+| 2 | Shell 默认应用 | `LaunchFileInDefaultExternalApplication` 加 `Edit` 动词 —— 也就是系统为 `.code-workspace` 注册的那个程序 |
+| 3 | Notepad | 存在时用 `%SystemRoot%\System32\notepad.exe`，否则用裸 `notepad.exe` |
+| — | *（都没有）* | 失败 toast，以及日志里的一条 warning |
+
+### VSCode 可执行文件探测
+
+按下列精确顺序探测。只保留确实作为文件存在的路径，并去重。
+
+| 顺序 | 候选 |
+| :-- | :-- |
+| 1 | `%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe` |
+| 2 | `%LOCALAPPDATA%\Programs\Microsoft VS Code\bin\code.cmd` |
+| 3 | `%LOCALAPPDATA%\Programs\Microsoft VS Code Insiders\Code - Insiders.exe` |
+| 4 | `%LOCALAPPDATA%\Programs\Microsoft VS Code Insiders\bin\code-insiders.cmd` |
+| 5 | `%ProgramFiles%\Microsoft VS Code\Code.exe` |
+| 6 | `%ProgramFiles%\Microsoft VS Code\bin\code.cmd` |
+| 7 | `%ProgramFiles(x86)%\Microsoft VS Code\Code.exe` |
+| 8 | `%ProgramFiles(x86)%\Microsoft VS Code\bin\code.cmd` |
+| 9 | 对每个 `;` 分隔的 `PATH` 条目，按 `PATH` 顺序：`code.cmd`、`code.exe`、`Code.exe`、`code-insiders.cmd`、`Code - Insiders.exe` |
+
+<Callout type="info">
+**没有任何设置可以指定 VSCode 可执行文件。** 非标准安装位置只能通过把它放进 `PATH` 来触达。
+</Callout>
+
+### 各操作用的是哪个 launcher
+
+| 项目 | 值 |
+| :-- | :-- |
+| 设置项 | *Open In New Window* —— `bOpenInNewWindow`，分类 *Editor* |
+| 默认 | `true` |
+| 效果 | 为 **false** 时，VSCode 命令行后面追加 ` --reuse-window`。为 true 时不传任何标志，由 VSCode 自己决定 |
+
+<Callout type="warn">
+`bOpenInNewWindow` **只被 workspace launcher 读取**。其他每一个用 VSCode 打开文件的 DreamShader 操作
+都走另一个 launcher，那个 launcher 无视该设置，总是传
+`--reuse-window -g "<path>:<line>:<column>"`。
+</Callout>
+
+| 操作 | Launcher | 窗口行为 |
+| :-- | :-- | :-- |
+| *Open Dream Shader Workspace (VSCode)*，菜单和工具栏 | workspace launcher | 遵循 `bOpenInNewWindow` |
+| *Open source*（Material Content Browser 的 Gen 页） | file launcher | 总是 `--reuse-window` |
+| *OpenVirtualFunction*（资产右键菜单） | file launcher | 总是 `--reuse-window`，并定位到声明的行列 |
+| *Export DSM* / *Export DSF* 导出后的打开 | 首选编辑器链 | 用 VSCode 时总是 `--reuse-window` |
+
+file launcher 会把行列钳到至少 `1`，它自己的回退链是 VSCode → Shell 默认应用（`Edit` 动词）→ Notepad，
+和 workspace 链形状一致。
+
+### 诊断
+
+toast 文本和日志文本不同，两者都列出。运行期替换写作 `{Placeholder}`。
+
+| Toast | 日志 | 原因 |
+| :-- | :-- | :-- |
+| `DreamShader failed to create workspace: {Error}` | Warning —— `Failed to create DreamShader workspace: {Error}` | workspace 文件写不了；`{Error}` 是下面三个 writer 错误之一 |
+| `Opened DreamShader workspace in VSCode: {Path}` | Display —— 同文本 | 某个 VSCode 候选启动了 |
+| `Opened DreamShader workspace: {Path}` | Display —— `Opened DreamShader workspace with the default editor: {Path}` | Shell 默认应用启动了 |
+| `Opened DreamShader workspace in Notepad: {Path}` | Display —— 同文本 | Notepad 启动了 |
+| `DreamShader could not open workspace: {Path}` | Warning —— `Failed to open DreamShader workspace: {Path}` | 所有机制都失败；文件仍然写出来了 |
+
+| Writer 错误 | 原因 |
+| :-- | :-- |
+| `DreamShader source directory is empty.` | 解析出的源目录归一化后是空串 |
+| `Failed to create DreamShader source directory '{Path}'.` | 源目录不存在且创建失败 |
+| `Failed to write DreamShader workspace file '{Path}'.` | 文件保存失败 —— 只读、被占用、磁盘满 |
+
+## 扩展消费什么
+
+扩展读写的每个产物都在 `<Project>/Saved/DreamShader/Bridge/` 下，加上那个回环 WebSocket 端点。
+
+| 产物 | 方向 | 内容 |
+| :-- | :-- | :-- |
+| `Requests/*.json` | 扩展 → 编辑器 | 重编译、清理和单次预览命令 |
+| `diagnostics.json` | 编辑器 → 扩展 | 当前全部诊断，按源文件分组 |
+| `diagnostics/index.json` + `diagnostics/<md5>.json` | 编辑器 → 扩展 | 同一份数据按文件分片，便于增量读取 |
+| `bridge.db` | 编辑器 → 扩展 | 诊断和三份 manifest 的 SQLite 镜像 |
+| `material-expressions.json` | 编辑器 → 扩展 | 反射得到的 `UMaterialExpression` 目录，用于 [`UE.Expression`](/docs/builtins/ue-expression) 补全 <Since v="1.2.10" /> |
+| `settings.json` | 编辑器 → 扩展 | `ShadingModel` / `BlendMode` / `MaterialDomain` 别名表 |
+| `substrate-builtins.json` | 编辑器 → 扩展 | 带 snippet 的 [`Substrate.*`](/docs/builtins/substrate) 目录；UE 5.4 以下 `supported: false` |
+| `preview.json` + `Preview/*.png` | 编辑器 → 扩展 | 单次预览的结果清单和图片 |
+| `ws://127.0.0.1:17864` | 双向 | 带轨道控制的流式预览 |
+
+<Callout type="warn">
+`bridge.db` 从插件这一侧看是**只写**的，而且不是持久状态：bridge 启动时**和**关闭时都会删掉它，
+每个写入者都在事务里整表替换。插件里没有任何东西读回过一行。把它当作 JSON 产物的一个便于查询的镜像，
+只在编辑器运行期间有效 —— 绝不要拿它存客户端状态。
+</Callout>
+
+### 请求文件
+
+| 项目 | 值 |
+| :-- | :-- |
+| 目录 | `<Project>/Saved/DreamShader/Bridge/Requests/` |
+| 发现方式 | `*.json`，只看文件，**不递归** |
+| 轮询间隔 | `0.1 秒` |
+| 消费方式 | 每个发现的文件都在该轮循环结束时**被删除** |
+
+文件名无关紧要，只有 JSON 内容有意义。`action` 和 `scope` 都做大小写不敏感匹配。一共只有四个 action：
+
+| `action` | 必需字段 | 效果 |
+| :-- | :-- | :-- |
+| `recompile` | `scope: "all"` | 重建依赖图并把每个项目 `.dsm` / `.dsf` 排入队列 |
+| `recompile` | `scope: "file"`、`sourceFile` | 把一个文件排进防抖队列 |
+| `cleanGeneratedShaders` | — | 删掉生成的 `*.ush` include，然后排入一次全量扫描 |
+| `previewMaterial` | `sourceFile` | 同步渲染一次预览并写 `preview.json` |
+
+<Callout type="warn">
+请求文件是**无条件删除**的 —— 派发成功后删、读失败后删、JSON 解析失败后删、`action` 无法识别也删。
+畸形请求没有回复文件、没有错误文件、也没有日志行：它就是消失了。而且轮询器可能打开一个还在写入中的文件，
+所以请把 JSON 写到别处的临时名字上，再**重命名**进 `Requests/`，让它原子地出现。
+</Callout>
+
+走这条路径的编译永远是内存内的；排队的文件在防抖窗口
+（*Save Debounce Seconds*，钳制到 `[0.05, 10.0]`，默认 `0.25`）加最多 `0.1 秒` 轮询延迟之后编译，
+且仅当它还存在于磁盘上。
+
+### 扩展读到的诊断
+
+`diagnostics.json` 的形状是
+`{ "version": 1, "updatedAtUtc": "…", "files": [ { "path": "…", "diagnostics": [ … ] } ] }`。
+可选字段为空时整条省略。
+
+| 字段 | 出现时机 | 值 |
+| :-- | :-- | :-- |
+| `message` | 始终 | 诊断文本 |
+| `detail` | 非空时 | 底层原始行 |
+| `stage` | 非空时 | `generate`、`materialCompile` 或 `virtualFunctionSync` |
+| `assetPath` | 非空时 | 相关资产的 object path |
+| `shaderPlatform`、`qualityLevel` | 非空时 | 仅材质编译诊断 |
+| `code` | 非空时 | `generate-error`、`material-compile` 或 `virtual-function-sync` |
+| `line`、`column` | 始终 | 从 1 开始，默认 `1` |
+| `severity` | 始终 | `error` |
+| `source` | 始终 | `DreamShader`、`DreamShader Generate`、`DreamShader Material Compile` 或 `DreamShader VirtualFunction` |
+
+<Callout type="info">
+`severity` 恒为字面量 `error`。插件从不通过这个文件发出 warning、information 或 hint ——
+解析警告是被追加到编译消息里的。按严重度过滤的客户端应该把缺失或未知的值当作 error。
+</Callout>
+
+位置是从形如 `<path>(<line>,<column>): <message>` 的消息里还原的；没有可解析位置的行报在 `1,1`。
+材质编译诊断带一条形如 `[{ShaderPlatform} / {QualityLevel}] {Message}` 的展示消息。
+UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5.7 以下带的是 feature level 名，例如 `SM6`。
+
+### 流式预览
+
+预览面板连接 `ws://127.0.0.1:17864`，驱动插件的渲染器。
+
+| 消息 | 方向 | 用途 |
+| :-- | :-- | :-- |
+| `previewMaterial` | 客户端 → 编辑器 | 为一个 `.dsm` 开启预览会话 |
+| `previewControl` | 客户端 → 编辑器 | 调整当前会话 |
+| `previewResult` | 编辑器 → 客户端 | 会话启动结果，或流中途的错误 |
+| `previewFrame` | 编辑器 → 客户端 | 紧随其后那张 PNG 的元数据 |
+
+每条**出站**消息都是 WebSocket *binary* 帧，载荷是 4 字节小端长度、1 字节类型标签
+（`1` = UTF-8 JSON，`2` = 原始 PNG），然后是载荷本体。JSON 消息总是先发，匹配的二进制消息紧接着在同一连接上发，
+客户端按到达顺序配对。入站消息是纯 UTF-8 JSON，没有长度前缀也没有标签字节。
+
+流式既限速又受确认门控：只有客户端已确认上一帧**且**帧间隔已过，新帧才会开始。
+
+<Callout type="warn">
+`previewControl` 里省略 `frameRate` **并不等于**"保持当前帧率" —— 读取器在找这个字段之前就把它初始化成了
+`2.0`，所以一条纯粹用来确认帧或微调相机的控制消息会静默把会话掉到 2 FPS。轨道角度的行为正好相反，会被保留。
+**每一条 `previewControl` 都带上当前的 `frameRate`。**
+</Callout>
+
+一次会话，客户端视角：
+
+```text
+→ {"type":"previewMaterial","sourceFile":"…/M_Sample.dsm","mesh":"shaderball",
+   "width":512,"height":512,"requestId":"8f3c1b","stream":true,"frameRate":12}
+← [len][1] {"type":"previewResult","requestId":"8f3c1b","status":"ready", … "imagePath":"…"}
+← [len][2] <PNG bytes>
+← [len][1] {"type":"previewFrame","requestId":"8f3c1b","frameIndex":0, …}
+← [len][2] <PNG bytes>
+→ {"type":"previewControl","requestId":"8f3c1b","ackFrameIndex":0,"frameRate":12,"orbitYaw":-140.0}
+← [len][1] {"type":"previewFrame","requestId":"8f3c1b","frameIndex":1, …}
+← [len][2] <PNG bytes>
+```
+
+渲染器自身的限制 —— 只支持 `.dsm`、尺寸钳制、网格回退、没有 pitch 钳制 ——
+见[编辑器工具](/docs/tools/editor)。
+
+## VSCode 命令
+
+这些名字属于扩展，不属于插件，都在 `DreamShaderLang` 命令组下。
+
+```text
+DreamShaderLang: Recompile Current Source
+DreamShaderLang: Recompile All Sources
+DreamShaderLang: Clean Generated Shaders
+DreamShaderLang: Show Bridge Panel
+DreamShaderLang: Refresh Bridge Diagnostics
+DreamShaderLang: Show Material Preview
+DreamShaderLang: Install Package from GitHub
+DreamShaderLang: Browse Package Store
+DreamShaderLang: Update Installed Packages
+DreamShaderLang: Remove Installed Package
+DreamShaderLang: Open Packages Folder
+DreamShaderLang: Add Package Store Index Source
+DreamShaderLang: Remove Package Store Index Source
+DreamShaderLang: Create Package Step by Step
+DreamShaderLang: Create DreamShader Material
+DreamShaderLang: Create DreamShader Function File
+DreamShaderLang: Create DreamShader Header
+DreamShaderLang: Create DreamShader Texture Sample
+DreamShaderLang: Create DreamShader Noise Material
+```
+
+## VSCode 设置
+
+这些由扩展声明，以扩展仓库为准。把 workspace 指向 Unreal 项目根目录 —— 或者设置
+`dreamshader.projectRoot` —— 这样扩展才能解析 `DShader`、`DShader/Packages` 和 `Saved/DreamShader/Bridge`。
+
+| 设置 | 默认值 | 用途 |
+| :-- | :-- | :-- |
+| `dreamshader.projectRoot` | *（自动）* | workspace 不是在项目根目录打开时，指定 Unreal 项目根 |
+| `dreamshader.previewWebSocketPort` | `17864` | 插件的预览 WebSocket 端口 —— 插件侧是固定的 |
+| `dreamshader.previewAutoRefreshDelayMs` | `1200` | 编辑后保存并刷新预览前的延迟 |
+| `dreamshader.previewTransport` | `websocket` | 用 WebSocket，或强制走 `file` 文件桥请求 |
+| `dreamshader.previewLiveFrameRate` | `2` | 流式预览帧率上限；`0` 关闭连续帧 |
+| `dreamshader.packageStoreIndexUrls` | *（默认 index）* | 一个或多个 package store index JSON 地址 |
+| `dreamshader.enableGitHubPackageSearch` | `true` | 同时按 GitHub topic `dreamshader-package` 搜索 |
+
+```json
+{
+  "dreamshader.packageStoreIndexUrls": [
+    "https://raw.githubusercontent.com/TypeDreamMoon/dreamshader-package-index/main/packages.json"
+  ],
+  "dreamshader.enableGitHubPackageSearch": true
+}
+```
+
+## 说明
+
+- 插件这一侧对应的端口**不可配置**：服务器总是绑定 `127.0.0.1:17864`，来自其他地址的连接会被拒绝。
+  同一台机器上的两个编辑器无法同时提供预览 —— 第二个会记一条 listen 警告，然后在没有流式预览的情况下继续跑。
+- 报在被 import 的头文件上的诊断会映射回你实际编辑的那个文件：import 行被替换成空行，
+  每个被内联的文件用来源标记括起来，所以行列位置不会漂。
+- Material Content Browser 的 Gen 页每个文件只显示**第一条**诊断，扩展则显示全部。
+  见[编辑器工具](/docs/tools/editor#错误叠加)。
+
+## 示例
+
+在一个默认项目上执行 *Tools ▸ DreamShader ▸ Open Dream Shader Workspace (VSCode)* 会动到：
+
+```text
+<Project>/DShader/DreamShader.code-workspace                    重写
+<Project>/Saved/DreamShader/Bridge/material-expressions.json    重写
+<Project>/Saved/DreamShader/Bridge/settings.json                重写
+<Project>/Saved/DreamShader/Bridge/substrate-builtins.json      重写
+<Project>/Saved/DreamShader/Bridge/bridge.db                    整表替换
+```
+
+然后，对一个 `code.cmd` 候选、*Open In New Window* 保持默认时，启动的是：
+
+```powershell
+%ComSpec% /C ""C:/Users/<user>/AppData/Local/Programs/Microsoft VS Code/bin/code.cmd"  "C:/Projects/MyGame/DShader/DreamShader.code-workspace""
+```
+
+不通过 VSCode，直接让运行中的编辑器重编一个文件：
+
+```powershell
+$req = @{ action = "recompile"; scope = "file"; sourceFile = "C:/Projects/MyGame/DShader/Materials/M_Sample.dsm" }
+$dir = "C:\Projects\MyGame\Saved\DreamShader\Bridge\Requests"
+$tmp = Join-Path $env:TEMP ("ds-" + [guid]::NewGuid() + ".json")
+$req | ConvertTo-Json | Set-Content -Path $tmp -Encoding utf8
+Move-Item $tmp (Join-Path $dir ([IO.Path]::GetFileName($tmp)))
+```
+
+## 继续阅读
+
+<Cards>
+  <Card title="编辑器工具" href="/docs/tools/editor" description="写出 workspace 的那个菜单项，以及各种 bridge 产物。" />
+  <Card title="Package" href="/docs/tools/packages" description="package 系统中归扩展负责的那一半。" />
+  <Card title="命令行" href="/docs/tools/commandlet" description="没有编辑器、也完全没有 bridge 的编译方式。" />
+  <Card title="安装" href="/docs/start/installation" description="安装插件和其中一个扩展。" />
+  <Card title="错误速查" href="/docs/diagnostics" description="bridge 能发布的每一条消息。" />
+</Cards>

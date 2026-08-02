@@ -1,0 +1,10 @@
+{
+  "title": "Generation",
+  "pages": [
+    "pipeline",
+    "asset-paths",
+    "in-memory",
+    "outputs",
+    "regeneration"
+  ]
+}

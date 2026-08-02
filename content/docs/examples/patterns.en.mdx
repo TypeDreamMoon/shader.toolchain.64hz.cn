@@ -1,21 +1,40 @@
 ---
 title: Patterns
-description: Examples for minimal materials, shared headers, function files, packages, Function, UE nodes, ShaderFunction, and VirtualFunction.
+description: The file-shaped building blocks of DreamShaderLang — minimal material, parameters, texture sampling, shared headers, functions, layers, GraphFunction and Layout — each one a complete source file.
 ---
 
-Use these patterns as starting points for common DreamShaderLang files.
+Every snippet on this page is a whole file or a whole block, small enough to paste and rename. They
+run from the smallest thing that produces an asset to the constructs that need a `.dsh` header, a
+`.dsf` function file or a particular engine version.
 
-## Minimal UI Material
+| | |
+| :-- | :-- |
+| Applies to | DreamShaderLang `1.5.0` |
+| Engines | UE 5.3 – 5.8; anything version-gated is marked inline |
+| Assumed source root | `<Project>/DShader` — the `SourceDirectory` [project setting](/en/docs/settings/project) |
+| Generated output | in memory by default — see [In-memory Materials](/en/docs/generation/in-memory) |
+
+The path in each leading comment is where the file is assumed to live; `import` specifiers resolve
+against that layout. Assets referenced with `Path(Engine, …)` ship with the engine, so those examples
+load as written.
+
+This page is about *shapes*. For complete materials that do something, see
+[Recipes](/en/docs/examples/recipes).
+
+## A minimal material
+
+The smallest file that produces an asset: one parameter, one binding, one assignment.
 
 ```c
-Shader(Name="DreamMaterials/M_Minimal")
+// DShader/Materials/M_Minimal.dsm
+Shader(Name="Materials/M_Minimal")
 {
     Properties = {
         vec3 Tint = vec3(1.0, 0.2, 0.2);
     }
 
     Settings = {
-        Domain = "UI";
+        Domain       = "UI";
         ShadingModel = "Unlit";
     }
 
@@ -30,119 +49,628 @@ Shader(Name="DreamMaterials/M_Minimal")
 }
 ```
 
-## Shared `.dsh`
+Generated asset:
 
-```c
-Namespace ColorTools
-{
-    Function float Luma(vec3 color)
-    {
-        return dot(color, vec3(0.2126, 0.7152, 0.0722));
-    }
-}
+```text
+package     /Game/Materials/M_Minimal
+object path /Game/Materials/M_Minimal.M_Minimal
 ```
 
-## Import `.dsh` from `.dsm`
+- `Shader` is matched **case-sensitively**; the section names `Properties`, `Settings`, `Outputs` and
+  `Graph` are not. See [Lexical Elements](/en/docs/language/lexical).
+- The `=` after a section name is optional sugar <Since v="1.5.0" />: `Properties { … }` parses
+  identically. The final `;` inside a section body is optional too.
+- `Root` defaults to `/Game`, so the header could equally read
+  `Shader(Name="Materials/M_Minimal", Root="Game")` with no change in meaning. Full rules:
+  [Asset Paths](/en/docs/generation/asset-paths).
+- A `Shader` needs either a `Graph` block or at least one initialized output declaration. With
+  neither, the parse fails with `Shader must provide a Graph block.`
+
+## Parameters, groups and metadata
+
+Every parameter family in one file, with a `Group("…")` scope, a `[ … ]` metadata block and the
+`Slider(min, max)` shorthand.
 
 ```c
-import "Shared/ColorTools.dsh";
-
-Shader(Name="DreamMaterials/M_Luma")
+// DShader/Materials/M_Params.dsm
+Shader(Name="Materials/M_Params")
 {
     Properties = {
-        vec3 Tint = vec3(0.8, 0.9, 1.0);
+        Group("Surface") {
+            ScalarParameter Roughness = 0.55 [Slider(0, 1)];
+            VectorParameter Albedo    = float4(0.8, 0.8, 0.8, 1.0) [Description="Base albedo"];
+        }
+
+        Group("Detail") {
+            TextureSampleParameter2D DetailMap = Path(Engine, "EngineResources/WhiteSquareTexture") [
+                SamplerType   = "LinearColor";
+                SamplerSource = "FromTextureAsset";
+                SortPriority  = 99;
+            ];
+            StaticSwitchParameter UseDetail = true;
+        }
+
+        Texture2D   NoiseTex   = Path(Engine, "EngineResources/WhiteSquareTexture");
+        const float DebugScale = 1.0;
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
     }
 
     Outputs = {
-        float Mask;
-        Base.Opacity = Mask;
+        float3 Color;
+        float  Rough;
+
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
     }
 
     Graph = {
-        Mask = ColorTools::Luma(Tint);
+        vec2 UV     = UE.TexCoord(Index = 0);
+        vec4 Detail = DetailMap(Coordinates = UV);
+        vec4 Noise  = SampleTexture2D(NoiseTex, UV);
+
+        Color = UseDetail(True = Detail.rgb * Albedo.rgb, False = Albedo.rgb);
+        Rough = Roughness * DebugScale * Noise.r;
     }
 }
 ```
 
-## Package Texture Sampling
+- `float` / `vec3` / `Texture2D` are the **compact** spellings; `ScalarParameter`,
+  `VectorParameter` and `TextureSampleParameter2D` name the Unreal node explicitly. Both sets are
+  catalogued on [Property Types](/en/docs/parameters/properties).
+- A `Group("…") { … }` scope <Since v="1.5.0" /> stamps its name onto every parameter inside and
+  assigns `SortPriority` `0, 10, 20, …` from **one counter shared by all groups in the block**. An
+  explicit `SortPriority` wins and does not consume a slot — which is why `UseDetail` here takes the
+  next automatic value rather than `100`. Nested groups compose with `|` (`Outer|Inner`).
+- `const` declares a `Constant` node instead of a parameter. It is legal only with a plain scalar,
+  vector or texture type.
+
+<Callout type="warn">
+**A bare read of a `StaticSwitchParameter` is not a value.** `Color = UseDetail;` fails with
+`Unknown Graph identifier 'UseDetail'.` — the parameter has to be *called*, with `True=` and `False=`
+(or `A=` / `B=`, or positionally), and both branches must have the same component count.
+</Callout>
+
+## Two ways to sample a texture
+
+The two texture declarations above are sampled differently, and the difference is not cosmetic.
+
+| Declaration | Node generated | How to sample it |
+| :-- | :-- | :-- |
+| `Texture2D NoiseTex = Path(…);` | `TextureObjectParameter` — a texture *object*, no input pins | `SampleTexture2D(NoiseTex, UV)` |
+| `TextureSampleParameter2D DetailMap = Path(…);` | `TextureSampleParameter2D` — owns a `Coordinates` pin | `DetailMap(Coordinates = UV)` |
+
+<Callout type="warn">
+**The pin call form `Name(Pin = …)` belongs to exactly ten parameter tokens** —
+`ChannelMaskParameter`, `StaticComponentMaskParameter`, and the eight `*SampleParameter*` tokens. A
+texture **object** parameter (a compact `Texture2D`, or `TextureObjectParameter`) has no pins at all,
+so `NoiseTex(Coordinates = UV)` fails with `Unknown Graph function 'NoiseTex'.`
+
+Sample a texture object with the reserved `SampleTexture2D(textureObject, uv)` form instead. It is
+matched **case-sensitively** and takes exactly two positional arguments.
+</Callout>
+
+## A shared `.dsh` header
+
+A `.dsh` may contain `Function`, `GraphFunction`, `Namespace` and `VirtualFunction` blocks plus
+`import` directives — nothing else. It generates no asset of its own; its contents are inlined into
+whatever imports it.
 
 ```c
+// DShader/Shared/Common.dsh
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+
+    Function float Luma(in vec3 color) {
+        return dot(color, float3(0.299, 0.587, 0.114));
+    }
+}
+
+Function SelfContained Remap01(in float value, out float result) {
+    result = saturate(value * 0.5 + 0.5);
+}
+
+Function SplitChannels(in vec4 src, out vec3 rgb, out float alpha) {
+    rgb   = src.rgb;
+    alpha = src.a;
+}
+```
+
+Importing it:
+
+```c
+// DShader/Materials/M_Tinted.dsm
+import "Shared/Common.dsh";
+
+Shader(Name="Materials/M_Tinted")
+{
+    Properties = {
+        vec3 Albedo = vec3(0.6, 0.8, 1.0);
+        vec3 Tint   = vec3(1.0, 0.4, 0.1);
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Common::ApplyTint(Albedo, Tint, Tinted);
+        Color = Tinted;
+    }
+}
+```
+
+- `import "Shared/Common"` is equivalent: when the specifier carries **no extension at all**, `.dsh`
+  is appended. Importing a `.dsf` or `.dsm` therefore requires the explicit extension.
+- The specifier resolves against three roots, in order: the importing file's own directory, the
+  source root (`DShader`), then `DShader/Packages`. A candidate that escapes its root is rejected.
+- The `;` is optional, `'single quotes'` are accepted, and a trailing `//` comment is allowed — but
+  an `import` must be **alone on its line**.
+- `Function` bodies are HLSL, not `Graph` statements: `dot`, `saturate` and `float3(…)` above are
+  HLSL intrinsics. GLSL spellings are rewritten inside those bodies — `vec3` → `float3`,
+  `mix` → `lerp`, `fract` → `frac`, `mod` → `fmod`.
+- `Inline` is an exact alias of `SelfContained`. The modifier goes **after** the `Function` keyword,
+  and neither spelling is accepted on a `GraphFunction`.
+
+<Callout type="warn">
+An `import` line inside a `/* … */` block comment **is still processed** — the import scanner only
+recognises the `//` prefix. Comment an import out with `//`, never with a block comment.
+</Callout>
+
+<Callout type="warn">
+A namespace-qualified call written **inside another `Function` or `GraphFunction` body** is flattened
+to `Common_ApplyTint` and never rewritten to the generated symbol, so the emitted HLSL references an
+undefined function. Call namespaced helpers from a `Graph` block, as above, or duplicate the body
+into the calling function.
+</Callout>
+
+## Calling functions: value form and statement form
+
+A function with exactly one output may be called as a value. Two or more outputs require the
+statement form, whose trailing arguments are plain variable names that receive the results.
+
+```c
+// DShader/Materials/M_Calls.dsm
+import "Shared/Common.dsh";
+
+Shader(Name="Materials/M_Calls")
+{
+    Properties = {
+        vec4 Source = vec4(0.4, 0.6, 0.9, 0.75);
+        vec3 Tint   = vec3(1.0, 0.4, 0.1);
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; BlendMode = "Translucent"; }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        // statement form: two out results, two target names
+        SplitChannels(Source, Rgb, A);
+
+        // statement form: one out result
+        Common::ApplyTint(Rgb, Tint, Tinted);
+
+        // value form: single-output functions
+        float L    = Common::Luma(Tinted);
+        float Soft = Remap01(L);
+
+        Color = Tinted * Soft;
+        Alpha = A;
+    }
+}
+```
+
+| Callee kind | Value form | Statement form | Named arguments |
+| :-- | :-- | :-- | :-- |
+| `Function` | yes — **with exactly one output** | yes | **no** |
+| `GraphFunction` | yes — **with exactly one output** | yes | **no** |
+| `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` | yes, any output count | yes | value form only |
+| `VirtualFunction` | yes, any output count | yes | value form only |
+
+- Out targets need not be declared first — the call creates them. They must be bare identifiers, and
+  two results may not be written into the same name in one call.
+- Argument count is exact: the input count for the value form, inputs plus results for the statement
+  form.
+- Function names are matched **case-insensitively** and there is **no overload resolution**. If one
+  name resolves to more than one declaration kind, the call fails with
+  `Graph call '…' is ambiguous because multiple definitions use that name: ….`
+- The [math builtins](/en/docs/builtins/math) are matched **before** user functions and can never be
+  shadowed. A `Function` named `lerp` or `dot` is unreachable from a `Graph` block, with no
+  diagnostic.
+
+## A `ShaderFunction` in a `.dsf`
+
+A `.dsf` may declare `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `Function`,
+`GraphFunction`, `Namespace` and `VirtualFunction` blocks — everything except a top-level `Shader`.
+
+```c
+// DShader/Functions/F_Tint.dsf
+ShaderFunction(Name="Functions/F_Tint")
+{
+    Inputs = {
+        vec3 InColor;
+        opt float Strength = 1.0 [
+            Description  = "Preview strength";
+            SortPriority = 10;
+        ];
+    }
+
+    Outputs = {
+        vec3 OutColor [Description="Tinted colour"];
+    }
+
+    Settings = {
+        Description     = "Tint helper";
+        ExposeToLibrary = true;
+    }
+
+    Graph = {
+        OutColor = InColor * Strength;
+    }
+}
+```
+
+Calling it from a material:
+
+```c
+// DShader/Materials/M_UsesTint.dsm
+import "Functions/F_Tint.dsf";
+
+Shader(Name="Materials/M_UsesTint")
+{
+    Properties = {
+        vec3 Albedo = vec3(0.6, 0.8, 1.0);
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        // named form; the opt input may be omitted or passed `default`
+        Color = F_Tint(InColor = Albedo, Strength = 0.5);
+    }
+}
+```
+
+- The import needs the explicit `.dsf` extension.
+- A `ShaderFunction` is looked up by its **full `Name`** (`Functions/F_Tint`) or by the last
+  `/`-separated segment (`F_Tint`), case-insensitively.
+- Arguments are either **all positional or all named**; mixing fails with
+  `ShaderFunction 'F_Tint' input arguments cannot mix positional and named forms.`
+- `opt` is what makes an input optional on the generated `UMaterialFunction`; its default value
+  drives the input's Preview pin. A non-`opt` input that is omitted fails with
+  `ShaderFunction 'F_Tint' is missing required input 'InColor'.`
+- Compiling the `.dsm` also generates the imported `ShaderFunction` asset — material functions are
+  written before the material that calls them.
+- The four `Settings` keys a material function honours are `Description`, `UserExposedCaption`,
+  `ExposeToLibrary` and `LibraryCategories`. Other keys are silently ignored here, unlike a `Shader`,
+  where an unknown key is a hard error.
+
+When a function declares several outputs, select one at the call site with `Output="Name"` (or
+`OutputName=` / `OutputIndex=`); positional inputs may be skipped with `default`:
+
+```c
+vec3 tinted = F_Tint(Albedo, default, Output="OutColor");
+```
+
+## `ShaderLayer` and `ShaderLayerBlend`
+
+These generate native `UMaterialFunctionMaterialLayer` and `UMaterialFunctionMaterialLayerBlend`
+assets <Since v="1.3.0" />, and their interfaces are fixed by arity rules.
+
+```c
+// DShader/Layers/L_SimpleSurface.dsf
+ShaderLayer(Name="Layers/L_SimpleSurface")
+{
+    Properties = {
+        VectorParameter LayerColor = float4(0.8, 0.2, 0.1, 1.0) [Group="Layer"];
+        ScalarParameter LayerRough = 0.5                        [Group="Layer"; Slider(0, 1)];
+    }
+
+    Outputs = {
+        MaterialAttributes Attrs;
+    }
+
+    Graph = {
+        Attrs.BaseColor = LayerColor.rgb;
+        Attrs.Roughness = LayerRough;
+    }
+}
+
+ShaderLayerBlend(Name="Layers/LB_Overlay")
+{
+    Properties = {
+        ScalarParameter Alpha = 0.5 [Group="Blend"; Slider(0, 1)];
+    }
+
+    Inputs = {
+        MaterialAttributes Bottom;
+        MaterialAttributes Top;
+    }
+
+    Outputs = {
+        MaterialAttributes Attrs;
+    }
+
+    Graph = {
+        Attrs.BaseColor = lerp(Bottom.BaseColor, Top.BaseColor, Alpha);
+        Attrs.Roughness = lerp(Bottom.Roughness, Top.Roughness, Alpha);
+    }
+}
+```
+
+| Block | Inputs | Output |
+| :-- | :-- | :-- |
+| `ShaderLayer` | **at most one**, and it must be `MaterialAttributes` | exactly one `MaterialAttributes` |
+| `ShaderLayerBlend` | **exactly two**, both `MaterialAttributes` | exactly one `MaterialAttributes` |
+
+- Layer *controls* go in `Properties`, never in `Inputs` — that is what the two diagnostics
+  (`… Use Properties for layer controls.` and `… Use Properties for blend controls.`) are telling
+  you.
+- On <Since v="5.7" ue /> a blend input named `Top` / `TopLayer`, or `Bottom` / `BottomLayer` /
+  `Base` / `BaseLayer`, is tagged with the matching `BlendInputRelevance`. On earlier engines the
+  names are ordinary and only the order matters.
+
+<Deprecated since="1.3.0" use="ShaderLayer" />
+
+`MaterialLayer(...)` and `MaterialLayerBlend(...)` still parse as compatibility aliases and generate
+the same assets, but each emits a warning: `MaterialLayer is deprecated; use ShaderLayer instead.`
+and `MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.` Every later diagnostic reports
+the modern spelling.
+
+## `VirtualFunction`: wrapping an existing asset
+
+A `VirtualFunction` generates nothing. It declares the interface of a `UMaterialFunction` that
+already exists, so `Graph` blocks can call it with type checking.
+
+```c
+// DShader/VirtualFunctions/BufferWriter.dsh
+VirtualFunction(Name="BufferWriter")
+{
+    Options = {
+        Asset       = Path(Game, "MaterialFunctions/F_BufferWriter");
+        Description = "Existing material function declared for Graph calls.";
+    }
+
+    Inputs = {
+        float3 Color;
+        opt float Alpha = 1.0;
+    }
+
+    Outputs = {
+        float3 Result;
+    }
+}
+```
+
+```c
+// DShader/Materials/M_Buffered.dsm
+import "VirtualFunctions/BufferWriter.dsh";
+
+Shader(Name="Materials/M_Buffered")
+{
+    Properties = { vec3 Tint = vec3(1.0, 0.4, 0.1); }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Color = BufferWriter(Color = Tint, Alpha = 0.5);
+    }
+}
+```
+
+<Callout type="info">
+This example references `/Game/MaterialFunctions/F_BufferWriter`, a project asset. Substitute a path
+that exists in your project — or let the editor write the declaration for you: the
+*DreamShader ▸ Create Virtual Function* action on a `UMaterialFunction` emits a matching `.dsh` under
+`DShader/VirtualFunctions`.
+</Callout>
+
+- The asset may come from `Options = { Asset = … }` or from the header attribute
+  `VirtualFunction(Name="…", Asset="…")`. Without one, the parse fails with
+  `VirtualFunction 'BufferWriter' must provide Options = { Asset = Path(...); }.`
+- `Settings` is an accepted alias for `Options`, and `Properties` is an accepted alias for `Inputs`
+  inside this block only. `Graph` and `Code` sections are rejected outright.
+- At least one output is required.
+- Declared input and output names are matched against the asset's pin names case-insensitively, with
+  an ordinal fallback. A name that resolves to neither fails with
+  `VirtualFunction 'BufferWriter' output 'Result' does not exist on MaterialFunction asset '…'.`
+- `Path` roots: `Game`, `Engine`, `Plugin.<Name>` / `Plugins.<Name>`, a full object path, or a bare
+  quoted `"/Game/…"`. See [Asset References](/en/docs/parameters/path).
+
+## `GraphFunction`: hoisting a `UE.*` call into a Custom node
+
+A `GraphFunction` body is HLSL like a `Function`, but every `UE.*` call inside it is evaluated as a
+real material node and wired into the generated Custom node as an extra input pin.
+
+```c
+// DShader/Shared/Wind.dsh
+GraphFunction WindPulse(in float2 uv, out float pulse) {
+    float t = UE.Time();
+    pulse = sin(uv.x * 8.0 + t);
+}
+```
+
+```c
+// DShader/Materials/M_Wind.dsm
+import "Shared/Wind.dsh";
+
+Shader(Name="Materials/M_Wind")
+{
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        vec2  UV    = UE.TexCoord(Index = 0);
+        float Pulse = WindPulse(UV);          // value form: one out result
+        Color = vec3(Pulse, Pulse, Pulse);
+    }
+}
+```
+
+Generated Custom-node code, in outline:
+
+```hlsl
+float pulse = (float)0;
+float t = __ds_WindPulse_UE0;
+pulse = sin(uv.x * 8.0 + t);
+return pulse;
+```
+
+- The generated pin is named `__ds_<Function>_UE<N>`, uniquified against the declared parameter
+  names.
+- Only the `UE.` prefix is scanned. `Substrate.*` calls, math builtins and user function calls in a
+  `GraphFunction` body are left as plain HLSL text.
+- A hoisted value may not be a texture object, `MaterialAttributes` or `Substrate` — those cannot
+  cross a Custom-node input pin.
+- `GraphFunction` <Since v="1.3.1" /> accepts no `SelfContained` / `Inline` modifier, no named call
+  arguments and no recursion (`GraphFunction cycle detected: …`). An empty body is an error.
+- The statement form works too: `WindPulse(UV, Pulse);` creates `Pulse`.
+
+## `Layout` and `#Region`
+
+`Layout` pins generated nodes to fixed positions and draws comment boxes. `#Region` / `#EndRegion`
+group statements inside a `Graph` block, and the region names become comment boxes in the generated
+graph.
+
+```c
+// DShader/Materials/M_Laid.dsm
+Shader(Name="Materials/M_Laid")
+{
+    Properties = {
+        VectorParameter BaseColor = float4(0.8, 0.8, 0.8, 1.0) [Group="Surface"; SortPriority=10];
+        ScalarParameter Roughness = 0.55                       [Group="Surface"; SortPriority=20];
+        Texture2D       NoiseTex  = Path(Engine, "EngineResources/WhiteSquareTexture");
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        float3 Color;
+        float  Rough;
+
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
+    }
+
+    Graph = {
+        #Region "Sampling"
+        vec2 UV    = UE.TexCoord(Index = 0);
+        vec4 Noise = SampleTexture2D(NoiseTex, UV);
+        #EndRegion
+
+        #Region "Surface"
+        Color = BaseColor.rgb * Noise.rgb;
+        Rough = Roughness;
+        #EndRegion
+    }
+
+    Layout = {
+        Comment(Name="Sampling", X=-1200, Y=-200, W=900, H=400, Color=float4(0.10, 0.16, 0.22, 0.35));
+        Comment(Name="Surface",  X=-1200, Y=260,  W=900, H=400);
+        Node(Var="UV",    X=-1100, Y=-120);
+        Node(Var="Noise", X=-760,  Y=-120);
+    }
+}
+```
+
+| Call | Required arguments | Optional |
+| :-- | :-- | :-- |
+| `Node` | `Var` (text), `X`, `Y` (integers) | — |
+| `Comment` | `Name` (text), `X`, `Y`, `W`, `H` (integers) | `Color`, a `float4` literal |
+
+- `Var` names a `Graph` variable. Nothing else is a valid `Layout` statement:
+  `Unknown Layout statement '…'.`
+- When the section is absent, comment boxes default to `W=420`, `H=240` and
+  `Color = (0.10, 0.16, 0.22, 0.35)`.
+- A second `Layout` section **replaces** the first rather than appending — unlike `Properties`,
+  `Inputs` and `Outputs`, which append.
+- `#Region` names may be quoted or bare; the directives are matched case-insensitively and are
+  replaced by equal-length runs of spaces, so diagnostic line **and** column numbers are unaffected.
+  Regions nest.
+- Region directives are processed only inside a `Graph` block — never inside a `Function` or
+  `GraphFunction` body.
+
+<Callout type="warn">
+Regeneration clears the target graph. Node positions not pinned by `Layout`, hand-added nodes, node
+property tweaks and comment boxes whose text begins with `DreamShader: ` are destroyed. Only comment
+boxes without that prefix survive. See [Regeneration](/en/docs/generation/regeneration).
+</Callout>
+
+## Importing from a package
+
+A package is a directory under `DShader/Packages`. Its headers import exactly like project files,
+because `DShader/Packages` is the third `import` resolution root.
+
+```text
+<Project>/DShader/
+  Materials/
+    M_Noisy.dsm
+  Packages/
+    @typedreammoon/
+      dream-noise/
+        Library/
+          Noise.dsh
+```
+
+```c
+// DShader/Materials/M_Noisy.dsm
 import "@typedreammoon/dream-noise/Library/Noise.dsh";
 ```
 
-Expose a stable package entrypoint and call package helpers through a namespace.
+The specifier is tried against each root in turn:
 
-## `SelfContained` Function
-
-```c
-SelfContained Function float Pulse(float x)
-{
-    return saturate(sin(x) * 0.5 + 0.5);
-}
+```text
+specifier   @typedreammoon/dream-noise/Library/Noise.dsh
+candidate 1 <Project>/DShader/Materials/@typedreammoon/dream-noise/Library/Noise.dsh   missing
+candidate 2 <Project>/DShader/@typedreammoon/dream-noise/Library/Noise.dsh             missing
+candidate 3 <Project>/DShader/Packages/@typedreammoon/dream-noise/Library/Noise.dsh    resolved
 ```
 
-Use this for helpers that should carry their own Custom-node body.
+Dropping the extension works here too — `import "@typedreammoon/dream-noise/Library/Noise";` is the
+same import. Package authoring, the manifest and the editor tooling are covered on
+[Packages](/en/docs/tools/packages).
 
-## `ShaderFunction`
+## Where to next
 
-```c
-ShaderFunction(Name="DreamFunctions/F_Tint")
-{
-    Inputs = {
-        vec3 Color;
-        float Strength = 1.0;
-    }
-
-    Outputs = {
-        vec3 Result;
-    }
-
-    Graph = {
-        Result = Color * Strength;
-    }
-}
-```
-
-## `VirtualFunction`
-
-```c
-VirtualFunction(Name="Game/Materials/Functions/MF_ProjectTint")
-{
-    Inputs = {
-        vec3 Color;
-    }
-
-    Outputs = {
-        vec3 Result;
-    }
-}
-```
-
-Use `VirtualFunction` to call existing Unreal functions without generating them.
-
-## Parameter Metadata and Static Switch
-
-```c
-Properties = {
-    VectorParameter Tint = float4(0.2, 0.6, 1.0, 1.0) [
-        Group="Color";
-        SortPriority=10;
-    ];
-
-    StaticSwitchParameter UseTint = true [
-        Group="Switches";
-    ];
-}
-```
-
-## Material Parameter Collection
-
-```c
-Graph = {
-    float Wind = UE.CollectionParam(
-        Collection=Path("/Game/MPC_Global.MPC_Global"),
-        ParameterName="Wind");
-}
-```
-
-Use reflected metadata and diagnostics to confirm the exact node signature in your project.
+<Cards>
+  <Card title="Recipes" href="/en/docs/examples/recipes" description="Complete materials built out of these shapes." />
+  <Card title="Top-level Blocks" href="/en/docs/language/blocks" description="All seven blocks and what each one generates." />
+  <Card title="Calls" href="/en/docs/graph/calls" description="The full call grammar: forms, arguments, output selection." />
+  <Card title="Property Types" href="/en/docs/parameters/properties" description="Every token a Properties declaration accepts." />
+  <Card title="Layout and #Region" href="/en/docs/language/layout" description="Node placement and comment boxes in detail." />
+</Cards>

@@ -1,61 +1,45 @@
 ---
-title: DreamShaderLang
-description: 为了代替虚幻引擎材质“连连看”而生的文本化材质语言。
+title: 概览
+description: DreamShaderLang 是虚幻引擎材质的文本化语言，由 DreamShader 插件编译成标准材质资产。
 ---
 
-一句话来说，DreamShaderLang 是为了代替虚幻引擎材质“连连看”而生的语言。
+DreamShaderLang 是虚幻引擎材质的文本化语言。你写 `.dsm`、`.dsf` 和 `.dsh` 文件，**DreamShader**
+插件在编辑器里解析它们，生成标准 Unreal 资产 —— `UMaterial`、`UMaterialFunction`、
+`UMaterialFunctionMaterialLayer` 和 `UMaterialFunctionMaterialLayerBlend`。
 
-DreamShaderLang 是 DreamShader 插件的源语言。它用 `.dsm`、`.dsf` 和 `.dsh` 文件描述 Unreal 材质、材质函数、Material Layer、共享 helper、包依赖和材质图连接关系，然后由插件生成标准 `UMaterial`、`UMaterialFunction`、`UMaterialFunctionMaterialLayer` 与 `UMaterialFunctionMaterialLayerBlend` 资产。
+源文件才是你维护的东西。资产是生成产物，随时可以删掉重新生成。
 
-这套文档以语言为中心组织，目标是让 DreamShaderLang 像常见编程语言一样可学习、可查询、可引用。
-
-## 教程路线
-
-| 阶段 | 阅读内容 | 目标 |
-| --- | --- | --- |
-| 入门 | [安装与准备](./getting-started/installation.mdx)、[第一个材质](./getting-started/first-material.mdx) | 能在 Unreal 项目里保存 `.dsm` 并生成材质。 |
-| 语言基础 | [文件模型](./syntax/file-model.mdx)、[顶层声明](./syntax/declarations.mdx)、[Section](./syntax/sections.mdx) | 知道 `.dsm`、`.dsf`、`.dsh` 分别放什么。 |
-| 图与 helper | [Graph 语言](./syntax/graph.mdx)、[Function 与 Namespace](./syntax/functions.mdx)、[布局与 Region](./syntax/layout.mdx) | 能把节点连接、Custom helper 和图布局写成文本。 |
-| 工具链 | [插件概览](./dreamshader/overview.mdx)、[编辑器支持](./workflows/vscode.mdx)、[资产生成](./compiler/asset-generation.mdx) | 理解生成、反编译、诊断和 Package 工作流。 |
-
-## 核心模型
-
-| 概念 | 作用 |
+| | |
 | --- | --- |
-| `.dsm` | Dream Shader Material。通常生成材质、Material Layer 或项目级资产入口。 |
-| `.dsf` | Dream Shader Function。用于生成可复用 `ShaderFunction` 资产，并可被 `.dsm` 或其他 `.dsf` 导入。 |
-| `.dsh` | Dream Shader Header。存放共享 `Function`、`Namespace` 与 import。 |
-| `Shader` | 顶层材质声明，生成 Unreal `UMaterial`。 |
-| `ShaderFunction` | 顶层材质函数声明，生成 Unreal `UMaterialFunction`。 |
-| `ShaderLayer` | 顶层 Material Layer 声明，生成 `UMaterialFunctionMaterialLayer`。 |
-| `ShaderLayerBlend` | 顶层 Material Layer Blend 声明，生成 `UMaterialFunctionMaterialLayerBlend`。 |
-| `VirtualFunction` | 声明已有 Unreal `UMaterialFunction`，供 `Graph` 调用但不生成或覆盖资产。 |
-| `Graph` | 生成 Unreal 材质节点的图 DSL。 |
-| `Function` | HLSL 风格 helper，供 `Graph` 调用。 |
-| `GraphFunction` | 可复用 Custom 节点 helper，可在函数体中使用 `UE.*` 图节点。 |
-| `Layout` | 可选图布局 metadata，用 `Node(...)` 固定变量节点位置，用 `Comment(...)` 创建注释框。 |
-| `#Region` | `Graph` 内的命名区域，用于分组生成节点并配合布局注释。 |
-| `Namespace` | 组织共享 helper，调用形式为 `Namespace::Function(...)`。 |
-| `Package` | 可分发的 `.dsh` 共享库，安装到 `DShader/Packages`。 |
+| 插件版本 | `1.5.0` |
+| 引擎 | Unreal Engine `5.3` – `5.8`，已在 Win64 验证 |
+| 模块 | `DreamShader`（Runtime）、`DreamShaderCompiler`（Runtime）、`DreamShaderEditor`（Editor） |
+| 源文件扩展名 | `.dsm` · `.dsf` · `.dsh` |
+| 项目设置 | *Project Settings ▸ DreamPlugin ▸ Dream Shader* |
+| 许可证 | MIT |
 
-## 公开仓库
+## 三种源文件
 
-| 项目 | 链接 |
+| 扩展名 | 名称 | 可以写什么 | 生成什么 |
+| --- | --- | --- | --- |
+| `.dsm` | Dream Shader Material | 最多一个 `Shader`，以及任意函数、Layer、Namespace、VirtualFunction 块 | 材质本体，加上同文件中声明的所有函数资产 |
+| `.dsf` | Dream Shader Function | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` 和 helper 块，不能写 `Shader` | 它声明的函数资产 |
+| `.dsh` | Dream Shader Header | `Function`、`GraphFunction`、`Namespace`、`VirtualFunction`、import | 不直接生成资产，通过 `import` 被使用 |
+
+解析前 `import` 会被递归内联成一整段文本，所以一个编译单元是整个 import 闭包，而不是单个文件。
+"一个文件只能有一个 `Shader`" 实际上是"一个闭包只能有一个 `Shader`"。参见
+[文件模型](/docs/language/file-model)。
+
+## 各个块生成什么
+
+| 块 | Unreal 资产 |
 | --- | --- |
-| DreamShader 插件 | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
-| VSCode 扩展 | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) |
-| Rider 插件 | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) |
-| Package Store Index | [TypeDreamMoon/dreamshader-package-index](https://github.com/TypeDreamMoon/dreamshader-package-index) |
-
-## 语言分层
-
-DreamShaderLang 不是把 HLSL 直接塞进材质文件。它分成三层：
-
-| 层级 | 写在哪里 | 适合表达 |
-| --- | --- | --- |
-| 资产层 | `Shader` / `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` / `VirtualFunction` | Unreal 资产名称、属性、设置、输出绑定，或现有材质函数签名。 |
-| 图层 | `Graph = { ... }` | 变量、节点、表达式、`UE.*`、材质函数调用、helper 调用、基础 `if` / `else`。 |
-| Helper 层 | `Function` / `GraphFunction` / `Namespace` | 可复用 HLSL 计算、循环、复杂流程、自包含 Custom 节点代码。 |
+| `Shader` | `UDreamShaderMaterialInstance` 加一个隐藏的 `UMaterial` base（`ThinCustom`，默认），或一个普通 `UMaterial`（`Graph` backend） |
+| `ShaderFunction` | `UMaterialFunction` |
+| `ShaderLayer` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` | `UMaterialFunctionMaterialLayerBlend` |
+| `VirtualFunction` | 不生成资产 —— 只是声明一个已有的 `UMaterialFunction`，让 `Graph` 可以调用 |
+| `Function` / `GraphFunction` | `Custom` 节点代码，以及一个生成的 `.ush` helper include |
 
 ## 最小材质
 
@@ -82,55 +66,68 @@ Shader(Name="DreamMaterials/M_Minimal")
 }
 ```
 
-## 推荐阅读顺序
+把这个文件保存在 `DShader/` 下，就会生成 `/Game/DreamMaterials/M_Minimal`。
 
-| 目标 | 页面 |
-| --- | --- |
-| 第一次写材质 | [安装与准备](./getting-started/installation.mdx)、[第一个材质](./getting-started/first-material.mdx) |
-| 理解项目结构 | [项目布局](./getting-started/project-layout.mdx)、[文件模型](./syntax/file-model.mdx) |
-| 学语言核心 | [顶层声明](./syntax/declarations.mdx)、[Section](./syntax/sections.mdx)、[类型和值](./syntax/types-and-values.mdx) |
-| 写共享逻辑 | [Function 与 Namespace](./syntax/functions.mdx)、[Import 与 Namespace](./syntax/imports-and-namespaces.mdx) |
-| 写材质图 | [Graph 语言](./syntax/graph.mdx)、[UE 节点入口参考](./reference/ue-nodes.mdx) |
-| 查资产输出 | [材质设置](./reference/material-settings.mdx)、[输出绑定](./reference/outputs.mdx)、[Package 参考](./reference/packages.mdx) |
-| 看示例 | [常用模式](./examples/patterns.mdx)、[配方示例](./examples/recipes.mdx) |
-| 排错与生成 | [资产生成](./compiler/asset-generation.mdx)、[诊断](./compiler/diagnostics.mdx)、[限制](./compiler/limitations.mdx) |
-| 了解插件和工具 | [DreamShader 插件](./dreamshader/overview.mdx)、[编辑器支持](./workflows/vscode.mdx)、[Package 作者工作流](./workflows/package-authoring.mdx) |
-| 追踪版本变化 | [ChangeLog](./changelog/index.mdx)、[插件更新](./changelog/dreamshader.mdx)、[VSCode 更新](./changelog/vscode-extension.mdx)、[网站更新](./changelog/website.mdx) |
-| 补充着色语言背景 | [HLSL 简介](./shader-languages/hlsl.mdx)、[GLSL 简介](./shader-languages/glsl.mdx)、[关键字速查](./shader-languages/keywords-cheatsheet.mdx) |
+<Callout type="info">
+  在默认的 `ThinCustom` backend 下，生成的材质**只存在于内存中**，不会出现在 Content Browser 里。
+  这是刻意设计的，有三种方式可以找到它 —— 见[第一个材质](/docs/start/first-material)。
+</Callout>
 
-## 当前版本
+## DreamShader 做什么，不做什么
 
-| 项目 | 内容 |
-| --- | --- |
-| DreamShader 插件 | `1.4.0` |
-| VSCode 扩展 | `1.5.3` |
-| Rider 插件 | `tsdaer/dreamshader-language-support` |
-| 文档站 | `lang.64hz.cn` |
-| 语言 | `DreamShaderLang` |
-| 文件扩展名 | `.dsm` / `.dsf` / `.dsh` |
-| 作者 | TypeDreamMoon |
-| 主要产物 | `UMaterial` / `UMaterialFunction` / Material Layer 函数资产 |
+它在 Unreal 编辑器里生成材质资产，范围仅此而已。具体来说：
 
-## 1.4.0 / 1.5.3 重点
+- **`Graph` 是节点图构建器，不是着色器编译器。** 它只有四个算术运算符和 `if` / `else`。没有循环、
+  没有三元运算符、没有 `%`、`if` 条件之外没有位运算和比较运算符、没有矩阵、没有数组和下标、没有复合
+  赋值。其中不少写法**不会报错，而是被静默截断** —— 写第一个稍复杂的图之前，请先读
+  [不支持的写法](/docs/graph/unsupported)。真正需要命令式代码的地方应该写进 `Function`，它的函数体
+  是真正的 HLSL。
+- **生成只发生在编辑器里。** 没有任何运行时路径能从 DreamShaderLang 构建材质，打包后的游戏里也不存在
+  这些工具。
+- **生成的资产是产物，不是文档。** 重新生成会拆掉整张图再重建，手动改动会丢失；直接在生成的实例上设置的
+  参数覆盖每次重建都会被清空。见[重新生成](/docs/generation/regeneration)。
+- **`Substrate.*` 需要 <Since v="5.4" ue />**，而且插件二进制必须是针对 5.4 及以上编译的 —— 这是
+  编译期开关。
+- **有些写法已经废弃。** 包括 `Instance` backend 取值，以及 `MaterialLayer` /
+  `MaterialLayerBlend` 这两种块写法。
 
-| 能力 | 说明 |
-| --- | --- |
-| UE 5.3-5.7 兼容 | DreamShader 插件 `1.4.0` 基于 UE `5.7` 持续开发，并已通过单插件 `RunUAT BuildPlugin` 验证 UE `5.3` 到 `5.7`。 |
-| Substrate 生成 | 插件支持 UE 5.7 `Substrate` 图值、`Base.FrontMaterial` 输出绑定和 `Substrate.*` wrapper，并向编辑器导出 Substrate builtin metadata。 |
-| 材质预览 | VSCode 扩展 `1.5.3` 新增 `.dsm` 材质预览面板，优先通过本机 WebSocket 直播预览帧，并在不可用时回退到 `Saved/DreamShader/Bridge/preview.json` 文件桥。 |
-| Callable Hover | VSCode 扩展 `1.5.2` 在 Hover 中显示 DreamShader 函数、UE builtin 和 Substrate helper 的返回值与输出 pin 信息。 |
-| Template / Bridge / Package | VSCode 扩展 `1.5.1` 补齐 `Template` 块语言支持、Bridge 命令、状态栏、诊断面板、Package 工具和常用创作模板。 |
-| `.dsf` 函数文件 | 新增 Dream Shader Function 文件，用于生成可复用 `ShaderFunction` 资产，并支持 `.dsm` / `.dsf` 之间 import。 |
-| 反编译导出 | Content Browser 可将已有 `Material` / `Material Function` 导出为 `.dsm` / `.dsf` 初稿，常见节点转成 Graph 文本，少见节点回退到 `UE.Expression(...)`。 |
-| Layout 与 Region | `Layout = { Node(...); Comment(...); }` 和 Graph `#Region` / `#EndRegion` 可保留或约束生成图布局。 |
-| VolumeTexture | 插件和 VSCode 扩展支持 `VolumeTexture` / `Texture3D` 类型、默认纹理、补全和诊断。 |
-| Function 内置函数 | VSCode 扩展统一 HLSL intrinsic、GLSL 别名和 Unreal 纹理采样 helper metadata，用于补全、Hover、Signature Help、Inlay Hint、诊断和语义高亮。 |
-| 动态 MaterialExpression | 插件导出 `Saved/DreamShader/Bridge/material-expressions.json`，VSCode 可读取 reflected `UMaterialExpression` 元数据用于补全、Hover 和 Signature Help，并带内置 fallback manifest。 |
-| Material Layer | 新增推荐顶层块 `ShaderLayer` / `ShaderLayerBlend`，生成 Unreal 原生 Material Layer / Layer Blend 函数资产。 |
-| GraphFunction | 新增 `GraphFunction` helper，可在 Custom 节点 body 中写 `UE.*` 调用，生成器会把这些图节点作为自动输入接入 Custom。 |
-| helper 值表达式 | 单输出 `Function` / `GraphFunction` 调用可作为 Graph 值表达式；多输出调用仍使用显式 `out` 变量。 |
-| Material Function 稳定性 | 重新生成 `ShaderFunction` 时保留输入输出 ID，减少普通 Unreal 材质中 `MaterialFunctionCall` 断线风险。 |
-| 生成图布局 | 生成节点布局更稳定，避免对 DreamShader 生成图执行 Unreal 全量自动布局。 |
-| VSCode 语言核心 | 扩展使用 scanner / parser / context / symbol / provider 模块组织语言服务。 |
-| 作用域诊断 | 补全、诊断、语义高亮、折叠和文档符号改走新语言核心，减少 `Inputs`、`Graph`、`Function`、`Settings`、`Outputs`、metadata 之间的作用域串漏。 |
-| Substrate / Strata | VSCode 扩展增加 Substrate / Strata 类型、语法、补全和诊断提示。 |
+## 从哪里开始
+
+<Cards>
+  <Card title="快速开始" href="/docs/start/installation">
+    安装插件、生成第一个材质，并理解日常的保存 - 编译循环。
+  </Card>
+  <Card title="语言核心" href="/docs/language/file-model">
+    源文件、词法规则、顶层块、Section、类型、函数、import、布局。
+  </Card>
+  <Card title="Graph 语言" href="/docs/graph/overview">
+    语句、表达式、类型转换、`if` / `else`、调用，以及 Graph 不能做什么。
+  </Card>
+  <Card title="内置节点" href="/docs/builtins/ue-nodes">
+    `UE.*` 目录、通用逃生舱 `UE.Expression`、数学内置、`Substrate.*`。
+  </Card>
+  <Card title="参数" href="/docs/parameters/properties">
+    Properties 类型、参数节点、元数据与分组、资产引用。
+  </Card>
+  <Card title="设置" href="/docs/settings/material">
+    材质 Settings 与枚举取值、Backend，以及全部十三项项目设置。
+  </Card>
+  <Card title="生成与产物" href="/docs/generation/pipeline">
+    生成流程、资产路径、内存材质、输出绑定、重新生成。
+  </Card>
+  <Card title="工具链" href="/docs/tools/editor">
+    编辑器工具、反编译导出、VSCode 与 Rider、命令行 commandlet、Package。
+  </Card>
+  <Card title="诊断" href="/docs/diagnostics">
+    所有错误和警告的成因与修复方式，以及当前限制。
+  </Card>
+  <Card title="示例" href="/docs/examples/patterns">
+    常用写法和可以直接复制的完整示例。
+  </Card>
+  <Card title="HLSL / GLSL 背景" href="/docs/shader-languages/hlsl">
+    DreamShaderLang 借鉴的两种着色语言的背景知识。
+  </Card>
+  <Card title="更新日志" href="/docs/changelog">
+    插件、VSCode 扩展和网站的版本记录。
+  </Card>
+</Cards>

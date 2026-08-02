@@ -1,0 +1,361 @@
+---
+title: Lexical Elements
+description: Case sensitivity, comments, identifiers, string and numeric literals, and the statement splitters that disagree about whitespace.
+---
+
+This page covers the character-level rules: which tokens care about case, how comments and literals
+are read, and how a section body is cut into statements. Most of it is unsurprising. The three parts
+that are not — the case-sensitivity matrix, the tolerant numeric conversion, and the tab pitfalls —
+are the reason this page exists.
+
+## Case sensitivity
+
+**Top-level block keywords are the only case-sensitive tokens in the language.** Everything else
+keyword-like is matched ignoring case.
+
+| Construct | Case-sensitive |
+| :-- | :-- |
+| Top-level block keywords — `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `MaterialLayer`, `MaterialLayerBlend`, `VirtualFunction`, `Namespace`, `Function`, `GraphFunction` | **yes** |
+| Section names — `Properties`, `Settings`, `Outputs`, `Inputs`, `Results`, `Options`, `Graph`, `Code`, `Layout` | no |
+| Header attribute keys — `Name=`, `Root=`, `Asset=` | no |
+| `Settings` / `Options` keys, metadata keys, `UE.*` argument keys, `Expression( … )` argument keys, `Layout` argument keys | no — additionally lower-cased when stored |
+| Type tokens — `float3`, `vec3`, `Texture2D`, `ScalarParameter`, … | no |
+| `const` prefix in `Properties` | no |
+| `opt` prefix in `Inputs` | no |
+| `SelfContained` / `Inline` after `Function` | no |
+| `in` / `out` parameter qualifiers | no |
+| `true` / `false` in defaults | no |
+| `Path(` asset-reference keyword | no |
+| `Base.` binding prefix and `Expression(` | no |
+| `.Pin[` pin selector | no |
+| `Group("…")` property-scope head | no |
+| `Slider(` metadata shorthand | no |
+| `UE.` builtin prefix | no |
+| `#Region` / `#EndRegion` | no |
+| `Node(` / `Comment(` layout calls | no |
+| `import` | no |
+| `default` call-argument sentinel | no |
+| `.dsm` / `.dsf` / `.dsh` extensions | no |
+
+So `shader(Name="X")` and `SHADER(Name="X")` are both syntax errors, while
+`properties = { … }`, `settings { domain = "ui"; }` and `Shader(name="X")` are all accepted.
+
+A keyword match additionally requires a **right word boundary**: the character after the keyword
+must not be a letter, a digit or `_`. That rule is what stops `ShaderFunction` from matching as
+`Shader`, and `ShaderLayerBlend` from matching as `ShaderLayer`.
+
+<Callout type="warn">
+
+A block keyword typed in the wrong case is not reported as a case error. It matches no top-level
+keyword at all and fails with `Unexpected token near index {Index}.`
+
+</Callout>
+
+## Synopsis
+
+<Synopsis>
+
+```c
+<token> := <identifier> | <keyword> | <string-literal> | <numeric-text> | <punctuation>
+
+<identifier>     := { <letter> | _ } { <letter> | <digit> | _ }…
+<qualified-name> := <identifier> :: <identifier>
+<string-literal> := " { <character> | \<escape> }… "
+<punctuation>    := { | } | ( | ) | [ | ] | ; | = | , | . | :: | #
+```
+
+</Synopsis>
+
+<Grammar />
+
+Whitespace and comments may appear between any two tokens and are otherwise insignificant.
+
+## Whitespace
+
+Any character the engine considers whitespace separates tokens: space, tab, carriage return, line
+feed and the other Unicode whitespace characters. Newlines carry no syntactic weight in the
+declaration grammar — they matter only to line-oriented processing: [`import`](/en/docs/language/imports)
+directives, `#Region` directives inside a `Graph` body, and diagnostic line numbers.
+
+<Callout type="warn">
+
+Two statement forms split on a **literal space character** rather than on whitespace, so a tab
+between a type and a name is a syntax error. See [Statement separation](#statement-separation).
+
+</Callout>
+
+## Comments
+
+| Form | Rule |
+| :-- | :-- |
+| `// …` | line comment; runs to, but does not include, the next line feed |
+| `/* … */` | block comment; ends at the first `*/` |
+
+- **Block comments do not nest.** `/* a /* b */ c */` ends at the first `*/`; the trailing `c */` is
+  code again.
+- **An unterminated block comment is accepted silently.** A `/*` with no `*/` consumes the rest of
+  the file and produces no diagnostic. Contrast an unterminated `{` block, which fails with
+  `Unterminated block.`
+- Comments are recognised identically everywhere in the declaration grammar, including while
+  counting `{}`, `()` and `[]` nesting, so a brace or quote inside a comment never unbalances a
+  block.
+- Comment removal happens a second time, textually, before statements are split in `Properties`,
+  `Settings`, `Outputs`, `Layout` and typed-parameter sections. That pass is string-aware and
+  preserves the line feed that terminates a line comment, so line numbers survive.
+- **`Graph` bodies are not comment-stripped by the declaration parser.** Comments inside a `Graph`
+  block are stored verbatim with the body and handled later by the expression tokenizer.
+- There is no `#` preprocessor at the declaration level. `#Region` / `#EndRegion` are recognised
+  only inside `Graph` bodies — see [Layout and #Region](/en/docs/language/layout).
+
+<Callout type="warn">
+
+Comments do not hide text from the file-kind scan or from the `import` line scanner. Commenting a
+`Shader(` block out of a `.dsh` still fails, and commenting a block of imports out with `/* … */`
+still imports them. See [Source Files](/en/docs/language/file-model) and
+[Imports](/en/docs/language/imports).
+
+</Callout>
+
+## Identifiers
+
+| Position | Accepted characters |
+| :-- | :-- |
+| first | a letter or `_` |
+| subsequent | a letter, a digit or `_` |
+
+There is no length limit, and **no keyword is reserved against identifiers**: nothing rejects a
+property, variable, parameter or function named `Shader`, `Graph` or `float`. Whether the name then
+resolves is a matter for the context it appears in.
+
+A stricter check applies to declaration *names* in `Inputs`, `Outputs`, `Results` and `Layout`
+calls: the whole trimmed token must match the identifier rule. Names in `Properties` are only
+required to be non-empty, so `Properties { float 1Bad = 0; }` parses — the declaration is simply
+unreachable from `Graph`.
+
+Namespace-qualified names use `::`, as in `Common::ApplyTint`. See
+[Functions](/en/docs/language/functions).
+
+### Sanitisation
+
+When a name reaches generated HLSL it is sanitised: every character outside `A–Z a–z 0–9 _` becomes
+`_`, a leading digit gains a `_` prefix, runs of consecutive `__` collapse to one, and a result that
+is empty or entirely underscores becomes `DreamShaderSymbol`.
+
+```text
+Common::ApplyTint   →   Common__ApplyTint   →   Common_ApplyTint
+```
+
+That collapse is why `Common::ApplyTint` and a top-level `Common_ApplyTint` collide in generated
+code.
+
+## String literals
+
+A quoted value opens with `"`, ends at the next unescaped `"`, and is unescaped on the way in. A
+backslash always consumes the following character, so `\"` never terminates the literal.
+
+Anywhere a value may be quoted — settings values, metadata values, attribute values, argument
+values — **quoting is optional**. The raw text is trimmed, and quotes are stripped only if the
+result is at least two characters long and both starts and ends with `"`. `Domain = UI;` and
+`Domain = "UI";` are equivalent.
+
+| Escape | Produces |
+| :-- | :-- |
+| `\n` | line feed |
+| `\r` | carriage return |
+| `\t` | tab |
+| `\"` | `"` |
+| `\\` | `\` |
+| `\<any other character>` | that character; the backslash is dropped, with no diagnostic |
+| a lone `\` at the end of the text | a literal backslash |
+
+There are no numeric escapes. `\0`, `\xNN` and `\uNNNN` fall into the "any other character" row, so
+`\0` yields `0` and `\x41` yields `x41`.
+
+The `Graph` expression grammar uses the same five escapes and the same pass-through rule; an
+unterminated string there is closed silently at end of input instead of erroring.
+
+<Callout type="info">
+
+`Settings` and `Options` values are **not** trimmed again after the quotes are removed, so
+`Domain = " UI ";` stores `UI` with its spaces. Metadata values *are* trimmed after unquoting. A raw
+line feed inside `"…"` is consumed like any other character.
+
+</Callout>
+
+## Numeric literals
+
+The declaration grammar and the `Graph` expression grammar disagree here, and the difference is a
+common source of surprise.
+
+### Declaration grammar
+
+The declaration grammar has **no numeric token**. Values are captured as raw text and converted only
+when a consumer asks for a number.
+
+| Consumer | Accepts |
+| :-- | :-- |
+| scalar default | any text the engine's double conversion accepts, plus `true` → `1.0` and `false` → `0.0` |
+| integer argument | any text the engine's `int32` conversion accepts |
+| boolean default | exactly `true` or `false` |
+| vector default | `<anything>( <part> [, <part>]… )` — see below |
+
+<Callout type="warn">
+
+The underlying conversion is tolerant: it re-validates the text only when the parsed result is zero.
+All of these are silent.
+
+| Written | Parsed as | Diagnostic |
+| :-- | :-- | :-- |
+| `float Strength = 1.0f;` | `1.0` | none |
+| `float Strength = 1abc;` | `1.0` | none |
+| `float Strength = 0.0f;` | `0.0` | none |
+| `float Strength = abc;` | — | `Invalid scalar default value 'abc' for property 'Strength'.` |
+
+There is no hexadecimal, octal or binary literal form. `0x1F` is handed to the same tolerant
+conversion as any other text.
+
+</Callout>
+
+The vector-literal form is deliberately loose. The first `(` and the **last** `)` delimit the
+components, and **the text before `(` is ignored entirely** — `float3(1,0,0)`, `vec3(1,0,0)`,
+`(1,0,0)` and `Nonsense(1,0,0)` all parse identically. The interior is split on `,` without tracking
+nesting, so a nested call in a component breaks the split. Each component may be a number or
+`true` / `false`.
+
+| Component count | Result |
+| :-- | :-- |
+| 1 | `(a, a, a, 1)` — splat to x, y, z |
+| 2 | `(a, b, 0, 0)` |
+| 3 | `(a, b, c, 1)` |
+| 4 or more | the first four; extra components are parsed and discarded |
+
+The unfilled default is `(0, 0, 0, 1)`.
+
+### Graph expression grammar
+
+Inside a `Graph` block a number is a real token.
+
+| Element | Rule |
+| :-- | :-- |
+| start | a digit, **or** `.` immediately followed by a digit — so `.5` is legal |
+| body | digits and `.`; several `.` are lexically accepted and fail later at conversion |
+| exponent | at most one `e` or `E`, optionally followed by `+` or `-` |
+| suffix | exactly one of `f` `F` `h` `H` `u` `U` `l` `L` |
+| hexadecimal, octal, binary | not supported — `0x1F` lexes as the number `0` followed by the identifier `x1F` |
+
+A suffix is consumed only when the character after it is not a letter, a digit or `_`, and it is
+**excluded from the token text**: `0.55f` is the number `0.55`. Because only one suffix is consumed,
+`1.0ul` lexes as the number `1.0` followed by the identifier `ul`.
+
+The expression tokenizer accepts these single-character tokens: `(` `)` `,` `.` `+` `-` `*` `/` `=`,
+plus the two-character `::`.
+
+<Callout type="warn">
+
+**Every other character — including `:` alone, `{`, `}`, `[`, `]`, `<`, `>`, `%`, `!`, `&` and `|` —
+ends the expression.** Where a value was still expected the parse fails with
+`Unexpected token '{Token}' in Graph expression.`; where the expression was already complete, the
+rest of the text is dropped **without a diagnostic**. See
+[What Graph Is Not](/en/docs/graph/unsupported).
+
+</Callout>
+
+## Statement separation
+
+A section body is a list of `;`-separated statements.
+
+- A `;` separates statements only at parenthesis depth 0 **and** bracket depth 0, and never inside a
+  string literal.
+- **Braces are not tracked** by the generic splitter. `Properties` uses its own brace-aware walker so
+  that `Group("…") { … }` scopes work; every other section treats `{` as an ordinary character.
+- Empty statements are dropped, so a stray `;;` is harmless.
+- The final statement is flushed even without a terminator — **the last `;` in a block is optional**.
+- The `;` after a section's closing `}` is optional, and so is the `=` between a section name and its
+  block <Since v="1.5.0" />.
+
+Three different splitters then divide a statement into parts, and they do **not** agree on what
+counts as whitespace:
+
+| Split | Used by | Rule |
+| :-- | :-- | :-- |
+| first `=` at depth 0, outside strings | `Settings`, `Options`, metadata entries, `Outputs`, `Layout` arguments, `UE.*` arguments | `Color = (R=1,G=0,B=0);` splits on the outer `=` |
+| last **whitespace** at depth 0 | `Properties` declarations | tabs are fine; `UE.TexCoord(Index = 0) UV` splits into type `UE.TexCoord(Index = 0)` and name `UV` |
+| last **literal space** | `Inputs`, `Outputs`, `Results` typed parameters, and `Shader` output declarations | not depth-aware and not whitespace-aware |
+| any run of whitespace | `Function` / `GraphFunction` parameter lists | each parameter must yield exactly 2 or 3 tokens |
+
+<Callout type="warn">
+
+**Tabs bite in exactly two places.** `float3<TAB>Color;` in `Inputs`, `Outputs`, `Results` or a
+`Shader`'s `Outputs` fails with `Invalid typed declaration '{Statement}'.` The same declaration is
+accepted in `Properties`, which splits on any whitespace.
+
+The optional `opt` prefix is recognised as `opt` followed by a **space**; `opt<TAB>float X` does not
+mark the input optional — it produces a required input whose type token is `opt` plus the tab plus
+the real type, which then fails at generation as an unsupported type.
+
+</Callout>
+
+Argument lists are split on `,` with the same depth and string tracking, which is why an unquoted
+attribute value may not contain `,` or `)`: `Root=Game` works, `Name=Foo(1,2)` does not.
+
+## Example
+
+```c
+// Line comment before the top-level declaration.
+Shader(Name="Materials/M_Comments")
+{
+    /* Block comment
+       spanning multiple lines. */
+    Settings = {
+        Domain = "UI";        // trailing line comment
+        ShadingModel = Unlit; // quotes are optional
+    }
+
+    Properties {
+        // Any whitespace may separate a Properties type from its name.
+        ScalarParameter Rough = 0.5 [Group="Surface"; Slider(0, 1)];
+        vec3            Tint  = vec3(1.0, 0.4, 0.1);
+        float           Fudge = 1.0f;   // parses as 1.0 — the suffix is ignored, not rejected
+    }
+
+    Outputs {
+        vec3 Color;                     // a literal space is required here
+        Base.EmissiveColor = Color
+    }                                   // the last ';' in a block is optional
+
+    Graph {
+        vec2 UV = UE.TexCoord(Index = 0);
+        Color = vec3(Rough, Rough, UV.x) * Tint;
+    }
+}
+```
+
+## Diagnostics
+
+<Diag>
+  <D msg="Unexpected token near index {Index}." cause="No top-level keyword matched at this position — including a correctly spelled keyword in the wrong case, and a stray import line handed straight to the parser." fix="Check the block keyword's capitalisation." href="/en/docs/language/blocks" />
+  <D msg="Expected identifier near index {Index}." cause="An identifier was required and the next character is not a letter or _." />
+  <D msg="Expected '{Char}' near index {Index}." cause="A required punctuation character is missing." />
+  <D msg="Unterminated block." cause="End of input before the matching }." />
+  <D msg="Unterminated '{Char}' block." cause="End of input before the matching delimiter, for example an unclosed parameter-list (." />
+  <D msg="Unterminated string literal." cause="End of input inside a quoted attribute value." />
+  <D msg="Expected value near index {Index}." cause="An attribute value is empty." />
+  <D msg="Expected ',' or ')' near index {Index}." cause="Malformed attribute list." />
+  <D msg="Invalid typed declaration '{Statement}'." cause="No literal space between type and name, an empty type, or a name that is not an identifier." fix="Replace the tab between the type and the name with a space." href="/en/docs/language/sections" />
+  <D msg="Invalid scalar default value '{Value}' for property '{Name}'." cause="The text is not convertible to a number and did not parse as zero." />
+  <D msg="Invalid vector default value '{Value}' for property '{Name}'." cause="A component is neither numeric nor true / false." />
+  <D msg="Invalid boolean default value '{Value}' for property '{Name}'." cause="Text other than true / false." />
+  <D msg="Unexpected token '{Token}' in Graph expression." cause="A token where a value was expected, including any character outside the expression tokenizer's set." href="/en/docs/graph/unsupported" />
+</Diag>
+
+Only messages ending in `near index {Index}` carry a position the diagnostic mapper can turn into a
+file, line and column. See [Imports](/en/docs/language/imports).
+
+## Where to next
+
+<Cards>
+  <Card title="Top-level Blocks" href="/en/docs/language/blocks" description="The seven blocks whose keywords are the case-sensitive ones." />
+  <Card title="Sections" href="/en/docs/language/sections" description="Where each statement splitter is used." />
+  <Card title="Types and Values" href="/en/docs/language/types-and-values" description="The full type-token catalogue and its per-context validity." />
+  <Card title="What Graph Is Not" href="/en/docs/graph/unsupported" description="The characters that end an expression, and the silent truncations." />
+</Cards>

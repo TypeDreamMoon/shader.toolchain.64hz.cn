@@ -1,0 +1,222 @@
+---
+title: 安装
+description: 把 DreamShader 插件加入 Unreal 项目、找到它的设置面板，并确认编译链路正常。
+---
+
+DreamShaderLang 由 DreamShader 这个 Unreal 插件编译。本页的事情每个项目只需要做一次。
+
+| | |
+| --- | --- |
+| 仓库 | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
+| 插件版本 | `1.5.0` |
+| 引擎 | Unreal Engine `5.3` – `5.8`，已在 Win64 验证 |
+| 放置路径 | `<Project>/Plugins/DreamShader` |
+| 插件依赖 | `WebSocketNetworking`、`SQLiteCore` —— 都是引擎插件，都会被自动启用 |
+
+## 安装
+
+<Steps>
+
+<Step>
+
+### 把插件复制进项目
+
+```text
+MyProject/
+└─ Plugins/
+   └─ DreamShader/
+      └─ DreamShader.uplugin
+```
+
+目录名保持 `DreamShader`；模块名、日志类别以及本文档里的所有路径都基于这个前提。
+
+</Step>
+
+<Step>
+
+### 启用并重启
+
+在 *Edit ▸ Plugins* 中启用 **DreamShader**，然后重启编辑器。插件描述文件会自动启用
+`WebSocketNetworking` 和 `SQLiteCore` —— 前者用于实时预览的 WebSocket 服务，后者支撑编辑器桥接的
+`bridge.db`。两者都只被编辑器模块使用。
+
+三个模块在 `Default` 阶段加载：`DreamShader` 和 `DreamShaderCompiler`（Runtime），以及
+`DreamShaderEditor`（Editor）。只有编辑器模块会生成资产。
+
+</Step>
+
+<Step>
+
+### 确认设置页面
+
+打开 *Project Settings*，找到：
+
+```text
+Project Settings ▸ DreamPlugin ▸ Dream Shader
+```
+
+<Callout type="warn">
+  设置在 **DreamPlugin** 分类下，**不是** *Plugins* 分类。如果找不到这个页面，说明插件没有加载成功，
+  去 Output Log 里看 `LogDreamShader`。
+</Callout>
+
+</Step>
+
+<Step>
+
+### 让插件创建自己的目录
+
+编辑器第一次启动时，运行时模块会创建三个工作目录，无论你有没有写过任何源文件：
+
+```text
+<Project>/DShader/                                        源文件根目录
+<Project>/DShader/Packages/                               已安装的共享库
+<Project>/Intermediate/DreamShader/GeneratedShaders/      生成的 .ush include
+```
+
+`DShader` 来自 *Source Directory* 设置；`Packages` 永远是它下面那个字面量子目录 `Packages`，不能单独
+配置。
+
+</Step>
+
+<Step>
+
+### 写一个源文件并保存
+
+```c
+// <Project>/DShader/Materials/M_InstallCheck.dsm
+Shader(Name="DreamMaterials/M_InstallCheck")
+{
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Color = vec3(0.2, 0.6, 1.0);
+    }
+}
+```
+
+在 *Auto Compile On Save* 开启（默认）的情况下，文件监视器会发现这次保存，等过防抖时间后生成材质。
+Output Log 会输出：
+
+```text
+Generated DreamShader thin-custom material /Game/DreamMaterials/M_InstallCheck from .../M_InstallCheck.dsm.
+```
+
+</Step>
+
+</Steps>
+
+## 验证安装
+
+| 检查项 | 预期结果 |
+| --- | --- |
+| 插件已加载 | *Project Settings ▸ DreamPlugin ▸ Dream Shader* 存在 |
+| 目录已创建 | 项目根目录下存在 `DShader/` 和 `DShader/Packages/` |
+| `.dsm` 能编译 | Output Log 输出 `Generated DreamShader thin-custom material …` |
+| 材质确实生成了 | *Tools ▸ DreamShader ▸ Material Content Browser* 的 **Dream Shader Gen** 页，状态为 `● up to date` |
+| 编辑器扩展已接通 | `Saved/DreamShader/Bridge/` 下有 `diagnostics.json`、`material-expressions.json`、`settings.json`、`substrate-builtins.json` |
+
+<Callout type="warn">
+  不要指望在 Content Browser 里看到这个新材质。在默认 backend 下它是**在内存中**生成的，会主动从
+  Content Browser、资产选择器和保存列表里隐藏自己。见[第一个材质](/docs/start/first-material)。
+</Callout>
+
+## 最先会用到的几项设置
+
+完整面板有十三项属性，下面这几项是第一天就会碰到的。注意配置标识符保留了 `b` 前缀，而显示名会把它去掉。
+
+| 界面名称 | 配置属性 | 默认值 | 作用 |
+| --- | --- | --- | --- |
+| Source Directory | `SourceDirectory` | `DShader` | 扫描 `.dsm` / `.dsf` / `.dsh` 的根目录。相对路径相对项目目录解析。 |
+| Generated Shader Directory | `GeneratedShaderDirectory` | `Intermediate/DreamShader/GeneratedShaders` | 生成的 `.ush` include 写到哪里。 |
+| Default Compiler Backend | `DefaultBackend` | `ThinCustom` | 未写 `Settings = { Backend = … }` 的文件使用的 backend。 |
+| Show In-Memory Materials In Content Browser | `bShowInMemoryMaterialsInContentBrowser` | `false` | 让内存材质像未保存资产一样可见。 |
+| Auto Compile On Save | `bAutoCompileOnSave` | `true` | 关闭后，源目录监视器完全忽略文件变化。 |
+| Save Debounce Seconds | `SaveDebounceSeconds` | `0.25` | 文件变化后等待多久再编译。取值被钳制到 `[0.05, 10.0]`。 |
+
+这些值写入**项目的** `Config/DefaultEngine.ini`，section 为
+`[/Script/DreamShader.DreamShaderSettings]`，因此会被所有拉取该项目的人共享。十三项设置全部记录在
+[项目设置](/docs/settings/project)。
+
+<Callout type="warn">
+  只有在 `/DreamShaderGenerated` 虚拟 shader 挂载尚未注册时才会读取 `GeneratedShaderDirectory`。
+  会话中途改这个值不会移动输出目录 —— 需要重启编辑器。
+</Callout>
+
+## 资产生成在哪里
+
+`Shader(Name="DreamMaterials/M_Minimal")` 解析成 `/Game/DreamMaterials/M_Minimal`。`Name` 是相对根路径
+的 package path，本身不要写 `/Game` 前缀。`Root` 可选，默认是 `Game`：
+
+```c
+Shader(Name="DreamMaterials/M_Minimal", Root="Plugin.MyPlugin")
+```
+
+这会生成 `/MyPlugin/DreamMaterials/M_Minimal`，物理路径为
+`<Project>/Plugins/MyPlugin/Content/DreamMaterials/M_Minimal.uasset`。只接受 `<Project>/Plugins`
+下的**项目**插件，引擎插件和商城插件会被拒绝。`Root` 也可以追加子目录 —— `Game/Generated`、
+`Plugin.MyPlugin/Generated`。完整的分派规则见[资产路径](/docs/generation/asset-paths)。
+
+## 引擎兼容性
+
+DreamShader `1.5.0` 基于 Unreal Engine `5.8` 开发，并在 Win64 上用单插件
+`RunUAT BuildPlugin` 验证过：
+
+| Unreal Engine | 状态 |
+| --- | --- |
+| `5.8` | 已验证 |
+| `5.7` | 已验证 |
+| `5.6` | 已验证 |
+| `5.5` | 已验证 |
+| `5.4` | 已验证 |
+| `5.3` | 已验证 |
+
+如果只想验证插件能否在某个引擎版本下编译，不必构建完整项目目标：
+
+```powershell
+& "<EngineDir>\Engine\Build\BatchFiles\RunUAT.bat" BuildPlugin `
+  -Plugin="<ProjectDir>\Plugins\DreamShader\DreamShader.uplugin" `
+  -Package="<OutputDir>\DreamShader" `
+  -TargetPlatforms=Win64 `
+  -Rocket
+```
+
+`-Package` 必须指向源码树之外的目录 —— UAT 会在那里 stage 一份干净副本。
+
+<Callout type="warn">
+  在 Windows 上，UE `5.3` 和 `5.4` 可能需要 MSVC `14.38` 工具链。更新的工具链可能在编译**旧版引擎头
+  文件**时就失败，还没走到插件代码 —— 失败点不在 `Source/DreamShader*`。先用 Visual Studio Installer
+  装上 `14.38` 并在 `BuildConfiguration.xml` 里选中它，再判断插件在这些引擎上是否有问题。
+</Callout>
+
+功能可用性随引擎版本变化：`Substrate.*`、`ShadingModel = "Substrate"` 和 `Base.FrontMaterial` 需要
+<Since v="5.4" ue />，少数 transform 基准和参数需要 `5.5` 或 `5.6`。这些是编译期开关，所以把项目升级到
+新引擎意味着要重新编译插件。
+
+## 编辑器扩展
+
+语言服务不在插件里。要获得高亮、补全、诊断和预览，需要安装下面两个扩展之一：
+
+| 编辑器 | 仓库 |
+| --- | --- |
+| VSCode | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) |
+| JetBrains Rider | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) |
+
+*Tools ▸ DreamShader ▸ Open Dream Shader Workspace (VSCode)* 会写出
+`DShader/DreamShader.code-workspace`、刷新三个桥接 manifest，并用 VSCode 打开它。见
+[VSCode 与 Rider](/docs/tools/vscode)。
+
+## 下一步
+
+- [第一个材质](/docs/start/first-material) —— 写一个，然后找到它
+- [项目结构](/docs/start/project-layout) —— `DShader/` 怎么组织
+- [日常工作流](/docs/start/workflow) —— 保存、防抖、生成这个循环
+- [关于 DreamShader](/docs/start/about) —— 这个插件由什么组成

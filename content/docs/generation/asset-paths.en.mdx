@@ -1,0 +1,271 @@
+---
+title: Asset Paths
+description: How Name= and Root= become an Unreal package path, an object path, and a file on disk — including the Plugin.X roots.
+---
+
+Every block that generates an asset carries the same two header attributes, and one resolver turns
+them into a destination.
+
+| Aspect | Value |
+| :-- | :-- |
+| Applies to | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` — identical for all four |
+| Kind | header attributes |
+| `Root="Plugin.X"` | <Since v="1.2.0" /> |
+
+## Synopsis
+
+<Grammar />
+
+<Synopsis>
+```c
+Shader        (Name = "<name-path>" [, Root = "<root>"]) { … }
+ShaderFunction(Name = "<name-path>" [, Root = "<root>"]) { … }
+
+<name-path> := [<folder> /] … <leaf>
+<root>      := "" | Game | Plugin.<PluginName> | Plugins.<PluginName>
+             | Plugin / <PluginName> | Plugins / <PluginName>
+             | / <MountRoot> [/ <folder>] …
+             | <folder> [/ <folder>] …
+```
+</Synopsis>
+
+`Name` is **required**. A missing one fails with `Shader(Name="...") is required.`, or
+`{Kind}(Name="...") is required.` for the function blocks. `Root` is optional and defaults to the
+empty string. Attribute keys are matched case-insensitively, so `name=` and `ROOT=` both resolve.
+
+## Resolution order
+
+1. **`Root` becomes a root package path.** Trim; `\` becomes `/`; remember whether the string began
+   with `/`; strip leading and trailing `/`; split on `/`. An empty result at any point yields
+   `/Game`.
+2. **`Name` becomes folders plus a leaf.** Trim; `\` becomes `/`; strip all leading and trailing `/`;
+   split on `/`. The **last** segment is the asset name; every preceding segment is a folder appended
+   to the root.
+3. Every segment passes through `ObjectTools::SanitizeObjectName`. Empty segments are skipped
+   silently.
+4. `PackageName = <root>/<folders…>/<Leaf>` and `ObjectPath = <PackageName>.<Leaf>`.
+5. `PackageName` is validated with `FPackageName::IsValidObjectPath`.
+
+## The `Root=` dispatch
+
+Dispatch is on the **first** segment of `Root`, compared case-insensitively.
+
+| First segment | Extra condition | Root package | Folders taken from `Root` |
+| :-- | :-- | :-- | :-- |
+| *(absent, empty, `/`, or all whitespace)* | — | `/Game` | — |
+| `Game` | — | `/Game` | 1 |
+| `Plugin.<Name>` | — | the plugin's mount point | 1 |
+| `Plugins.<Name>` | — | the plugin's mount point | 1 |
+| `Plugin` | a second segment exists | the plugin named by segment 1 | 2 |
+| `Plugins` | a second segment exists | the plugin named by segment 1 | 2 |
+| anything else | the `Root` string began with `/` | `/<segment 0>`, verbatim | 1 |
+| anything else | no leading `/` | `/Game`, and segment 0 becomes a folder | 0 |
+
+### Omitted or empty
+
+| `Root` | `Name` | Package | Object path |
+| :-- | :-- | :-- | :-- |
+| *(omitted)* | `M_Flat` | `/Game/M_Flat` | `/Game/M_Flat.M_Flat` |
+| `""` | `Materials/M_Flat` | `/Game/Materials/M_Flat` | `/Game/Materials/M_Flat.M_Flat` |
+| `"/"` | `M_Flat` | `/Game/M_Flat` | `/Game/M_Flat.M_Flat` |
+
+### `Game`
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `Game` | `M_Flat` | `/Game/M_Flat` |
+| `/Game` | `Materials/M_Flat` | `/Game/Materials/M_Flat` |
+| `Game/Materials` | `M_Flat` | `/Game/Materials/M_Flat` |
+| `game/materials` | `M_Flat` | `/Game/Materials/M_Flat` |
+
+The comparison is case-insensitive, but the emitted root is always the literal `/Game`.
+
+### `Plugin.<Name>` and `Plugins.<Name>`
+
+The dotted form names the plugin in a single segment; everything after it is folders.
+
+| `Root` | `Name` | Package | On disk |
+| :-- | :-- | :-- | :-- |
+| `Plugin.MoonToon` | `Mat/Test` | `/MoonToon/Mat/Test` | `<Project>/Plugins/MoonToon/Content/Mat/Test.uasset` |
+| `Plugins.MoonToon` | `Test` | `/MoonToon/Test` | `<Project>/Plugins/MoonToon/Content/Test.uasset` |
+| `Plugin.MoonToon/Shared` | `Test` | `/MoonToon/Shared/Test` | `<Project>/Plugins/MoonToon/Content/Shared/Test.uasset` |
+
+### `Plugin/<Name>` and `Plugins/<Name>`
+
+The slash form spends two segments on the plugin reference.
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `Plugin/MoonToon` | `Test` | `/MoonToon/Test` |
+| `Plugins/MoonToon` | `Mat/Test` | `/MoonToon/Mat/Test` |
+| `Plugins/MoonToon/Shared` | `Test` | `/MoonToon/Shared/Test` |
+
+<Callout type="warn">
+`Root="Plugin"` and `Root="Plugins"` with **no** second segment do not name a plugin. They fall
+through to the last dispatch row and are treated as ordinary folder names, producing `/Game/Plugin`
+and `/Game/Plugins`. No diagnostic is emitted — the asset simply lands somewhere you did not intend.
+</Callout>
+
+### An explicit mount root
+
+A `Root` that begins with `/` and is not one of the forms above is taken verbatim as a mount point.
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `/MyMount` | `Test` | `/MyMount/Test` |
+| `/MyMount/Sub` | `Test` | `/MyMount/Sub/Test` |
+| `/Engine` | `Test` | `/Engine/Test` |
+
+The first segment must survive `SanitizeObjectName` unchanged, otherwise
+`DreamShader Root '{Root}' has an invalid package root.` The mount point itself is not checked for
+existence here — an unmounted root fails later, at the `IsValidObjectPath` gate.
+
+### A bare relative path
+
+Any other `Root` without a leading `/` becomes folders under `/Game`.
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `Foo` | `Test` | `/Game/Foo/Test` |
+| `Foo/Bar` | `Test` | `/Game/Foo/Bar/Test` |
+| `Foo/Bar` | `Deep/Test` | `/Game/Foo/Bar/Deep/Test` |
+
+The difference between this branch and the previous one is exactly the leading slash:
+`Root="Foo/Bar"` is `/Game/Foo/Bar`, `Root="/Foo/Bar"` is `/Foo/Bar`.
+
+## Plugin-root requirements
+
+Both plugin forms resolve through the same validator. Every gate below must pass, in this order, and
+each has its own message.
+
+| # | Requirement | Message when it fails |
+| :-- | :-- | :-- |
+| 1 | The plugin name is non-empty and unchanged by `SanitizeObjectName` | `DreamShader Root '{Root}' has an invalid plugin name.` |
+| 2 | A plugin with that name is known to the plugin manager | `DreamShader Root '{Root}' references project plugin '{Plugin}', but no enabled plugin with that name was found.` |
+| 3 | It is a **project** plugin, with its base directory under the project's `Plugins` directory | `DreamShader Root '{Root}' must reference a project plugin under '{PluginsDir}'.` |
+| 4 | It is enabled | `DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin is not enabled.` |
+| 5 | It can contain content | `DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin cannot contain content.` |
+| 6 | Its `Content` directory exists on disk | `DreamShader Root '{Root}' references project plugin '{Plugin}', but its Content directory does not exist: '{ContentDir}'.` |
+| 7 | Its content is mounted <Since v="5.6" ue /> | `DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin content is not mounted.` |
+
+Gate 7 does not exist on UE 5.3 – 5.5; on those engines an unmounted plugin is caught later, by the
+object-path validation.
+
+The root package path is the plugin's own mounted asset path — normalized to forward slashes, no
+trailing slash, a forced leading slash. If that degenerates to empty or `/`, `/<PluginName>` is used.
+
+<Callout type="info">
+Engine plugins, and marketplace plugins installed under the engine directory, are rejected by gate 3
+even when they are enabled and mounted. Only plugins physically under `<Project>/Plugins` are
+accepted. To write into an engine-side mount, use the explicit mount-root branch
+(`Root="/SomeMount"`), which skips the plugin validator entirely.
+</Callout>
+
+## Per asset kind
+
+Path resolution is identical for all four block kinds. What differs is the class created and, for the
+function kinds, the material-function usage stamped on it.
+
+| Source block | Asset class | Material function usage |
+| :-- | :-- | :-- |
+| `Shader`, `Graph` backend | `UMaterial` | — |
+| `Shader`, `ThinCustom` backend <Since v="1.5.0" /> | `UDreamShaderMaterialInstance` plus a hidden `UMaterial` subobject | — |
+| `ShaderFunction` | `UMaterialFunction` | `Default` |
+| `ShaderLayer` <Since v="1.3.0" /> | `UMaterialFunctionMaterialLayer` | `MaterialLayer` |
+| `ShaderLayerBlend` <Since v="1.3.0" /> | `UMaterialFunctionMaterialLayerBlend` | `MaterialLayerBlend` |
+
+When an asset already exists at the resolved path, its class must match:
+
+| Kind | Match rule |
+| :-- | :-- |
+| `ShaderFunction` | **exact** class match — a `UMaterialFunctionMaterialLayer` at that path is rejected |
+| `ShaderLayer`, `ShaderLayerBlend` | `IsA` the expected class |
+| `Shader`, `Graph` backend | the existing object must be a `UMaterial` |
+| `Shader`, `ThinCustom` backend | the existing object must be a `UDreamShaderMaterialInstance` |
+
+A class match is not the same as an ownership check. For everything except the `ThinCustom` path,
+DreamShader additionally refuses to overwrite an asset it did not generate — see
+[Regeneration](/en/docs/generation/regeneration).
+
+## On-disk mapping
+
+| Package root | On-disk directory |
+| :-- | :-- |
+| `/Game/…` | `<Project>/Content/…` |
+| `/<PluginName>/…` | `<Project>/Plugins/<PluginName>/Content/…` |
+| `/<MountRoot>/…` | wherever that mount is registered |
+
+The file is `<directory>/<Leaf>.uasset`, and it is written **only in persist mode**. During ordinary
+editor work nothing reaches disk at all — see [In-memory Materials](/en/docs/generation/in-memory).
+
+## Notes
+
+- **`Name` may contain folders; `Root` is only a prefix.** `Name="A/B/C"` under `Root="Game"` yields
+  `/Game/A/B/C`, and the asset is named `C`.
+- **A duplicate attribute key silently overwrites the earlier one.** `Shader(Name="A", Name="B")`
+  resolves to `B`, with no diagnostic.
+- Every segment is sanitized independently, so `Name="My Mat"` resolves to a leaf named `My_Mat`
+  without a diagnostic.
+- Empty segments are dropped: `Name="A//B"` is `A/B`, and `Root="Game//Sub"` is `/Game/Sub`.
+- This is the resolver the Content Browser status column and the *Materialize* action use, so a path
+  that fails here also shows as unresolvable in the [editor tools](/en/docs/tools/editor).
+- Do not confuse this with `Path(Root, "…")`, the *other* path grammar — that one **references** an
+  existing asset rather than naming a destination. See [Asset References](/en/docs/parameters/path).
+
+## Diagnostics
+
+<Diag>
+  <D msg={"Shader(Name=\"...\") is required."} cause="A Shader header with no Name attribute." />
+  <D msg={"{Kind}(Name=\"...\") is required."} cause="A ShaderFunction / ShaderLayer / ShaderLayerBlend header with no Name attribute." />
+  <D msg={"DreamShader asset name must resolve to a non-empty asset path."} cause="Name is empty after trimming and slash-stripping." />
+  <D msg={"DreamShader asset name '{Name}' produced an invalid asset name."} cause="The leaf segment is empty after sanitization." />
+  <D msg={"DreamShader asset name '{Name}' contains an invalid folder segment."} cause="A non-empty folder segment of Name sanitized away to nothing." />
+  <D msg={"DreamShader asset path '{Path}' is not a valid Unreal object path."} cause="The assembled path failed IsValidObjectPath and the engine reported no reason of its own." fix="Check for an unmounted mount root." />
+  <D msg={"DreamShader Root '{Root}' contains an invalid folder segment."} cause="A non-empty folder segment of Root sanitized away to nothing." />
+  <D msg={"DreamShader Root '{Root}' has an invalid plugin name."} cause="The plugin name is empty, or was altered by sanitization." />
+  <D msg={"DreamShader Root '{Root}' has an invalid package root."} cause="An explicit mount root was altered by sanitization." />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but no enabled plugin with that name was found."} cause="Unknown plugin name." />
+  <D msg={"DreamShader Root '{Root}' must reference a project plugin under '{PluginsDir}'."} cause="An engine plugin, or a plugin outside the project's Plugins directory." fix={"Use Root=\"/SomeMount\" to target an engine-side mount instead."} />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin is not enabled."} cause="A disabled plugin." />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin cannot contain content."} cause="A code-only plugin." />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but its Content directory does not exist: '{ContentDir}'."} cause="Missing Content folder." />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin content is not mounted."} cause="An unmounted plugin. UE 5.6+ only." />
+  <D msg={"Failed to create package '{Package}'."} cause="Package creation failed." />
+  <D msg={"Asset '{ObjectPath}' already exists and is not a Material."} cause="Graph backend, wrong class at the path." />
+  <D msg={"Asset '{ObjectPath}' already exists and is not a DreamShader instance material. Delete it (or remove Backend=\"Instance\") before switching backends."} cause="ThinCustom backend, wrong class at the path." href="/en/docs/settings/backend" />
+  <D msg={"Asset '{ObjectPath}' already exists and is not a MaterialFunction asset."} cause="A function kind, wrong class at the path." />
+  <D msg={"Asset '{ObjectPath}' already exists as '{ActualClass}', but {Kind} generation requires '{ExpectedClass}'. Delete or move the existing asset and regenerate it."} cause="A function kind, wrong material-function subclass." />
+  <D msg={"Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your shader or move/delete the existing asset before regenerating."} cause="The ownership guard, on a material." href="/en/docs/generation/regeneration" />
+  <D msg={"Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your function or move/delete the existing asset before regenerating."} cause="The ownership guard, on a material function." href="/en/docs/generation/regeneration" />
+</Diag>
+
+## Worked example
+
+```c
+Shader(Name="Mat/Test", Root="Plugin.MoonToon")
+{
+    Properties { vec3 Tint = vec3(1.0, 0.2, 0.2); }
+    Settings   { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs    { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      { Color = Tint; }
+}
+```
+
+Resolved destination:
+
+```text
+Root      "Plugin.MoonToon"  ->  /MoonToon                       (plugin mount point)
+Name      "Mat/Test"         ->  folders "Mat", leaf "Test"
+package                          /MoonToon/Mat/Test
+object path                      /MoonToon/Mat/Test.Test
+on disk                          <Project>/Plugins/MoonToon/Content/Mat/Test.uasset
+```
+
+## Where next
+
+<Cards>
+  <Card title="The Pipeline" href="/en/docs/generation/pipeline" />
+  <Card title="In-memory Materials" href="/en/docs/generation/in-memory" />
+  <Card title="Regeneration" href="/en/docs/generation/regeneration" />
+  <Card title="Asset References" href="/en/docs/parameters/path" />
+</Cards>

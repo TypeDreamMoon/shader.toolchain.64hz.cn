@@ -1,111 +1,321 @@
 ---
 title: HLSL 简介
-description: 面向 DreamShaderLang 用户的 HLSL 语法、类型和关键字速览。
+description: 写给 DreamShaderLang 作者的 HLSL 背景 —— HLSL 究竟在哪里运行、类型与签名怎么对应、Function 体里能写什么，以及插件自带的 DreamShaderBuiltins.ush。
 ---
 
-HLSL 是 DirectX / Unreal 材质体系中常见的着色语言。DreamShaderLang 的 `Function` 函数体采用 HLSL 风格代码，因此写 helper 时会经常用到 HLSL 的类型、函数和控制流。
+HLSL 是 Unreal 材质 `Custom` 节点使用的着色语言。DreamShaderLang 不是 HLSL 编译器，但这里的 HLSL
+也不是摆设：[`Function`](/docs/language/functions) 或 `GraphFunction` 的函数体**就是** HLSL，
+几乎原样输出到生成的 include 里，由 Unreal 编译。
 
-## 基本形态
+本页写给从 HLSL 过来的读者：哪些 HLSL 经验能直接用、哪些不能，以及分界线在哪里。
+
+## HLSL 在哪里运行，在哪里不运行
+
+| 构造 | 里面的文本是什么 |
+| :-- | :-- |
+| `Function Name(…) { … }` | **HLSL**，原样输出到生成的 `.ush` 中，符号名 `DreamShaderFn_<Name>`；每个调用点变成一个 `UMaterialExpressionCustom` 节点 |
+| `GraphFunction Name(…) { … }` | **HLSL**，但其中每个 `UE.*` 调用会被提升成真正的材质节点，再作为额外输入 pin 接回来 |
+| `Graph = { … }` | **不是 HLSL** —— 一门用来搭 `UMaterialExpression` 节点的小型语句语言 |
+| `Properties`、`Inputs`、`Outputs`、`Settings` | 声明，不是代码 |
+
+所以：节点图写起来啰嗦的算术就交给 HLSL，引擎输入、参数和绑定就留在 `Graph` 里。两者在函数调用处汇合。
 
 ```hlsl
+// 纯 HLSL
 float3 ApplyTint(float3 color, float3 tint)
 {
     return color * tint;
 }
 ```
 
-DreamShaderLang 中不会直接写这种返回值函数签名，而是写成显式 `out` 参数：
-
 ```c
+// 同一个 helper 的 DreamShaderLang 声明
 Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
     result = color * tint;
 }
 ```
 
-## 常用类型
+两种写法都存在。声明返回类型是合法的，会降级成单个输出，所以
+`Function float3 ApplyTint(in vec3 color, in vec3 tint) { return color * tint; }`
+是同一个 helper 的 HLSL 式写法。
 
-| 类型 | 说明 |
-| --- | --- |
-| `float` | 32 位浮点标量。 |
-| `half` | 半精度浮点，常用于移动端或较低精度计算。 |
-| `int` / `uint` | 有符号 / 无符号整数。 |
-| `bool` | 布尔值。 |
-| `float2` / `float3` / `float4` | 2/3/4 分量向量。 |
-| `float3x3` / `float4x4` | 矩阵。 |
-| `Texture2D` | 2D 纹理对象。 |
-| `SamplerState` | 采样器。 |
+## 类型
 
-DreamShaderLang 允许在很多地方写 `vec2` / `vec3` / `vec4`，生成 helper 时会规范化成 HLSL 风格类型。
+DreamShaderLang 的类型 token 是一个**封闭集合**。它接受的 HLSL 写法如下：
 
-## 变量和表达式
+| HLSL 写法 | 是否接受 | 说明 |
+| :-- | :-- | :-- |
+| `float`、`float1` | 是 | 1 分量 |
+| `half`、`half1` | 是 | 1 分量；独立 token，行为与 `float` 一致 |
+| `int`、`uint`、`bool` | 是 | 1 分量；都折叠到同一套浮点宽度 |
+| `float2` / `float3` / `float4` | 是 | 2 / 3 / 4 分量 |
+| `half2` / `half3` / `half4` | 是 | 2 / 3 / 4 分量 |
+| `int2..4`、`uint2..4`、`bool2..4` | 是 | 2 / 3 / 4 分量 |
+| `Texture2D`、`TextureCube`、`Texture2DArray`、`Texture3D` | 是 | 纹理对象；可作 `Function` 的 `in` 参数，绝不能作结果 |
+| `VolumeTexture` | 是 | 生成 HLSL 时改写为 `Texture3D` —— 唯一的一处改写 |
+| `SamplerState` | 是 | 解析为一个 **`Texture2D` 对象**，而不是独立的 sampler 值 |
+| `float2x2`、`float3x3`、`float4x4` | **否** | 没有矩阵类型；见下面的矩阵一节 |
+| `double`、`double2..4` | **否** | 不是类型 token |
+| `struct` | **否** | 不是声明形式 |
 
-```hlsl
-float value = 0.5;
-float3 color = float3(1.0, 0.2, 0.1);
-float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+还有两个 HLSL 根本不认识的 token：`MaterialAttributes` 和 `StaticBool`。它们在 DreamShaderLang
+这边能解析，但 token 会被原样写进生成的签名里，于是用了它们的 `Function` 会产出一个 Unreal 编不过的
+helper。这类管线请改用 `ShaderFunction` 或 `GraphFunction`。完整的有效性矩阵见
+[类型与值](/docs/language/types-and-values)。
+
+### 矩阵
+
+没有矩阵类型。`float2x2` / `float3x3` / `float4x4` —— 以及会被规范化成它们的 `mat2` / `mat3` /
+`mat4` —— 在每个声明位置都被拒绝。不过 `mat3` 在 `Function` 签名里*词法上*是被接受的，因为签名
+规范化器在任何校验之前就把它改写掉了；声明能解析，失败发生在**调用**时：
+
+```c
+Function float3 Rotate(in mat3 basis, in vec3 v) { return mul(basis, v); }
+// 能解析；调用时失败：
+//   DreamShader Function 'Rotate' input 'basis' uses unsupported type 'float3x3'.
 ```
 
-常用运算符：
+矩阵形状的工作只能通过 transform 内置触达 —— `UE.TransformVector` 和 `UE.TransformPosition`，
+见 [UE.\* 节点](/docs/builtins/ue-nodes)。
 
-| 运算符 | 说明 |
-| --- | --- |
-| `+` / `-` | 加减。 |
-| `*` / `/` | 乘除。 |
-| `>` / `<` / `>=` / `<=` | 比较。 |
-| `==` / `!=` | 相等 / 不等。 |
-| `&&` / `||` / `!` | 逻辑与 / 或 / 非。 |
+## 签名
+
+HLSL 的函数签名和 `Function` 签名长得像，但规则在几处不同。
+
+| 规则 | HLSL | DreamShaderLang `Function` |
+| :-- | :-- | :-- |
+| 参数限定符 | `in`、`out`、`inout` | 只有 `in` 和 `out` —— **`inout` 不存在**，会被拒绝 |
+| 默认限定符 | `in` | `in`，当参数只有两个空白分隔的 token 时 |
+| 返回类型 | 任意，外加 `void` | 可选；写了就意味着**恰好一个**输出，并且禁止任何 `out` 参数 |
+| 多个结果 | `out` 参数与返回值并存 | `out` 参数，且**不写**返回类型 |
+| 重载 | 支持 | **没有重载解析**；名字不区分大小写地冲突 |
+| 参数默认值 | 无 | 无 —— `opt` 和默认值属于 `ShaderFunction` 的 `Inputs`，不属于这里 |
+
+函数必须产出点什么：至少一个 `out` 参数，或者一个返回类型。都没有会报
+`Function '{Name}' must declare at least one out parameter.`
+
+```c
+Function float Luma(in vec3 color) {
+    return dot(color, float3(0.299, 0.587, 0.114));      // 一个结果，HLSL 风格
+}
+
+Function SplitChannels(in vec4 src, out vec3 rgb, out float alpha) {
+    rgb   = src.rgb;                                      // 两个结果，out 风格
+    alpha = src.a;
+}
+```
+
+声明了返回类型时，处在**花括号深度 0** 的每个 `return` 都会被改写成对合成变量 `__return` 的赋值。
+深度 0 上的裸 `return;` 是硬错误。嵌在 `if { … }` 里的 `return` 仍然是真正的 HLSL `return` ——
+合法，但绕过了 `__return`。
+
+### 纹理与采样器
+
+纹理类型的 `in` 参数会在生成的签名里紧随其后多出一个 `SamplerState <ParamName>Sampler`，
+每个调用点也会传入对应实参。在函数体里就用这个名字采样：
+
+```c
+Function SampleTinted(in Texture2D tex, in vec2 uv, in vec3 tint, out vec3 rgb, out float alpha)
+{
+    float4 texel = Texture2DSample(tex, texSampler, uv);
+    rgb   = texel.rgb * tint;
+    alpha = texel.a;
+}
+```
+
+`SamplerState` **不在**触发这个展开的集合里。声明为 `SamplerState S` 的参数在签名里就写成
+`SamplerState S`，并在调用点收到一个纹理对象。
 
 ## 控制流
 
-```hlsl
-if (mask > 0.5)
-{
-    result = a;
-}
-else
-{
-    result = b;
-}
+在 `Function` 体内部，HLSL 自己的控制流完全可用 —— `if`、`else`、`for`、`while`、`do`、`switch`、
+`break`、`continue`、`discard`。函数体是透传的，所以能在 `Custom` 节点里编过的，在这里也能编过。
 
-for (int i = 0; i < 4; ++i)
+在 `Graph` 块里词汇量小得多：只有 `if` / `else`，条件必须带括号、分支体必须带花括号，没有循环。
+
+<Callout type="warn">
+`&&` 和 `||` 在 `Graph` 块里不存在，而且会被**静默丢弃** —— `if (a > 0 && b > 0)` 会按
+`if (a > 0)` 编译，没有任何诊断。同样的截断也适用于 `%`、`?:`、`&`、`|`、`^`、`<<` 和 `v[i]`。
+在 `Function` 体内部这些都是普通 HLSL，正常工作。见[不支持的写法](/docs/graph/unsupported)。
+</Callout>
+
+## 内建函数
+
+| 上下文 | 可用范围 |
+| :-- | :-- |
+| `Function` / `GraphFunction` 体 | **完整 HLSL 内建函数集**，以及 Unreal `Common.ush` 引入作用域的一切 |
+| `Graph` 块 | 恰好 19 个[数学内置](/docs/builtins/math)写法，其余靠 `UE.Expression(…)` |
+
+`Graph` 这一面是：`abs`、`ceil`、`clamp`、`cos`、`dot`、`floor`、`fmod`、`frac`、`fract`、`lerp`、
+`max`、`min`、`mix`、`mod`、`normalize`、`pow`、`saturate`、`sin`、`sqrt`。明显缺席的有：`step`、
+`smoothstep`、`length`、`cross`、`reflect`、`refract`、`exp`、`log`，以及全部反三角函数。
+要用它们，走 `UE.Expression(Class = …)`，或者写进 `Function` 体里。
+
+<Callout type="warn">
+把自己的 helper 命名成数学内置的名字，会让它在 `Graph` 里不可达，而且没有任何诊断。名为 `lerp`、
+`dot` 或 `pow` 的 `Function` 照样编译、照样生成 —— 只是 `Graph` 调用点解析到了内置。构造器名
+（`float3`、`vec4` …）也是同样的保留方式。
+</Callout>
+
+## 你的函数体会被怎么处理
+
+每个 `Function` 和 `GraphFunction` 体 —— 语言中仅此两处 —— 在存储前都会经过一次标识符级改写。
+扫描过程能识别注释和字符串。
+
+| 写的 | 变成 |
+| :-- | :-- |
+| `vec2` / `vec3` / `vec4` | `float2` / `float3` / `float4` |
+| `ivec2..4`、`uvec2..4`、`bvec2..4` | `int2..4`、`uint2..4`、`bool2..4` |
+| `mat2` / `mat3` / `mat4` | `float2x2` / `float3x3` / `float4x4` |
+| `mix` | `lerp` |
+| `fract` | `frac` |
+| `mod` | `fmod` |
+| `A::B` | `A_B` |
+
+<Callout type="warn">
+匹配的是**整个标识符，且不区分大小写**。函数体里名为 `Mix`、`Mod`、`Fract`、`Vec3` 或 `Mat4` 的
+局部变量、helper 或结构体成员都会被静默改名。没有任何诊断；故障表现为 HLSL 编译错误，或者悄悄
+算错。请改名 —— `MixColor`、`ModValue`。
+</Callout>
+
+完整的双向别名表见 [GLSL 简介](/docs/shader-languages/glsl)。
+
+## `DreamShaderBuiltins.ush`
+
+插件自带一个 HLSL 头文件，定义了一批 `DS_*` 宏和函数，对应 `UE.*` 节点在材质翻译器里产生的 HLSL。
+
+| | |
+| :-- | :-- |
+| 磁盘位置 | `<Plugin>/Shaders/DreamShaderBuiltins.ush` |
+| 虚拟 shader 路径 | `/Plugin/DreamShader/DreamShaderBuiltins.ush` |
+| include guard | `DREAMSHADER_BUILTINS_USH` |
+| 定义 | 25 个 `DS_*` 符号 —— 22 个宏、3 个函数 |
+| 插件是否会发出 include | **不会** |
+
+```hlsl
+#include "/Plugin/DreamShader/DreamShaderBuiltins.ush"
+```
+
+模块启动时，DreamShader 会注册一条从虚拟目录 `/Plugin/DreamShader` 到插件 `Shaders` 目录的
+shader 源目录映射，除非该虚拟目录已经有映射。这个映射是无条件的 —— 不依赖任何项目设置、backend
+选择或引擎版本 —— 所以上面那条路径对引擎的 shader 预处理器永远可解析。它和生成的逐源文件 helper
+include 用的是**两条不同的**映射。
+
+<Callout type="warn">
+**目前插件里没有任何地方为这个头文件发出 include**，也没有任何地方引用 `DS_*` 符号。两个 backend
+都不包含它；生成的逐源文件 `.ush` 里只有由你的 `Function` 块产出的 `DreamShaderFn_*` 定义。
+这个头文件**只能**通过在 `Function` 的 HLSL 体里手写 `#include` 来触达。
+
+头文件自己的注释说它由生成的 `DSI_*.ush` 包含。那是已退役的 **Instance backend** 的安排；
+现在解析出的 backend 集合只有 `Graph` 和 `ThinCustom`，不再产出任何 `DSI_*.ush`，
+那条注释描述的路径已经不再运行。见 [Backend](/docs/settings/backend)。
+</Callout>
+
+### 符号
+
+`Parameters` 是 include 处作用域内的材质参数结构体；`Tex` 是一个纹理参数标识符，
+采样器名由 token 粘接得到（`Tex##Sampler`）。
+
+<Wide>
+
+| 符号 | 种类 | 展开 | 对应节点 |
+| :-- | :-- | :-- | :-- |
+| `DS_TIME` | 宏 | `(View.GameTime)` | `UE.Time()` |
+| `DS_REAL_TIME` | 宏 | `(View.RealTime)` | — |
+| `DS_DELTA_TIME` | 宏 | `(View.DeltaTime)` | — |
+| `DS_PERIODIC_TIME(Period)` | 宏 | `(fmod(View.GameTime, (Period)))` | `UE.Time(Period=…)` |
+| `DS_TexCoord(Parameters, CoordinateIndex)` | `float2` 函数 | `Parameters.TexCoords[CoordinateIndex].xy`；`NUM_TEX_COORD_INTERPOLATORS` 为 0 时是 `float2(0, 0)` | `UE.TexCoord` |
+| `DS_VertexColor(Parameters)` | `float4` 函数 | `Parameters.VertexColor` | `UE.VertexColor` |
+| `DS_CameraVector(Parameters)` | 宏 | `((Parameters).CameraVector)` | `UE.CameraVector` |
+| `DS_ReflectionVector(Parameters)` | 宏 | `((Parameters).ReflectionVector)` | `UE.ReflectionVector` |
+| `DS_PixelNormalWS(Parameters)` | 宏 | `((Parameters).WorldNormal)` | `UE.PixelNormalWS` |
+| `DS_VertexNormalWS(Parameters)` | 宏 | `((Parameters).TangentToWorld[2])` | `UE.VertexNormalWS` |
+| `DS_TwoSidedSign(Parameters)` | 宏 | `((Parameters).TwoSidedSign)` | `UE.TwoSidedSign` |
+| `DS_ViewportUV(Parameters)` | 宏 | `(GetViewportUV(Parameters))` | `UE.ViewportUV` |
+| `DS_PixelDepth(Parameters)` | 宏 | `(GetPixelDepth(Parameters))` | `UE.PixelDepth` |
+| `DS_WorldPosition(Parameters)` | 宏 | `(WSDemote(GetWorldPosition(Parameters)))` | `UE.WorldPosition` |
+| `DS_TranslatedWorldPosition(Parameters)` | 宏 | `(GetTranslatedWorldPosition(Parameters))` | `UE.TranslatedWorldPosition` |
+| `DS_ObjectPosition(Parameters)` | 宏 | `(WSDemote(GetObjectWorldPosition(Parameters)))` | `UE.ObjectPosition` |
+| `DS_ObjectRadius(Parameters)` | 宏 | `(GetPrimitiveData(Parameters).ObjectRadius)` | `UE.ObjectRadius` |
+| `DS_ObjectBounds(Parameters)` | 宏 | `(float3(GetPrimitiveData(Parameters).ObjectBoundsX, …ObjectBoundsY, …ObjectBoundsZ))` | `UE.ObjectBounds` |
+| `DS_CameraPosition(Parameters)` | 宏 | `(WSDemote(GetWorldCameraOrigin(Parameters)))` | `UE.CameraPosition` |
+| `DS_PerInstanceRandom(Parameters)` | 宏 | `(GetPerInstanceRandom(Parameters))` | `UE.PerInstanceRandom` |
+| `DS_PerInstanceFadeAmount(Parameters)` | 宏 | `(GetPerInstanceFadeAmount(Parameters))` | `UE.PerInstanceFadeAmount` |
+| `DS_Panner(UV, Time, Speed)` | `float2` 函数 | `UV + float2(frac(Time * Speed.x), frac(Time * Speed.y))` | `UE.Panner` |
+| `DS_SampleTexture2D(Tex, UV)` | 宏 | `Texture2DSample(Tex, Tex##Sampler, UV)` | `Graph` 块中的 `SampleTexture2D(tex, uv)` |
+| `DS_SampleTexture2DLod(Tex, UV, Lod)` | 宏 | `Texture2DSampleLevel(Tex, Tex##Sampler, UV, Lod)` | — |
+| `DS_SampleTexture2DBias(Tex, UV, Bias)` | 宏 | `Texture2DSampleBias(Tex, Tex##Sampler, UV, Bias)` | — |
+
+</Wide>
+
+`WSDemote` 调用把引擎的大世界坐标向量降到 `float3`。camera-relative 的那个位置形式本身就是
+`float3`，在相机附近保留精度。
+
+### 怎么安全地用
+
+<Callout type="warn">
+**写在 `Function` 体里的 `#include` 会落在一个函数内部。** `Function` 块的 HLSL 是原样输出到生成的
+`DreamShaderFn_*` 定义的花括号之间的，所以 `#include` —— 以及头文件的全部内容 —— 会被插到那个位置。
+22 个宏不受影响；`#define` 在哪里都合法。但三个**函数**定义（`DS_TexCoord`、`DS_VertexColor`、
+`DS_Panner`）在另一个函数体内部是不合法的。手写 include 请限制在只用宏那一半的函数体里，
+或者把想要的函数体内联复制过来。
+</Callout>
+
+<Callout type="warn">
+**`DS_TexCoord` 和 `DS_VertexColor` 依赖的翻译器副作用现在没人安排了。** `DS_TexCoord` 读
+`Parameters.TexCoords[…]`，它只在材质翻译期间至少分配了一个插值器槽位时才存在；一个都没分配时函数
+能编过并返回 `float2(0, 0)`。`DS_VertexColor` 读 `Parameters.VertexColor`，只有在材质以顶点色用途
+翻译时才被填充。已退役的 Instance backend 会安排这两件事，而 `Graph` 和 `ThinCustom` 不会。
+请改用 `UE.TexCoord` 和 `UE.VertexColor`，或者接一个 `Function` 输入。
+</Callout>
+
+- 其余的读取都没有副作用。它们碰到的每个字段和 `Get*(Parameters)` helper 都在像素入口无条件填充，
+  所以在任何不透明 Surface 像素求值里都能编过，不需要任何用途标记或插值器申请。
+- `DS_PerInstanceRandom` 和 `DS_PerInstanceFadeAmount` 只对实例化或 GPU 剔除的绘制有意义。
+  在普通网格上它们读回安全常量（分别是 `0` 和 `1`），不会报编译错误。
+- 有 include guard，所以同一个翻译单元里重复包含无害。
+- GLSL 别名改写跳过字符串字面量，所以 `#include "…"` 里的路径永远不会被改写。
+
+```c
+Function vec2 Wobble(in vec2 uv, in float speed)
 {
-    result += weights[i];
+    #include "/Plugin/DreamShader/DreamShaderBuiltins.ush"
+    float t = DS_TIME * speed;
+    return uv + float2(sin(t), cos(t)) * 0.02;
 }
 ```
 
-在 DreamShaderLang 里，复杂控制流建议放进 `Function`。`Graph` 只支持基础 `if` / `else`，不支持 `for` / `while`。
+基于节点的等价写法既不需要 include，也不需要任何 HLSL helper：
 
-## 常用内建函数
+```c
+GraphFunction vec2 Wobble(in vec2 uv, in float speed)
+{
+    float t = UE.Time() * speed;
+    return uv + vec2(sin(t), cos(t)) * 0.02;
+}
+```
 
-| 函数 | 说明 |
-| --- | --- |
-| `sin` / `cos` / `tan` | 三角函数。 |
-| `min` / `max` / `clamp` | 范围处理。 |
-| `saturate` | 把值限制到 `0..1`。 |
-| `lerp` | 线性插值。 |
-| `dot` | 点积。 |
-| `cross` | 叉积。 |
-| `normalize` | 归一化向量。 |
-| `length` | 向量长度。 |
-| `pow` / `sqrt` | 幂和平方根。 |
-| `abs` / `floor` / `ceil` / `frac` | 数值处理。 |
+## HLSL 常见关键字
 
-## 常见关键字
+作为参考 —— 这些是 HLSL 自己的词汇，在 `Function` 体里都有效。**DreamShaderLang 中**一列标明
+声明语法在函数体之外认得的部分。
 
-| 分类 | 关键字 |
-| --- | --- |
-| 类型 | `float`, `half`, `int`, `uint`, `bool`, `void` |
-| 控制流 | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `break`, `continue`, `return` |
-| 参数 | `in`, `out`, `inout` |
-| 常量与修饰 | `const`, `static`, `uniform` |
-| 采样相关 | `Texture2D`, `TextureCube`, `SamplerState` |
+| 分类 | 关键字 | DreamShaderLang 中 |
+| :-- | :-- | :-- |
+| 类型 | `void`、`bool`、`int`、`uint`、`half`、`float`、`double` | 除 `void` 和 `double` 外都是类型 token |
+| 控制流 | `if`、`else`、`for`、`while`、`do`、`switch`、`case`、`default` | `Graph` 中的 `if` / `else`；`default` 作为调用实参 |
+| 跳转 | `return`、`break`、`continue`、`discard` | 带返回类型的 `Function` 体中的 `return` |
+| 参数 | `in`、`out`、`inout` | 只有 `in` 和 `out` |
+| 修饰 | `const`、`static`、`uniform`、`groupshared` | `Properties` 声明中的 `const`，含义不同 |
+| 纹理 | `Texture2D`、`TextureCube`、`SamplerState`、`SamplerComparisonState` | 前三个，作为类型 token |
+| 聚合 | `struct` | — |
 
-## 与 DreamShaderLang 的关系
+## 接下来
 
-| HLSL 概念 | DreamShaderLang 中的位置 |
-| --- | --- |
-| helper 函数体 | `Function ... { ... }` |
-| 材质节点连接 | `Graph = { ... }` |
-| 纹理对象参数 | `Properties` 或 `Function` 参数 |
-| 复杂循环 | `Function` |
-| 资产生成 | `Shader` / `ShaderFunction` |
+<Cards>
+  <Card title="GLSL 简介" href="/docs/shader-languages/glsl" description="GLSL 别名及其改写规则。" />
+  <Card title="关键字速查" href="/docs/shader-languages/keywords-cheatsheet" description="DreamShaderLang、HLSL 与 GLSL 词汇对照。" />
+  <Card title="函数" href="/docs/language/functions" description="Function、GraphFunction 与 Namespace 的完整说明。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 19 个名字。" />
+  <Card title="类型与值" href="/docs/language/types-and-values" description="封闭的 token 集合及其有效性矩阵。" />
+</Cards>

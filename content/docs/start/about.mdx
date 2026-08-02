@@ -1,0 +1,117 @@
+---
+title: 关于 DreamShader
+description: 这个插件是什么、包含哪三个模块、支持哪些引擎，以及相关仓库在哪里。
+---
+
+DreamShader 是一个 Unreal Engine 插件，把 DreamShaderLang 源文件编译成标准材质资产。DreamShaderLang
+是语言；解析、生成、缓存、诊断、反编译和编辑器集成都由插件负责。
+
+| | |
+| --- | --- |
+| 版本 | `1.5.0` —— 描述文件 `Version` `150`，`IsBetaVersion` 为 `false` |
+| 引擎 | Unreal Engine `5.3` – `5.8`，已用 `RunUAT BuildPlugin` 在 Win64 验证 |
+| 模块 | `DreamShader`（Runtime）、`DreamShaderCompiler`（Runtime）、`DreamShaderEditor`（Editor） |
+| 插件依赖 | `WebSocketNetworking`、`SQLiteCore` |
+| 描述文件标志 | `EnabledByDefault`、`CanContainContent` |
+| 许可证 | MIT |
+| 仓库 | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
+
+## 解决什么问题
+
+Unreal 材质图一旦变大，就很难 review、diff、复用和迁移。DreamShader 把其中可重复的部分搬进文本：
+
+| 痛点 | 处理方式 |
+| --- | --- |
+| 大图难以 review 和 diff | 图的结构存在 `.dsm` / `.dsf` 文件里 |
+| 共享逻辑被反复复制 | `.dsh` header、`.dsf` 函数资产、`Function` / `GraphFunction` helper、Package |
+| 重新生成材质函数会让调用方断线 | `FunctionInput` / `FunctionOutput` 的 pin 身份按名字保留 |
+| Substrate 图需要文本化编写 | `Substrate` 类型、`Base.FrontMaterial`，以及 `Substrate.*` 内置 <Since v="5.4" ue /> |
+| 已有的图需要迁移 | 反编译器把 `UMaterial` / `UMaterialFunction` 导出回 `.dsm` / `.dsf` |
+| 生成的资产追溯不到来源 | `DreamShader.SourceFile` 和 `DreamShader.SourceHash` 写进 package 元数据 |
+
+它不是材质编辑器的替代品，也不是 shader 管线。`Graph` 是一个只有四个运算符和 `if` / `else` 的节点图
+构建器；真正命令式的逻辑应该写进 `Function`，它的函数体是真正的 HLSL，会被编译进 `Custom` 节点。一次性
+的、非常视觉化的图，在 Unreal 里直接连更快 —— 等它稳定下来再导出成源文件也不迟。
+
+## 三个模块
+
+| 模块 | 类型 | 公开头文件 | 职责 |
+| --- | --- | --- | --- |
+| `DreamShader` | Runtime | 6 | 日志类别、规范化路径 helper、解析后的数据模型、解析器、`UDreamShaderSettings`、`UDreamShaderMaterialInstance`，以及引擎版本宏。 |
+| `DreamShaderCompiler` | Runtime | 3 | 纯抽象层：编译请求 / 结果结构体、`IDreamShaderCompiler` 接口和一个薄服务包装。不含生成代码。 |
+| `DreamShaderEditor` | Editor | **0** | 真正生成资产的一切：生成器、反编译器、桥接、预览、Material Content Browser、commandlet、workspace 导出。 |
+
+三个模块都在 `Default` 阶段加载。
+
+<Callout type="info">
+  `DreamShaderEditor` 不导出任何符号，也无法被链接 —— 它根本没有 `Public/` 目录。受支持的 C++ 扩展点是
+  `DreamShaderCompiler` 里的 `IDreamShaderCompiler`。其余能力只能通过编辑器 UI、commandlet 或桥接文件
+  访问。
+</Callout>
+
+解析器是与引擎无关的字符串处理：不创建 `UObject`，不加载资产。生成则相反 —— 仅编辑器、仅游戏线程，
+构建在材质编辑库之上。
+
+## 引擎支持
+
+已用单插件 `RunUAT BuildPlugin` 在 Win64 上验证 `5.3`、`5.4`、`5.5`、`5.6`、`5.7` 和 `5.8`。功能可用性随版本
+不同，而且这些开关都是**编译期**的 —— 针对 5.3 编译出来的二进制里根本不包含 Substrate 代码路径，所以
+把项目升级到新引擎意味着要重新编译插件。
+
+| 需要 | 功能 |
+| --- | --- |
+| **5.4** | Substrate —— `Substrate.*`、`ShadingModel="Substrate"`、`Base.FrontMaterial`、`Strata` 别名 · 生成的 `Custom` 节点默认折叠代码 · `bHasPixelAnimation` 的重置与导出 |
+| **5.5** | `periodicworld` transform 基准 · `UE.TransformPosition(PeriodicWorldTileSize=…)` |
+| **5.6** | `firstperson` 系列 transform 基准 · `UE.TransformPosition(FirstPersonInterpolationAlpha=…)` · `Root=` 和 `Path(…)` 的插件挂载校验 · `TextureSample.GatherMode` 往返 |
+| **5.7** | Collection 参数上的 `Group` / `SortPriority` · Layer Blend 输入的 `BlendInputRelevance` · 按平台、按质量等级的材质资源诊断 |
+
+未列出的功能在 5.3 到 5.8 上行为一致。功能缺失时，绝大多数源码可达的入口会给出以
+`requires Unreal Engine 5.4 or newer.` 结尾的明确报错，而不是静默降级。
+
+## 各部分由谁实现
+
+DreamShader 实际上是两个独立产品，通过 `<Project>/Saved/DreamShader/Bridge/` 下的文件和一个本地回环
+WebSocket 通信。
+
+| 能力 | 由谁实现 |
+| --- | --- |
+| 解析、生成、缓存、诊断、反编译 | Unreal 插件 |
+| 菜单、工具栏、右键菜单、Material Content Browser 标签页 | Unreal 插件 |
+| 预览渲染和 PNG 帧 | Unreal 插件 |
+| `DShader/Packages` 创建、`import` 解析、编译排除规则 | Unreal 插件 |
+| 高亮、补全、Hover、跳转、本地诊断 | 编辑器扩展 |
+| 预览的相机控制与帧确认 | 编辑器扩展 |
+| `dreamshader.package.json`、`dreamshader.lock.json`、安装 / 更新 / 商店 | 编辑器扩展 |
+
+插件的 C++ 从不读取这两个 Package 文件。一个 Package 之所以能被解析，仅仅因为它的文件在
+`DShader/Packages` 下。
+
+## 仓库
+
+<Cards>
+  <Card title="DreamShader" href="https://github.com/TypeDreamMoon/DreamShader">
+    Unreal 插件本体：解析器、生成器、编辑器工具，以及本文档所依据的参考手册。MIT 协议。
+  </Card>
+  <Card title="VSCode 扩展" href="https://github.com/TypeDreamMoon/dreamshader-language-support">
+    高亮、代码片段、补全、跳转定义、查找引用、Hover、Signature Help、本地与桥接诊断、Package 命令、
+    快速模板。
+  </Card>
+  <Card title="Rider 插件" href="https://github.com/tsdaer/dreamshader-language-support">
+    `.dsm` / `.dsf` / `.dsh` 文件类型、语法与 PSI 解析、高亮、补全、导航、诊断、桥接集成、语义 token、
+    inlay hints、Package 工具。
+  </Card>
+  <Card title="Package Store Index" href="https://github.com/TypeDreamMoon/dreamshader-package-index">
+    扩展的 Package 商店读取的索引。带 GitHub topic `dreamshader-package` 的仓库同样可以被发现。
+  </Card>
+</Cards>
+
+问题反馈到插件仓库的
+[issue tracker](https://github.com/TypeDreamMoon/DreamShader/issues)。扩展自身的设置、命令和 Package
+商店记录在扩展仓库里，不在这里。
+
+## 下一步
+
+- [安装](/docs/start/installation) —— 把它装进项目
+- [日常工作流](/docs/start/workflow) —— 编译循环
+- [编辑器工具](/docs/tools/editor) —— 菜单、浏览器标签页、清理命令
+- [更新日志](/docs/changelog/dreamshader) —— `1.5.0` 改了什么

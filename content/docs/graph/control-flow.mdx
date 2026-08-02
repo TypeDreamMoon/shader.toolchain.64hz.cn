@@ -1,0 +1,314 @@
+---
+title: if / else
+description: Graph 块里的 if / else 是构建期的 select——两个分支都会被物化，而真值形式的语义是 != 0 而不是 > 0。
+---
+
+`if` / `else` 是 Graph 语言里唯一的控制流语句，而且它不是跳转。两个分支都在生成阶段执行，两边的节点全部
+留在最终材质里，再由一个 `UMaterialExpressionIf` 在每个像素上二选一。
+
+## 语法概要
+
+<Synopsis>
+```c
+if ( <condition> )
+{
+    <graph-statement> …
+}
+[ else
+{
+    <graph-statement> …
+} ]
+
+<condition> := <expression> [ { >= | <= | == | != | > | < } <expression> ]
+```
+</Synopsis>
+
+`else if` 链是合法的：它以原始文本被捕获，然后作为一个嵌套 `if` 在 else 块体内重新解析——所以 `else if`
+链是一棵嵌套语句树，而不是一个扁平列表。
+
+## 要求
+
+| 规则 | 细节 |
+| :-- | :-- |
+| 条件圆括号 | **必需**——`if x > 0 { }` 报 `Graph if statement is missing a condition block.` |
+| 块体花括号 | 两个分支都**必需**——不带花括号的单语句块体报 `Graph if statement is missing a '{ ... }' body.` |
+| 语句结束符 | **不需要**——语句范围由花括号配对算出，所以结尾 `}` 后不跟 `;`，块体内的 `;` 也永远不会切分该语句。`}` 之后多余的 `;` 会被当作空语句跳过。 |
+| 关键字大小写 | **`if` 和 `else` 区分大小写。** 它们是 Graph 语言里仅有的两个关键字；其他所有名字都不区分大小写。 |
+| 块体内容 | 分支里可以写任何一种语句形式，包括嵌套 `if` |
+
+<Callout type="warn">
+`If (x) {}` 和 `ELSE {}` 不是控制流。因为关键字匹配区分大小写，这些文本会落入声明分类器，`If (x) {}`
+会报 `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'If (x)'.`——一条完全没提到
+`if` 的信息。见[不支持的写法](/docs/graph/unsupported#大小写写错的关键字)。
+</Callout>
+
+## 条件
+
+条件文本是在表达式解析器运行之前**按文本**切分的。比较运算符不属于表达式文法——这里是它们唯一被接受的
+地方。
+
+| 运算符 | 含义 |
+| :-- | :-- |
+| `>` | 左大于右 |
+| `<` | 左小于右 |
+| `>=` | 左大于等于右 |
+| `<=` | 左小于等于右 |
+| `==` | 左等于右 |
+| `!=` | 左不等于右 |
+| *（无）* | **真值**形式——见下文 |
+
+切分是这样进行的：
+
+1. 在嵌套深度 0 上从左往右扫描文本。`( )`、`{ }`、`[ ]` 的深度和字符串字面量都会被跟踪并跳过。
+2. 在每个位置上，按固定顺序 `>=`、`<=`、`==`、`!=`、`>`、`<` 依次探测。**第一个**匹配的位置胜出；
+   双字符运算符总是先于以它为前缀的单字符运算符被探测，所以 `a >= b` 在 `>=` 处切分，永远不会在 `>` 处
+   切分。
+3. 如果找到了匹配但去空白后有一边为空，这次切分会被**丢弃**，整段文本改为真值条件。
+4. 如果没有匹配到运算符，整段文本就是左操作数，运算符为真值。
+5. 每一边随后交给普通表达式解析器。失败时报
+   `In Graph if condition '{Condition}': {Error}`。
+
+两个操作数都必须求值成**标量**——1 个分量——且不能是纹理对象、`MaterialAttributes` 值或 `Substrate` 值。
+
+## 真值语义
+
+<Callout type="warn">
+**`if (x)` 接的是 `x != 0`，而不是 `x > 0`。** *负值*同样为真：`Height = -1.0` 时 `if (Height)` 走的是
+then 分支，和 `Height = 1.0` 时完全一样。
+
+```c
+// 写法 —— -1.0 和 1.0 都会走 then 分支。
+if (Height) { Color = Hot; } else { Color = Cold; }
+
+// 它实际编译成：
+if (Height != 0) { Color = Hot; } else { Color = Cold; }
+
+// 如果你想要的是符号判断，就明写出来：
+if (Height > 0) { Color = Hot; } else { Color = Cold; }
+```
+
+这与 HLSL / C 的语义以及反编译器的 `!= 0` 约定一致。只要符号有意义，就把比较显式写出来。
+</Callout>
+
+真值条件的右操作数是一个合成的、值为 `0` 的 `Constant` 节点。
+
+<Callout type="info">
+右侧为空的条件，例如 `if (Mask >)`，**不会**报错。因为右操作数为空，切分被丢弃，整段文本 `Mask >` 变成
+真值条件，末尾的 `>` 作为输入结束被丢掉。结果就是 `if (Mask != 0)`。
+</Callout>
+
+## `&&` 与 `||` 会被静默丢弃
+
+<Callout type="warn">
+`&` 和 `|` 不是记号。表达式解析器把它们当作输入结束，接受它们之前的一切，于是复合条件会悄悄丢掉第一个
+之后的所有子条件。**不产生任何诊断。**
+
+在 `if (a > 0 && b > 0)` 里，第一个 `>` 把文本切成左边 `a` 和右边 `0 && b > 0`；右边成功解析为 `0`；
+编译出来的条件正好是 `a > 0`。
+
+```c
+// 写法 —— 能编译，但第二个判断被丢弃了。
+if (Mask > 0.5 && Alpha > 0.5) { Color = Hot; } else { Color = Cold; }
+
+// 等价写法，也是编译器实际构建出来的东西：
+if (Mask > 0.5) { Color = Hot; } else { Color = Cold; }
+
+// 请改写成嵌套 if：
+if (Mask > 0.5) {
+    if (Alpha > 0.5) { Color = Hot; } else { Color = Cold; }
+} else {
+    Color = Cold;
+}
+```
+
+条件里的 `%`、`?:`、`[ ]`、`~` 以及移位和位运算符都是同样的下场。见
+[不支持的写法](/docs/graph/unsupported#静默截断的表达式)。
+</Callout>
+
+## 节点接线
+
+**每个被合并的变量**产生一个 `UMaterialExpressionIf` 节点。`A` 接条件的左操作数，`B` 接右操作数（或合成
+的零），三个结果引脚由分支值接入：
+
+| 运算符 | `AGreaterThanB` | `AEqualsB` | `ALessThanB` |
+| :-- | :-- | :-- | :-- |
+| `>` | then | else | else |
+| `<` | else | else | then |
+| `>=` | then | then | else |
+| `<=` | else | then | then |
+| `==` | else | then | else |
+| `!=` | then | else | then |
+| 真值 | then | else | then |
+
+结果的分量数和 `MaterialAttributes` 标志取自 **then** 分支。它永远不是纹理对象，也永远不是 `Substrate`
+值。
+
+## 两个分支总是都会构建
+
+没有死代码消除，也不会在构建期对条件做常量折叠。执行一条 `if` 严格做这三件事：
+
+1. 复制当前变量表；在副本上运行所有 then 语句。
+2. 再复制一次当前变量表；在这个副本上运行所有 else 语句。
+3. 恢复外层表并合并。
+
+实际含义：
+
+- **两个分支的每个节点都存在于生成材质里。** 运行时永远走不到的分支照样消耗着色器指令。`if` 是 select，
+  不是跳转。
+- 任一分支内部的错误都会让构建失败，哪怕那是常量条件下永远到不了的分支。块体错误会被包装成
+  `In Graph if body: {Error}` / `In Graph else body: {Error}`。
+- 分支里声明的变量**不会**留在分支内——它会参与合并。
+- 节点复用不按分支划分作用域。在 then 分支里首次构建的子表达式，会在 else 分支和合并之后原样复用。
+- 条件按每个被合并的变量各求值一次。操作数会走复用缓存，所以条件节点只有一套——但 **N** 个被合并的变量
+  会产生 **N** 个 `If` 节点。
+
+<Callout type="warn">
+参数节点是上面这条复用说明的例外。属性是物化进*当前*值表的，而属性名被刻意排除在合并之外，所以在分支
+**内部**首次读取的参数不会活过 `if`。在别处再读一次就会构建第二个参数节点。材质行为是对的——两个节点指向
+同一个参数——但图里会带上重复节点。
+
+```c
+// 两个名为 'Threshold' 的 ScalarParameter 节点。
+if (u > 0.5) { Color = Lit.rgb * Threshold; } else { Color = Dark.rgb * Threshold; }
+
+// 一个。
+float T = Threshold;
+if (u > 0.5) { Color = Lit.rgb * T; } else { Color = Dark.rgb * T; }
+```
+</Callout>
+
+## 合并
+
+当一个名字出现在某个分支的表里，并且要么在外层表中不存在、要么在外层表中绑定的是另一个值时，它就是一个
+**分支输出**。只有节点、输出索引、分量数、全部五个通道掩码字段、纹理标志、纹理类型、
+`MaterialAttributes` 标志和 `Substrate` 标志全部一致时，两个值才算相同。
+
+| 步骤 | 规则 | 失败信息 |
+| --: | :-- | :-- |
+| 1 | 匹配已声明属性或参数的名字会被**跳过**——物化一个参数节点是读取副作用，不是赋值 | — |
+| 2 | 该名字必须在**两个**分支表里都存在 | `Graph if statement could not resolve both branch values for '{Name}'.` |
+| 3 | 若该名字在 `if` 之前就存在，期望形状 = 外层值的形状 | — |
+| 4 | 否则，若有匹配的 `Outputs` 声明，期望形状 = 该声明的形状 | — |
+| 5 | 否则，两个分支的值必须在分量数和全部四个种类标志上完全一致 | `Graph if branches assign variable '{Name}' with inconsistent types`（*末尾没有句号*） |
+| 6 | 期望形状不能是纹理对象 | `Graph if statement cannot select texture value '{Name}'.` |
+| 7 | 期望形状不能是 `Substrate` 值 | `Graph if statement cannot select Substrate value '{Name}'.` |
+| 8 | 两个分支的值都被转换到期望形状 | `Graph if branches assign incompatible values to '{Name}'. {Error}` |
+| 9 | 创建并接好 `If` 节点 | `Graph if statement failed to merge '{Name}'. {Error}` |
+
+<Callout type="info">
+步骤 1 正是"在单个分支里读参数"之所以合法的原因。没有它，
+`if (m > T) { Color = Lit.rgb; } else { Color = Dark.rgb; }` 就会失败，因为 `Lit` 只被物化进 then 表，
+`Dark` 只被物化进 else 表。
+</Callout>
+
+<Callout type="warn">
+**分支内的声明会泄漏进合并。** 只在 then 分支里声明的 `float3 Temp = …;` 是一个分支输出，于是合并会要求
+else 分支里也有一个 `Temp`。在两个分支里用不同宽度声明同样会失败。
+
+```c
+// 失败：'Blend' 在一个分支是 float3，在另一个分支是 float。
+if (Mask > 0.5) { float3 Blend = float3(1.0, 0.0, 0.0); Color = Blend; }
+else            { float  Blend = 0.25;                  Color = float3(Blend, Blend, Blend); }
+
+// 可行：一次声明、一种形状，两个分支里都只是赋值。
+float3 Blend = float3(0.0, 0.0, 0.0);
+if (Mask > 0.5) { Blend = float3(1.0, 0.0, 0.0); }
+else            { Blend = float3(0.25, 0.25, 0.25); }
+Color = Blend;
+```
+
+因为合并后的名字会成为外层表的普通条目，在 `if` *之后*再声明同名变量就是重复声明错误。
+</Callout>
+
+## 哪些值不能被选择
+
+| 值种类 | 行为 |
+| :-- | :-- |
+| 标量 / 向量，1–4 分量 | 正常选择 |
+| `MaterialAttributes` | 可以选择，前提是**两个**分支都产出 `MaterialAttributes` |
+| 纹理对象 | 拒绝——`Graph if statement cannot select texture value '{Name}'.` |
+| `Substrate` | 拒绝——`Graph if statement cannot select Substrate value '{Name}'.` |
+| `MaterialAttributes` 与数值混用 | 拒绝——`Graph if branches cannot mix MaterialAttributes and numeric values.` |
+
+想按纹理分支，请两张都采样再对结果数值做选择，或者把选择交给作用在采样结果上的 `StaticSwitchParameter`。
+见[调用](/docs/graph/calls#staticswitchparameter)。
+
+## 诊断
+
+<Diag>
+  <D msg="Graph if statement is missing a condition block." cause="if 后面没有 (。" fix="给条件加括号：if (x) { ... }" />
+  <D msg="Graph if statement has an unterminated condition block." cause="条件的 ( 从未闭合。" />
+  <D msg="Graph if statement is missing a '{ ... }' body." cause="条件后面没有 {，包括不带花括号的单语句块体。" fix="两个分支的花括号都是必需的。" />
+  <D msg="Graph if statement has an unterminated body block." cause="then 块体的 { 从未闭合。" />
+  <D msg="Graph else statement is missing a '{ ... }' body." cause="else 后面既不是 { 也不是 if。" />
+  <D msg="Graph else statement has an unterminated body block." cause="else 块体的 { 从未闭合。" />
+  <D msg="Graph if condition is empty." cause="if ()，或条件只有空白。" />
+  <D msg="In Graph if condition '{Condition}': {Error}" cause="条件的某一边解析失败——常见于 !x、a = b，或以比较运算符开头。" href="/docs/graph/expressions" />
+  <D msg="In Graph if body: {Error}" cause="then 块体内某条语句失败。" href="/docs/graph/statements" />
+  <D msg="In Graph else body: {Error}" cause="else 块体内某条语句失败。" href="/docs/graph/statements" />
+  <D msg="Graph if condition left side must evaluate to a scalar value." cause="左操作数是向量、纹理对象、MaterialAttributes 值或 Substrate 值。" fix="先 swizzle 成单通道，或比较由它导出的标量。" />
+  <D msg="Graph if condition right side must evaluate to a scalar value." cause="同上，针对右操作数。" />
+  <D msg="Failed to evaluate Graph if condition. {Error}" cause="左或右操作数表达式无法求值。" />
+  <D msg="Failed to create a zero literal for Graph if condition." cause="真值形式的 Constant(0) 节点无法创建。" />
+  <D msg="Graph if statement could not resolve both branch values for '{Name}'." cause="该名字只在一个分支里是分支输出——通常是只在一个块体里出现的声明或赋值。" fix="在两个分支里都声明或赋值，或把声明提到 if 之前。" />
+  <D msg="Graph if branches assign variable '{Name}' with inconsistent types" cause="两个分支里都是新名字但形状不同，且外部没有东西固定期望形状。信息末尾没有句号。" />
+  <D msg="Graph if branches assign incompatible values to '{Name}'. {Error}" cause="某个分支的值无法转换到期望形状。" href="/docs/graph/expressions" />
+  <D msg="Graph if statement cannot select texture value '{Name}'." cause="纹理对象成为分支输出。" />
+  <D msg="Graph if statement cannot select Substrate value '{Name}'." cause="Substrate 值成为分支输出。" />
+  <D msg="Graph if branches cannot mix MaterialAttributes and numeric values." cause="一个分支产出属性值，另一个产出数值。" />
+  <D msg="Graph if statement failed to merge '{Name}'. {Error}" cause="该名字的 If 节点无法构建。" />
+  <D msg="Unsupported Graph if comparison operator '{Operator}'." cause="防御性保护；切分器只可能产出六个运算符和真值。" />
+</Diag>
+
+## 示例
+
+```c
+Shader(Name="Docs/M_IfElse")
+{
+    Properties {
+        float Mask = 0.6;
+        vec3  Tint = vec3(1.0, 0.2, 0.2);
+    }
+
+    Settings {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        if (Mask > 0.5) {
+            Color = Tint;
+        } else if (Mask > 0.25) {
+            Color = Tint * 0.5;
+        } else {
+            Color = vec3(0.0, 0.0, 0.0);
+        }
+    }
+}
+```
+
+```text
+VectorParameter  Tint
+ScalarParameter  Mask
+Constant         0.5                 (shared)
+Constant         0.25
+Multiply         Tint * 0.5
+Constant3Vector  (0,0,0)             (folded literal)
+If               A=Mask B=0.25  ->   inner else-if merge of 'Color'
+If               A=Mask B=0.5   ->   outer merge of 'Color'
+```
+
+两个 `If` 节点都存在，因为 `else if` 就是一个嵌套 `if`；而且不论 `Mask` 运行时取什么值，每个分支的节点都
+在材质里。
+
+## 参见
+
+- [语句与声明](/docs/graph/statements) —— 分支里合法的语句形式与声明作用域
+- [运算符与转换](/docs/graph/expressions) —— 操作数所用的文法，以及合并处应用的转换
+- [调用](/docs/graph/calls) —— `StaticSwitchParameter`，`if` 的编译期替代方案
+- [不支持的写法](/docs/graph/unsupported) —— 循环、`switch`、`?:` 以及静默截断清单

@@ -1,77 +1,344 @@
 ---
 title: HLSL Overview
-description: HLSL syntax, types, and keywords for DreamShaderLang users.
+description: HLSL for DreamShaderLang authors — where HLSL actually runs, how types and signatures map, what a Function body may contain, and the shipped DreamShaderBuiltins.ush helper header.
 ---
 
-HLSL is the shader language used by Unreal's material Custom nodes. DreamShaderLang borrows
-some HLSL-style types and helper-function syntax, but Graph code still generates Unreal
-material nodes.
+HLSL is the shader language Unreal's material `Custom` nodes are written in. DreamShaderLang is not
+an HLSL compiler, but HLSL is not decorative here either: the body of a
+[`Function`](/en/docs/language/functions) or `GraphFunction` **is** HLSL, emitted more or less
+verbatim into a generated include and compiled by Unreal.
 
-## Basic Shape
+This page is for readers arriving from HLSL. It says which HLSL knowledge transfers, which does not,
+and where the boundary sits.
+
+## Where HLSL runs, and where it does not
+
+| Construct | What the text inside it is |
+| :-- | :-- |
+| `Function Name(…) { … }` | **HLSL**, emitted verbatim into a generated `.ush` as `DreamShaderFn_<Name>`; each call site becomes a `UMaterialExpressionCustom` node |
+| `GraphFunction Name(…) { … }` | **HLSL**, with every `UE.*` call hoisted out into a real material node and wired back as an extra Custom-node input pin |
+| `Graph = { … }` | **not HLSL** — a small statement language that builds `UMaterialExpression` nodes |
+| `Properties`, `Inputs`, `Outputs`, `Settings` | declarations, not code |
+
+So: reach for HLSL when you want arithmetic the node graph makes tedious, and stay in `Graph` when
+you want engine inputs, parameters and bindings. The two meet at the function call.
 
 ```hlsl
-float Luma(float3 color)
+// plain HLSL
+float3 ApplyTint(float3 color, float3 tint)
 {
-    return dot(color, float3(0.2126, 0.7152, 0.0722));
+    return color * tint;
 }
 ```
 
-## Common Types
-
-| HLSL | DreamShaderLang equivalent |
-| --- | --- |
-| `float` | `float` |
-| `float2` | `float2` / `vec2` |
-| `float3` | `float3` / `vec3` |
-| `float4` | `float4` / `vec4` |
-| `Texture2D` | `Texture2D` |
-
-## Variables and Expressions
-
-```hlsl
-float3 tinted = color * tint;
-float y = saturate(tinted.r);
-```
-
-DreamShaderLang `Function` bodies use familiar HLSL-style expressions for helper logic.
-
-## Control Flow
-
-```hlsl
-if (x > 0.5)
-{
-    return 1.0;
+```c
+// the DreamShaderLang declaration of the same helper
+Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+    result = color * tint;
 }
-return 0.0;
 ```
 
-Complex control flow is best placed in `Function`, not directly in Graph.
+Both forms exist. A declared return type is legal and lowers to a single output, so
+`Function float3 ApplyTint(in vec3 color, in vec3 tint) { return color * tint; }` is the same helper
+written the HLSL way.
 
-## Common Builtins
+## Types
 
-| Function | Use |
-| --- | --- |
-| `dot` | Dot product. |
-| `lerp` | Linear interpolation. |
-| `saturate` | Clamp to `0..1`. |
-| `sin`, `cos` | Trigonometry. |
-| `normalize` | Normalize a vector. |
+DreamShaderLang has a **closed** set of type tokens. The HLSL spellings it accepts are these:
 
-## Common Keywords
+| HLSL spelling | Accepted | Notes |
+| :-- | :-- | :-- |
+| `float`, `float1` | yes | 1 component |
+| `half`, `half1` | yes | 1 component; a distinct token that behaves like `float` |
+| `int`, `uint`, `bool` | yes | 1 component; all collapse to the same float width |
+| `float2` / `float3` / `float4` | yes | 2 / 3 / 4 components |
+| `half2` / `half3` / `half4` | yes | 2 / 3 / 4 components |
+| `int2..4`, `uint2..4`, `bool2..4` | yes | 2 / 3 / 4 components |
+| `Texture2D`, `TextureCube`, `Texture2DArray`, `Texture3D` | yes | texture objects; valid as a `Function` `in` parameter, never as a result |
+| `VolumeTexture` | yes | rewritten to `Texture3D` in the generated HLSL — the only such rewrite |
+| `SamplerState` | yes | resolves to a **`Texture2D` object**, not to a distinct sampler value |
+| `float2x2`, `float3x3`, `float4x4` | **no** | there are no matrix types; see [Matrices](#matrices) |
+| `double`, `double2..4` | **no** | not a type token |
+| `struct` | **no** | not a declaration form |
 
-| Keyword | Meaning |
-| --- | --- |
-| `return` | Return a function value. |
-| `if`, `else` | Conditional flow. |
-| `for`, `while` | Loop constructs in helper code when supported. |
-| `out` | Output parameter. |
-| `inout` | Input/output parameter. |
+Two tokens exist that HLSL does not know at all: `MaterialAttributes` and `StaticBool`. They resolve
+for DreamShaderLang, but the token is emitted into the generated signature verbatim, so a `Function`
+using either produces a helper Unreal cannot compile. Use a `ShaderFunction` or a `GraphFunction`
+for that plumbing. The full validity matrix is on
+[Types and Values](/en/docs/language/types-and-values).
 
-## Relation to DreamShaderLang
+### Matrices
 
-| HLSL area | DreamShaderLang usage |
-| --- | --- |
-| Helper functions | `Function` and `GraphFunction` bodies. |
-| Vector math | Graph expressions and helpers. |
-| Raw node graph | Use `Graph` and `UE.*`, not plain HLSL. |
-| Material settings | Use `Settings`, not HLSL code. |
+There are no matrix types. `float2x2` / `float3x3` / `float4x4` — and therefore
+`mat2` / `mat3` / `mat4`, which normalize to them — are rejected by every declaration position.
+`mat3` is nevertheless accepted *lexically* in a `Function` signature, because the signature
+normalizer rewrites it before validation runs; the declaration parses and the **call** fails:
+
+```c
+Function float3 Rotate(in mat3 basis, in vec3 v) { return mul(basis, v); }
+// parses; a call fails with:
+//   DreamShader Function 'Rotate' input 'basis' uses unsupported type 'float3x3'.
+```
+
+Matrix-shaped work is reachable through the transform builtins — `UE.TransformVector` and
+`UE.TransformPosition`, on [UE.\* Nodes](/en/docs/builtins/ue-nodes).
+
+## Signatures
+
+An HLSL function signature and a `Function` signature look alike, but the rules differ in several
+places.
+
+| Rule | HLSL | DreamShaderLang `Function` |
+| :-- | :-- | :-- |
+| Parameter qualifiers | `in`, `out`, `inout` | `in` and `out` only — **`inout` does not exist** and is rejected |
+| Default qualifier | `in` | `in`, when the parameter has only two whitespace-separated tokens |
+| Return type | any, plus `void` | optional; declaring one implies **exactly one** output and forbids every `out` parameter |
+| Multiple results | `out` parameters alongside a return | `out` parameters and **no** return type |
+| Overloads | yes | **no overload resolution**; names collide case-insensitively |
+| Default argument values | no | no — `opt` and defaults belong to `ShaderFunction` `Inputs`, not here |
+
+A function must produce something: at least one `out` parameter, or a return type. Neither gives
+`Function '{Name}' must declare at least one out parameter.`
+
+```c
+Function float Luma(in vec3 color) {
+    return dot(color, float3(0.299, 0.587, 0.114));      // one result, HLSL style
+}
+
+Function SplitChannels(in vec4 src, out vec3 rgb, out float alpha) {
+    rgb   = src.rgb;                                      // two results, out style
+    alpha = src.a;
+}
+```
+
+Under a declared return type, every `return` at **brace depth 0** is rewritten to an assignment to a
+synthetic `__return` variable. A bare `return;` at depth 0 is a hard error. A `return` nested inside
+an `if { … }` stays a real HLSL `return` — legal, but it bypasses `__return`.
+
+### Textures and samplers
+
+A texture-typed `in` parameter gains a companion `SamplerState <ParamName>Sampler` immediately after
+it in the generated signature, and every call site passes the matching argument. Use that name to
+sample:
+
+```c
+Function SampleTinted(in Texture2D tex, in vec2 uv, in vec3 tint, out vec3 rgb, out float alpha)
+{
+    float4 texel = Texture2DSample(tex, texSampler, uv);
+    rgb   = texel.rgb * tint;
+    alpha = texel.a;
+}
+```
+
+`SamplerState` is **not** in the set that triggers this expansion. A parameter declared
+`SamplerState S` emits `SamplerState S` into the signature and receives a texture object at the call
+site.
+
+## Control flow
+
+Inside a `Function` body, HLSL's own control flow applies in full — `if`, `else`, `for`, `while`,
+`do`, `switch`, `break`, `continue`, `discard`. The body is passed through, so what compiles in a
+`Custom` node compiles here.
+
+Inside a `Graph` block the vocabulary is much smaller: `if` / `else` only, with a parenthesised
+condition and braced bodies. There are no loops.
+
+<Callout type="warn">
+`&&` and `||` do not exist in a `Graph` block and are **silently dropped** — `if (a > 0 && b > 0)`
+compiles as `if (a > 0)` with no diagnostic. The same truncation applies to `%`, `?:`, `&`, `|`,
+`^`, `<<` and `v[i]`. Inside a `Function` body all of these are ordinary HLSL and work normally. See
+[What Graph Is Not](/en/docs/graph/unsupported).
+</Callout>
+
+## Intrinsics
+
+| Context | What is available |
+| :-- | :-- |
+| `Function` / `GraphFunction` body | the **full HLSL intrinsic set**, plus everything Unreal's `Common.ush` puts in scope |
+| `Graph` block | exactly 19 [math builtin](/en/docs/builtins/math) spellings, plus `UE.Expression(…)` for anything else |
+
+The `Graph` surface is `abs`, `ceil`, `clamp`, `cos`, `dot`, `floor`, `fmod`, `frac`, `fract`,
+`lerp`, `max`, `min`, `mix`, `mod`, `normalize`, `pow`, `saturate`, `sin`, `sqrt`. Notably absent:
+`step`, `smoothstep`, `length`, `cross`, `reflect`, `refract`, `exp`, `log`, and every inverse
+trigonometric function. Reach them through `UE.Expression(Class = …)`, or write them in a `Function`
+body.
+
+<Callout type="warn">
+Naming your own helper after a math builtin makes it unreachable from `Graph`, with no diagnostic. A
+`Function` called `lerp`, `dot` or `pow` still compiles and still generates — the `Graph` call site
+simply resolves to the builtin instead. Constructor names (`float3`, `vec4`, …) are reserved the
+same way.
+</Callout>
+
+## What happens to your body text
+
+Every `Function` and `GraphFunction` body — and nothing else in the language — is passed through an
+identifier-level rewrite before it is stored. The scan is comment- and string-aware.
+
+| Written | Becomes |
+| :-- | :-- |
+| `vec2` / `vec3` / `vec4` | `float2` / `float3` / `float4` |
+| `ivec2..4`, `uvec2..4`, `bvec2..4` | `int2..4`, `uint2..4`, `bool2..4` |
+| `mat2` / `mat3` / `mat4` | `float2x2` / `float3x3` / `float4x4` |
+| `mix` | `lerp` |
+| `fract` | `frac` |
+| `mod` | `fmod` |
+| `A::B` | `A_B` |
+
+<Callout type="warn">
+The match is on the **whole identifier, ignoring case**. A local variable, helper or struct member
+named `Mix`, `Mod`, `Fract`, `Vec3` or `Mat4` inside a body is silently renamed. There is no
+diagnostic; the failure surfaces as an HLSL compile error, or as silently different math. Rename the
+identifier — `MixColor`, `ModValue`.
+</Callout>
+
+The full alias list, in both directions, is on [GLSL Overview](/en/docs/shader-languages/glsl).
+
+## `DreamShaderBuiltins.ush`
+
+The plugin ships one HLSL header of its own. It defines `DS_*` macros and functions that mirror the
+HLSL the material translator emits for the corresponding `UE.*` nodes.
+
+| | |
+| :-- | :-- |
+| On disk | `<Plugin>/Shaders/DreamShaderBuiltins.ush` |
+| Virtual shader path | `/Plugin/DreamShader/DreamShaderBuiltins.ush` |
+| Include guard | `DREAMSHADER_BUILTINS_USH` |
+| Defines | 25 `DS_*` symbols — 22 macros and 3 functions |
+| Emitted by the plugin | **no** |
+
+```hlsl
+#include "/Plugin/DreamShader/DreamShaderBuiltins.ush"
+```
+
+At module startup DreamShader registers a shader source directory mapping from the virtual directory
+`/Plugin/DreamShader` to the plugin's `Shaders` folder, unless a mapping for that virtual directory
+already exists. The mapping is unconditional — it does not depend on any project setting, backend
+choice or engine version — so the path above always resolves for the engine's shader preprocessor.
+It is a **separate** mapping from the one used for generated per-source helper includes.
+
+<Callout type="warn">
+**Nothing in the plugin currently emits an include for this header**, and nothing in the plugin
+references any `DS_*` symbol. Neither backend includes it; the generated per-source `.ush` contains
+only the `DreamShaderFn_*` definitions produced from your `Function` blocks. The header is reachable
+**only** from a hand-written `#include` in a `Function` HLSL body.
+
+The header's own comment describes it as being included by generated `DSI_*.ush` files. That was the
+arrangement used by the retired **Instance backend**; the resolved backend set is now `Graph` and
+`ThinCustom`, no `DSI_*.ush` is produced any more, and the comment describes a path that no longer
+runs. See [Backend](/en/docs/settings/backend).
+</Callout>
+
+### Symbols
+
+`Parameters` is the material parameter struct in scope at the include site; `Tex` is a texture
+parameter identifier, from which the sampler name is derived by token pasting (`Tex##Sampler`).
+
+<Wide>
+
+| Symbol | Kind | Expansion | Node equivalent |
+| :-- | :-- | :-- | :-- |
+| `DS_TIME` | macro | `(View.GameTime)` | `UE.Time()` |
+| `DS_REAL_TIME` | macro | `(View.RealTime)` | — |
+| `DS_DELTA_TIME` | macro | `(View.DeltaTime)` | — |
+| `DS_PERIODIC_TIME(Period)` | macro | `(fmod(View.GameTime, (Period)))` | `UE.Time(Period=…)` |
+| `DS_TexCoord(Parameters, CoordinateIndex)` | `float2` function | `Parameters.TexCoords[CoordinateIndex].xy`, or `float2(0, 0)` when `NUM_TEX_COORD_INTERPOLATORS` is 0 | `UE.TexCoord` |
+| `DS_VertexColor(Parameters)` | `float4` function | `Parameters.VertexColor` | `UE.VertexColor` |
+| `DS_CameraVector(Parameters)` | macro | `((Parameters).CameraVector)` | `UE.CameraVector` |
+| `DS_ReflectionVector(Parameters)` | macro | `((Parameters).ReflectionVector)` | `UE.ReflectionVector` |
+| `DS_PixelNormalWS(Parameters)` | macro | `((Parameters).WorldNormal)` | `UE.PixelNormalWS` |
+| `DS_VertexNormalWS(Parameters)` | macro | `((Parameters).TangentToWorld[2])` | `UE.VertexNormalWS` |
+| `DS_TwoSidedSign(Parameters)` | macro | `((Parameters).TwoSidedSign)` | `UE.TwoSidedSign` |
+| `DS_ViewportUV(Parameters)` | macro | `(GetViewportUV(Parameters))` | `UE.ViewportUV` |
+| `DS_PixelDepth(Parameters)` | macro | `(GetPixelDepth(Parameters))` | `UE.PixelDepth` |
+| `DS_WorldPosition(Parameters)` | macro | `(WSDemote(GetWorldPosition(Parameters)))` | `UE.WorldPosition` |
+| `DS_TranslatedWorldPosition(Parameters)` | macro | `(GetTranslatedWorldPosition(Parameters))` | `UE.TranslatedWorldPosition` |
+| `DS_ObjectPosition(Parameters)` | macro | `(WSDemote(GetObjectWorldPosition(Parameters)))` | `UE.ObjectPosition` |
+| `DS_ObjectRadius(Parameters)` | macro | `(GetPrimitiveData(Parameters).ObjectRadius)` | `UE.ObjectRadius` |
+| `DS_ObjectBounds(Parameters)` | macro | `(float3(GetPrimitiveData(Parameters).ObjectBoundsX, …ObjectBoundsY, …ObjectBoundsZ))` | `UE.ObjectBounds` |
+| `DS_CameraPosition(Parameters)` | macro | `(WSDemote(GetWorldCameraOrigin(Parameters)))` | `UE.CameraPosition` |
+| `DS_PerInstanceRandom(Parameters)` | macro | `(GetPerInstanceRandom(Parameters))` | `UE.PerInstanceRandom` |
+| `DS_PerInstanceFadeAmount(Parameters)` | macro | `(GetPerInstanceFadeAmount(Parameters))` | `UE.PerInstanceFadeAmount` |
+| `DS_Panner(UV, Time, Speed)` | `float2` function | `UV + float2(frac(Time * Speed.x), frac(Time * Speed.y))` | `UE.Panner` |
+| `DS_SampleTexture2D(Tex, UV)` | macro | `Texture2DSample(Tex, Tex##Sampler, UV)` | `SampleTexture2D(tex, uv)` in a `Graph` block |
+| `DS_SampleTexture2DLod(Tex, UV, Lod)` | macro | `Texture2DSampleLevel(Tex, Tex##Sampler, UV, Lod)` | — |
+| `DS_SampleTexture2DBias(Tex, UV, Bias)` | macro | `Texture2DSampleBias(Tex, Tex##Sampler, UV, Bias)` | — |
+
+</Wide>
+
+The `WSDemote` calls lower the engine's large-world-coordinate vectors to `float3`. The translated
+(camera-relative) position form is already `float3` and keeps precision near the camera.
+
+### Using it safely
+
+<Callout type="warn">
+**An `#include` in a `Function` body lands inside a function.** A `Function` block's HLSL is emitted
+verbatim between the braces of the generated `DreamShaderFn_*` definition, so the `#include` — and
+therefore the header's contents — is inserted at that point. The 22 macros are unaffected; a
+`#define` is legal anywhere. The three **function** definitions (`DS_TexCoord`, `DS_VertexColor`,
+`DS_Panner`) are not legal inside another function body. Restrict a hand-written include to bodies
+that use only the macro half, or copy the wanted function's body inline.
+</Callout>
+
+<Callout type="warn">
+**`DS_TexCoord` and `DS_VertexColor` depend on translator side effects that nothing arranges any
+more.** `DS_TexCoord` reads `Parameters.TexCoords[…]`, which exists only when at least one
+interpolator slot was allocated during material translation; with none allocated the function
+compiles and returns `float2(0, 0)`. `DS_VertexColor` reads `Parameters.VertexColor`, which is only
+fed when the material was translated with vertex-colour usage set. The retired Instance backend
+arranged both; the `Graph` and `ThinCustom` backends do not. Use `UE.TexCoord` and `UE.VertexColor`,
+or a wired `Function` input, instead of these two.
+</Callout>
+
+- The remaining reads are side-effect free. Every field and `Get*(Parameters)` helper they touch is
+  populated unconditionally at pixel entry, so they compile in any opaque Surface pixel evaluation
+  with no usage flag or interpolator request.
+- `DS_PerInstanceRandom` and `DS_PerInstanceFadeAmount` are meaningful only for instanced or
+  GPU-culled draws. On a plain mesh they read back safe constants (`0` and `1`) with no compile
+  error.
+- The include guard makes repeated inclusion in one translation unit harmless.
+- The GLSL-alias rewrite skips string literals, so the path inside `#include "…"` is never touched.
+
+```c
+Function vec2 Wobble(in vec2 uv, in float speed)
+{
+    #include "/Plugin/DreamShader/DreamShaderBuiltins.ush"
+    float t = DS_TIME * speed;
+    return uv + float2(sin(t), cos(t)) * 0.02;
+}
+```
+
+The node-based equivalent needs no include and no HLSL helper at all:
+
+```c
+GraphFunction vec2 Wobble(in vec2 uv, in float speed)
+{
+    float t = UE.Time() * speed;
+    return uv + vec2(sin(t), cos(t)) * 0.02;
+}
+```
+
+## Common HLSL keywords
+
+For reference — this is HLSL's own vocabulary, valid inside a `Function` body. The **Also in
+DreamShaderLang** column marks what the declaration grammar recognises outside a body.
+
+| Category | Keywords | Also in DreamShaderLang |
+| :-- | :-- | :-- |
+| Types | `void`, `bool`, `int`, `uint`, `half`, `float`, `double` | all but `void` and `double`, as type tokens |
+| Control flow | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `default` | `if` / `else` in `Graph`; `default` as a call argument |
+| Jumps | `return`, `break`, `continue`, `discard` | `return` in a return-typed `Function` body |
+| Parameters | `in`, `out`, `inout` | `in` and `out` only |
+| Modifiers | `const`, `static`, `uniform`, `groupshared` | `const` in a `Properties` declaration, with a different meaning |
+| Textures | `Texture2D`, `TextureCube`, `SamplerState`, `SamplerComparisonState` | the first three, as type tokens |
+| Aggregates | `struct` | — |
+
+## Where to next
+
+<Cards>
+  <Card title="GLSL Overview" href="/en/docs/shader-languages/glsl" description="The GLSL aliases and how they are rewritten." />
+  <Card title="Keyword Cheatsheet" href="/en/docs/shader-languages/keywords-cheatsheet" description="DreamShaderLang, HLSL and GLSL vocabulary side by side." />
+  <Card title="Functions" href="/en/docs/language/functions" description="Function, GraphFunction and Namespace in full." />
+  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The 19 names a Graph block understands." />
+  <Card title="Types and Values" href="/en/docs/language/types-and-values" description="The closed token set and its validity matrix." />
+</Cards>

@@ -1,0 +1,302 @@
+---
+title: What Graph Is Not
+description: Loops, return, ternary, %, comparisons and indexing — what each one actually does in a Graph block, including the cases that fail silently, and what to write instead.
+---
+
+A `Graph` block is a node-graph builder, not a shader compiler. It has ten statement forms, four
+arithmetic operators and no control flow other than `if`. Everything else either fails with a message
+that names a *variable type* rather than the construct — or, for a large and important set of cases,
+compiles silently into something smaller than what was written.
+
+If you are arriving from HLSL or GLSL, this is the page to read first.
+
+## Two mechanisms explain everything below
+
+**1. The statement classifier turns unknown syntax into a declaration.** There is no keyword table
+and no "unsupported keyword" diagnostic. A statement with no top-level `=` is split at its **last
+top-level whitespace** into a type token and a name, and that split succeeds for almost any text. So
+`return Color`, `while (t) {}` and `struct S { float a; }` all become declarations of an unresolvable
+type. Parenthesis depth and string literals are tracked during the split — brace depth is **not**.
+
+**2. The tokenizer maps every unknown character to end-of-input.** The expression parser accepts an
+expression followed by end-of-input, so anything after the first unknown character is discarded
+without a diagnostic.
+
+## Silently truncated expressions
+
+<Callout type="warn">
+The tokenizer knows only letters, digits, `_`, `.`, `"`, whitespace, the punctuation `( ) , + - * / =`
+and the two-character `::`. **Every other character becomes the end-of-input token** — `%`, `!`, `<`,
+`>`, `&`, `|`, `^`, `~`, `?`, `[`, `]`, `{`, `}`, `;`, `#`, `@`, `$`, `'`, the backtick, a lone `:`,
+and anything else. The parser then accepts the expression that precedes it and throws the rest away
+**with no message at all**.
+</Callout>
+
+| Written | Actually compiled | Write instead |
+| :-- | :-- | :-- |
+| `a % b` | `a` | `fmod(a, b)` or `mod(a, b)` |
+| `a && b` | `a` | nested `if` statements |
+| `a \|\| b` | `a` | nested `if` statements, or `max` on 0/1 masks |
+| `a & b`, `a \| b`, `a ^ b` | `a` | a `Function` with an HLSL body |
+| `a << 2`, `a >> 2` | `a` | `a * 4.0`, `a / 4.0`, or a `Function` |
+| `a < b`, `a > b`, `a <= b`, `a >= b`, `a != b` | `a` | an [`if` condition](/en/docs/graph/control-flow#the-condition) |
+| `a ? b : c` | `a` | `if` / `else`, `lerp(c, b, mask)`, or a `StaticSwitchParameter` call |
+| `v[0]` | `v` | a [swizzle](/en/docs/graph/expressions#swizzles): `v.x` |
+| `~a` *(trailing)* | `a` | a `Function` with an HLSL body |
+
+### Modulo
+
+```c
+// Written — the modulo is discarded, Wave is just Time.
+float Wave = UE.Time() % 1.0;
+
+// Actually compiled:
+float Wave = UE.Time();
+
+// Correct:
+float Wave = fmod(UE.Time(), 1.0);
+```
+
+### Compound conditions
+
+```c
+// Written — the green test is discarded.
+if (Color.r > 0.5 && Color.g > 0.5) { Out = One; } else { Out = Zero; }
+
+// Actually compiled:
+if (Color.r > 0.5) { Out = One; } else { Out = Zero; }
+
+// Correct:
+if (Color.r > 0.5) {
+    if (Color.g > 0.5) { Out = One; } else { Out = Zero; }
+} else {
+    Out = Zero;
+}
+```
+
+### Making truncation visible
+
+Two positions *do* report the problem, and both are worth exploiting.
+
+| Position | Message |
+| :-- | :-- |
+| Leading — the unknown character starts the expression, as in `!x` or `~x` | `Unexpected token '{Char}' in Graph expression.` |
+| Inside parentheses or an argument list — the expected `)` or `,` is never found, as in `(a % b)` or `f(a % b)` | `Expected token type {Code} in Graph expression near '{Text}'.` |
+
+<Callout type="info">
+Wrapping a suspect expression in parentheses is the reliable way to force a diagnostic:
+`float x = a % b;` compiles silently, `float x = (a % b);` errors. When a generated material looks
+like it lost half its logic, parenthesise the suspect lines and rebuild.
+</Callout>
+
+## Compound assignment and increment
+
+`+= -= *= /= ++ --` are not operators. What happens depends on **whitespace**, because the statement
+is split at its first top-level `=` and the left side is then tested for a type/name split.
+
+| Written | Result |
+| :-- | :-- |
+| `a += b;` | `Unsupported Graph variable type 'a' for '+'.` |
+| `a -= b;` | `Unsupported Graph variable type 'a' for '-'.` |
+| `a *= b;` | `Unsupported Graph variable type 'a' for '*'.` |
+| `a /= b;` | `Unsupported Graph variable type 'a' for '/'.` |
+| `a++;` | `Graph expression statements currently support only Function calls with explicit out arguments.` |
+| `a--;` | the same message |
+
+<Callout type="warn">
+**The spaceless forms compile with no diagnostic and no effect.** `a+=b;` has no whitespace on the
+left of the `=`, so it is not a declaration — it is a plain assignment creating a brand-new Graph
+variable literally named `a+`. `a` is unchanged and nothing warns.
+
+```c
+// Written — silently creates a variable named 'a+'; 'Sum' never changes.
+Sum+=Tint;
+
+// Correct:
+Sum = Sum + Tint;
+```
+
+The same applies to `a-=b`, `a*=b` and `a/=b`.
+</Callout>
+
+<Callout type="warn">
+**Prefix `++` and `--` parse as repeated unary operators and do nothing.** `++a` is `+(+a)`, the
+identity, and emits no node. `--a` is `-(-a)`, which emits two `Multiply` nodes by `-1` and is also
+numerically `a`. Neither increments anything.
+
+```c
+// Written — Counter is unchanged, and two Multiply nodes are generated.
+float Next = --Counter;
+
+// Correct:
+float Next = Counter - 1.0;
+```
+
+There is no storage to increment in the first place — a Graph variable is a binding to a node and a
+pin, not a memory cell.
+</Callout>
+
+## Statement-level constructs
+
+None of these are keywords. Each is classified as a declaration, and the reported "variable type" is
+whatever text preceded the last top-level whitespace.
+
+| Written | Message | Write instead |
+| :-- | :-- | :-- |
+| `return Color;` | `Failed to declare Graph variable 'Color'. Unsupported Graph variable type 'return'.` | assign the declared output variable: `Color = …;` |
+| `return;` | `Graph expression statements currently support only Function calls with explicit out arguments.` | as above |
+| `for (int i = 0; i < 3; i = i + 1) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'for (int i = 0; i < 3; i = i + 1)'.` | unroll by hand, or move the loop into a [`Function`](/en/docs/language/functions) whose body is real HLSL |
+| `while (t) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'while (t)'.` | as above |
+| `do {} while (t);` | `Failed to declare Graph variable '(t)'. Unsupported Graph variable type 'do {} while'.` | as above |
+| `switch (Mode) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'switch (Mode)'.` | nested [`if`](/en/docs/graph/control-flow) statements, or a [`StaticSwitchParameter` call](/en/docs/graph/calls#staticswitchparameter) |
+| `break;` | `Graph expression statements currently support only Function calls with explicit out arguments.` | — |
+| `continue;` | the same message | — |
+| `float Foo(float x) { return x; }` | `Failed to declare Graph variable '}'. Unsupported Graph variable type 'float Foo(float x) { return x;'.` | declare it at top level as a `Function` or `GraphFunction` and call it |
+| `struct S { float a; }` | `Failed to declare Graph variable '}'. Unsupported Graph variable type 'struct S { float a;'.` | use `MaterialAttributes`, or a struct inside a `Function` body |
+| `#define K 2` | `Failed to declare Graph variable '2'. Unsupported Graph variable type '#define K'.` | a `const` property, or a preprocessor directive inside a `Function` body |
+| `#include "X.ush"` | `Failed to declare Graph variable '"X.ush"'. Unsupported Graph variable type '#include'.` | [`import`](/en/docs/language/imports) at file level, or a `Function` that uses the generated include |
+
+<Callout type="warn">
+A braced construct carries no top-level `;`, so the statement splitter does not stop at its closing
+`}` — it keeps scanning to the next top-level `;`. A loop followed by more code therefore swallows
+that code into the same statement, and the quoted type and name in the message contain unrelated
+text. Given
+
+```c
+for (int i = 0; i < 3; i = i + 1) { Sum = Sum + 1.0; }
+Color = Sum;
+```
+
+the whole thing is **one** statement, split at the `=` of `Color`, and the message is
+`Unsupported Graph variable type 'for (int i = 0; i < 3; i = i + 1) { Sum = Sum + 1.0; }' for 'Color'.`
+The messages in the table above assume the construct stands alone.
+</Callout>
+
+## Wrong-case keywords
+
+`if` and `else` are the only keywords in the Graph language, and both are matched
+**case-sensitively**. A mis-cased spelling is not a keyword and falls into the declaration
+classifier.
+
+| Written | Result |
+| :-- | :-- |
+| `If (x) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'If (x)'.` |
+| `IF (x) {}` | the same shape |
+| `if (x) {} Else {}` | the `if` parses; `Else {}` becomes a separate statement and reports `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'Else'.` |
+| `if (x) {} ELSE {}` | the same shape |
+
+Everything else in the language is case-insensitive — type tokens, constructor names, builtins,
+`true`/`false`, swizzle channels, argument names. The one other case-sensitive name is
+`SampleTexture2D`.
+
+## Expression-level constructs that do error
+
+These fail loudly, which makes them the easy ones.
+
+| Written | Message |
+| :-- | :-- |
+| `!x` | `Unexpected token '!' in Graph expression.` |
+| `~x` | `Unexpected token '~' in Graph expression.` |
+| `x = a == b;` | `Unexpected token '=' in Graph expression.` — `=` is a real token, so `==` is *not* truncated |
+| `a == b;` *(as a statement)* | `In Graph statement 'a == b': Unexpected token '=' in Graph expression.` |
+| `x = a++;` | `Unexpected token '' in Graph expression.` — the postfix `+` demands an operand and finds end-of-input |
+| `x = (float)a;` | `Unexpected token 'a' in Graph expression.` — there are no C-style casts; write `float(a)` |
+| `x = 0x10;` | `Unexpected token 'x10' in Graph expression.` — there are no hex, octal or binary literals |
+| `x = 1.0fx;` | `Unexpected token 'fx' in Graph expression.` — a numeric suffix is consumed only at an identifier boundary |
+| `x = "text";` | `String literals can only be used in named UE builtin arguments.` |
+| `float4 v = {{1,2},{3,4}};` | `Invalid brace initializer for type 'float4'. Unexpected token '{' in Graph expression.` — brace initializers do not nest |
+| `f(a b)` | `Expected token type {Code} in Graph expression near '{Text}'.` — a missing `,` |
+| `if (a) Color = X;` | `Graph if statement is missing a '{ ... }' body.` — braces are mandatory |
+
+<Callout type="info">
+The empty quotes in `Unexpected token '' in Graph expression.` are not a formatting fault. The
+reported token is the end-of-input token, whose text is empty.
+</Callout>
+
+## Features that simply do not exist
+
+| Feature | Status | Alternative |
+| :-- | :-- | :-- |
+| Matrix types (`float3x3`, `float4x4`, `mat2`, `mat3`, `mat4`) | absent from the type, constructor and function-signature sets; a matrix-typed `Function` parameter or result is rejected at the call site with `uses unsupported type '{Type}'` | `UE.TransformVector` / `UE.TransformPosition`, or matrix locals **inside** a `Function` body |
+| Arrays and indexing | absent | [swizzles](/en/docs/graph/expressions#swizzles) for channels; `Texture2DArray` sampling for layers |
+| `inout` parameters | absent — only `in` and `out` | pass an `in` and an `out` |
+| Function declarations inside `Graph` | absent | top-level [`Function` / `GraphFunction`](/en/docs/language/functions) |
+| Integer arithmetic | absent — `int`, `uint`, `bool` and `half` collapse to float widths | the integer marker exists only to reject `int(a) / int(b)` |
+| Hex, octal and binary literals | absent | decimal literals |
+| String values | absent outside named `UE.*` arguments | — |
+| Ternary conditional | absent | `if` / `else`, `lerp`, `StaticSwitchParameter` |
+| Comma operator | absent | separate statements |
+| Assignment inside an expression | absent | separate statements |
+| Nested brace initializers | absent | a constructor call: `float4(float2(1,2), float2(3,4))` |
+| Preprocessor directives | absent | `import`, `const` properties, `#Region` for layout only |
+| `Code = { … }` inside a `Shader` | **removed** — hard error `Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported.` | `Graph = { … }` |
+
+## Worked example
+
+A GLSL-shaped attempt, and what it actually builds:
+
+```c
+// Does not do what it looks like.
+Graph {
+    vec2  uv    = UE.TexCoord(Index = 0);
+    float t     = UE.Time() % 4.0;                 // silently just UE.Time()
+    float mask  = uv.x > 0.5 && uv.y > 0.5;        // silently just uv.x
+    vec3  col   = mask ? Hot : Cold;               // silently just mask
+    col        *= Gain;                            // error: type 'col' for '*'
+    Color = col;
+}
+```
+
+Only the last line errors. The three lines above it compile, and the material is wrong.
+
+```c
+// Correct.
+Graph {
+    vec2  uv = UE.TexCoord(Index = 0);
+    float t  = fmod(UE.Time(), 4.0);
+
+    vec3 col;
+    if (uv.x > 0.5) {
+        if (uv.y > 0.5) { col = Hot; } else { col = Cold; }
+    } else {
+        col = Cold;
+    }
+
+    Color = col * Gain;
+}
+```
+
+## When to reach for a `Function`
+
+Anything genuinely imperative — a loop, a bitwise mask, a `switch` — belongs in a `Function`, whose
+body is real HLSL and is compiled into a `Custom` node:
+
+```c
+Function SelfContained float Ring(in float2 uv, in float count)
+{
+    float acc = 0.0;
+    for (int i = 0; i < 4; ++i)
+    {
+        acc += sin(uv.x * count * (i + 1));
+    }
+    return acc * 0.25;
+}
+```
+
+```c
+Graph {
+    float r = Ring(uv, 8.0);
+}
+```
+
+If the helper needs to read graph nodes as well, declare it as a `GraphFunction` instead — its body
+is still HLSL, but `UE.*` calls inside it are hoisted into Custom-node input pins. See
+[Functions](/en/docs/language/functions).
+
+## See also
+
+- [Statements](/en/docs/graph/statements) — the statement forms that *are* supported
+- [Expressions and Conversions](/en/docs/graph/expressions) — the four operators that exist
+- [Control Flow](/en/docs/graph/control-flow) — the only control flow, and its condition operators
+- [Math Builtins](/en/docs/builtins/math) — `fmod`, `mod`, `min`, `max`, `clamp`, `lerp`
+- [Limitations](/en/docs/diagnostics/limitations) — what the compiler as a whole does not do yet

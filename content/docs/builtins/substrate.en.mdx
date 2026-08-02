@@ -1,0 +1,650 @@
+---
+title: Substrate Nodes
+description: The Substrate.* call namespace — 24 wrappers over Unreal's Substrate BSDF, composition and utility nodes. UE 5.4+.
+---
+
+`Substrate.*` is a sibling call namespace to [`UE.*`](/en/docs/builtins/ue-nodes) that wraps Unreal's
+Substrate BSDF, composition and utility material nodes. Each name maps to a fixed expression class —
+24 names resolving to 22 distinct classes, because two of them are alias pairs.
+
+```c
+Outputs = {
+    Substrate Surface;
+    Base.FrontMaterial = Surface;
+}
+Graph = {
+    Surface = Substrate.Unlit(EmissiveColor = Glow);
+}
+```
+
+## Availability
+
+<Since v="5.4" ue />
+
+<Callout type="warn">
+**`Substrate.*` requires Unreal Engine 5.4 or newer, and Substrate enabled in the project.** These
+are two separate conditions and DreamShader only checks the first one.
+
+The whole namespace — the descriptor table, the class check, and the `Substrate` type token — is
+compiled in only on UE 5.4+. On UE 5.3 every call fails with
+`Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer.`
+
+DreamShader does **not** read *Project Settings ▸ Engine ▸ Rendering ▸ Substrate*. A source file that
+compiles to a Substrate graph on a non-Substrate project produces the asset and then fails during
+Unreal's own material translation, with an error that does not mention DreamShader.
+</Callout>
+
+Everything gated on the engine version:
+
+| Surface | Gate | Below the gate |
+| :-- | :-- | :-- |
+| `Substrate.<Name>(…)` calls | UE 5.4 | `Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer.` |
+| The `Substrate` declared-type token | UE 5.4 | the token does not resolve |
+| `OutputType="Substrate"` on a generic `UE.*` call | UE 5.4 | `UE.{Name} OutputType="Substrate" requires Unreal Engine 5.4 or newer.` |
+| `Base.FrontMaterial` output binding | UE 5.4 | `Base.FrontMaterial requires Unreal Engine 5.4 or newer.` |
+| `Settings = { ShadingModel = "Substrate"; }`, and the `"Strata"` spelling | UE 5.4 | `ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.` |
+
+<Callout type="info">
+The editor tooling reflects the same gate. On UE 5.3 the manifest
+`Saved/DreamShader/Bridge/substrate-builtins.json` is written with an empty entry array,
+`supported: false` and
+`unsupportedReason: "Substrate builtins require Unreal Engine 5.4 or newer."` — so completion in the
+editor extensions offers nothing. See [Editor tools](/en/docs/tools/editor).
+</Callout>
+
+## Synopsis
+
+<Grammar />
+
+<Synopsis>
+```c
+Substrate . <Name> ( [ <argument-name> = <expression> ]
+                     [ , <argument-name> = <expression> ] …
+                     [ , { Output | OutputName } = "<pin-name>" ]
+                     [ , OutputIndex = <integer> ] )
+```
+</Synopsis>
+
+The namespace prefix and the name are matched **case-insensitively**: `SUBSTRATE.UNLIT(…)` resolves.
+Argument names are matched case-insensitively and whitespace-trimmed, but are otherwise exact — no
+separator stripping.
+
+## Argument model
+
+Every `Substrate.*` call goes through the generic reflected path, so it inherits
+[`UE.Expression`](/en/docs/builtins/ue-expression)'s rules.
+
+| Rule | Behaviour |
+| :-- | :-- |
+| All arguments must be **named** | a positional argument fails with `Generic Substrate.{Name} calls require named arguments.` |
+| `Class=` is **rejected** | `Substrate.{Name} uses a fixed MaterialExpression class and does not accept Class.` — the class comes from the descriptor and cannot be overridden |
+| `OutputType=` / `ResultType=` are **ignored** | the output type is synthesized from the descriptor; supplying either has no effect and no diagnostic |
+| `Output=` / `OutputName=` | selects an output pin by name |
+| `OutputIndex=` | selects an output pin by 0-based index |
+| Both selectors together | `UE.{Name} cannot use OutputName/Output together with OutputIndex.` |
+| Anything else | dispatched by reflection, below |
+
+### Reflection-driven binding
+
+Argument binding is not table-driven. For each remaining argument the generator tries, in order:
+
+1. **Input pin name** — every input pin the node reports, compared case-insensitively after
+   trimming.
+2. **`UPROPERTY` name** — any reflected property on the class or a superclass, compared the same way.
+   Boolean properties additionally match with a leading `b` stripped.
+3. If the property is an `FExpressionInput` or an `FMaterialAttributesInput`, the argument becomes a
+   **wired input** and its value is evaluated as an expression. Otherwise it is written as a
+   **literal property**.
+4. No match → `UE.{Name}: '{Argument}' is not a property on '{Class}'.`
+
+A pin-name match wins over a reflected property of the same name.
+
+<Callout type="warn">
+**Engine pin names containing spaces are unreachable.** Argument-name normalization trims and
+lower-cases but does **not** strip spaces, so a pin displayed as `Diffuse Albedo` cannot be spelled
+as an argument name. Use the `UPROPERTY` name instead — `DiffuseAlbedo` — which is what the tables
+below list. Where a pin name and a property name coincide, either spelling works.
+</Callout>
+
+<Callout type="info">
+**The accepted argument names follow the engine, not the plugin.** Steps 1 and 2 query the live
+`UMaterialExpressionSubstrate*` class, so the exact accepted set is whatever the running engine
+version exposes; an input added or removed by an engine release appears or disappears with no plugin
+change.
+
+The tables below list the inputs these classes expose. The **Completion** column marks the curated
+subset DreamShader publishes to editor completion and to the Bridge manifest, which *is* fixed by the
+plugin. Any non-input reflected property on the same class — enums, floats, booleans — is also
+settable as a literal argument even though it is not listed here.
+</Callout>
+
+### Selecting an output
+
+`Output=` / `OutputName=` matches an output pin's name verbatim, case-insensitively, **including
+names that contain spaces** — output pin names are matched as whole names, not parsed as argument
+names. `OutputIndex=` takes a 0-based index. Only the four utility wrappers have more than one
+output.
+
+## Catalogue
+
+*Substrate output* marks the wrappers whose result is a Substrate material value — 0 components,
+bindable to `Base.FrontMaterial`. The four marked **no** are the utility nodes and return ordinary
+numeric values.
+
+| `Substrate.<Name>` | `UMaterialExpression` class | Substrate output |
+| :-- | :-- | :-- |
+| `ShadingModels` | `UMaterialExpressionSubstrateShadingModels` | yes |
+| `Slab` | `UMaterialExpressionSubstrateSlabBSDF` | yes |
+| `SimpleClearCoat` | `UMaterialExpressionSubstrateSimpleClearCoatBSDF` | yes |
+| `VolumetricFogCloud` | `UMaterialExpressionSubstrateVolumetricFogCloudBSDF` | yes |
+| `Unlit` | `UMaterialExpressionSubstrateUnlitBSDF` | yes |
+| `Hair` | `UMaterialExpressionSubstrateHairBSDF` | yes |
+| `Eye` | `UMaterialExpressionSubstrateEyeBSDF` | yes |
+| `SingleLayerWater` | `UMaterialExpressionSubstrateSingleLayerWaterBSDF` | yes |
+| `LightFunction` | `UMaterialExpressionSubstrateLightFunction` | yes |
+| `PostProcess` | `UMaterialExpressionSubstratePostProcess` | yes |
+| `UI` | `UMaterialExpressionSubstrateUI` | yes |
+| `ConvertMaterialAttributes` | `UMaterialExpressionSubstrateConvertMaterialAttributes` | yes |
+| `ConvertToDecal` | `UMaterialExpressionSubstrateConvertToDecal` | yes |
+| `HorizontalMix` | `UMaterialExpressionSubstrateHorizontalMixing` | yes |
+| `HorizontalMixing` — alias of `HorizontalMix` | `UMaterialExpressionSubstrateHorizontalMixing` | yes |
+| `VerticalLayer` | `UMaterialExpressionSubstrateVerticalLayering` | yes |
+| `VerticalLayering` — alias of `VerticalLayer` | `UMaterialExpressionSubstrateVerticalLayering` | yes |
+| `Add` | `UMaterialExpressionSubstrateAdd` | yes |
+| `Weight` | `UMaterialExpressionSubstrateWeight` | yes |
+| `Select` | `UMaterialExpressionSubstrateSelect` | yes |
+| `TransmittanceToMFP` | `UMaterialExpressionSubstrateTransmittanceToMFP` | **no** |
+| `MetalnessToDiffuseAlbedoF0` | `UMaterialExpressionSubstrateMetalnessToDiffuseAlbedoF0` | **no** |
+| `HazinessToSecondaryRoughness` | `UMaterialExpressionSubstrateHazinessToSecondaryRoughness` | **no** |
+| `ThinFilm` | `UMaterialExpressionSubstrateThinFilm` | **no** |
+
+The two alias pairs are exact duplicates — same class, same inputs, same output typing. Neither
+spelling is deprecated.
+
+## Output typing
+
+| Descriptor | Declared output type | Component count | Flags |
+| :-- | :-- | :-- | :-- |
+| Substrate output | `Substrate` | 0 | Substrate value, authoritative |
+| Utility node | `auto` | taken from the selected pin's real value type | numeric |
+
+The declared type is then checked against the selected output pin's actual value type. If a wrapper
+declared as a Substrate output resolves to a pin that is not a Substrate value, the call fails with
+`Substrate.{Name} output is not a Substrate value.`
+
+A `Substrate` value can only be:
+
+- assigned to a `Substrate`-typed `Graph` variable or `Outputs` declaration;
+- passed to another `Substrate.*` wrapper's Substrate-typed input;
+- bound to `Base.FrontMaterial`.
+
+<Callout type="warn">
+A Substrate value **cannot** be swizzled, used with `+ - * /`
+(`Arithmetic operators cannot be applied to Substrate values.`), passed to a
+[math builtin](/en/docs/builtins/math)
+(`Math function '{Name}' only accepts numeric scalar/vector arguments.`), switched by a
+`StaticSwitchParameter` (`StaticSwitchParameter '{Name}' cannot switch Substrate values.`), or
+produced by an HLSL Custom node.
+</Callout>
+
+## Node reference
+
+### BSDFs
+
+#### Substrate.Slab
+
+The general-purpose Substrate BSDF slab — the one to reach for first.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `DiffuseAlbedo` | numeric | yes |
+| `F0` | numeric | yes |
+| `F90` | numeric | — |
+| `Roughness` | numeric | yes |
+| `Anisotropy` | numeric | — |
+| `Normal` | numeric | yes |
+| `Tangent` | numeric | — |
+| `SSSMFP` | numeric | — |
+| `SSSMFPScale` | numeric | — |
+| `SSSPhaseAnisotropy` | numeric | — |
+| `EmissiveColor` | numeric | — |
+| `SecondRoughness` | numeric | — |
+| `SecondRoughnessWeight` | numeric | — |
+| `FuzzRoughness` | numeric | — |
+| `FuzzAmount` | numeric | — |
+| `FuzzColor` | numeric | — |
+| `GlintValue` | numeric | — |
+| `GlintUV` | numeric | — |
+
+#### Substrate.SimpleClearCoat
+
+A slab with a fixed second clear-coat lobe.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `DiffuseAlbedo` | numeric | yes |
+| `F0` | numeric | yes |
+| `Roughness` | numeric | yes |
+| `ClearCoatCoverage` | numeric | yes |
+| `ClearCoatRoughness` | numeric | yes |
+| `Normal` | numeric | yes |
+| `EmissiveColor` | numeric | — |
+| `BottomNormal` | numeric | — |
+
+#### Substrate.Unlit
+
+Emissive-only BSDF. The smallest complete Substrate surface.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `EmissiveColor` | numeric | yes |
+| `TransmittanceColor` | numeric | — |
+| `Normal` | numeric | — |
+
+#### Substrate.Hair
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `BaseColor` | numeric | yes |
+| `Scatter` | numeric | yes |
+| `Specular` | numeric | yes |
+| `Roughness` | numeric | yes |
+| `Backlit` | numeric | yes |
+| `Tangent` | numeric | yes |
+| `EmissiveColor` | numeric | yes |
+
+#### Substrate.Eye
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `DiffuseColor` | numeric | yes |
+| `Roughness` | numeric | yes |
+| `CorneaNormal` | numeric | yes |
+| `IrisNormal` | numeric | yes |
+| `IrisPlaneNormal` | numeric | yes |
+| `IrisMask` | numeric | yes |
+| `IrisDistance` | numeric | yes |
+| `EmissiveColor` | numeric | yes |
+
+#### Substrate.SingleLayerWater
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `BaseColor` | numeric | yes |
+| `Metallic` | numeric | yes |
+| `Specular` | numeric | yes |
+| `Roughness` | numeric | yes |
+| `Normal` | numeric | yes |
+| `EmissiveColor` | numeric | yes |
+| `TopMaterialOpacity` | numeric | yes |
+| `WaterAlbedo` | numeric | yes |
+| `WaterExtinction` | numeric | yes |
+| `WaterPhaseG` | numeric | yes |
+| `ColorScaleBehindWater` | numeric | yes |
+
+#### Substrate.VolumetricFogCloud
+
+Participating-media BSDF for volumetric fog and cloud materials.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Albedo` | numeric | yes |
+| `Extinction` | numeric | yes |
+| `EmissiveColor` | numeric | yes |
+| `AmbientOcclusion` | numeric | yes |
+
+#### Substrate.ShadingModels
+
+Legacy-style shading-model surface expressed as a Substrate material. Editor completion offers no
+parameters for this wrapper; every argument below is still accepted.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `BaseColor` | numeric | — |
+| `Metallic` | numeric | — |
+| `Specular` | numeric | — |
+| `Roughness` | numeric | — |
+| `Anisotropy` | numeric | — |
+| `EmissiveColor` | numeric | — |
+| `Normal` | numeric | — |
+| `Tangent` | numeric | — |
+| `SubSurfaceColor` | numeric | — |
+| `ClearCoat` | numeric | — |
+| `ClearCoatRoughness` | numeric | — |
+| `Opacity` | numeric | — |
+| `TransmittanceColor` | numeric | — |
+| `WaterScatteringCoefficients` | numeric | — |
+| `WaterAbsorptionCoefficients` | numeric | — |
+| `WaterPhaseG` | numeric | — |
+| `ColorScaleBehindWater` | numeric | — |
+| `ClearCoatNormal` | numeric | — |
+| `CustomTangent` | numeric | — |
+| `ThinTranslucentSurfaceCoverage` | numeric | — |
+
+### Domain output nodes
+
+#### Substrate.LightFunction
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Color` | numeric | yes |
+
+#### Substrate.PostProcess
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Color` | numeric | yes |
+| `Opacity` | numeric | yes |
+
+#### Substrate.UI
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Color` | numeric | yes |
+| `Opacity` | numeric | yes |
+
+### Conversion
+
+#### Substrate.ConvertMaterialAttributes
+
+Converts a `MaterialAttributes` value into a Substrate material.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `MaterialAttributes` | **`MaterialAttributes`** | yes |
+| `Attributes` — alias of `MaterialAttributes` | **`MaterialAttributes`** | — |
+| `WaterScatteringCoefficients` | numeric | yes |
+| `WaterAbsorptionCoefficients` | numeric | yes |
+| `WaterPhaseG` | numeric | yes |
+| `ColorScaleBehindWater` | numeric | yes |
+
+`MaterialAttributes` is the reflected property name and `Attributes` is the engine's pin name for the
+same input; both bind input 0. Passing a numeric value fails with
+`Substrate.ConvertMaterialAttributes input '{Pin}' expects a MaterialAttributes value.`
+
+#### Substrate.ConvertToDecal
+
+Converts a Substrate material into a decal material.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `DecalMaterial` | **Substrate** | yes |
+| `Coverage` | numeric | yes |
+
+### Composition
+
+#### Substrate.HorizontalMix
+
+Screen-space horizontal blend of two Substrate materials. Also spelled
+**`Substrate.HorizontalMixing`** — the two names are interchangeable.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Background` | **Substrate** | yes |
+| `Foreground` | **Substrate** | yes |
+| `Mix` | numeric | yes |
+
+#### Substrate.VerticalLayer
+
+Layers one Substrate material over another. Also spelled **`Substrate.VerticalLayering`** — the two
+names are interchangeable.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Top` | **Substrate** | yes |
+| `Base` | **Substrate** | yes |
+| `Thickness` | numeric | yes |
+
+#### Substrate.Add
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `A` | **Substrate** | yes |
+| `B` | **Substrate** | yes |
+
+#### Substrate.Weight
+
+Scales a Substrate material's contribution.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `A` | **Substrate** | yes |
+| `Weight` | numeric | yes |
+
+#### Substrate.Select
+
+Static selection between two Substrate materials.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `A` | **Substrate** | yes |
+| `B` | **Substrate** | yes |
+| `SelectValue` | numeric | yes |
+
+### Utility nodes
+
+These four return ordinary numeric values, not Substrate values, and they are the only wrappers with
+more than one output. Select with `Output=` or `OutputIndex=`.
+
+#### Substrate.TransmittanceToMFP
+
+Converts a transmittance colour and thickness into a mean-free-path parameterisation.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `TransmittanceColor` | numeric | yes |
+| `Thickness` | numeric | yes |
+
+| Output index | Name |
+| :-- | :-- |
+| 0 (default) | `MFP` |
+| 1 | `Thickness` |
+
+#### Substrate.MetalnessToDiffuseAlbedoF0
+
+Converts a legacy base-colour / metallic / specular triple into the slab parameterisation.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `BaseColor` | numeric | yes |
+| `Metallic` | numeric | yes |
+| `Specular` | numeric | yes |
+
+| Output index | Name |
+| :-- | :-- |
+| 0 (default) | `DiffuseAlbedo` |
+| 1 | `F0` |
+
+#### Substrate.HazinessToSecondaryRoughness
+
+Converts a haziness control into a second-roughness lobe.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `BaseRoughness` | numeric | yes |
+| `Haziness` | numeric | yes |
+
+| Output index | Name |
+| :-- | :-- |
+| 0 (default) | `Second Roughness` |
+| 1 | `Second Roughness Weight` |
+
+Note the spaces in those output names. They are matched as whole names, so
+`Output = "Second Roughness Weight"` works even though a *pin* name with spaces would be unreachable
+as an argument name.
+
+#### Substrate.ThinFilm
+
+Computes thin-film interference specular colours.
+
+| Argument | Value | Completion |
+| :-- | :-- | :-- |
+| `Normal` | numeric | yes |
+| `F0` | numeric | yes |
+| `F90` | numeric | yes |
+| `Thickness` | numeric | yes |
+| `IOR` | numeric | yes |
+
+| Output index | Name |
+| :-- | :-- |
+| 0 (default) | `Specular Color` |
+| 1 | `Edge Specular Color` |
+
+## Binding to Base.FrontMaterial
+
+A Substrate material reaches the generated `UMaterial` through the `Base.FrontMaterial` output
+binding, and through no other route.
+
+```c
+Outputs = {
+    Substrate Surface;              // declared-type token; case-insensitive, no other spelling
+    Base.FrontMaterial = Surface;
+}
+Graph = {
+    Surface = Substrate.Unlit(EmissiveColor = Color);
+}
+```
+
+| Rule | Behaviour |
+| :-- | :-- |
+| Declared-type token | the single spelling `Substrate`, whitespace-stripped and case-insensitive. `Strata` is **not** a type token |
+| Shading model | the binding force-sets the material's shading model to Substrate — no `Settings` entry is needed |
+| Explicit `ShadingModel` setting | allowed only as `"Substrate"` or `"Strata"`; any other value fails |
+| `Base.MaterialAttributes` in the same `Shader` | rejected — the two bindings are mutually exclusive |
+| Backend | requires a `Graph` block; an HLSL Custom node cannot produce or drive a Substrate value |
+| Engine version | UE 5.4+ |
+
+<Callout type="info">
+`Strata` is the pre-rename spelling. It is accepted as a `Settings = { ShadingModel = … }` value — an
+alias for the same shading model — but never as a type token and never as a call namespace. See
+[Enum values](/en/docs/settings/enums).
+</Callout>
+
+## Notes worth knowing
+
+- **There is no wrapper for every Substrate class.** `UMaterialExpressionSubstrateToonBSDF` has no
+  entry in the catalogue. Reach it — and any future Substrate class — through the generic path:
+
+  ```c
+  UE.Expression(Class = "SubstrateToonBSDF", OutputType = "Substrate", …)
+  ```
+
+  Class-name resolution accepts `SubstrateToonBSDF`, `MaterialExpressionSubstrateToonBSDF` and the
+  full `/Script/Engine.…` object path interchangeably. The `U`-prefixed C++ spelling is **not**
+  accepted — see [Class resolution](/en/docs/builtins/ue-expression#class-resolution).
+- **Registered `UE.*` sugar does not apply inside this namespace.** `Substrate.TexCoord(…)` is not a
+  thing; unknown names fail with `Unsupported Substrate builtin call '{Name}' in Graph.`
+- Substrate nodes **do** participate in node reuse: two textually identical `Substrate.Slab(…)` calls
+  over identical argument values collapse to a single node. This is the same cache the generic
+  [`UE.Expression`](/en/docs/builtins/ue-expression#node-reuse) path uses, and it is why one
+  multi-output utility node can serve two reads with different `Output=` selectors.
+- The [decompiler](/en/docs/tools/decompiler) exports an existing Substrate graph back to
+  DreamShaderLang, deriving channel swizzles from each connection's write mask <Since v="1.5.0" />.
+- The complete `Substrate.*` surface is exported for editor tooling to
+  `Saved/DreamShader/Bridge/substrate-builtins.json` (schema `DreamShader.SubstrateBuiltins`,
+  version 1), one entry per name with its `qualifiedName`, `className`, `outputType`,
+  `isSubstrateOutput` and curated `parameters`. See [Editor tools](/en/docs/tools/editor).
+
+## Diagnostics
+
+<Callout type="info">
+Several messages below begin with the literal text `UE.` even for a `Substrate.*` call. They come
+from the shared generic-builtin path, which formats its prefix as `UE.` unconditionally; only the
+messages that carry the namespace explicitly render as `Substrate.`. This is cosmetic — the `{Name}`
+in such a message is still the Substrate wrapper name.
+</Callout>
+
+### At the call site
+
+<Diag>
+  <D msg="Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer." cause="Any Substrate.* call on UE 5.3." fix="Substrate is unavailable below UE 5.4. Use a legacy shading model." />
+  <D msg="Unsupported Substrate builtin call '{Name}' in Graph." cause="The name is not one of the 24 in the catalogue." fix='Check the spelling, or reach the class through UE.Expression with OutputType="Substrate".' href="/en/docs/builtins/ue-expression" />
+  <D msg="Generic Substrate.{Name} calls require named arguments." cause="A positional argument." fix="Name every argument." />
+  <D msg="Substrate.{Name} uses a fixed MaterialExpression class and does not accept Class." cause="Class= was supplied. The class comes from the descriptor." />
+  <D msg="UE.{Name}: '{Argument}' is not a property on '{Class}'." cause="The argument matched neither a pin name nor a reflected property." fix="Pin names containing spaces are unreachable — use the UPROPERTY name, e.g. DiffuseAlbedo." />
+  <D msg="Substrate.{Name} input '{Pin}' expects a Substrate value." cause="A Substrate-typed pin was given a numeric value." />
+  <D msg="Substrate.{Name} input '{Pin}' does not accept Substrate values." cause="A numeric pin was given a Substrate value." />
+  <D msg="Substrate.{Name} input '{Pin}' expects a MaterialAttributes value." cause="A MaterialAttributes pin was given something else — typically Substrate.ConvertMaterialAttributes." />
+  <D msg="Substrate.{Name} output is not a Substrate value." cause="The selected pin's value type is not Substrate although the descriptor declares one." />
+  <D msg="UE.{Name} output '{Pin}' was not found on '{Class}'." cause="The named output pin does not exist." fix='Utility output names may contain spaces, e.g. "Second Roughness Weight".' />
+  <D msg="UE.{Name} OutputIndex is out of range for '{Class}'." cause="Negative index, or past the last output." />
+  <D msg="UE.{Name} could not resolve MaterialExpression class '{Class}'." cause="The descriptor's class is not present in the running engine." />
+</Diag>
+
+### Substrate values elsewhere in the pipeline
+
+<Diag>
+  <D msg="Arithmetic operators cannot be applied to Substrate values." cause="A Substrate value used with + - * /." fix="Compose Substrate values with Substrate.Add, Substrate.Weight or Substrate.VerticalLayer." />
+  <D msg="Math function '{Name}' only accepts numeric scalar/vector arguments." cause="A Substrate value passed to a math builtin." href="/en/docs/builtins/math" />
+  <D msg="StaticSwitchParameter '{Name}' cannot switch Substrate values." cause="A Substrate value on a True= / False= branch." fix="Use Substrate.Select instead." />
+  <D msg="Graph variable '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="A Substrate-typed Graph declaration on UE 5.3." />
+  <D msg="Base.FrontMaterial requires Unreal Engine 5.4 or newer." cause="The binding target used on UE 5.3." />
+  <D msg={'{File}: Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.'} cause="A conflicting explicit shading model." fix="Delete the ShadingModel setting, or set it to Substrate or Strata." href="/en/docs/settings/enums" />
+  <D msg="{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader." cause="Both bindings present. They are mutually exclusive." />
+  <D msg="{File}: Base.FrontMaterial expects a Substrate value and cannot be driven by a material Custom node. Use a Graph block and Substrate.* nodes." cause="The binding source came from an HLSL Custom node." />
+  <D msg="{File}: Material output '{Output}' expects a numeric value, but got Substrate." cause="A Substrate value bound to a numeric material output." />
+  <D msg="DreamShader Function '{Name}' result '{Result}' uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or ShaderFunction instead." cause="A Function declared a Substrate result." href="/en/docs/language/functions" />
+  <D msg={'ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.'} cause={'Settings = { ShadingModel = "Substrate"; } or "Strata" on UE 5.3.'} />
+</Diag>
+
+The complete list lives in the [diagnostics index](/en/docs/diagnostics).
+
+## Example
+
+```c
+Shader(Name="Docs/M_Substrate")
+{
+    Properties = {
+        vec3  BaseColor = vec3(0.6, 0.1, 0.1);
+        float Metallic  = 0.0;
+        float Specular  = 0.5;
+        float Rough     = 0.3;
+        vec3  Glow      = vec3(0.1, 0.6, 1.0);
+    }
+
+    Outputs = {
+        Substrate Surface;
+        Base.FrontMaterial = Surface;
+    }
+
+    Graph = {
+        // Utility node: two numeric outputs, selected by name.
+        vec3 Albedo = Substrate.MetalnessToDiffuseAlbedoF0(
+            BaseColor = BaseColor, Metallic = Metallic, Specular = Specular,
+            Output = "DiffuseAlbedo");
+        vec3 F0 = Substrate.MetalnessToDiffuseAlbedoF0(
+            BaseColor = BaseColor, Metallic = Metallic, Specular = Specular,
+            Output = "F0");
+
+        Substrate Body = Substrate.Slab(
+            DiffuseAlbedo = Albedo,
+            F0            = F0,
+            Roughness     = Rough);
+
+        Substrate Emissive = Substrate.Unlit(EmissiveColor = Glow);
+
+        Surface = Substrate.Add(A = Body, B = Emissive);
+    }
+}
+```
+
+Generated nodes:
+
+```text
+SubstrateMetalnessToDiffuseAlbedoF0   -> output "DiffuseAlbedo"  -> Albedo    (3 components)
+                                      -> output "F0"             -> F0        (3 components)
+                                         (one node, reused for both reads)
+SubstrateSlabBSDF                     -> Body                    (Substrate value)
+SubstrateUnlitBSDF                    -> Emissive                (Substrate value)
+SubstrateAdd                          -> Surface                 (Substrate value)
+Material ShadingModel forced to Substrate by the Base.FrontMaterial binding
+```
+
+## Where to next
+
+<Cards>
+  <Card title="UE.Expression" href="/en/docs/builtins/ue-expression" description="Reaching Substrate classes that have no wrapper." />
+  <Card title="Output Bindings" href="/en/docs/generation/outputs" description="Base.FrontMaterial and the full binding target list." />
+  <Card title="Enum Values" href="/en/docs/settings/enums" description='ShadingModel = "Substrate" / "Strata".' />
+  <Card title="UE.* Nodes" href="/en/docs/builtins/ue-nodes" description="The sibling namespace and its registered builtins." />
+</Cards>

@@ -1,0 +1,357 @@
+---
+title: Types and Values
+description: The 44 type tokens, the per-context validity matrix, GLSL aliases, literals, and the tokens that no longer exist.
+---
+
+A type token is the first element of every declaration form in the language. The set is closed —
+there are 44 tokens and no user-defined types — and it is matched **case-insensitively** in every
+context.
+
+<Synopsis>
+
+```c
+// Properties section
+[const] <type> <name> [ = <default> ] [ [ <metadata> ] ] ;
+
+// Inputs / Outputs / Results of a material function
+[opt] <type> <name> [ = <default> ] [ [ <metadata> ] ] ;
+
+// Shader Outputs variable declaration
+<type> <name> [ = <expression> ] ;
+
+// Function / GraphFunction signature
+Function [ <type> ] <name> ( [ { in | out } ] <type> <name> , … ) { … }
+
+// Graph declaration
+<type> <name> [ = { <expression> | { <brace-initializer> } } ] ;
+```
+
+</Synopsis>
+
+<Grammar />
+
+## The token families
+
+| Family | Tokens | Count |
+| :-- | :-- | --: |
+| Scalar (1 component) | `float` `float1` `half` `half1` `int` `uint` `bool` | 7 |
+| Vector (2 / 3 / 4 components) | `float2..4` `half2..4` `vec2..4` `int2..4` `uint2..4` `bool2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 27 |
+| Texture | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` | 5 |
+| Opaque / other | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
+
+<Callout type="info">
+
+There is no `vec1`, `ivec1`, `uvec1` or `bvec1`, and no `half` GLSL vector spelling. The
+single-component GLSL-style forms simply do not exist — use `float` or `float1`.
+
+</Callout>
+
+## The six contexts
+
+The declaration positions do **not** share one type set. Each is a column of the matrix below.
+
+| Column | Position |
+| :-- | :-- |
+| `Prop` | `Properties` of `Shader` / `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` |
+| `I/O` | `Inputs` / `Outputs` / `Results` of a material function or a `VirtualFunction` (and `Properties` inside a `VirtualFunction`, where it aliases `Inputs`) |
+| `Fn in` | an `in` parameter of `Function` / `GraphFunction` |
+| `Fn out` | an `out` parameter, or the declared return type, of `Function` / `GraphFunction` |
+| `Out decl` | a variable declaration inside a `Shader`'s `Outputs` section |
+| `Graph` | a declaration statement inside a `Graph` block |
+
+<Callout type="warn">
+
+`Prop` is validated at **parse** time; every other column is validated at **generation** time, when
+the declaration is first used. A `Function` whose parameter carries an unaccepted token parses
+cleanly and only fails when something calls it.
+
+</Callout>
+
+## Validity matrix
+
+`✔` accepted · `✘` rejected. *Comp.* is the value's width as the graph builder sees it; `0` means an
+opaque value that carries no channels.
+
+<Wide>
+
+| Token(s) | Comp. | `Prop` | `I/O` | `Fn in` | `Fn out` | `Out decl` | `Graph` |
+| :-- | --: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `float` `float1` `half` `half1` `int` `uint` `bool` | 1 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `float2` `half2` `vec2` `int2` `uint2` `bool2` `ivec2` `uvec2` `bvec2` | 2 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `float3` `half3` `vec3` `int3` `uint3` `bool3` `ivec3` `uvec3` `bvec3` | 3 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `float4` `half4` `vec4` `int4` `uint4` `bool4` `ivec4` `uvec4` `bvec4` | 4 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `Texture2D` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `TextureCube` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `Texture2DArray` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `Texture3D` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `VolumeTexture` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `SamplerState` | 0 | ✘ | ✔ ⁽³⁾ | ✔ ⁽³⁾⁽⁴⁾ | ✘ | ✘ | ✔ ⁽²⁾⁽³⁾ |
+| `MaterialAttributes` | 0 | ✘ | ✔ | ✔ ⁽⁵⁾ | ✔ | ✔ | ✔ |
+| `Substrate` | 0 | ✘ | ✔ ⁽⁶⁾ | ✘ ⁽⁷⁾ | ✘ ⁽⁷⁾ | ✔ ⁽⁶⁾ | ✔ ⁽²⁾⁽⁶⁾ |
+| `StaticBool` | 1 | ✘ | ✔ | ✔ | ✘ | ✘ | ✔ |
+| `StaticBoolParameter` | 1 | ✔ ⁽⁸⁾ | ✔ | ✔ | ✘ | ✘ | ✔ |
+
+</Wide>
+
+1. A texture-typed `in` parameter of a `Function` also emits a companion
+   `SamplerState <Name>Sampler` parameter into the generated HLSL signature, and every call site
+   inserts `<argument>Sampler` after the argument. See [Functions](/en/docs/language/functions).
+2. Texture, `SamplerState` and `Substrate` declarations in a `Graph` block **must** carry an
+   initializer — there is no default value for them.
+   Error: `Graph variable type '{Type}' requires an explicit initializer.`
+3. `SamplerState` is an **alias of `Texture2D`** in every context that accepts it. It resolves to a
+   `Texture2D` texture object, not to a distinct sampler value.
+4. `SamplerState` is **not** in the set that triggers the companion-sampler expansion of note 1, so
+   a `SamplerState` `in` parameter emits `SamplerState <Name>` into the generated HLSL and receives
+   a texture object at the call site.
+5. `MaterialAttributes` resolves as a `Function` input type, but the token is emitted verbatim into
+   the generated HLSL signature — see [Generated HLSL spelling](#generated-hlsl-spelling).
+6. `Substrate` requires <Since v="5.4" ue />. On an older engine the token does not resolve at all
+   and the position-specific "requires Unreal Engine 5.4 or newer" diagnostic is emitted.
+7. `Substrate` resolves as a `Function` / `GraphFunction` parameter or result type and is then
+   rejected with a dedicated message.
+8. In `Properties`, `StaticBoolParameter` is a **parameter-node token**, not a type token: it
+   generates a `UMaterialExpressionStaticBoolParameter` and accepts only `true` / `false` as its
+   default. See [Property Types](/en/docs/parameters/properties).
+
+## GLSL aliases
+
+The `vec` / `ivec` / `uvec` / `bvec` spellings are first-class tokens everywhere their
+`float` / `int` / `uint` / `bool` counterparts are accepted. They are **not** rewritten in
+`Properties`, `Inputs`, `Outputs`, `Graph` declarations or `Graph` constructors.
+
+| GLSL spelling | Equivalent |
+| :-- | :-- |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` |
+
+Because `int`, `uint`, `bool` and `half` all collapse to the same float component counts, choosing
+between `int3`, `ivec3`, `bool3` and `float3` is **documentation only**. The single observable
+difference is the integer marker set by an integer *constructor call* in a `Graph` block, which
+exists solely to reject integer division. See
+[Expressions and Conversions](/en/docs/graph/expressions).
+
+### Rewrites inside `Function` bodies
+
+A `Function` / `GraphFunction` **signature** runs every type token through a normaliser, and the
+**body** runs every identifier through a superset of the same map. Both match the lower-cased whole
+identifier.
+
+| Rewritten identifier | Becomes | In signature types | In body text |
+| :-- | :-- | :-: | :-: |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` | ✔ | ✔ |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` | ✔ | ✔ |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` | ✔ | ✔ |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` | ✔ | ✔ |
+| `mat2` | `float2x2` | ✔ | ✔ |
+| `mat3` | `float3x3` | ✔ | ✔ |
+| `mat4` | `float4x4` | ✔ | ✔ |
+| `mix` | `lerp` | ✘ | ✔ |
+| `fract` | `frac` | ✘ | ✔ |
+| `mod` | `fmod` | ✘ | ✔ |
+
+15 signature aliases, 18 body aliases. The rewrite is comment- and string-aware, and applies to
+`Function` and `GraphFunction` bodies **only** — a `Graph` block is never normalised. In a `Graph`
+block, `fract` and `mod` are real math builtins <Since v="1.5.0" /> and `mix` is a real alias of
+`lerp`; see [Math Builtins](/en/docs/builtins/math).
+
+<Callout type="warn">
+
+The body rewrite matches the whole identifier, ignoring case. A helper, local variable or struct
+member named `Mix`, `Mod`, `Fract`, `Vec3` or `Mat4` inside a `Function` or `GraphFunction` body is
+silently renamed to `lerp`, `fmod`, `frac`, `float3`, `float4x4`. There is no diagnostic; the
+failure surfaces as an HLSL compile error, or as silently different math. Rename the identifier.
+
+</Callout>
+
+## Matrices
+
+There are **no matrix types**. `mat2` / `mat3` / `mat4` and `float2x2` / `float3x3` / `float4x4` are
+rejected by every column of the matrix above.
+
+`mat2` / `mat3` / `mat4` are nevertheless accepted *lexically* in a `Function` signature, because the
+normaliser rewrites them before any validation runs. The declaration parses; the call fails:
+
+```c
+Function float3 Rotate(in mat3 basis, in vec3 v) { return mul(basis, v); }
+// parses; a call fails with:
+//   DreamShader Function 'Rotate' input 'basis' uses unsupported type 'float3x3'.
+```
+
+Matrix-shaped work is reachable only through the transform builtins — see
+[UE.* Nodes](/en/docs/builtins/ue-nodes).
+
+## Literals
+
+### Scalars
+
+```c
+float a = 1.0;
+float b = -0.5;
+float c = 1e-3;
+```
+
+In a `Graph` block a number is a real token with an optional exponent and one optional type suffix
+(`f F h H u U l L`), and the suffix is excluded from the value: `0.55f` is `0.55`. In a declaration
+default there is no numeric token at all — the raw text is converted late and tolerantly, which is
+why `float Strength = 1abc;` silently becomes `1.0`. See
+[Lexical Elements](/en/docs/language/lexical).
+
+### Vector construction
+
+```c
+vec2   uv    = vec2(0.5, 0.5);
+vec3   color = vec3(1.0, 0.2, 0.1);
+float4 rgba  = float4(color, 1.0);
+```
+
+A constructor's component count comes from the **last character of its name**: `…2` → 2, `…3` → 3,
+`…4` → 4, anything else → 1. Constructors accept any mix of scalars and vectors as long as the parts
+add up to the target width.
+
+### Brace initializers
+
+```c
+vec3   color = {1.0, 0.2, 0.1};
+float4 rgba  = {color, 1.0};
+```
+
+Useful for assembling an existing scalar or vector into a target type without repeating the type
+name.
+
+### Booleans and strings
+
+`true` and `false` are accepted in declaration defaults, where they convert to `1.0` / `0.0`
+wherever a scalar is expected. String literals are values for settings, metadata, class names and
+`UE.*` named arguments; they are **not** values an expression can compute with.
+
+```c
+Settings = { Domain = "UI"; }
+
+float pulse = UE.Expression(Class="Sine", OutputType="float1", Input=UE.Time());
+```
+
+## Asset references
+
+Texture and asset-valued declarations take a `Path( … )` reference rather than a literal:
+
+```c
+Properties = {
+    Texture2D   MainTex     = Path(Game, "Textures/T_Main");
+    Texture2D   PluginTex   = Path(Plugins.MoonToon, "Textures/T_Plugin");
+    Texture2D   DefaultTex  = Path("/Engine/EngineResources/DefaultTexture");
+    TextureCube SkyTex      = Path(Engine, "EngineResources/DefaultTextureCube");
+}
+```
+
+Every accepted spelling, both resolvers and all their diagnostics are on
+[Asset References](/en/docs/parameters/path).
+
+## Whitespace inside a token
+
+The scalar/vector resolver used by `Fn in`, `Fn out`, `Out decl` and `Graph` lower-cases the token
+and then removes **every** space before comparing, and the `MaterialAttributes` / `Substrate`
+predicates do the same. Texture, `SamplerState` and `StaticBool` tokens are compared verbatim
+(ignoring case only), so `Texture 2D` does **not** resolve.
+
+| Written | Resolves as |
+| :-- | :-- |
+| `float 3` | `float3` |
+| `Material Attributes` | `MaterialAttributes` |
+| `Sub strate` | `Substrate` |
+
+The `Properties` dispatcher does **not** do this, so `float 3 X;` there splits as the type `float`
+and the name `3 X` and fails differently.
+
+## Generated HLSL spelling
+
+When a `Function` is lowered to a generated `.ush` helper, each declared token is written into the
+HLSL signature with exactly one rewrite applied:
+
+| Declared token | HLSL emitted |
+| :-- | :-- |
+| `VolumeTexture` | `Texture3D` |
+| everything else | the token, verbatim |
+
+<Callout type="warn">
+
+Because the token is emitted verbatim, a token that resolves for DreamShader but has no HLSL
+spelling — `MaterialAttributes`, `StaticBool`, `StaticBoolParameter` — produces a generated helper
+Unreal cannot compile. DreamShader-side validation passes and the failure appears as a shader-compile
+error naming the unknown type. Use a `ShaderFunction` or a `GraphFunction` for `MaterialAttributes`
+and static-bool plumbing.
+
+</Callout>
+
+## Removed tokens
+
+| Token | Status | Replacement |
+| :-- | :-- | :-- |
+| `Scalar` | **removed** | `float` |
+| `Color` | **removed** | `float4` / `vec4` |
+| `Vector` | **removed** | `float2` … `float4` / `vec2` … `vec4` |
+
+They are not special-cased anywhere; they fall through to the generic unsupported-type diagnostic of
+whichever context they appear in — `Unsupported property type 'Scalar'.` in a `Properties` block,
+`Unsupported Graph variable type 'Color' for '{Name}'.` in a `Graph` block.
+
+## Example
+
+One token from each family, each in a context that accepts it:
+
+```c
+ShaderFunction(Name="Functions/F_Types")
+{
+    Properties = {
+        float     Strength = 1.0;              // scalar token
+        vec3      Tint     = vec3(1, 1, 1);    // GLSL vector spelling
+        Texture2D Noise    = Path(Game, "Textures/T_Noise");
+    }
+
+    Inputs = {
+        vec2                   UV;             // numeric
+        opt StaticBool         UseTint;        // Inputs-only token
+        opt MaterialAttributes InAttrs;        // Inputs-only token
+    }
+
+    Outputs = {
+        vec3 OutColor;
+    }
+
+    Graph = {
+        Texture2D Src = Noise;                 // texture declarations need an initializer
+        vec4   Sampled = SampleTexture2D(Src, UV);
+        float3 Base    = Sampled.rgb * Strength;
+        OutColor       = Base * Tint;
+    }
+}
+```
+
+## Diagnostics
+
+<Diag>
+  <D msg="Unsupported property type '{Type}'." cause="The token is not accepted in Properties — MaterialAttributes, Substrate, SamplerState and StaticBool among them." href="/en/docs/language/sections" />
+  <D msg="Unsupported Graph variable type '{Type}' for '{Name}'." cause="The token is not accepted in a Graph declaration." href="/en/docs/graph/statements" />
+  <D msg="Graph variable type '{Type}' requires an explicit initializer." cause="A texture, SamplerState or Substrate declaration in a Graph block with no =." />
+  <D msg="Unsupported output type '{Type}' for '{Name}'." cause="The token is not accepted in a Shader's Outputs declaration." />
+  <D msg="{Kind} '{Function}' input '{Name}' uses unsupported type '{Type}'." cause="The token is not accepted in an Inputs section — often a tab that ended up inside the type token." href="/en/docs/language/sections" />
+  <D msg="{Kind} '{Function}' output '{Name}' uses unsupported type '{Type}'." cause="The token is not accepted in an Outputs / Results section." />
+  <D msg="DreamShader Function '{Name}' input '{Input}' uses unsupported type '{Type}'." cause="The token is not accepted as a Function in parameter — matrices reach this message." href="/en/docs/language/functions" />
+  <D msg="DreamShader Function '{Name}' has unsupported result type '{Type}'." cause="The result type is outside the scalar/vector/MaterialAttributes set." />
+  <D msg="Graph variable '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="A Substrate declaration on UE 5.3." href="/en/docs/builtins/substrate" />
+  <D msg="DreamShader Function '{Name}' input '{Input}' uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or ShaderFunction instead." cause="A Substrate parameter on a Function, UE 5.4+." />
+  <D msg="Expected a MaterialAttributes value." cause="A numeric value was assigned where MaterialAttributes was declared." />
+  <D msg="Expected a texture object value with a matching texture type." cause="A texture of the wrong dimension was assigned." />
+  <D msg="Texture objects cannot be assigned to numeric outputs." cause="A texture object reached a numeric target." />
+</Diag>
+
+## Where to next
+
+<Cards>
+  <Card title="Sections" href="/en/docs/language/sections" description="Where each of the six declaration contexts lives." />
+  <Card title="Property Types" href="/en/docs/parameters/properties" description="Which node each compact token generates, and the 22 explicit parameter nodes." />
+  <Card title="Expressions and Conversions" href="/en/docs/graph/expressions" description="Coercion, widening and the integer-division rule." />
+  <Card title="Substrate Nodes" href="/en/docs/builtins/substrate" description="The UE 5.4+ surface behind the Substrate token." />
+</Cards>

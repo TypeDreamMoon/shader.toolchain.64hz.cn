@@ -1,92 +1,190 @@
 ---
 title: GLSL 简介
-description: GLSL 语法、向量类型和与 DreamShaderLang 的对应关系。
+description: 写给 DreamShaderLang 作者的 GLSL 背景 —— 哪些 GLSL 写法是一等 token、哪些会在 Function 体内被改写，以及哪些根本没有对应物。
 ---
 
-GLSL 是 OpenGL / Vulkan 生态常见的着色语言。DreamShaderLang 不是 GLSL 编译器，但支持 `vec2` / `vec3` / `vec4` 等 GLSL 风格别名，方便有 GLSL 经验的用户迁移材质逻辑。
+网上大多数着色器示例都是 GLSL 写的。DreamShaderLang 不是 GLSL 编译器，也从不输出 GLSL ——
+它的目标是 Unreal 的材质图和 HLSL。但语言对 GLSL 写法是刻意照顾的，而且照顾方式有两种，
+分清这两种就是本页的全部要点。
 
-## 基本形态
+| 机制 | 位置 | 发生了什么 |
+| :-- | :-- | :-- |
+| **一等 token** | `Properties`、`Inputs`、`Outputs`、`Graph` 声明、`Graph` 构造器 | `vec3` *就是*一个类型 token。什么都不改写，存下来和报出来都是你写的样子 |
+| **标识符改写** | `Function` / `GraphFunction` 的签名和函数体 | 在输出 HLSL 之前按整标识符替换，于是 `vec3` 变成 `float3`、`mix` 变成 `lerp` |
 
 ```glsl
+// GLSL
 vec3 applyTint(vec3 color, vec3 tint)
 {
     return color * tint;
 }
 ```
 
-在 DreamShaderLang 中，等价 helper 通常写成：
-
 ```c
-Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
-    result = color * tint;
+// DreamShaderLang —— 同一个 helper。vec3 在声明里保留，
+// 在生成的 HLSL 里变成 float3。
+Function vec3 ApplyTint(in vec3 color, in vec3 tint) {
+    return color * tint;
 }
 ```
 
-## 常用类型
+## GLSL 类型别名
 
-| GLSL 类型 | 说明 | DreamShaderLang 对应 |
-| --- | --- | --- |
-| `float` | 浮点标量 | `float` |
-| `int` | 整数标量 | `int` |
-| `uint` | 无符号整数 | `uint` |
-| `bool` | 布尔值 | `bool` |
-| `vec2` / `vec3` / `vec4` | 浮点向量 | `float2` / `float3` / `float4` |
-| `ivec2` / `ivec3` / `ivec4` | 整数向量 | `int2` / `int3` / `int4` |
-| `uvec2` / `uvec3` / `uvec4` | 无符号整数向量 | `uint2` / `uint3` / `uint4` |
-| `bvec2` / `bvec3` / `bvec4` | 布尔向量 | `bool2` / `bool3` / `bool4` |
-| `mat2` / `mat3` / `mat4` | 矩阵 | helper 中可规范化为 HLSL 矩阵类型 |
+这些是真正的 token，凡是接受对应 `float` / `int` / `uint` / `bool` 写法的地方都接受它们。
 
-## 构造器和 swizzle
+| GLSL 写法 | 等价于 |
+| :-- | :-- |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` |
 
-```glsl
-vec2 uv = vec2(0.5, 0.5);
-vec3 color = vec3(1.0, 0.2, 0.1);
-float r = color.r;
-vec2 rg = color.rg;
-vec3 bgr = color.bgr;
-```
+<Callout type="info">
+没有 `vec1`、`ivec1`、`uvec1`、`bvec1`，也没有 `half` 的 GLSL 向量写法。单分量的 GLSL 风格形式
+根本不存在 —— 请用 `float` 或 `float1`。
+</Callout>
 
-DreamShaderLang 的 `Graph` 也支持类似构造和 swizzle：
+由于 `int`、`uint`、`bool` 和 `half` 最终都折叠到同一套浮点分量数，在 `int3`、`ivec3`、`bool3`
+和 `float3` 之间做选择是文档层面的决定，不是语义层面的。唯一可观察的差别是 `Graph` 块中整数
+**构造器调用**设置的整数标记，它存在的唯一目的是拒绝整数除法。见
+[类型与值](/docs/language/types-and-values)。
+
+## 函数体内部的改写
+
+`Function` / `GraphFunction` 的**签名**会把每个类型 token 过一遍规范化器，**函数体**则把每个标识符
+过一遍同一张表的超集。两者都按小写化后的整标识符匹配，所以改写不区分大小写。
+
+| 被改写的标识符 | 变成 | 签名类型中 | 函数体文本中 |
+| :-- | :-- | :-: | :-: |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` | ✔ | ✔ |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` | ✔ | ✔ |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` | ✔ | ✔ |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` | ✔ | ✔ |
+| `mat2` | `float2x2` | ✔ | ✔ |
+| `mat3` | `float3x3` | ✔ | ✔ |
+| `mat4` | `float4x4` | ✔ | ✔ |
+| `mix` | `lerp` | ✘ | ✔ |
+| `fract` | `frac` | ✘ | ✔ |
+| `mod` | `fmod` | ✘ | ✔ |
+
+签名别名 15 条；函数体别名 18 条。改写能识别注释和字符串，并且**只**作用于 `Function` 和
+`GraphFunction` 体 —— `Graph` 块、`Shader` 体和 `ShaderFunction` 体都不做规范化。
+
+<Callout type="warn">
+函数体改写按整标识符匹配、不区分大小写。`Function` 或 `GraphFunction` 体里名为 `Mix`、`Mod`、
+`Fract`、`Vec3`、`Mat4` … 的 helper、局部变量或结构体成员，都会被静默改名成 `lerp`、`fmod`、
+`frac`、`float3`、`float4x4`。没有任何诊断；故障表现为 HLSL 编译错误，或者悄悄算错。请改名。
+</Callout>
+
+注意 `mat2` / `mat3` / `mat4` 改写得很干净，但落到的是语言不支持的类型。声明能解析，
+失败发生在**调用**时 —— `… input 'basis' uses unsupported type 'float3x3'.` 见
+[HLSL 简介](/docs/shader-languages/hlsl)中的矩阵一节。
+
+## `Graph` 块里的 GLSL 函数名
+
+`Graph` 块里什么都不改写，所以 GLSL 写法必须本身就是真正的内置 —— 其中三个确实是：
+
+| GLSL 名字 | 在 `Graph` 块中 | 在 `Function` 体中 |
+| :-- | :-- | :-- |
+| `mix` | 真正的内置，`lerp` 的别名 | 改写成 `lerp` |
+| `fract` | 真正的内置 <Since v="1.5.0" />，与 `frac` 同一节点 | 改写成 `frac` |
+| `mod` | 真正的内置 <Since v="1.5.0" />，与 `fmod` 同一节点 | 改写成 `fmod` |
+| `clamp`、`dot`、`min`、`max`、`pow`、`sqrt`、`abs`、`floor`、`ceil`、`sin`、`cos`、`normalize` | 两种语言拼写相同 —— 都是真正的内置 | HLSL 内建函数 |
+| `smoothstep`、`step`、`length`、`distance`、`cross`、`reflect`、`refract`、`exp`、`log` | **不是内置** —— 走 `UE.Expression(Class = …)` 或写进 `Function` 体 | HLSL 内建函数，可直接使用 |
+
+完整的内置目录见[数学内置](/docs/builtins/math)。
+
+## 构造器与 swizzle
+
+两者都能原样带过来，GLSL 写法保留。
 
 ```c
 Graph = {
-    vec3 color = vec3(1.0, 0.2, 0.1);
-    float r = color.r;
-    vec2 rg = color.rg;
+    vec3  color = vec3(1.0, 0.2, 0.1);
+    float r     = color.r;
+    vec2  rg    = color.rg;
+    vec3  bgr   = color.bgr;
 }
 ```
 
-## 常用函数
+- 构造器名跟随类型 token，所以 `vec2(…)`、`vec3(…)`、`vec4(…)`、`ivec3(…)` 等在 `Graph` 块里都能用。
+- swizzle 接受一到四个通道字符，来自 `xyzw` 或 `rgba` 两个集合，不区分大小写。重排和重复都允许。
+  没有 `stpq` 集合，也没有 `uv` 集合 —— `.uv` 会失败。
+- swizzle 只能收窄或重排。对标量写 `Roughness.yz` 是硬错误，**不是**广播：
+  `Swizzle 'yz' is invalid for a value with 1 components.` 请重复通道 0（`.xx`）或改用构造器。
 
-| GLSL 函数 | 说明 |
-| --- | --- |
-| `mix` | 线性插值，HLSL 中常见对应是 `lerp`。 |
-| `clamp` | 限制范围。 |
-| `smoothstep` | 平滑阶跃。 |
-| `step` | 阶跃函数。 |
-| `dot` / `cross` | 点积 / 叉积。 |
-| `normalize` | 归一化。 |
-| `length` / `distance` | 长度 / 距离。 |
-| `fract` | 小数部分，HLSL 中常见对应是 `frac`。 |
+细节见[运算符与转换](/docs/graph/expressions)。
 
-在 DreamShaderLang 的 `Function` 中，最终由 Unreal/HLSL 环境编译，因此更推荐使用 HLSL 可用函数名，例如 `lerp`、`frac`、`saturate`。
+## 完全没有对应物的东西
 
-## 常见关键字
+| GLSL 习惯 | 在 DreamShaderLang 中 |
+| :-- | :-- |
+| `void main() { … }` | 没有 —— 用带 `Outputs` 绑定的 `Shader` 块描述材质 |
+| `uniform float x;` | 写成 `Properties` 声明；节点会变成真正的材质参数 |
+| 文件作用域的 `in` / `out` / `varying` / `attribute` | 没有 —— 输入来自 `UE.*` 节点和参数 |
+| `sampler2D` + `texture(s, uv)` | 纹理 property 加 `SampleTexture2D(tex, uv)`，或者用 `TextureSampleParameter2D` 调用 `Tex(Coordinates = uv)` |
+| `layout(…)`、`lowp` / `mediump` / `highp` | 没有 |
+| `mat3 m; m * v` | 没有矩阵类型 —— 用 `UE.TransformVector` / `UE.TransformPosition` |
+| `#version`、`#extension` | 没有 |
+| `discard` | 只在 `Function` 的 HLSL 体内部有效 |
+
+## 移植一段片段
+
+一段典型的 GLSL 片段，以及落地的两种方式。
+
+```glsl
+float ring(vec2 uv, float t)
+{
+    vec2  p = uv - 0.5;
+    float d = length(p);
+    return fract(sin(t) * 0.5 + d * 4.0);
+}
+```
+
+写成 `Function`，函数体是 HLSL，别名由语言替你改写：
+
+```c
+Function float Ring(in vec2 uv, in float t)
+{
+    vec2  p = uv - 0.5;          // 输出时 vec2 -> float2
+    float d = length(p);         // HLSL 内建函数，在函数体里没问题
+    return fract(sin(t) * 0.5 + d * 4.0);   // fract -> frac
+}
+```
+
+写成 `Graph` 语句，这里什么都不改写，而且 `length` 不是内置：
+
+```c
+Graph = {
+    vec2  uv = UE.TexCoord(Index = 0);
+    vec2  p  = uv - 0.5;
+    float d  = sqrt(dot(p, p));                    // length，手动展开
+    float r  = fract(sin(UE.Time()) * 0.5 + d * 4.0);
+}
+```
+
+`Function` 版本更短；`Graph` 版本产出可以在材质图里查看、也可以接参数的真实节点。按场景选择 ——
+见[函数](/docs/language/functions)。
+
+## GLSL 常见关键字
+
+仅作参考。除上文明确说明的以外，这张表里的东西都不属于 DreamShaderLang 语法。
 
 | 分类 | 关键字 |
-| --- | --- |
-| 类型 | `float`, `int`, `uint`, `bool`, `void`, `vec2`, `vec3`, `vec4`, `mat3`, `mat4` |
-| 控制流 | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `break`, `continue`, `return` |
-| 修饰 | `const`, `in`, `out`, `inout`, `uniform` |
-| Shader 阶段 | `attribute`, `varying`, `layout` |
-| 精度 | `lowp`, `mediump`, `highp` |
+| :-- | :-- |
+| 类型 | `void`、`bool`、`int`、`uint`、`float`、`double`、`vec2`、`vec3`、`vec4`、`mat2`、`mat3`、`mat4` |
+| 控制流 | `if`、`else`、`for`、`while`、`do`、`switch`、`case`、`default` |
+| 跳转 | `return`、`break`、`continue`、`discard` |
+| 参数 | `in`、`out`、`inout` |
+| 修饰 | `const`、`uniform`、`layout`、`centroid`、`flat`、`smooth`、`attribute`、`varying` |
+| 精度 | `lowp`、`mediump`、`highp` |
 
-## 与 DreamShaderLang 的关系
+## 接下来
 
-| GLSL 习惯 | DreamShaderLang 建议 |
-| --- | --- |
-| 使用 `vec3` / `vec4` | 可以继续使用，语言会映射到 HLSL 风格类型。 |
-| 使用 `mix` | 在 `Function` 中优先改为 `lerp`。 |
-| 使用 `fract` | 在 `Function` 中优先改为 `frac`。 |
-| 写 shader main | 不需要，DreamShaderLang 通过 `Shader` / `Graph` 描述材质。 |
-| sampler2D 采样 | 使用 DreamShaderLang 的纹理 property 和 HLSL 风格采样 helper。 |
+<Cards>
+  <Card title="HLSL 简介" href="/docs/shader-languages/hlsl" description="HLSL 在哪里运行，以及自带的 helper 头文件。" />
+  <Card title="关键字速查" href="/docs/shader-languages/keywords-cheatsheet" description="三套词汇并排对照。" />
+  <Card title="类型与值" href="/docs/language/types-and-values" description="封闭的 token 集合及其有效性矩阵。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 19 个名字。" />
+  <Card title="运算符与转换" href="/docs/graph/expressions" description="运算符、构造器、swizzle 与加宽。" />
+</Cards>

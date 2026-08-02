@@ -1,0 +1,633 @@
+---
+title: Substrate 节点
+description: Substrate.* 调用命名空间 —— 24 个包装 Unreal Substrate BSDF、组合与工具节点的入口。需要 UE 5.4+。
+---
+
+`Substrate.*` 是与 [`UE.*`](/docs/builtins/ue-nodes) 并列的调用命名空间，用来包装 Unreal 的 Substrate
+BSDF、组合和工具材质节点。每个名字对应一个固定的表达式类 —— 24 个名字解析到 22 个不同的类，
+因为其中有两对别名。
+
+```c
+Outputs = {
+    Substrate Surface;
+    Base.FrontMaterial = Surface;
+}
+Graph = {
+    Surface = Substrate.Unlit(EmissiveColor = Glow);
+}
+```
+
+## 可用性
+
+<Since v="5.4" ue />
+
+<Callout type="warn">
+**`Substrate.*` 需要 Unreal Engine 5.4 或更新版本，并且项目中启用了 Substrate。** 这是两个独立的条件，
+而 DreamShader 只检查第一个。
+
+整个命名空间 —— 描述符表、类检查和 `Substrate` 类型 token —— 只在 UE 5.4+ 上编译进来。在 UE 5.3 上
+每个调用都会失败：`Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer.`
+
+DreamShader **不**读取 *Project Settings ▸ Engine ▸ Rendering ▸ Substrate*。在没有启用 Substrate 的项目里，
+一个会生成 Substrate 图的源文件仍会把资产建出来，然后在 Unreal 自己的材质翻译阶段失败，
+而那条错误不会提到 DreamShader。
+</Callout>
+
+所有受引擎版本限制的部分：
+
+| 使用面 | 版本门槛 | 低于门槛时 |
+| :-- | :-- | :-- |
+| `Substrate.<Name>(…)` 调用 | UE 5.4 | `Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer.` |
+| `Substrate` 声明类型 token | UE 5.4 | token 解析不了 |
+| 通用 `UE.*` 调用上的 `OutputType="Substrate"` | UE 5.4 | `UE.{Name} OutputType="Substrate" requires Unreal Engine 5.4 or newer.` |
+| `Base.FrontMaterial` 输出绑定 | UE 5.4 | `Base.FrontMaterial requires Unreal Engine 5.4 or newer.` |
+| `Settings = { ShadingModel = "Substrate"; }` 以及 `"Strata"` 写法 | UE 5.4 | `ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.` |
+
+<Callout type="info">
+编辑器工具链遵循同一个门槛。在 UE 5.3 上清单文件
+`Saved/DreamShader/Bridge/substrate-builtins.json` 会被写成空条目数组、`supported: false`，以及
+`unsupportedReason: "Substrate builtins require Unreal Engine 5.4 or newer."` ——
+所以编辑器扩展的补全里什么都不会有。参见[编辑器工具](/docs/tools/editor)。
+</Callout>
+
+## 语法概要
+
+<Grammar />
+
+<Synopsis>
+```c
+Substrate . <Name> ( [ <argument-name> = <expression> ]
+                     [ , <argument-name> = <expression> ] …
+                     [ , { Output | OutputName } = "<pin-name>" ]
+                     [ , OutputIndex = <integer> ] )
+```
+</Synopsis>
+
+命名空间前缀和名字都**不区分大小写**：`SUBSTRATE.UNLIT(…)` 能解析。参数名会去掉首尾空白并按不区分
+大小写比较，但除此之外必须精确匹配 —— 不会去掉分隔符。
+
+## 参数模型
+
+每个 `Substrate.*` 调用都走通用反射路径，因此继承
+[`UE.Expression`](/docs/builtins/ue-expression) 的规则。
+
+| 规则 | 行为 |
+| :-- | :-- |
+| 所有参数都必须**命名** | 位置参数会失败：`Generic Substrate.{Name} calls require named arguments.` |
+| **拒绝** `Class=` | `Substrate.{Name} uses a fixed MaterialExpression class and does not accept Class.` —— 类来自描述符，不可覆盖 |
+| **忽略** `OutputType=` / `ResultType=` | 输出类型由描述符合成；写了也不起作用，也不报错 |
+| `Output=` / `OutputName=` | 按名字选择输出 pin |
+| `OutputIndex=` | 按 0 起始的索引选择输出 pin |
+| 两个选择器同时出现 | `UE.{Name} cannot use OutputName/Output together with OutputIndex.` |
+| 其他参数 | 由反射分派，见下 |
+
+### 由反射驱动的绑定
+
+参数绑定不是查表的。对每个剩余参数，生成器按顺序尝试：
+
+1. **输入 pin 名** —— 节点报告的每个输入 pin，去空白后不区分大小写比较。
+2. **`UPROPERTY` 名** —— 该类或父类上的任意反射属性，比较方式相同。布尔属性还额外支持去掉开头的 `b`
+   后匹配。
+3. 如果属性是 `FExpressionInput` 或 `FMaterialAttributesInput`，参数成为**连线输入**，其值作为表达式求值；
+   否则作为**字面量属性**写入。
+4. 都不匹配 → `UE.{Name}: '{Argument}' is not a property on '{Class}'.`
+
+同名时 pin 名匹配优先于反射属性。
+
+<Callout type="warn">
+**名字里带空格的引擎 pin 无法触达。** 参数名归一化只做去空白和转小写，**不会**去掉中间的空格，
+所以显示为 `Diffuse Albedo` 的 pin 无法写成参数名。改用 `UPROPERTY` 名 —— `DiffuseAlbedo` ——
+也就是下面各表列出的名字。pin 名和属性名一致时，两种写法都可以。
+</Callout>
+
+<Callout type="info">
+**可接受的参数名跟随引擎，而不是插件。** 步骤 1 和 2 查询的是运行时的
+`UMaterialExpressionSubstrate*` 类，因此精确的可接受集合就是当前引擎版本暴露出来的那些；
+引擎版本增删了某个输入，它就会随之出现或消失，插件不需要改动。
+
+下面各表列出这些类暴露的输入。**补全**列标记的是 DreamShader 发布到编辑器补全和 Bridge 清单里的
+精选子集，那个子集*是*由插件固定的。同一个类上任何非输入的反射属性 —— 枚举、浮点、布尔 ——
+即使这里没有列出，也同样可以作为字面量参数设置。
+</Callout>
+
+### 选择输出
+
+`Output=` / `OutputName=` 按输出 pin 的名字原样比较，不区分大小写，**包括含空格的名字** ——
+输出 pin 名是作为整体名字匹配的，不会当成参数名解析。`OutputIndex=` 取 0 起始的索引。
+只有四个工具节点有多个输出。
+
+## 目录
+
+*Substrate 输出*标记那些结果是 Substrate 材质值的包装节点 —— 0 分量，可绑定到 `Base.FrontMaterial`。
+标为**否**的四个是工具节点，返回普通数值。
+
+| `Substrate.<Name>` | `UMaterialExpression` 类 | Substrate 输出 |
+| :-- | :-- | :-- |
+| `ShadingModels` | `UMaterialExpressionSubstrateShadingModels` | 是 |
+| `Slab` | `UMaterialExpressionSubstrateSlabBSDF` | 是 |
+| `SimpleClearCoat` | `UMaterialExpressionSubstrateSimpleClearCoatBSDF` | 是 |
+| `VolumetricFogCloud` | `UMaterialExpressionSubstrateVolumetricFogCloudBSDF` | 是 |
+| `Unlit` | `UMaterialExpressionSubstrateUnlitBSDF` | 是 |
+| `Hair` | `UMaterialExpressionSubstrateHairBSDF` | 是 |
+| `Eye` | `UMaterialExpressionSubstrateEyeBSDF` | 是 |
+| `SingleLayerWater` | `UMaterialExpressionSubstrateSingleLayerWaterBSDF` | 是 |
+| `LightFunction` | `UMaterialExpressionSubstrateLightFunction` | 是 |
+| `PostProcess` | `UMaterialExpressionSubstratePostProcess` | 是 |
+| `UI` | `UMaterialExpressionSubstrateUI` | 是 |
+| `ConvertMaterialAttributes` | `UMaterialExpressionSubstrateConvertMaterialAttributes` | 是 |
+| `ConvertToDecal` | `UMaterialExpressionSubstrateConvertToDecal` | 是 |
+| `HorizontalMix` | `UMaterialExpressionSubstrateHorizontalMixing` | 是 |
+| `HorizontalMixing` —— `HorizontalMix` 的别名 | `UMaterialExpressionSubstrateHorizontalMixing` | 是 |
+| `VerticalLayer` | `UMaterialExpressionSubstrateVerticalLayering` | 是 |
+| `VerticalLayering` —— `VerticalLayer` 的别名 | `UMaterialExpressionSubstrateVerticalLayering` | 是 |
+| `Add` | `UMaterialExpressionSubstrateAdd` | 是 |
+| `Weight` | `UMaterialExpressionSubstrateWeight` | 是 |
+| `Select` | `UMaterialExpressionSubstrateSelect` | 是 |
+| `TransmittanceToMFP` | `UMaterialExpressionSubstrateTransmittanceToMFP` | **否** |
+| `MetalnessToDiffuseAlbedoF0` | `UMaterialExpressionSubstrateMetalnessToDiffuseAlbedoF0` | **否** |
+| `HazinessToSecondaryRoughness` | `UMaterialExpressionSubstrateHazinessToSecondaryRoughness` | **否** |
+| `ThinFilm` | `UMaterialExpressionSubstrateThinFilm` | **否** |
+
+两对别名是完全的重复 —— 同一个类、同样的输入、同样的输出类型。两种写法都没有被弃用。
+
+## 输出类型
+
+| 描述符 | 声明的输出类型 | 分量数 | 标记 |
+| :-- | :-- | :-- | :-- |
+| Substrate 输出 | `Substrate` | 0 | Substrate 值，权威 |
+| 工具节点 | `auto` | 取自所选 pin 的真实值类型 | 数值 |
+
+随后会用所选输出 pin 的真实值类型检查声明的类型。如果一个声明为 Substrate 输出的包装节点解析到的 pin
+不是 Substrate 值，调用会失败：`Substrate.{Name} output is not a Substrate value.`
+
+`Substrate` 值只能：
+
+- 赋给 `Substrate` 类型的 `Graph` 变量或 `Outputs` 声明；
+- 传给另一个 `Substrate.*` 包装节点的 Substrate 类型输入；
+- 绑定到 `Base.FrontMaterial`。
+
+<Callout type="warn">
+Substrate 值**不能** swizzle，不能用于 `+ - * /`
+（`Arithmetic operators cannot be applied to Substrate values.`），不能传给
+[数学内置](/docs/builtins/math)
+（`Math function '{Name}' only accepts numeric scalar/vector arguments.`），不能被
+`StaticSwitchParameter` 切换（`StaticSwitchParameter '{Name}' cannot switch Substrate values.`），
+也不能由 HLSL Custom 节点产生。
+</Callout>
+
+## 节点参考
+
+### BSDF
+
+#### Substrate.Slab
+
+通用的 Substrate BSDF slab —— 通常从它开始。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `DiffuseAlbedo` | 数值 | 是 |
+| `F0` | 数值 | 是 |
+| `F90` | 数值 | — |
+| `Roughness` | 数值 | 是 |
+| `Anisotropy` | 数值 | — |
+| `Normal` | 数值 | 是 |
+| `Tangent` | 数值 | — |
+| `SSSMFP` | 数值 | — |
+| `SSSMFPScale` | 数值 | — |
+| `SSSPhaseAnisotropy` | 数值 | — |
+| `EmissiveColor` | 数值 | — |
+| `SecondRoughness` | 数值 | — |
+| `SecondRoughnessWeight` | 数值 | — |
+| `FuzzRoughness` | 数值 | — |
+| `FuzzAmount` | 数值 | — |
+| `FuzzColor` | 数值 | — |
+| `GlintValue` | 数值 | — |
+| `GlintUV` | 数值 | — |
+
+#### Substrate.SimpleClearCoat
+
+带固定第二层 clear coat 波瓣的 slab。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `DiffuseAlbedo` | 数值 | 是 |
+| `F0` | 数值 | 是 |
+| `Roughness` | 数值 | 是 |
+| `ClearCoatCoverage` | 数值 | 是 |
+| `ClearCoatRoughness` | 数值 | 是 |
+| `Normal` | 数值 | 是 |
+| `EmissiveColor` | 数值 | — |
+| `BottomNormal` | 数值 | — |
+
+#### Substrate.Unlit
+
+只有自发光的 BSDF。最小的完整 Substrate 表面。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `EmissiveColor` | 数值 | 是 |
+| `TransmittanceColor` | 数值 | — |
+| `Normal` | 数值 | — |
+
+#### Substrate.Hair
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `BaseColor` | 数值 | 是 |
+| `Scatter` | 数值 | 是 |
+| `Specular` | 数值 | 是 |
+| `Roughness` | 数值 | 是 |
+| `Backlit` | 数值 | 是 |
+| `Tangent` | 数值 | 是 |
+| `EmissiveColor` | 数值 | 是 |
+
+#### Substrate.Eye
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `DiffuseColor` | 数值 | 是 |
+| `Roughness` | 数值 | 是 |
+| `CorneaNormal` | 数值 | 是 |
+| `IrisNormal` | 数值 | 是 |
+| `IrisPlaneNormal` | 数值 | 是 |
+| `IrisMask` | 数值 | 是 |
+| `IrisDistance` | 数值 | 是 |
+| `EmissiveColor` | 数值 | 是 |
+
+#### Substrate.SingleLayerWater
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `BaseColor` | 数值 | 是 |
+| `Metallic` | 数值 | 是 |
+| `Specular` | 数值 | 是 |
+| `Roughness` | 数值 | 是 |
+| `Normal` | 数值 | 是 |
+| `EmissiveColor` | 数值 | 是 |
+| `TopMaterialOpacity` | 数值 | 是 |
+| `WaterAlbedo` | 数值 | 是 |
+| `WaterExtinction` | 数值 | 是 |
+| `WaterPhaseG` | 数值 | 是 |
+| `ColorScaleBehindWater` | 数值 | 是 |
+
+#### Substrate.VolumetricFogCloud
+
+用于体积雾和云材质的参与介质 BSDF。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Albedo` | 数值 | 是 |
+| `Extinction` | 数值 | 是 |
+| `EmissiveColor` | 数值 | 是 |
+| `AmbientOcclusion` | 数值 | 是 |
+
+#### Substrate.ShadingModels
+
+用 Substrate 材质表达的传统着色模型表面。编辑器补全不为这个包装节点提供任何参数；下面所有参数仍然可用。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `BaseColor` | 数值 | — |
+| `Metallic` | 数值 | — |
+| `Specular` | 数值 | — |
+| `Roughness` | 数值 | — |
+| `Anisotropy` | 数值 | — |
+| `EmissiveColor` | 数值 | — |
+| `Normal` | 数值 | — |
+| `Tangent` | 数值 | — |
+| `SubSurfaceColor` | 数值 | — |
+| `ClearCoat` | 数值 | — |
+| `ClearCoatRoughness` | 数值 | — |
+| `Opacity` | 数值 | — |
+| `TransmittanceColor` | 数值 | — |
+| `WaterScatteringCoefficients` | 数值 | — |
+| `WaterAbsorptionCoefficients` | 数值 | — |
+| `WaterPhaseG` | 数值 | — |
+| `ColorScaleBehindWater` | 数值 | — |
+| `ClearCoatNormal` | 数值 | — |
+| `CustomTangent` | 数值 | — |
+| `ThinTranslucentSurfaceCoverage` | 数值 | — |
+
+### 域输出节点
+
+#### Substrate.LightFunction
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Color` | 数值 | 是 |
+
+#### Substrate.PostProcess
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Color` | 数值 | 是 |
+| `Opacity` | 数值 | 是 |
+
+#### Substrate.UI
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Color` | 数值 | 是 |
+| `Opacity` | 数值 | 是 |
+
+### 转换
+
+#### Substrate.ConvertMaterialAttributes
+
+把 `MaterialAttributes` 值转换成 Substrate 材质。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `MaterialAttributes` | **`MaterialAttributes`** | 是 |
+| `Attributes` —— `MaterialAttributes` 的别名 | **`MaterialAttributes`** | — |
+| `WaterScatteringCoefficients` | 数值 | 是 |
+| `WaterAbsorptionCoefficients` | 数值 | 是 |
+| `WaterPhaseG` | 数值 | 是 |
+| `ColorScaleBehindWater` | 数值 | 是 |
+
+`MaterialAttributes` 是反射属性名，`Attributes` 是引擎给同一个输入起的 pin 名；两者都绑定 input 0。
+传数值进去会失败：
+`Substrate.ConvertMaterialAttributes input '{Pin}' expects a MaterialAttributes value.`
+
+#### Substrate.ConvertToDecal
+
+把 Substrate 材质转换成贴花材质。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `DecalMaterial` | **Substrate** | 是 |
+| `Coverage` | 数值 | 是 |
+
+### 组合
+
+#### Substrate.HorizontalMix
+
+在屏幕空间水平混合两个 Substrate 材质。也可以写成 **`Substrate.HorizontalMixing`** ——
+两个名字可以互换。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Background` | **Substrate** | 是 |
+| `Foreground` | **Substrate** | 是 |
+| `Mix` | 数值 | 是 |
+
+#### Substrate.VerticalLayer
+
+把一个 Substrate 材质叠在另一个之上。也可以写成 **`Substrate.VerticalLayering`** ——
+两个名字可以互换。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Top` | **Substrate** | 是 |
+| `Base` | **Substrate** | 是 |
+| `Thickness` | 数值 | 是 |
+
+#### Substrate.Add
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `A` | **Substrate** | 是 |
+| `B` | **Substrate** | 是 |
+
+#### Substrate.Weight
+
+缩放一个 Substrate 材质的贡献。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `A` | **Substrate** | 是 |
+| `Weight` | 数值 | 是 |
+
+#### Substrate.Select
+
+在两个 Substrate 材质之间做静态选择。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `A` | **Substrate** | 是 |
+| `B` | **Substrate** | 是 |
+| `SelectValue` | 数值 | 是 |
+
+### 工具节点
+
+这四个返回普通数值而不是 Substrate 值，也是唯一有多个输出的包装节点。用 `Output=` 或 `OutputIndex=`
+选择。
+
+#### Substrate.TransmittanceToMFP
+
+把透射颜色和厚度转换成平均自由程参数化。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `TransmittanceColor` | 数值 | 是 |
+| `Thickness` | 数值 | 是 |
+
+| 输出索引 | 名字 |
+| :-- | :-- |
+| 0（默认） | `MFP` |
+| 1 | `Thickness` |
+
+#### Substrate.MetalnessToDiffuseAlbedoF0
+
+把传统的 base color / metallic / specular 三元组转换成 slab 参数化。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `BaseColor` | 数值 | 是 |
+| `Metallic` | 数值 | 是 |
+| `Specular` | 数值 | 是 |
+
+| 输出索引 | 名字 |
+| :-- | :-- |
+| 0（默认） | `DiffuseAlbedo` |
+| 1 | `F0` |
+
+#### Substrate.HazinessToSecondaryRoughness
+
+把 haziness 控制量转换成第二粗糙度波瓣。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `BaseRoughness` | 数值 | 是 |
+| `Haziness` | 数值 | 是 |
+
+| 输出索引 | 名字 |
+| :-- | :-- |
+| 0（默认） | `Second Roughness` |
+| 1 | `Second Roughness Weight` |
+
+注意这些输出名里带空格。它们是作为整体名字匹配的，所以
+`Output = "Second Roughness Weight"` 可用 —— 尽管带空格的 *pin* 名作为参数名是无法触达的。
+
+#### Substrate.ThinFilm
+
+计算薄膜干涉的高光颜色。
+
+| 参数 | 值类型 | 补全 |
+| :-- | :-- | :-- |
+| `Normal` | 数值 | 是 |
+| `F0` | 数值 | 是 |
+| `F90` | 数值 | 是 |
+| `Thickness` | 数值 | 是 |
+| `IOR` | 数值 | 是 |
+
+| 输出索引 | 名字 |
+| :-- | :-- |
+| 0（默认） | `Specular Color` |
+| 1 | `Edge Specular Color` |
+
+## 绑定到 Base.FrontMaterial
+
+Substrate 材质只能通过 `Base.FrontMaterial` 输出绑定进入生成的 `UMaterial`，没有别的途径。
+
+```c
+Outputs = {
+    Substrate Surface;              // 声明类型 token；不区分大小写，没有别的写法
+    Base.FrontMaterial = Surface;
+}
+Graph = {
+    Surface = Substrate.Unlit(EmissiveColor = Color);
+}
+```
+
+| 规则 | 行为 |
+| :-- | :-- |
+| 声明类型 token | 只有 `Substrate` 一种写法，会去掉空白且不区分大小写。`Strata` **不是**类型 token |
+| 着色模型 | 这个绑定会强制把材质的着色模型设为 Substrate —— 不需要写 `Settings` 项 |
+| 显式 `ShadingModel` 设置 | 只允许 `"Substrate"` 或 `"Strata"`；其他值都会失败 |
+| 同一个 `Shader` 中的 `Base.MaterialAttributes` | 拒绝 —— 两个绑定互斥 |
+| Backend | 需要 `Graph` 块；HLSL Custom 节点无法产生或驱动 Substrate 值 |
+| 引擎版本 | UE 5.4+ |
+
+<Callout type="info">
+`Strata` 是改名前的写法。它作为 `Settings = { ShadingModel = … }` 的值是可接受的 ——
+同一个着色模型的别名 —— 但永远不能作为类型 token，也不能作为调用命名空间。参见
+[枚举取值](/docs/settings/enums)。
+</Callout>
+
+## 一些值得知道的细节
+
+- **并非每个 Substrate 类都有包装节点。** `UMaterialExpressionSubstrateToonBSDF` 在目录里没有条目。
+  要用它 —— 以及将来任何新的 Substrate 类 —— 走通用路径：
+
+  ```c
+  UE.Expression(Class = "SubstrateToonBSDF", OutputType = "Substrate", …)
+  ```
+
+  类名解析接受 `SubstrateToonBSDF`、`MaterialExpressionSubstrateToonBSDF` 和完整的
+  `/Script/Engine.…` object path，三者等价。带 `U` 前缀的 C++ 写法**不被**接受 —— 参见
+  [类解析](/docs/builtins/ue-expression#类解析)。
+- **已注册的 `UE.*` 语法糖在这个命名空间里不适用。** 没有 `Substrate.TexCoord(…)` 这种东西；
+  未知名字会失败于 `Unsupported Substrate builtin call '{Name}' in Graph.`
+- Substrate 节点**会**参与节点复用：两个文本相同、参数值也相同的 `Substrate.Slab(…)` 调用会合并成
+  一个节点。这和通用 [`UE.Expression`](/docs/builtins/ue-expression#节点复用) 路径用的是同一套缓存，
+  也正因如此，一个多输出的工具节点可以用不同的 `Output=` 选择器服务两次读取。
+- [反编译器](/docs/tools/decompiler)可以把已有的 Substrate 图导回 DreamShaderLang，
+  并从每条连接的写掩码推导通道 swizzle <Since v="1.5.0" />。
+- 完整的 `Substrate.*` 使用面会导出给编辑器工具链，写入
+  `Saved/DreamShader/Bridge/substrate-builtins.json`（schema `DreamShader.SubstrateBuiltins`，
+  version 1），每个名字一条，含 `qualifiedName`、`className`、`outputType`、`isSubstrateOutput`
+  和精选的 `parameters`。参见[编辑器工具](/docs/tools/editor)。
+
+## 诊断
+
+<Callout type="info">
+下面有几条消息即使是 `Substrate.*` 调用也以字面文本 `UE.` 开头。它们来自共享的通用内置路径，
+那条路径无条件把前缀格式化为 `UE.`；只有显式携带命名空间的消息才会渲染成 `Substrate.`。
+这只是显示问题 —— 消息里的 `{Name}` 仍然是 Substrate 包装节点的名字。
+</Callout>
+
+### 调用点
+
+<Diag>
+  <D msg="Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上做了任何 Substrate.* 调用。" fix="低于 UE 5.4 无法使用 Substrate，请改用传统着色模型。" />
+  <D msg="Unsupported Substrate builtin call '{Name}' in Graph." cause="该名字不在目录的 24 个之列。" fix='检查拼写，或用 UE.Expression 加 OutputType="Substrate" 触达该类。' href="/docs/builtins/ue-expression" />
+  <D msg="Generic Substrate.{Name} calls require named arguments." cause="出现了位置参数。" fix="所有参数都写名字。" />
+  <D msg="Substrate.{Name} uses a fixed MaterialExpression class and does not accept Class." cause="写了 Class=。类来自描述符。" />
+  <D msg="UE.{Name}: '{Argument}' is not a property on '{Class}'." cause="参数既匹配不上 pin 名也匹配不上反射属性。" fix="带空格的 pin 名无法触达 —— 改用 UPROPERTY 名，例如 DiffuseAlbedo。" />
+  <D msg="Substrate.{Name} input '{Pin}' expects a Substrate value." cause="Substrate 类型的 pin 收到了数值。" />
+  <D msg="Substrate.{Name} input '{Pin}' does not accept Substrate values." cause="数值 pin 收到了 Substrate 值。" />
+  <D msg="Substrate.{Name} input '{Pin}' expects a MaterialAttributes value." cause="MaterialAttributes 类型的 pin 收到了别的东西 —— 通常是 Substrate.ConvertMaterialAttributes。" />
+  <D msg="Substrate.{Name} output is not a Substrate value." cause="描述符声明为 Substrate 输出，但所选 pin 的值类型不是 Substrate。" />
+  <D msg="UE.{Name} output '{Pin}' was not found on '{Class}'." cause="指定名字的输出 pin 不存在。" fix='工具节点的输出名可能带空格，例如 "Second Roughness Weight"。' />
+  <D msg="UE.{Name} OutputIndex is out of range for '{Class}'." cause="索引为负，或超出最后一个输出。" />
+  <D msg="UE.{Name} could not resolve MaterialExpression class '{Class}'." cause="描述符指定的类在当前引擎中不存在。" />
+</Diag>
+
+### 管线其他环节中的 Substrate 值
+
+<Diag>
+  <D msg="Arithmetic operators cannot be applied to Substrate values." cause="Substrate 值被用于 + - * /。" fix="用 Substrate.Add、Substrate.Weight 或 Substrate.VerticalLayer 组合 Substrate 值。" />
+  <D msg="Math function '{Name}' only accepts numeric scalar/vector arguments." cause="Substrate 值被传给了数学内置。" href="/docs/builtins/math" />
+  <D msg="StaticSwitchParameter '{Name}' cannot switch Substrate values." cause="True= / False= 分支上出现了 Substrate 值。" fix="改用 Substrate.Select。" />
+  <D msg="Graph variable '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上声明了 Substrate 类型的 Graph 变量。" />
+  <D msg="Base.FrontMaterial requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上使用了这个绑定目标。" />
+  <D msg={'{File}: Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.'} cause="显式着色模型与之冲突。" fix="删掉 ShadingModel 设置，或设为 Substrate / Strata。" href="/docs/settings/enums" />
+  <D msg="{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader." cause="两个绑定同时存在。它们互斥。" />
+  <D msg="{File}: Base.FrontMaterial expects a Substrate value and cannot be driven by a material Custom node. Use a Graph block and Substrate.* nodes." cause="绑定的来源是 HLSL Custom 节点。" />
+  <D msg="{File}: Material output '{Output}' expects a numeric value, but got Substrate." cause="Substrate 值被绑定到了数值类型的材质输出。" />
+  <D msg="DreamShader Function '{Name}' result '{Result}' uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or ShaderFunction instead." cause="Function 声明了 Substrate 结果。" href="/docs/language/functions" />
+  <D msg={'ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.'} cause={'在 UE 5.3 上写了 Settings = { ShadingModel = "Substrate"; } 或 "Strata"。'} />
+</Diag>
+
+完整清单见[错误速查](/docs/diagnostics)。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_Substrate")
+{
+    Properties = {
+        vec3  BaseColor = vec3(0.6, 0.1, 0.1);
+        float Metallic  = 0.0;
+        float Specular  = 0.5;
+        float Rough     = 0.3;
+        vec3  Glow      = vec3(0.1, 0.6, 1.0);
+    }
+
+    Outputs = {
+        Substrate Surface;
+        Base.FrontMaterial = Surface;
+    }
+
+    Graph = {
+        // 工具节点：两个数值输出，按名字选择。
+        vec3 Albedo = Substrate.MetalnessToDiffuseAlbedoF0(
+            BaseColor = BaseColor, Metallic = Metallic, Specular = Specular,
+            Output = "DiffuseAlbedo");
+        vec3 F0 = Substrate.MetalnessToDiffuseAlbedoF0(
+            BaseColor = BaseColor, Metallic = Metallic, Specular = Specular,
+            Output = "F0");
+
+        Substrate Body = Substrate.Slab(
+            DiffuseAlbedo = Albedo,
+            F0            = F0,
+            Roughness     = Rough);
+
+        Substrate Emissive = Substrate.Unlit(EmissiveColor = Glow);
+
+        Surface = Substrate.Add(A = Body, B = Emissive);
+    }
+}
+```
+
+生成的节点：
+
+```text
+SubstrateMetalnessToDiffuseAlbedoF0   -> output "DiffuseAlbedo"  -> Albedo    (3 components)
+                                      -> output "F0"             -> F0        (3 components)
+                                         (one node, reused for both reads)
+SubstrateSlabBSDF                     -> Body                    (Substrate value)
+SubstrateUnlitBSDF                    -> Emissive                (Substrate value)
+SubstrateAdd                          -> Surface                 (Substrate value)
+Material ShadingModel forced to Substrate by the Base.FrontMaterial binding
+```
+
+## 接下来
+
+<Cards>
+  <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" description="触达没有包装节点的 Substrate 类。" />
+  <Card title="输出绑定" href="/docs/generation/outputs" description="Base.FrontMaterial 与完整的绑定目标列表。" />
+  <Card title="枚举取值" href="/docs/settings/enums" description='ShadingModel = "Substrate" / "Strata"。' />
+  <Card title="UE.* 节点" href="/docs/builtins/ue-nodes" description="姊妹命名空间及其已注册内置节点。" />
+</Cards>

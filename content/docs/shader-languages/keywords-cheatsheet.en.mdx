@@ -1,66 +1,222 @@
 ---
 title: Keyword Cheatsheet
-description: Common DreamShaderLang, HLSL, and GLSL keywords side by side.
+description: Every word the DreamShaderLang grammar treats specially, plus the HLSL and GLSL vocabularies side by side for readers porting code.
 ---
 
-Use this page as a quick vocabulary reference when moving between DreamShaderLang, HLSL,
-and GLSL examples.
+A lookup page. The DreamShaderLang tables are exhaustive: block keywords, section names, qualifiers,
+contextual keywords and reserved names are the complete set the grammar recognises. The HLSL and
+GLSL tables are reference material for readers arriving from those languages.
 
-## DreamShaderLang
+<Callout type="info">
+**No keyword is reserved against identifiers.** A property, output variable, parameter or function
+may be named `Shader`, `Graph`, `Layout` or `float`; the parser never rejects an identifier because
+it collides with a keyword. Keywords are recognised only where the grammar expects them.
 
-| Keyword / block | Meaning |
-| --- | --- |
-| `import` | Import a project or package source file. |
-| `Shader` | Generate `UMaterial`. |
-| `ShaderFunction` | Generate `UMaterialFunction`. |
-| `ShaderLayer` | Generate Material Layer function asset. |
-| `ShaderLayerBlend` | Generate Material Layer Blend function asset. |
-| `VirtualFunction` | Reference an existing Unreal material function. |
-| `Function` | HLSL-style helper. |
-| `GraphFunction` | Helper that may contain `UE.*` calls. |
-| `Namespace` | Group helpers. |
-| `Properties` | Material parameter declarations. |
-| `Inputs` | Function or layer inputs. |
-| `Outputs` | Output variables and bindings. |
-| `Settings` | Unreal material settings. |
-| `Graph` | Material graph DSL. |
-| `Layout` | Node position and comment metadata. |
+The exceptions are not keywords at all — they are the [math builtin](/en/docs/builtins/math) and
+constructor names, which win name resolution in a `Graph` block and silently shadow a user
+declaration.
+</Callout>
 
-## DreamShaderLang Common Types
+## Top-level block keywords
 
-| Type | Meaning |
-| --- | --- |
-| `float`, `int`, `bool` | Scalar types. |
-| `vec2`, `vec3`, `vec4` | GLSL-style vector aliases. |
-| `float2`, `float3`, `float4` | HLSL-style vector aliases. |
-| `Texture2D`, `TextureCube`, `Texture3D`, `VolumeTexture` | Texture types. |
-| `MaterialAttributes` | Unreal material attributes value. |
+Matched **case-sensitively**, and only when the next character is not a letter, a digit or `_` —
+that boundary rule is what keeps `ShaderFunction` from matching as `Shader`.
 
-## HLSL Common Keywords
+<Wide>
 
-| Keyword | Meaning |
-| --- | --- |
-| `return` | Return value. |
-| `if`, `else` | Conditional flow. |
-| `for`, `while` | Loops in helper code. |
-| `out`, `inout` | Output and input/output parameters. |
-| `struct` | Structured type in HLSL. |
+| Keyword | Header | Required | Generates |
+| :-- | :-- | :-- | :-- |
+| `Shader` | `Shader(Name = "…"[, Root = "…"])` | `Name` | `UMaterial` |
+| `ShaderFunction` | `ShaderFunction(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunction` |
+| `ShaderLayer` <Since v="1.3.0" /> | `ShaderLayer(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` <Since v="1.3.0" /> | `ShaderLayerBlend(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayerBlend` |
+| `MaterialLayer` *(deprecated in 1.3.0)* | `MaterialLayer(Name = "…")` | `Name` | as `ShaderLayer` |
+| `MaterialLayerBlend` *(deprecated in 1.3.0)* | `MaterialLayerBlend(Name = "…")` | `Name` | as `ShaderLayerBlend` |
+| `VirtualFunction` <Since v="1.2.0" /> | `VirtualFunction(Name = "…"[, Asset = "…"])` | `Name`, plus an asset from `Asset =` or `Options.Asset` | nothing — declares an existing asset |
+| `Namespace` | `Namespace(Name = "…")` | `Name` | nothing — a scope for helpers |
+| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | a name, at least one output | an HLSL helper |
+| `GraphFunction` <Since v="1.3.1" /> | `GraphFunction [<ret>] <Name>( … ) { <HLSL> }` | a name, at least one output | an HLSL helper with node inputs |
 
-## GLSL Common Keywords
+</Wide>
 
-| Keyword | Meaning |
-| --- | --- |
-| `return` | Return value. |
-| `if`, `else` | Conditional flow. |
-| `for`, `while` | Loops. |
-| `in`, `out`, `inout` | Shader or function data direction. |
-| `uniform` | External shader parameter in GLSL. |
+`Shader` is limited to **one per translation unit**, across the whole import closure. Every other
+block may be repeated. `Function` and `GraphFunction` may also appear nested inside a `Namespace`,
+where their names become `<Namespace>::<Name>`.
 
-## Migration Reminders
+<Deprecated since="1.3.0" use="ShaderLayer" />
 
-| Source habit | DreamShaderLang equivalent |
-| --- | --- |
-| Raw GLSL shader file | Put reusable math in `Function`; build Unreal nodes in `Graph`. |
-| HLSL Custom node body | Use `Function` or `GraphFunction`. |
-| Visual material node | Use a specific `UE.*` helper or `UE.Expression(...)`. |
-| Shared include file | Use `.dsh` and package imports. |
+`MaterialLayer` and `MaterialLayerBlend` still parse and generate the same assets, but each emits
+`MaterialLayer is deprecated; use ShaderLayer instead.` / `MaterialLayerBlend is deprecated; use
+ShaderLayerBlend instead.` Later diagnostics report the modern spelling.
+
+## Section names
+
+Matched case-insensitively. The `=` before the block is optional <Since v="1.5.0" />, as is the `;`
+after it. Sections may appear in any order and may repeat.
+
+<Wide>
+
+| Name | Accepted in | Meaning |
+| :-- | :-- | :-- |
+| `Properties` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | parameter, `const` and `UE.*` node declarations |
+| `Properties` | `VirtualFunction` | **alias for `Inputs`** — typed parameters, not parameter nodes |
+| `Inputs` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | typed input parameters |
+| `Outputs` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | typed output parameters |
+| `Outputs` | `Shader` | output declarations and bindings — **a different grammar** |
+| `Results` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | alias for `Outputs` |
+| `Settings` | `Shader` | material settings — special keys plus reflected `UMaterial` properties |
+| `Settings` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | the four material-function keys |
+| `Settings` | `VirtualFunction` | alias for `Options` |
+| `Options` | `VirtualFunction` | the declared asset and other stored keys |
+| `Graph` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | the node-graph body, stored verbatim |
+| `Code` | — | **rejected everywhere**; use `Graph` |
+| `Layout` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | `Node` / `Comment` placement; a second `Layout` **replaces** the first |
+
+</Wide>
+
+`Function` and `GraphFunction` have no sections at all — their `{ … }` is raw HLSL.
+
+## Declaration qualifiers
+
+| Qualifier | Position | Effect |
+| :-- | :-- | :-- |
+| `const` <Since v="1.2.6" /> | before the type in a `Properties` declaration | emits a constant node instead of a parameter; rejected on parameter-node and `UE.*` declarations |
+| `opt` <Since v="1.2.3" /> | before the type in an `Inputs` declaration | marks the function input optional in Unreal; must be followed by a literal space |
+| `in` | before a `Function` / `GraphFunction` parameter type | input parameter; the default when a parameter has only two tokens |
+| `out` | before a `Function` / `GraphFunction` parameter type | output parameter; at least one is required unless a return type is declared |
+| `SelfContained` | after `Function` | emits the body self-contained inside each caller's Custom node; **not accepted on `GraphFunction`** |
+| `Inline` | after `Function` | exact alias of `SelfContained` |
+
+`in` and `out` are the only accepted qualifiers on a function parameter. `inout` does not exist and
+is rejected.
+
+## Contextual keywords
+
+Recognised only in the position listed, always case-insensitively.
+
+<Wide>
+
+| Keyword | Position | Meaning |
+| :-- | :-- | :-- |
+| `import` | first token of its own line, anywhere in a source file | inlines another source file |
+| `Group("…") { … }` <Since v="1.5.0" /> | statement position inside `Properties` | scopes a parameter group onto every declaration it contains; nests, composing with `\|` |
+| `Slider(min, max)` <Since v="1.5.0" /> | entry inside a `[ … ]` metadata block | sets a scalar parameter's UI range |
+| `Path( … )` | default value of a texture or asset-valued declaration | asset reference with a root spelling |
+| `Base.` | start of an `Outputs` binding target | binds to a material property |
+| `Expression( … )` | start of an `Outputs` binding target | binds to a pin on a reflected node; `Class="…"` is mandatory |
+| `.Pin[<index>]` | after an `Expression( … )` target | selects the pin to bind |
+| `Node( … )` | statement inside `Layout` | pins a variable's node position |
+| `Comment( … )` | statement inside `Layout` | places a comment box |
+| `#Region` / `#EndRegion` | own line inside a `Graph` body | names a region of the graph; nests |
+| `UE.` | type position in `Properties`, call position in `Graph` | builtin material-node namespace |
+| `Substrate.` | call position in `Graph` | Substrate BSDF namespace, <Since v="5.4" ue /> |
+| `true` / `false` | default values | boolean literal; converts to `1.0` / `0.0` where a scalar is expected |
+| `default` <Since v="1.2.3" /> | call argument in `Graph` | use the parameter's declared default |
+
+</Wide>
+
+## Reserved names
+
+| Name | Where | Rule |
+| :-- | :-- | :-- |
+| `__return` | `Function` / `GraphFunction` parameter names | reserved for return-type lowering; a declared return type becomes an `out` parameter with this name |
+| `return` | `Shader` `Outputs` declarations | may not be used as an output-variable name, and as a binding source it may only feed `Base.*` targets |
+
+`return` inside a `Function` body is a statement, not a reserved name: a top-level `return <expr>;`
+is rewritten to an assignment to `__return`.
+
+## Type tokens
+
+The complete set is 44 tokens, matched **case-insensitively** in every context. Per-context validity
+is on [Types and Values](/en/docs/language/types-and-values).
+
+| Family | Tokens | Count |
+| :-- | :-- | --: |
+| Scalar (1 component) | `float` `float1` `half` `half1` `int` `uint` `bool` | 7 |
+| Vector (2 / 3 / 4 components) | `float2..4` `half2..4` `vec2..4` `int2..4` `uint2..4` `bool2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 27 |
+| Texture | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` | 5 |
+| Opaque and other | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
+
+There are **no matrix types**: `mat2` / `mat3` / `mat4` and `float2x2` / `float3x3` / `float4x4` are
+rejected by every declaration position. Three tokens were removed and now fall through to the generic
+"unsupported type" diagnostic:
+
+| Removed token | Replacement |
+| :-- | :-- |
+| `Scalar` | `float` |
+| `Color` | `float4` / `vec4` |
+| `Vector` | `float2` … `float4` / `vec2` … `vec4` |
+
+A `Properties` declaration may additionally use one of 22 explicit `*Parameter` node tokens
+(`ScalarParameter`, `TextureSampleParameter2D`, `ChannelMaskParameter`, …). Those are catalogued on
+[Property Types](/en/docs/parameters/properties).
+
+## Identifier rewrites
+
+Applied inside `Function` and `GraphFunction` declarations only, before HLSL is emitted. Matching is
+case-insensitive and whole-identifier; strings and comments are skipped, and a `::`-qualified name
+bypasses the table.
+
+| Written | Rewritten to | Applies to |
+| :-- | :-- | :-- |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` | parameter and return types, body text |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` | parameter and return types, body text |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` | parameter and return types, body text |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` | parameter and return types, body text |
+| `mat2` `mat3` `mat4` | `float2x2` `float3x3` `float4x4` | parameter and return types, body text |
+| `mix` | `lerp` | body text only |
+| `fract` | `frac` | body text only |
+| `mod` | `fmod` | body text only |
+
+## HLSL keywords
+
+Reference — HLSL's own vocabulary, valid inside a `Function` body.
+
+| Category | Keywords |
+| :-- | :-- |
+| Types | `void`, `bool`, `int`, `uint`, `half`, `float`, `double` |
+| Control flow | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `default` |
+| Jumps | `return`, `break`, `continue`, `discard` |
+| Parameters | `in`, `out`, `inout` |
+| Modifiers | `const`, `static`, `uniform`, `groupshared` |
+| Textures | `Texture2D`, `TextureCube`, `SamplerState`, `SamplerComparisonState` |
+| Aggregates | `struct` |
+
+## GLSL keywords
+
+Reference — nothing here is DreamShaderLang grammar, except the `vec*` / `ivec*` / `uvec*` / `bvec*`
+type aliases, which are first-class tokens.
+
+| Category | Keywords |
+| :-- | :-- |
+| Types | `void`, `bool`, `int`, `uint`, `float`, `double`, `vec2`, `vec3`, `vec4`, `mat2`, `mat3`, `mat4` |
+| Control flow | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `default` |
+| Jumps | `return`, `break`, `continue`, `discard` |
+| Parameters | `in`, `out`, `inout` |
+| Modifiers | `const`, `uniform`, `layout`, `centroid`, `flat`, `smooth`, `attribute`, `varying` |
+| Precision | `lowp`, `mediump`, `highp` |
+
+## Migration reminders
+
+| Source habit | In DreamShaderLang |
+| :-- | :-- |
+| `vec3` | keep it — `vec3` is a real token; it becomes `float3` only in generated HLSL |
+| `mix(a, b, t)` | works in both places: a real builtin in `Graph`, rewritten to `lerp` in a `Function` body |
+| `fract(x)`, `mod(a, b)` | the same — real builtins <Since v="1.5.0" /> in `Graph`, rewritten in a body |
+| `length(v)` | not a builtin — `sqrt(dot(v, v))`, `UE.Expression(Class = …)`, or a `Function` body |
+| `main()` | not needed; a `Shader` block with `Outputs` bindings describes the material |
+| `uniform` | a `Properties` declaration |
+| `sampler2D` + `texture(s, uv)` | `SampleTexture2D(tex, uv)` for a texture object, or `Tex(Coordinates = uv)` for a `TextureSampleParameter*` |
+| An HLSL `Custom` node body | a `Function`, or a `GraphFunction` when the body needs `UE.*` values |
+| A visual material node | a specific `UE.*` builtin, or `UE.Expression(Class = "…")` |
+| A shared include file | a `.dsh` header plus `import` |
+
+## Where to next
+
+<Cards>
+  <Card title="HLSL Overview" href="/en/docs/shader-languages/hlsl" description="Where HLSL runs, and the shipped helper header." />
+  <Card title="GLSL Overview" href="/en/docs/shader-languages/glsl" description="Aliases, rewrites and what has no equivalent." />
+  <Card title="Top-level Blocks" href="/en/docs/language/blocks" description="Every block keyword in detail." />
+  <Card title="Sections" href="/en/docs/language/sections" description="The section grammar these names belong to." />
+  <Card title="Lexical Elements" href="/en/docs/language/lexical" description="The case-sensitivity matrix behind this page." />
+</Cards>

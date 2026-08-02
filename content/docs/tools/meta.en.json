@@ -1,0 +1,10 @@
+{
+  "title": "Tooling",
+  "pages": [
+    "editor",
+    "decompiler",
+    "vscode",
+    "commandlet",
+    "packages"
+  ]
+}

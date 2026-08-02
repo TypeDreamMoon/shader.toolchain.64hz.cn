@@ -1,0 +1,230 @@
+---
+title: Path 资产引用
+description: Path(Root, "…") —— 每种 root 拼写、对象路径的补全规则、两套互不相同的解析器，以及两套错误信息。
+---
+
+`Path(…)` 是源码引用现有 Unreal 资产的方式：一个包根加一段相对路径，在生成时解析为完整对象路径。
+
+<Synopsis>
+```c
+Path( <root> , "<relative-path>" )
+Path( "<absolute-path>" )
+"<absolute-path>"
+```
+</Synopsis>
+
+```c
+Texture2D A = Path(Game, "Textures/T_X");
+Texture2D B = Path("Plugin.MyPlugin", "Textures/T_X");
+Texture2D C = Path("/Game/Textures/T_X");
+Texture2D D = "/Game/Textures/T_X";              // 裸引号形式
+```
+
+root 可以带引号也可以不带。裸引号路径形式自 <Since v="1.5.0" /> 起可用；`Plugin.` / `Plugins.`
+两种 root 自 <Since v="1.2.0" /> 起就存在。
+
+`Path(…)` 会出现在这些地方：
+
+| 位置 | 示例 |
+| :-- | :-- |
+| 纹理属性的 `= <default>` | `Texture2D T = Path(Game, "T_X");` |
+| 对象类型的[元数据](/docs/parameters/metadata#对象属性)条目 | `[Curve = Path(Game, "Curves/CV_Ramp")]` |
+| `UE.CollectionParam` 的实参 | `UE.CollectionParam(Collection = Path(Game, "MPC_World"), Parameter = "Wind")` |
+| `VirtualFunction` 的 `Options.Asset` | `Options = { Asset = Path(Game, "Functions/MF_X"); }` |
+| 对象类型的[材质设置](/docs/settings/material) | `PhysicalMaterial = Path(Engine, "EngineMaterials/DefaultPhysicalMaterial");` |
+
+## Root
+
+root 实参会先去引号，`\` 折成 `/`，去掉首尾的 `/`，然后按 `/` 拆分。**第一段**就是 root。
+
+| Root 拼写 | 解析为 |
+| :-- | :-- |
+| `Game` | `/Game` |
+| `Engine` | `/Engine` |
+| `Plugin.<Name>` | 该插件挂载的资产路径 |
+| `Plugins.<Name>` | 该插件挂载的资产路径 |
+| `Plugin/<Name>` | 该插件挂载的资产路径 —— 消耗两段 |
+| `Plugins/<Name>` | 该插件挂载的资产路径 —— 消耗两段 |
+
+所有拼写都不区分大小写；第一段是其他内容则失败。
+
+**root 之后的段会作为文件夹追加。** `Path("Game/Textures", "T_X")` 解析为 `/Game/Textures/T_X`，
+`Path("Plugin/MyPlugin/Materials", "MF_X")` 解析为 `/MyPlugin/Materials/MF_X`。
+
+插件 root 通过插件自身挂载的资产路径解析，并做同样的规范化（反斜杠折叠、去掉末尾 `/`、补上开头的 `/`）。
+如果该路径为空或只有 `/`，则改用 `/<PluginName>`。
+
+## 对象路径补全
+
+root 和相对路径拼接之后，结果会补全成完整对象路径：如果最后一个 `/` 之后的文本不含 `.`，
+就在末尾追加 `.` 加资产名。
+
+| 写法 | 解析结果 |
+| :-- | :-- |
+| `Path(Game, "Textures/T_X")` | `/Game/Textures/T_X.T_X` |
+| `Path(Game, "Textures/T_X.T_X")` | `/Game/Textures/T_X.T_X` |
+| `"/Game/Textures/T_X"` | `/Game/Textures/T_X.T_X` |
+
+补全后的路径最后交给 Unreal 自己的对象路径校验器；失败时原样报告它的信息。
+
+## 两套解析器
+
+存在**两套独立实现**，接受的形式不同，错误文本也不同。跑哪一套取决于引用出现在哪里。
+
+| 引用出现的位置 | 解析器 | 信息开头 |
+| :-- | :-- | :-- |
+| 紧凑纹理 token、`TextureObjectParameter` 家族 token 或 `TextureSampleParameter*` 家族 token 的 `= <default>` | 纹理默认值解析器 | `Texture …` |
+| 对象类型的元数据条目 —— `[Texture=…]`、`[Curve=…]`、`[Font=…]`、`[VirtualTexture=…]` 等 | 资产引用解析器 | `Asset …` |
+| `UE.CollectionParam(Collection = …)` / `UE.CollectionParameter(Asset = …)` | 资产引用解析器 | `Asset …` |
+| `VirtualFunction` 的 `Options = { Asset = …; }` | 资产引用解析器 | `Asset …` |
+
+### 差异
+
+| 行为 | 纹理默认值解析器 | 资产引用解析器 |
+| :-- | :-- | :-- |
+| `Path(root, "path")` | 接受 | 接受 |
+| `Path("/absolute/path")` | 接受 | 接受 |
+| `"/absolute/path"`（裸**引号**） | 接受 | 接受 |
+| `/absolute/path`（裸**无引号**） | 拒绝 —— 值必须以 `Path` 或 `"` 开头 | 接受 |
+| `Path(…)` 带 3 个及以上实参 | 从不读取第三个实参；报告缺少 `)` | 拒绝，并给出明确的实参个数错误 |
+| root **加上**绝对资产路径 | 仍然拼接 root，得到 `/Game/Game/…` | **忽略** root；绝对路径胜出 |
+| 插件名校验 | 字符必须是字母、数字或 `_` | 名字必须原样通过 Unreal 的对象名净化器 |
+| 插件 `Content` 目录必须存在 | 不检查 | 检查 |
+| 插件内容必须已挂载 | 不检查 | 检查 <Since v="5.6" ue /> |
+
+<Callout type="warn">
+**不要在纹理默认值里把 root 和绝对路径混用。**
+`Texture2D T = Path(Game, "/Game/Textures/T_X");` 会解析成 `/Game/Game/Textures/T_X.T_X`，随后加载失败。
+请写 `Path(Game, "Textures/T_X")` 或 `Path("/Game/Textures/T_X")`。同样的表达式在元数据条目里却能被接受，
+因为那套解析器在路径是绝对路径时会丢掉 root —— 两者不能互换。
+</Callout>
+
+## 字符串转义
+
+带引号的路径是字符串字面量。两套解析器都识别 `\n`、`\r`、`\t`、`\"` 和 `\\`；其他 `\X` 得到字面的 `X`。
+参见 [词法与大小写](/docs/language/lexical)。
+
+## 加载是另一步
+
+解析路径只产出文本。资产能否加载是另一件事，结果取决于槽位：
+
+| 槽位 | 资产加载失败时 |
+| :-- | :-- |
+| 紧凑纹理 token 的默认值 | `Texture property '{Name}' could not load asset '{Path}'.` |
+| `const` 纹理 token 的默认值 | `Const texture property '{Name}' could not load asset '{Path}'.` |
+| 某个维度的引擎回退资产 | `Texture property '{Name}' could not load default {Type} asset '{Path}'.` |
+| 名为 `Texture` 或 `TextureObject`、类型为 `UTexture` 子类的元数据对象属性 | **静默写入 `nullptr`，并报告为成功** |
+| 其他元数据对象属性 | `Failed to load asset '{Path}' for '{Property}'.` |
+| `UE.CollectionParam` 的 `Collection` | `Could not load MaterialParameterCollection '{Path}'.` |
+
+<Callout type="warn">
+要当心的正是这种静默写 null 的情况：`[Texture = Path(Game, "Typo")]` 不产生任何诊断就生成完毕，
+留下未绑定的采样器，之后在 Unreal 着色器编译时才暴露。**能解析的路径不等于存在的路径。**
+</Callout>
+
+## 诊断
+
+### 纹理默认值解析器
+
+<Diag>
+  <D msg='Texture defaults must use Path(Game|Engine|Plugin.PluginName, "/Folder/Asset"), Path("/Game/Folder/Asset"), or a bare "/Game/Folder/Asset".' cause="值既不是带引号的字符串，也不是对 Path 的调用。" />
+  <D msg="Unexpected trailing tokens after texture Path(...) reference." cause="收尾的 ) 之后还有文本。" />
+  <D msg="Texture Path(...) requires a non-empty asset path." cause="资产路径实参为空。" />
+  <D msg="Relative texture Path(...) references require a root such as Game, Engine, or Plugin.PluginName." cause="相对路径却没有 root，包括裸的带引号相对路径。" />
+  <D msg="Unsupported texture Path root '{Root}'. Use Game, Engine, or Plugin.PluginName." cause="root 第一段不属于六种可接受拼写。" />
+  <D msg="Texture Path root '{Root}' has an invalid plugin name." cause="插件名含有字母、数字、_ 以外的字符。" />
+  <D msg="Texture Path root '{Root}' references plugin '{Plugin}', but no enabled plugin with that name was found." cause="插件管理器不认识这个插件。" />
+  <D msg="Texture Path root '{Root}' references plugin '{Plugin}', but the plugin is not enabled." cause="插件存在但未启用。" />
+  <D msg="Texture Path root '{Root}' references plugin '{Plugin}', but the plugin cannot contain content." cause="插件声明了不含内容。" />
+  <D msg="Invalid texture asset path '{Path}'." cause="拼接后的路径没有 /，或以 / 结尾。" />
+</Diag>
+
+补全后的路径不是合法对象路径时，会原样报告 Unreal 自己的校验信息。调用方会包装以上每一条：
+
+| 包装信息 | 应用于 |
+| :-- | :-- |
+| `Invalid texture default value '{Text}' for property '{Name}'. {Inner}` | 紧凑纹理 token 与 `TextureObjectParameter` 家族 |
+| `Invalid texture sample default value '{Text}' for property '{Name}'. {Inner}` | 八个纹理采样 token |
+
+### 资产引用解析器
+
+<Diag>
+  <D msg="Asset reference cannot be empty." cause="trim 之后值为空。" />
+  <D msg="Asset Path(...) reference is missing a closing ')'." cause="以 Path( 开头但不以 ) 结尾。" />
+  <D msg="Asset Path(...) contains an unterminated string literal." cause='实参列表里有未闭合的 "。' />
+  <D msg="Asset Path(...) expects either 1 argument (/Game/... path) or 2 arguments (Game|Engine|Plugin.PluginName, asset path)." cause="三个及以上实参。空的 Path() 算作一个空实参，报的是下一条信息。" />
+  <D msg="Asset reference requires a non-empty path." cause="资产路径实参为空。" />
+  <D msg="Relative asset Path(...) references require a root such as Game, Engine, or Plugin.PluginName." cause="相对路径却没有 root。" />
+  <D msg="Unsupported asset Path root '{Root}'. Use Game, Engine, or Plugin.PluginName." cause="root 第一段不属于六种可接受拼写。" />
+  <D msg="Asset Path root '{Root}' has an invalid plugin name." cause="插件名为空，或被 Unreal 的对象名净化器改写。" />
+  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but no enabled plugin with that name was found." cause="插件管理器不认识这个插件。" />
+  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but the plugin is not enabled." cause="插件存在但未启用。" />
+  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but the plugin cannot contain content." cause="插件声明了不含内容。" />
+  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but its Content directory does not exist: '{Dir}'." cause="插件的 Content 目录在磁盘上不存在。" />
+  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but the plugin content is not mounted." cause="插件内容未挂载（UE 5.6+）。" />
+  <D msg="Invalid asset path '{Path}'." cause="拼接后的路径没有 /，或以 / 结尾。" />
+</Diag>
+
+按阶段罗列的完整清单见 [错误速查](/docs/diagnostics)。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_Paths")
+{
+    Properties = {
+        // root + 相对路径 —— 标准写法。
+        Texture2D A = Path(Game, "Textures/T_White");
+
+        // 带引号的 root，并由 root 携带额外的文件夹段。
+        Texture2D B = Path("Game/Textures", "T_Noise");
+
+        // 引擎内容。
+        TextureCube C = Path(Engine, "EngineResources/DefaultTextureCube");
+
+        // 插件内容：两种拼写解析结果一致。
+        Texture2D D = Path(Plugin.DreamShader, "Textures/T_Probe");
+        Texture2D E = Path("Plugins/DreamShader", "Textures/T_Probe");
+
+        // 单实参与裸引号形式 —— 都必须是绝对路径。
+        Texture2D F = Path("/Game/Textures/T_White");
+        Texture2D G = "/Game/Textures/T_White";
+
+        // 通过元数据走到资产引用解析器。
+        CurveAtlasRowParameter Row = float3(0.5, 0.5, 0.5) [
+            Curve = Path(Game, "Curves/CV_Ramp");
+            Atlas = Path(Game, "Curves/CA_Ramps")
+        ];
+
+        // 通过 UE 内置节点实参走到资产引用解析器。
+        UE.CollectionParam(Collection = Path(Game, "Collections/MPC_World"),
+                           Parameter  = "WindStrength") Wind;
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; BlendMode = "Opaque"; }
+    Outputs  = { vec3 Color; Base.EmissiveColor = Color; }
+
+    Graph = {
+        Color = vec3(Wind, Wind, Wind);
+    }
+}
+```
+
+解析出的对象路径：
+
+```text
+A  /Game/Textures/T_White.T_White
+B  /Game/Textures/T_Noise.T_Noise
+C  /Engine/EngineResources/DefaultTextureCube.DefaultTextureCube
+D  /DreamShader/Textures/T_Probe.T_Probe          （插件挂载的资产路径）
+E  /DreamShader/Textures/T_Probe.T_Probe
+F  /Game/Textures/T_White.T_White
+G  /Game/Textures/T_White.T_White
+```
+
+## 下一步
+
+- [Properties 类型](/docs/parameters/properties) —— 哪些 token 接受 `= Path(…)`，哪些不接受
+- [元数据与分组](/docs/parameters/metadata) —— 对象类型条目与静默写 null 的情况
+- [资产路径](/docs/generation/asset-paths) —— **输出**侧：`Name=` 加 `Root=` 如何变成包路径
+- [UE.\* 节点](/docs/builtins/ue-nodes) —— `UE.CollectionParam` 及其 `Collection` 实参

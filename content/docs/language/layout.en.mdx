@@ -1,0 +1,296 @@
+---
+title: Layout and #Region
+description: Pin generated node positions with Layout = { Node(...); Comment(...); } and group graph statements with #Region.
+---
+
+`Layout` pins generated node positions and declares comment boxes, replacing the automatic layout
+pass. `#Region` groups graph statements so the automatic pass has something to draw a box around.
+Neither changes shader math.
+
+The two live in different places: `Layout` is a section next to `Graph`; `#Region` directives are
+written **inside** the `Graph` body.
+
+## Synopsis
+
+<Synopsis>
+
+```c
+Layout [=]
+{
+    Node( Var = "<variable>", X = <int>, Y = <int> ) ;
+    Comment( Name = "<title>", X = <int>, Y = <int>, W = <int>, H = <int>
+             [, Color = float4( <r>, <g>, <b>, <a> )] ) ;
+    …
+}
+```
+
+</Synopsis>
+
+<Grammar />
+
+Statements are `;`-separated calls. Statement names and argument keys are matched
+case-insensitively, and the `=` before the block is optional <Since v="1.5.0" />. `Layout` is
+accepted in `Shader`, `ShaderFunction`, `ShaderLayer` and `ShaderLayerBlend`, and is **not** accepted
+in a `VirtualFunction`, which generates no graph.
+
+<Callout type="warn">
+
+Every argument is a `Key = Value` pair. The positional form `Node("Tint", X=0, Y=0)` is **not**
+accepted and fails with `Layout argument '{Argument}' must use Key=Value syntax.` The name argument
+is `Var` on `Node` and `Name` on `Comment`.
+
+</Callout>
+
+## `Node`
+
+Pins one already-generated expression to an exact position.
+
+| Argument | Required | Type |
+| :-- | :-- | :-- |
+| `Var` | yes | text |
+| `X` | yes | integer |
+| `Y` | yes | integer |
+
+`Var` names a value recorded during graph construction. Three kinds of name are recorded:
+
+| Name kind | Recorded when |
+| :-- | :-- |
+| a `Graph` statement's target variable | the statement produced a node — declared locals and assigned output variables alike |
+| a `Properties` declaration name | the graph actually **read** that property; property nodes are created lazily |
+| an `Inputs` / `Outputs` declaration name | only in `ShaderFunction`, `ShaderLayer` and `ShaderLayerBlend`, where each becomes a `FunctionInput` / `FunctionOutput` node |
+
+Both `MaterialExpressionEditorX/Y` and the editor graph node's `NodePosX/Y` are written, so the
+position survives reopening the material.
+
+<Callout type="info">
+
+A `Var` that matches nothing is **silently ignored** — there is no diagnostic for a typo, or for
+pinning a property the graph never reads.
+
+</Callout>
+
+## `Comment`
+
+Creates a comment box at an exact rectangle.
+
+| Argument | Required | Type | Effect |
+| :-- | :-- | :-- | :-- |
+| `Name` | yes | text | Box title. Emitted as `DreamShader: <Name>` — see [Notes](#notes). |
+| `X` | yes | integer | Left edge. |
+| `Y` | yes | integer | Top edge. |
+| `W` | yes | integer | Width, clamped to a minimum of `120`. |
+| `H` | yes | integer | Height, clamped to a minimum of `80`. |
+| `Color` | no | `float4` literal | Box colour. Defaults to `float4(0.10, 0.16, 0.22, 0.35)`. |
+
+<Callout type="warn">
+
+`W` and `H` carry struct defaults but are nonetheless **required arguments**.
+`Comment(Name="X", X=0, Y=0)` fails with `Layout argument 'W' must be an integer.` — a missing
+integer argument and a malformed one report the same message.
+
+</Callout>
+
+The `Color` literal follows the general vector-literal grammar: the token before `(` is ignored, so
+`float4(…)`, `vec4(…)` and `(…)` all parse. One component splats to `(x, x, x, 1)`, two give
+`(x, y, 0, 0)`, three give `(x, y, z, 1)`, and components past the fourth are parsed and discarded.
+
+Generated comment boxes always use `FontSize = 24` and group mode, so dragging the box moves the
+nodes it encloses.
+
+## Argument parsing
+
+| Rule | Detail |
+| :-- | :-- |
+| Statement shape | `<Name>( <key> = <value> [, <key> = <value> ]… )` — text after the closing `)` is an error |
+| Statement name | must be a valid identifier, matched case-insensitively against `Node` and `Comment` |
+| Key normalisation | trimmed, then lower-cased |
+| Value handling | one surrounding `"…"` pair is stripped and unescaped, then the value is trimmed |
+| Duplicate key | **rejected** with a diagnostic — unlike `Settings`, where the later key wins |
+| Empty key or value | rejected |
+| Comments | stripped from the section body before statements are split |
+
+## Coordinate space
+
+Positions are Unreal material-graph editor coordinates: **X increases to the right, Y increases
+downward**. Negative X is "upstream"; the material root node sits to the right of everything else.
+
+The constants the automatic layout pass uses make a useful frame of reference when placing nodes by
+hand:
+
+| Landmark | X |
+| :-- | :-- |
+| generated property / parameter nodes | `-800` |
+| `FunctionInput` nodes | `-800` |
+| inline literal constants | `-1120` |
+| one automatic layout column | `420` wide, laid out leftwards from the output column |
+| output-binding reroute usages | `720` |
+| `FunctionOutput` nodes | `900` |
+| the automatic layout's output column | `900` |
+| `Expression( … ).Pin[i]` output-target nodes | `1200` |
+
+Vertical stride is `220` for property nodes and automatic layout rows, `180` for function inputs and
+outputs.
+
+## Explicit versus automatic layout
+
+A `Layout` block does not merely add to the automatic pass — it **replaces** the ranking algorithm.
+
+| Condition | Result |
+| :-- | :-- |
+| at least one `Node` matched a recorded variable, **or** at least one `Comment` is declared | explicit layout runs |
+| a `Layout` block exists but no `Node` matched and no `Comment` is declared | the automatic layout pass runs as if the block were absent |
+| no `Layout` block | the automatic layout pass runs |
+
+On the explicit path, expressions the block did not name are still placed: positions propagate
+iteratively from already-positioned neighbours — midway between a known consumer and a known
+dependency, `360` left of a known consumer, or `360` right of a known dependency — with a collision
+fan-out for coincident slots. Anything still unplaced goes into a fallback column to the left of
+everything positioned.
+
+<Callout type="warn">
+
+**Layout is skipped entirely in transient (in-memory) mode.** Auto-compile-on-save, the Gen page
+buttons and the live preview all generate in memory, so a `Layout` block has no visible effect there
+— the nodes keep whatever positions the construction pass produced. Positions appear only in a
+persisted asset: at cook, through the commandlet, or after an explicit *Materialize*. See
+[In-memory Materials](/en/docs/generation/in-memory).
+
+</Callout>
+
+<Callout type="info">
+
+A second `Layout` section **resets** the first rather than appending. Only the last `Layout` block in
+a body has any effect. Every other section in the language either appends or merges.
+
+</Callout>
+
+## `#Region` / `#EndRegion`
+
+Region directives live in **`Graph` body text**, not in `Layout`. They name a span of graph
+statements; the layout pass turns each distinct region name into a comment-box block.
+
+```c
+Graph = {
+    #Region "Surface"
+    Color = BaseColor.rgb;
+    Rough = Roughness;
+    #EndRegion
+
+    #Region "Emissive"
+    Glow = Tint * Intensity;
+    #EndRegion
+}
+```
+
+| Rule | Detail |
+| :-- | :-- |
+| Recognition | the trimmed line must start with `#Region` / `#EndRegion`, matched case-insensitively, followed by end of line, whitespace, or `"` |
+| Name | the rest of the line, unquoted and trimmed; **required** on `#Region` |
+| Nesting | regions nest — the parser keeps a stack |
+| Span | `StartLine` is the line **after** `#Region`; `EndLine` is the line **before** `#EndRegion`, floored at `StartLine` |
+| Line numbering | directive lines are replaced by an equal-length run of spaces, so diagnostics keep their real line and column |
+
+A statement inside a region tags the variable it produces with the region name. On the automatic
+layout path each region becomes one comment box; on the explicit path region names contribute the
+block boundaries used to decide where cross-block reroutes are inserted.
+
+<Callout type="info">
+
+`#Region` names and `Layout` `Comment` names are independent. Declaring a `Comment` whose rectangle
+happens to contain a region's nodes does not merge the two — on the explicit path, geometric
+containment is what assigns a node to a comment block.
+
+</Callout>
+
+There is no other `#` directive. `#Region` is recognised **only** inside a `Graph` body; a `#`
+anywhere else is not a directive.
+
+## Notes
+
+- **Comment text is always prefixed with `DreamShader: `.** `Comment(Name="Sampling", …)` produces a
+  box reading `DreamShader: Sampling`. That prefix is also the teardown marker: on regeneration,
+  comment boxes whose text starts with `DreamShader: ` are deleted and rebuilt, and boxes that do
+  **not** carry the prefix survive. A hand-authored comment box is the only hand edit that survives
+  a regeneration. See [Regeneration](/en/docs/generation/regeneration).
+- A `Comment` whose `Name` is empty or whitespace after unquoting is rejected at parse time, so no
+  box is ever created for one.
+- The [decompiler](/en/docs/tools/decompiler) emits `Layout` blocks in exactly this format, so a
+  material can be exported, edited and regenerated with its positions intact. Emission is controlled
+  by the **Export Decompiled Layout** project setting, on by default.
+- The automatic pass gives up on very large graphs. At or above 1200 expressions it logs
+  `Skipping automatic layout for large DreamShader graph ({Count} nodes). Existing generated positions will be used.`
+  and leaves construction-time positions in place. A `Layout` block is the way to control those
+  graphs.
+
+## Example
+
+```c
+Shader(Name="Materials/M_Layout", Root="Game")
+{
+    Properties {
+        VectorParameter Tint      = float4(0.4, 0.8, 1.0, 1.0);
+        ScalarParameter Intensity = 2.0 [Slider(0, 10)];
+    }
+
+    Outputs {
+        float3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        #Region "Emissive"
+        float3 Boosted = Tint.rgb * Intensity;
+        Color = Boosted + vec3(0.05, 0.05, 0.05);
+        #EndRegion
+    }
+
+    Layout {
+        Comment(Name="Emissive", X=-1300, Y=-260, W=1100, H=520,
+                Color=float4(0.10, 0.22, 0.16, 0.35));
+        Node(Var="Tint",      X=-1200, Y=-160);
+        Node(Var="Intensity", X=-1200, Y=  60);
+        Node(Var="Boosted",   X= -800, Y=-160);
+        Node(Var="Color",     X= -400, Y= -60);
+    }
+}
+```
+
+Generated graph:
+
+```text
+Comment      "DreamShader: Emissive"   at (-1300, -260)  size 1100 x 520
+Tint         VectorParameter           at (-1200, -160)
+Intensity    ScalarParameter           at (-1200,   60)
+Boosted      Multiply                  at ( -800, -160)
+Color        Add                       at ( -400,  -60)
+DS_Color_<n> NamedReroute              positioned by propagation
+```
+
+Nothing reaches disk unless the material is persisted — see the transient-mode warning above.
+
+## Diagnostics
+
+<Diag>
+  <D msg="Invalid Layout statement '{Statement}'." cause="No balanced ( … )." />
+  <D msg="Unexpected text after Layout statement '{Statement}'." cause="Trailing text after the closing )." />
+  <D msg="Invalid Layout statement name in '{Statement}'." cause="The text before ( is not an identifier." />
+  <D msg="Unknown Layout statement '{Name}'." cause="A call name other than Node or Comment." />
+  <D msg="Layout argument '{Argument}' must use Key=Value syntax." cause='A positional argument — the old Node("Tint", …) form reaches this.' fix='Write Node(Var="Tint", X=…, Y=…).' />
+  <D msg="Invalid Layout argument '{Argument}'." cause="An empty key or an empty value." />
+  <D msg="Layout argument '{Key}' is declared more than once." cause="A duplicate argument key. Unlike Settings, the later one does not win." />
+  <D msg="Layout argument '{Name}' is required." cause="A required text argument is missing or blank — Var on Node, Name on Comment." />
+  <D msg="Layout argument '{Name}' must be an integer." cause="A required integer argument is missing or not an integer — W and H on Comment reach this most often." />
+  <D msg="Layout Comment Color must be a float4 literal in '{Statement}'." cause="Color is not a vector literal." />
+  <D msg="Graph #Region on line {Line} must include a name." cause="#Region with nothing after it." />
+  <D msg="Graph #EndRegion on line {Line} has no matching #Region." cause="An unbalanced #EndRegion." />
+  <D msg="Graph #Region '{Name}' is missing #EndRegion." cause="A region still open at the end of the Graph body." />
+</Diag>
+
+## Where to next
+
+<Cards>
+  <Card title="Sections" href="/en/docs/language/sections" description="Why a second Layout resets the first." />
+  <Card title="In-memory Materials" href="/en/docs/generation/in-memory" description="Why layout has no visible effect in the editor by default." />
+  <Card title="Regeneration" href="/en/docs/generation/regeneration" description="What survives a rebuild, and the DreamShader: comment rule." />
+  <Card title="Decompiler" href="/en/docs/tools/decompiler" description="Round-tripping Layout out of an existing material." />
+</Cards>

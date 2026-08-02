@@ -1,0 +1,151 @@
+---
+title: 项目结构
+description: DShader/ 怎么组织、哪些目录归插件所有，以及决定什么会被编译的 Package 规则。
+---
+
+DreamShaderLang 的源文件放在项目根目录下的一个目录里 —— 默认是 `DShader`，由
+*Project Settings ▸ DreamPlugin ▸ Dream Shader ▸ Paths ▸ Source Directory* 配置。相对路径相对项目
+目录解析。
+
+源目录、它的 `Packages` 子目录和生成 shader 目录都由插件在模块启动时创建，也就是编辑器第一次启动时，
+无论你有没有写过任何源文件。
+
+## 目录树
+
+<Files>
+  <Folder name="MyProject" defaultOpen>
+    <Folder name="DShader" defaultOpen>
+      <Folder name="Materials" defaultOpen>
+        <File name="M_Sample.dsm" />
+      </Folder>
+      <Folder name="Functions" defaultOpen>
+        <File name="F_Tint.dsf" />
+      </Folder>
+      <Folder name="Shared" defaultOpen>
+        <File name="Common.dsh" />
+        <File name="Color.dsh" />
+      </Folder>
+      <Folder name="VirtualFunctions">
+        <File name="Engine.dsh" />
+      </Folder>
+      <Folder name="Decompiled">
+        <Folder name="Materials" />
+        <Folder name="Functions" />
+      </Folder>
+      <Folder name="Packages" defaultOpen>
+        <Folder name="@typedreammoon" defaultOpen>
+          <Folder name="dream-noise" defaultOpen>
+            <File name="dreamshader.package.json" />
+            <Folder name="Library" defaultOpen>
+              <File name="Noise.dsh" />
+            </Folder>
+          </Folder>
+        </Folder>
+      </Folder>
+      <File name="DreamShader.code-workspace" />
+      <File name="dreamshader.lock.json" />
+    </Folder>
+    <Folder name="Intermediate">
+      <Folder name="DreamShader">
+        <Folder name="GeneratedShaders" />
+      </Folder>
+    </Folder>
+    <Folder name="Plugins" defaultOpen>
+      <Folder name="DreamShader" />
+    </Folder>
+  </Folder>
+</Files>
+
+## 各目录职责
+
+| 目录 | 归属 | 内容 |
+| --- | --- | --- |
+| `DShader/` | 你 | 源文件根目录。下面怎么分都行，这里给的是约定而不是规则。 |
+| `DShader/Materials/` | 你 | 材质 `.dsm`，通常一个文件一个 `Shader`。 |
+| `DShader/Functions/` | 你 | 可复用的 `.dsf` 函数文件。 |
+| `DShader/Shared/` | 你 | 项目内部的 `.dsh` header。 |
+| `DShader/VirtualFunctions/` | 编辑器 | *Create Virtual Function* 为已有 `UMaterialFunction` 写声明的位置。 |
+| `DShader/Decompiled/` | 编辑器 | *Export DSM* / *Export DSF* 的输出目录，分为 `Materials`、`Functions`、`Layers`、`LayerBlends`。 |
+| `DShader/Packages/` | 扩展 | 已安装的共享库。永远是源根下那个字面量子目录 `Packages`，不能单独配置。 |
+| `DShader/DreamShader.code-workspace` | 插件 | 每次执行 *Open Dream Shader Workspace* 都会整体重写。 |
+| `DShader/dreamshader.lock.json` | 扩展 | 记录已安装 Package 的版本。插件既不读也不写。 |
+| `Intermediate/DreamShader/GeneratedShaders/` | 插件 | 生成的 `.ush` helper include，挂载在 `/DreamShaderGenerated`。 |
+
+<Callout type="warn">
+  `DreamShader.code-workspace` 每次调用都从一个固定对象序列化而来 —— 从不读取、合并或保留原文件。手动
+  加的 `launch`、`tasks`、`extensions` 或额外 `settings` 都会被销毁。把个人配置放在
+  `DShader/.vscode/settings.json`，这个命令不会碰它。
+</Callout>
+
+## 命名约定
+
+| 类型 | 约定 |
+| --- | --- |
+| 材质文件 | `M_*.dsm` |
+| 材质函数文件 | `F_*.dsf` |
+| 共享 header | 按领域命名 —— `Texture.dsh`、`Color.dsh` |
+| Package 入口 | `Library/<Name>.dsh` |
+
+扩展名比较是大小写不敏感的，所以 `M_Water.DSM` 也是材质文件。标识符则是另一回事：插件把命名空间和
+函数名净化成 HLSL 与资产标识符时会替换掉非 ASCII 字符，所以这些名字请用 ASCII。
+
+## import
+
+每个材质尽量只 import 少量稳定入口：
+
+```c
+import "Shared/Common.dsh";
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+```
+
+一个 specifier 会依次尝试三个根：导入方文件所在目录、源根、Package 根。第一个存在**且没有跑出自己根
+目录**的候选胜出 —— Package 内部的文件不能用 `../` 爬出去。没有扩展名的 specifier 会被补上 `.dsh`，
+所以 `import "…/Noise"` 永远不可能解析到 `.dsf`。完整规则见
+[import 与命名空间](/docs/language/imports)。
+
+`import` 保持浅层还有一个好处：源 hash 覆盖的是整段内联后的 import 闭包，改一个 header 会让所有引入它的
+文件都失效。
+
+## 什么会被编译，什么不会
+
+插件有两个枚举器，它们排除的东西不一样。
+
+| 枚举器 | 扩展名 | 排除 | 使用者 |
+| --- | --- | --- | --- |
+| 全量源枚举 | `.dsm`、`.dsh`、`.dsf` | `DShader/Packages` 下的**全部**文件 | 启动时的内存生成、commandlet 的 `compile -All`、cook、Gen 页列表、VirtualFunction 同步 |
+| 材质源枚举 | `.dsm`、`.dsf` | 仅 `DShader/Packages` 下的 `.dsm` | *Recompile DSM*、自动编译队列、依赖图 |
+
+<Callout type="warn">
+  `Packages` 排除对 `.dsm` 是完整的，对 `.dsf` 只是部分。Package 里的 `.dsf` 在交互式编辑器会话中
+  **会**被编译 —— 文件监视器和 *Recompile DSM* 都会拾取它 —— 但 `compile -All`、cook 和 Gen 页
+  **不会**。也就是说，一个附带 `.dsf` 函数资产的 Package 在本地能用，在 headless 构建里会静默地什么都
+  不生成。库代码请以 `.dsh` header 形式分发，或者把 `.dsf` 从 `Packages` 复制到自己的源码树里。
+</Callout>
+
+<Callout type="warn">
+  Package 内的 `Examples/**/*.dsm` 在任何路径下都不会被编译，也不会出现在 Gen 页。要用示例，把它从
+  `DShader/Packages` 复制到 `DShader/` 下。
+</Callout>
+
+Package 的 `.dsh` header 完全可以被 import，但从不参与 `VirtualFunction` 声明扫描 —— Package 里带的
+`VirtualFunction` 永远不会与它的资产做校验。
+
+## 版本管理
+
+| 内容 | 是否提交 |
+| --- | --- |
+| `.dsm` / `.dsf` / `.dsh` | 提交 —— 这就是材质逻辑本身 |
+| `dreamshader.lock.json` | 如果团队会安装 Package，提交 |
+| `Config/DefaultEngine.ini` | 提交 —— 项目设置存在这里，是共享的 |
+| `DShader/Packages/` | 团队自定：直接入库，或按 lock 文件重新安装 |
+| 生成的 `.uasset` | 一般**不提交** —— 默认 backend 下编辑器本来也不会写出它们 |
+| `Intermediate/DreamShader/` | 不提交 |
+
+团队内统一 *Source Directory*，这样 import 在每台机器上的解析结果才一致。
+
+## 下一步
+
+- [文件模型](/docs/language/file-model) —— 每种扩展名可以写什么
+- [import 与命名空间](/docs/language/imports) —— specifier 语法和循环处理
+- [Package](/docs/tools/packages) —— 安装根目录，以及插件没有实现的那一半
+- [日常工作流](/docs/start/workflow) —— 一次保存到底触发了什么

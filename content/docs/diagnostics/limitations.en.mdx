@@ -1,0 +1,203 @@
+---
+title: Limitations
+description: What DreamShaderLang 1.5.0 does not do yet — the Graph language's boundaries, the silent failures, the decompiler's round-trip gaps, and the function-level ceiling on material layers.
+---
+
+DreamShaderLang covers the material-authoring patterns that are worth keeping as reviewable text.
+It is not a replacement for Unreal's material editor, and it is not a shader compiler. This page is
+the honest list of where the edges are at **1.5.0**, so you can find out here rather than
+three hours into a shader.
+
+Each section links to the page that covers the topic properly. Nothing below is restated in detail.
+
+## `Graph` is not a general-purpose language
+
+A `Graph` block builds a node graph. It has ten statement forms, four arithmetic operators, and no
+control flow other than `if` / `else`. There is no keyword table, so unsupported syntax is not
+rejected as unsupported syntax — it is misclassified.
+
+| Absent | Alternative |
+| :-- | :-- |
+| `for`, `while`, `do`, `switch` | unroll by hand, or move the loop into a [`Function`](/en/docs/language/functions) whose body is real HLSL |
+| `return` inside `Graph` | assign the declared output variable |
+| Ternary `? :` | `if` / `else`, `lerp`, or a `StaticSwitchParameter` call |
+| `&&`, `\|\|`, bitwise and shift operators | nested `if` statements, or a `Function` |
+| `%` | `fmod(a, b)` or `mod(a, b)` |
+| Compound assignment and `++` / `--` | `a = a + b` |
+| Matrix types and arrays | [`UE.TransformVector` / `UE.TransformPosition`](/en/docs/builtins/ue-nodes), [swizzles](/en/docs/graph/expressions), or matrix locals inside a `Function` |
+| Integer arithmetic | `int`, `uint`, `bool` and `half` collapse to float widths; the integer marker exists only to reject `int(a) / int(b)` |
+| C-style casts, hex/octal/binary literals, the comma operator, nested brace initializers, preprocessor directives | constructors, decimal literals, separate statements, `import` |
+
+That is the design, not a backlog. Anything genuinely imperative belongs in a `Function` or
+`GraphFunction`, where the body is HLSL compiled into a `Custom` node.
+
+<Callout type="warn">
+**The expensive part is not what is missing — it is that some of it fails silently.** The `Graph`
+tokenizer maps every character it does not know to an end-of-expression token, and the parser accepts
+the expression that precedes it. `a % b` compiles as `a`. `if (x > 0 && y > 0)` compiles as
+`if (x > 0)`. `v[0]` compiles as `v`. No message is produced on any surface.
+
+[What Graph Is Not](/en/docs/graph/unsupported) is the full treatment, including the two positions
+that *do* report the problem and the parenthesis trick that forces a diagnostic.
+</Callout>
+
+### The other silent classes
+
+Truncation is the big one, but not the only one. These all compile clean:
+
+| Written | What happens |
+| :-- | :-- |
+| `a+=b;` — no spaces | a plain assignment creating a new variable literally named `a+`; `a` never changes |
+| `++a` / `--a` | repeated unary operators; `++a` emits nothing, `--a` emits two `Multiply` nodes and is numerically `a` |
+| `If (x) { }`, `Else { }` | `if` and `else` are the only case-sensitive Graph keywords; a mis-cased spelling becomes a declaration |
+| `Shader(Name="A", Name="B")` | a duplicate header attribute — the last value wins |
+| A duplicate `Settings` key | the last value wins. Duplicate **metadata**, **UE builtin**, **Expression** and **Layout** arguments are all hard errors |
+| An unknown key in a material-function `Settings` block | ignored; only `Description`, `UserExposedCaption`, `ExposeToLibrary` and `LibraryCategories` are read |
+| An unknown or positional argument to a *registered* `UE.*` builtin | ignored. The generic `UE.Expression` path rejects both |
+| `[Texture=Path(Game,"Typo")]` on a texture-sample node | the slot is set to null and the write reports success; the material compiles with an unbound sampler |
+| A default value on a material function's `Outputs` / `Results` entry | parsed and never used |
+| `float Strength = 1.0f;` or `1abc;` in `Properties` | both parse as `1.0` |
+| `float3(1,0,0)`, `vec3(1,0,0)`, `(1,0,0)`, `Nonsense(1,0,0)` as a property default | all identical — the text before `(` is ignored |
+| A second `Layout = { … }` section | replaces the first. `Properties`, `Inputs` and `Outputs` append instead |
+| An unterminated `/* … */` comment | consumed to end of file and accepted |
+
+<Callout type="info">
+The shadowing rule is worth reading twice: the 19 [math builtins](/en/docs/builtins/math) and every
+vector constructor name are reserved. A `Function`, `GraphFunction` or property named `lerp`,
+`clamp`, `dot` or `float3` still compiles and still generates its asset, but is unreachable from a
+`Graph` block, with no diagnostic.
+</Callout>
+
+## Diagnostics have one severity, and imperfect positions
+
+Every stored diagnostic is an `error`. Parse warnings — the two layer deprecations, the missing
+`Outputs` warning — never enter the store and appear only in the Output Log, so an editor extension
+cannot distinguish them. And line and column numbers for parse errors raised **inside a section body**
+are computed against the wrong offset base: the file is right, the position is not.
+
+See [Diagnostics](/en/docs/diagnostics) for both, and for the surfaces a message reaches.
+
+The bridge also does not run inside a commandlet or a cook, so headless runs produce no
+`diagnostics.json`, no shards and no `bridge.db` rows — only log lines. See
+[Commandlet](/en/docs/tools/commandlet).
+
+## The decompiler is a migration aid, not a round-trip
+
+Exporting an existing `UMaterial` or `UMaterialFunction` gives you a working starting point, not a
+guaranteed reproduction. The exporter has a curated case for roughly forty expression classes and a
+generic `UE.Expression` fallback for everything else, and it writes a `// Warning:` comment for what
+it could not express.
+
+The gaps worth checking by hand before you delete an original asset:
+
+| Gap | Effect |
+| :-- | :-- |
+| Struct-, array-, map- and set-valued node properties are not reflected | a fallback `UE.Expression` node keeps the class default for that state, with no per-property warning |
+| Material-function settings are never emitted | `Description`, `ExposeToLibrary`, `LibraryCategories` and `UserExposedCaption` are lost from an exported `.dsf` |
+| Only a blessed `UMaterial` property set is emitted | `OpacityMaskClipValue`, `NumCustomizedUVs`, translucency lighting mode, displacement scaling, Nanite overrides and the rest keep the class default |
+| Node comment text and node `SortPriority` are dropped | comment bubbles and pin ordering are not reproduced |
+| Material **instances** are rejected outright | export the parent `UMaterial`, then re-create the instance |
+| A `MaterialFunctionCall` on a layer or layer blend falls back to `UE.Expression` | the call is not expressed as a `VirtualFunction` |
+| A `MaterialFunctionCall` with no assigned function becomes `0.0` | the branch is silently constant-folded |
+| Graph cycles emit a default literal | the cyclic branch evaluates to a constant |
+| An append wider than four components is masked down | components are dropped; check the emitted swizzle |
+| The generated `Name=` points into `Decompiled/…` | recompiling creates a **second** asset rather than replacing the original |
+
+Treat an export as a first draft: compile it, diff the two materials in the editor, then take over
+the original path by editing `Name=` and `Root=`. Full detail on
+[Decompiler](/en/docs/tools/decompiler).
+
+## Material layers are function-level only
+
+`ShaderLayer` and `ShaderLayerBlend` generate the two layer *function* assets —
+`UMaterialFunctionMaterialLayer` and `UMaterialFunctionMaterialLayerBlend`. That is where the
+support stops.
+
+| Boundary | Detail |
+| :-- | :-- |
+| The layer **stack** is not authored from source | assigning layers and blends to a material or material instance stays an editor operation |
+| Layer interfaces are fixed | a layer takes at most one `MaterialAttributes` input; a blend takes exactly two. Both produce exactly one `MaterialAttributes` output |
+| Scalars, vectors and textures cannot be layer inputs | expose them through `Properties`; they become parameter nodes and appear on the layer stack's parameter panel |
+| `Base.MaterialAttributes` and `Base.FrontMaterial` are mutually exclusive on one `Shader` | pick one |
+| `MaterialLayer` / `MaterialLayerBlend` are deprecated | since 1.3.0; both still generate identical assets and warn once |
+
+See [Top-level Blocks](/en/docs/language/blocks) for the arity rules and the generated asset shape.
+
+## Node coverage is reflection-shaped
+
+Twenty-seven `UE.*` names are registered as sugar with hand-written argument handling. Everything
+else in the engine is reachable only through the generic
+[`UE.Expression`](/en/docs/builtins/ue-expression) path, which resolves a class by reflection and
+writes properties as literals. Three consequences:
+
+- **Struct and array properties are awkward.** They go through Unreal's own text import, so they need
+  Unreal's literal syntax — `(R=1,G=0,B=0,A=1)` — and anything that syntax cannot express fails with
+  `Property '{Property}' on '{Class}' is not a supported literal type yet.`
+- **Class names have no `U` prefix.** Resolution compares the reflected class name, so `Sine`,
+  `MaterialExpressionSine` and `/Script/Engine.MaterialExpressionSine` resolve, while
+  `UMaterialExpressionSine` never does.
+- **Only the generic path dedupes.** Generic `UE.Expression` calls, `Substrate.*` wrappers and the
+  math builtins are common-subexpression cached. The 27 registered sugar builtins create a fresh
+  node per call.
+
+Two builtins the parser accepts have no generator implementation at all — `UE.VertexNormalWS` and
+`UE.VertexTangentWS` — and must be written through the generic form with an explicit `OutputType`.
+
+## Engine-version boundaries
+
+Supported engines are **UE 5.3 – 5.8**. Features gated above the floor fail with an explicit
+message rather than silently:
+
+| Feature | Requires |
+| :-- | :-- |
+| `Substrate.*` calls, `Substrate` values, `Base.FrontMaterial`, `ShadingModel="Substrate"` | <Since v="5.4" ue /> |
+| `UE.TransformPosition` / `UE.TransformVector` `PeriodicWorld` basis | <Since v="5.5" ue /> |
+| `UE.TransformPosition` `FirstPerson` basis and `FirstPersonInterpolationAlpha` | <Since v="5.6" ue /> |
+| Plugin-content mount checks on `Path( … )` and `Root=` | <Since v="5.6" ue /> |
+| `UE.CollectionParam` `Group` / `SortPriority` | <Since v="5.7" ue /> — validated then dropped below it |
+| `ShaderLayerBlend` `BlendInputRelevance` | <Since v="5.7" ue /> — not written below it |
+
+Substrate also requires Substrate to be enabled in the project, independently of the engine version.
+
+## Backend boundaries
+
+`ThinCustom` is the default backend, and it lowers a `Shader` to an HLSL `Custom` node on a hidden
+base material. That path cannot produce Substrate values:
+
+```text
+{File}: Material output '{Name}' expects a Substrate value and cannot be driven by a material
+Custom node. Use a Graph block and Substrate.* nodes.
+```
+
+Set `Backend = "Graph"` for Substrate work. The other consequence of the default is that interactive
+compiles are **memory-only** — the generated material does not appear in the Content Browser until
+you *Materialize* it. That is deliberate, not a failure; see
+[In-memory Materials](/en/docs/generation/in-memory) and [Backend](/en/docs/settings/backend).
+
+## Imports and packages
+
+| Boundary | Detail |
+| :-- | :-- |
+| Import cycles are rejected | diamond imports are fine; a cycle fails the parse |
+| One `Shader` per parse unit | enforced across the whole transitive import closure, not per file |
+| `.dsh` and `.dsf` file-kind checks are substring scans | `Shader(` inside a *comment* in a `.dsh` still rejects the file |
+| Sources under `DShader/Packages` are never auto-compiled | and never appear in the Gen page — see [Packages](/en/docs/tools/packages) |
+| Resolution is root-relative | machine-absolute paths do not travel; keep imports project-root or package relative |
+
+## What is deliberately not a goal
+
+DreamShaderLang exists so that behaviour which must be reviewed, regenerated and shared lives in
+text. It is not trying to absorb the material editor. Exploratory, highly visual, one-off graphs are
+faster to build in Unreal — build them there, then
+[decompile](/en/docs/tools/decompiler) the parts that stabilized and keep those in source.
+
+## Where to next
+
+<Cards>
+  <Card title="Diagnostics" href="/en/docs/diagnostics" description="Every message you are likely to hit, by pipeline stage." />
+  <Card title="What Graph Is Not" href="/en/docs/graph/unsupported" description="The Graph language's boundaries in full, with worked examples." />
+  <Card title="Decompiler" href="/en/docs/tools/decompiler" description="What the exporter emits, and the complete round-trip gap list." />
+  <Card title="Backend" href="/en/docs/settings/backend" description="ThinCustom versus Graph, and what each can generate." />
+  <Card title="Functions" href="/en/docs/language/functions" description="Where loops, bitwise operators and matrices are legal." />
+  <Card title="Top-level Blocks" href="/en/docs/language/blocks" description="ShaderLayer, ShaderLayerBlend and the rest of the block roster." />
+</Cards>

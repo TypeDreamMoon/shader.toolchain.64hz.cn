@@ -1,0 +1,478 @@
+---
+title: Top-level Blocks
+description: The seven top-level blocks — Shader, ShaderFunction, ShaderLayer / ShaderLayerBlend, VirtualFunction, Function, GraphFunction and Namespace — and what each one generates.
+---
+
+A source file is a flat list of top-level blocks. They may appear in any order, there is no
+separator between them, and — apart from `Shader` — any number of each may appear in one translation
+unit. One compile of a file generates every asset every one of its blocks describes.
+
+The block keywords are the **only case-sensitive tokens** in the language. `shader(…)` and
+`SHADER(…)` match nothing and fail with `Unexpected token near index {Index}.` See
+[Lexical Elements](/en/docs/language/lexical).
+
+## Synopsis
+
+<Synopsis>
+
+```c
+<top-level-block> := { Shader | ShaderFunction | ShaderLayer | ShaderLayerBlend
+                     | MaterialLayer | MaterialLayerBlend | VirtualFunction | Namespace }
+                     ( <attribute> = <value> [, …] ) { <section>… }
+                   | { Function [ SelfContained | Inline ] | GraphFunction }
+                     [<return-type>] <name> ( [<parameter>, …] ) { <HLSL> }
+
+<section>          := <section-name> [=] { <statement>… } [;]
+```
+
+</Synopsis>
+
+<Grammar />
+
+Two header shapes, then. The five asset-shaped blocks take a `( Key = Value )` attribute list and a
+body of [sections](/en/docs/language/sections); the two function-shaped blocks take a C-style
+signature and a body of raw HLSL.
+
+## What each block generates
+
+| Block | Header | Generates | Since |
+| :-- | :-- | :-- | :-- |
+| `Shader` | `Shader(Name = "…"[, Root = "…"])` | `UMaterial`, or a `UDreamShaderMaterialInstance` over a hidden base under the ThinCustom backend | — |
+| `ShaderFunction` | `ShaderFunction(Name = "…"[, Root = "…"])` | `UMaterialFunction` (usage `Default`) | — |
+| `ShaderLayer` | `ShaderLayer(Name = "…"[, Root = "…"])` | `UMaterialFunctionMaterialLayer` | <Since v="1.3.0" /> |
+| `ShaderLayerBlend` | `ShaderLayerBlend(Name = "…"[, Root = "…"])` | `UMaterialFunctionMaterialLayerBlend` | <Since v="1.3.0" /> |
+| `VirtualFunction` | `VirtualFunction(Name = "…"[, Asset = "…"])` | **nothing** — declares an existing asset | <Since v="1.2.0" /> |
+| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … )` | one HLSL helper in the generated `.ush` include; a `Custom` node per call | — |
+| `GraphFunction` | `GraphFunction [<ret>] <Name>( … )` | nothing by itself; a `Custom` node plus hoisted material nodes per call | <Since v="1.3.1" /> |
+| `Namespace` | `Namespace(Name = "…")` | nothing — prefixes its members' names with `Ns::` | — |
+
+`Name` is required on every attribute-taking block. `Root` defaults to `/Game`; the full path
+grammar is on [Asset Paths](/en/docs/generation/asset-paths).
+
+## `Shader`
+
+Declares one material: its parameters, its render state, its output bindings and the graph feeding
+them.
+
+<Synopsis>
+
+```c
+Shader(Name = "<asset-path>" [, Root = "<root>"])
+{
+    [Properties [=] { <property-declaration> ; … }]
+    [Settings   [=] { <key> = <value> ; … }]
+    [Outputs    [=] { { <output-declaration> | <output-binding> } ; … }]
+    [Graph      [=] { <graph-statement> … }]
+    [Layout     [=] { { Node( … ) | Comment( … ) } ; … }]
+}
+```
+
+</Synopsis>
+
+```c
+Shader(Name="Materials/M_Emissive", Root="Game")
+{
+    Properties = {
+        Group("Look") {
+            vec3  Tint      = vec3(1.0, 0.4, 0.1) [Description="Emissive tint"];
+            float Intensity = 2.0                 [Slider(0, 10)];
+        }
+        TextureSampleParameter2D BaseTex = Path(Game, "Textures/T_Noise");
+    }
+
+    Settings = {
+        ShadingModel = "Unlit";
+        BlendMode    = "Translucent";
+        TwoSided     = true;
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        vec2 UV  = UE.TexCoord(Index = 0);
+        vec4 Tex = BaseTex(Coordinates = UV);
+        Color = Tex.rgb * Tint * Intensity;
+        Alpha = Tex.a;
+    }
+}
+```
+
+Rules that only apply here:
+
+- **`.dsm` only.** A `.dsh` or `.dsf` whose text contains `Shader(` is rejected before parsing.
+- **At most one per translation unit**, import closure included.
+- A `Graph` block is required **unless** at least one output declaration carries an initializer
+  <Since v="1.3.4" />. Otherwise the parse fails with `Shader must provide a Graph block.`
+- **Bindings are what make a material.** A `Shader` with no `Base.*` or `Expression(…)` binding
+  parses with a warning and then fails generation with `{File}: Outputs block is required.`
+- Binding `Base.MaterialAttributes` auto-enables *Use Material Attributes*. Binding
+  `Base.FrontMaterial` force-sets the shading model to Substrate and needs <Since v="5.4" ue />. The
+  two cannot be used by the same `Shader`.
+- `Inputs`, `Results` and `Options` are not sections a `Shader` knows; `Code` is a hard error.
+
+<Callout type="info">
+
+Which UClass lands at the target path depends on the resolved backend. `ThinCustom` — the default —
+writes a `UDreamShaderMaterialInstance` whose parent is a hidden `UMaterial` subobject named
+`MB_DreamThinBase_<leaf>`; `Graph` writes a plain `UMaterial`. `Instance` is a deprecated alias of
+`ThinCustom`. See [Backend](/en/docs/settings/backend).
+
+</Callout>
+
+## `ShaderFunction`
+
+Declares one reusable `UMaterialFunction`: typed input and output pins, function-local parameter
+nodes, and the graph connecting them.
+
+<Synopsis>
+
+```c
+ShaderFunction(Name = "<asset-path>" [, Root = "<root>"])
+{
+    [Properties            [=] { <property-declaration> ; … }]
+    [Inputs                [=] { <parameter-declaration> ; … }]
+    { Outputs | Results }  [=] { <parameter-declaration> ; … }
+    Graph                  [=] { <graph-statement> … }
+    [Settings              [=] { <key> = <value> ; … }]
+    [Layout                [=] { { Node( … ) | Comment( … ) } ; … }]
+}
+```
+
+</Synopsis>
+
+```c
+ShaderFunction(Name="Functions/F_Tint", Root="Game")
+{
+    Properties = {
+        Group("Tint") {
+            float Boost = 1.0 [Slider(0, 4); Description="Extra gain applied after tinting"];
+        }
+        const float Epsilon = 0.001;
+    }
+
+    Inputs = {
+        vec3  InColor;
+        vec3  InTint             [Description="Multiplied with InColor"];
+        opt float Strength = 1.0 [Description="Blend amount"; SortPriority=10];
+    }
+
+    Outputs = {
+        vec3  OutColor;
+        float OutLuma;
+    }
+
+    Graph = {
+        vec3 Tinted = InColor * InTint * Boost;
+        OutColor    = lerp(InColor, Tinted, Strength);
+        OutLuma     = dot(OutColor, vec3(0.2126, 0.7152, 0.0722)) + Epsilon;
+    }
+}
+```
+
+`Graph` and at least one output are required. Everything else is optional. `Properties` here
+declares nodes *inside* the function; `Inputs` declares pins *on* it — see
+[Sections](/en/docs/language/sections) for the difference, which is the most common confusion in
+this block.
+
+<Callout type="info">
+
+Across a regeneration the `Id` GUID of every input and output pin is cached by name and restored
+<Since v="1.3.2" />, so existing hand-authored `MaterialFunctionCall` nodes keep their wiring —
+**as long as the pin name is unchanged**. Renaming an input is equivalent to deleting it: call sites
+lose that connection.
+
+</Callout>
+
+## `ShaderLayer` and `ShaderLayerBlend`
+
+<Since v="1.3.0" />
+
+The material-layer variants of `ShaderFunction`. They share its body parser and its section table;
+what distinguishes them are five arity rules checked at generation.
+
+<Synopsis>
+
+```c
+ShaderLayer(Name = "<asset-path>" [, Root = "<root>"])
+{
+    [Inputs                [=] { MaterialAttributes <name> ; }]
+    { Outputs | Results }  [=] { MaterialAttributes <name> ; }
+    Graph                  [=] { <graph-statement> … }
+}
+
+ShaderLayerBlend(Name = "<asset-path>" [, Root = "<root>"])
+{
+    Inputs                 [=] { MaterialAttributes <name> ; MaterialAttributes <name> ; }
+    { Outputs | Results }  [=] { MaterialAttributes <name> ; }
+    Graph                  [=] { <graph-statement> … }
+}
+```
+
+</Synopsis>
+
+| Kind | Inputs | Outputs |
+| :-- | :-- | :-- |
+| `ShaderLayer` | **at most one**, and it must be `MaterialAttributes` | exactly one, `MaterialAttributes` |
+| `ShaderLayerBlend` | **exactly two**, both `MaterialAttributes` | exactly one, `MaterialAttributes` |
+
+Scalars, vectors and textures cannot be layer or blend inputs. Expose them through `Properties`
+instead: they become parameter nodes inside the generated function and appear on the layer stack's
+parameter panel. Both diagnostics say so explicitly — `… Use Properties for layer controls.`
+
+```c
+ShaderLayer(Name="Layers/L_Rust", Root="Game")
+{
+    Properties = {
+        Group("Rust") {
+            vec3  RustColor = vec3(0.35, 0.13, 0.05);
+            float RustRough = 0.85 [Slider(0, 1)];
+        }
+    }
+
+    Outputs = { MaterialAttributes Attrs; }
+
+    Graph = {
+        Attrs.BaseColor = RustColor;
+        Attrs.Roughness = RustRough;
+        Attrs.Metallic  = 0.0;
+    }
+}
+```
+
+<Callout type="info">
+
+On <Since v="5.7" ue /> each `MaterialAttributes` input of a blend gets a `BlendInputRelevance`
+derived from its name — `Top` / `TopLayer` map to `Top`, `Bottom` / `BottomLayer` / `Base` /
+`BaseLayer` map to `Bottom`. Anything else falls back to position: the first input becomes `Bottom`,
+the second `Top`. On UE 5.3–5.6 the property does not exist and nothing is written.
+
+</Callout>
+
+### Deprecated spellings
+
+<Deprecated since="1.3.0" use="ShaderLayer" />
+
+`MaterialLayer(...)` and `MaterialLayerBlend(...)` still parse and still generate exactly the same
+assets, but each pushes a parse warning that is appended to the compile message:
+`MaterialLayer is deprecated; use ShaderLayer instead.` and
+`MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.`
+
+Two consequences of the aliasing are worth knowing. A missing `Name` reports the spelling you
+actually typed (`MaterialLayer(Name="...") is required.`), while **every other diagnostic reports
+the modern kind name** — a `MaterialLayer` with two inputs fails with `ShaderLayer '{Function}' must
+declare at most one input, …`, never `MaterialLayer …`.
+
+## `VirtualFunction`
+
+<Since v="1.2.0" />
+
+Declares an **existing** `UMaterialFunction` — its path and its pin signature — so a `Graph` can call
+it. It generates nothing and validates nothing until a call site needs it.
+
+<Synopsis>
+
+```c
+VirtualFunction(Name = "<call-name>" [, Asset = "<asset-reference>"])
+{
+    [{ Options | Settings }   [=] { Asset = <asset-reference> ; … }]
+    [{ Inputs | Properties }  [=] { <parameter-declaration> ; … }]
+    { Outputs | Results }     [=] { <parameter-declaration> ; … }
+}
+```
+
+</Synopsis>
+
+```c
+VirtualFunction(Name="BufferWriter")
+{
+    Options = {
+        Asset       = Path(Game, "MaterialFunctions/F_BufferWriter");
+        Description = "Existing material function declared for Graph calls.";
+    }
+
+    Inputs = {
+        vec3  Color;
+        float Alpha;
+        opt float Exposure = 1.0;
+    }
+
+    Outputs = {
+        vec3  Result;
+        float Coverage;
+    }
+}
+```
+
+- `Name` is a **call name**, not an asset path. There is no `Root` attribute — the package root is
+  part of the asset reference.
+- The header `Asset=` attribute wins over `Options.Asset`; the section value is consulted only when
+  the attribute is absent or blank.
+- `Graph` and `Code` are hard errors: this block declares an asset, it does not build one.
+- A file holding only `VirtualFunction` blocks compiles successfully with
+  `DreamShader file '{File}' contains VirtualFunction declarations only; no assets were generated.`
+
+<Callout type="warn">
+
+**Inside a `VirtualFunction`, and only here, `Properties` is an alias for `Inputs`.** It gets the
+typed-parameter grammar, not the parameter-node grammar. A declaration such as `const float X = 1;`
+that is legal in a `Shader` fails here with
+`VirtualFunction '{Name}' input 'X' uses unsupported type 'const float'.`
+
+</Callout>
+
+<Callout type="warn">
+
+An unquoted attribute value ends at the first `,` or `)`. `Asset=Path(Game, "F/X")` in the *header*
+truncates to `Path(Game` and fails with `Expected identifier near index {Index}.` Put `Path(...)`
+forms in `Options` instead.
+
+</Callout>
+
+## `Function`
+
+An HLSL helper. The body is emitted verbatim into a generated `.ush` include as
+`DreamShaderFn_<Name>`, and every call site becomes a `UMaterialExpressionCustom` node.
+
+<Synopsis>
+
+```c
+Function [ { Inline | SelfContained } ] [ <return-type> ] <name> ( [ <parameter-list> ] )
+{
+    <hlsl>
+}
+```
+
+</Synopsis>
+
+```c
+Function float Luma(in vec3 color)
+{
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
+Function SelfContained Remap01(in float value, out float result)
+{
+    result = saturate(value * 0.5 + 0.5);
+}
+```
+
+There is no attribute header, no `Settings`, and no sections of any kind — the `{ … }` after the
+parameter list is raw HLSL. Full parameter, return-type and emission rules are on
+[Functions](/en/docs/language/functions).
+
+## `GraphFunction`
+
+<Since v="1.3.1" />
+
+Looks exactly like a `Function`, but its `UE.*` calls are lifted out of the text, built as real
+material nodes, and wired into the generated `Custom` node as auto-named input pins.
+
+<Synopsis>
+
+```c
+GraphFunction [ <return-type> ] <name> ( [ <parameter-list> ] )
+{
+    <hlsl-with-UE-calls>
+}
+```
+
+</Synopsis>
+
+```c
+GraphFunction WindPulse(in float2 uv, out float pulse)
+{
+    float t = UE.Time();
+    pulse = sin(uv.x * 8.0 + t);
+}
+```
+
+<Callout type="warn">
+
+`Inline` and `SelfContained` are **not modifiers here**. The modifier branch is skipped for
+`GraphFunction`, so the token is consumed as a *return type*, and the failure surfaces as
+`DreamShader GraphFunction 'Foo' has unsupported result type 'SelfContained'.` (or, with any `out`
+parameter, as a return-type-plus-`out` parse error). There is no self-contained mode for
+`GraphFunction`.
+
+</Callout>
+
+## `Namespace`
+
+Prefixes the names of the `Function` and `GraphFunction` declarations it contains with `<Name>::`.
+
+<Synopsis>
+
+```c
+Namespace(Name = "<identifier>")
+{
+    { <function-declaration> | <graph-function-declaration> } …
+}
+```
+
+</Synopsis>
+
+```c
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+A `Namespace` is not an entity: no object is stored for it and it creates no scope. Its only effect
+is on the member's recorded name. It may **not** nest, and it may contain nothing but those two
+block kinds — anything else fails with
+`Namespace '{Name}' may only contain Function or GraphFunction blocks.` See
+[Functions](/en/docs/language/functions).
+
+## Comparison
+
+<Wide>
+
+| | `Shader` | `ShaderFunction` | `ShaderLayer(Blend)` | `VirtualFunction` | `Function` | `GraphFunction` | `Namespace` |
+| :-- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| Writes a `.uasset` | yes | yes | yes | no | no | no | no |
+| Allowed in `.dsh` | no | no | no | yes | yes | yes | yes |
+| Multiplicity per unit | **1** | any | any | any | any | any | any |
+| Body | sections | sections | sections | sections | HLSL | HLSL | blocks |
+| `Properties` | parameter nodes | parameter nodes | parameter nodes | alias for `Inputs` | — | — | — |
+| `Graph` required | unless an output is initialized | yes | yes | rejected | — | — | — |
+| Callable from `Graph` | no | yes | yes | yes | yes | yes | through its members |
+| Value-callable | — | yes | yes | yes | single-output only | single-output only | — |
+
+</Wide>
+
+## Diagnostics
+
+<Diag>
+  <D msg="Unexpected token near index {Index}." cause="Text at top level that is not one of the ten block keywords — including a correctly spelled keyword in the wrong case." fix="Check capitalisation; block keywords are case-sensitive." href="/en/docs/language/lexical" />
+  <D msg='{Block}(Name="...") is required.' cause="A block header with no Name attribute. {Block} is the spelling you actually typed." />
+  <D msg="Only one top-level Shader block is currently supported." cause="A second Shader block anywhere in the import closure." href="/en/docs/language/imports" />
+  <D msg="Shader must provide a Graph block." cause="No Graph section and no initialized output declaration." />
+  <D msg="Unknown shader section '{Section}'." cause="A section a Shader does not accept — Inputs, Results and Options among them." href="/en/docs/language/sections" />
+  <D msg="Unknown material function section '{Section}'." cause="A section a ShaderFunction / ShaderLayer / ShaderLayerBlend does not accept." href="/en/docs/language/sections" />
+  <D msg="Unknown VirtualFunction section '{Section}'." cause="A section a VirtualFunction does not accept." />
+  <D msg="VirtualFunction declares an existing MaterialFunction asset and does not support Graph or Code sections." cause="A Graph or Code section inside a VirtualFunction." />
+  <D msg="ShaderLayer '{Function}' must declare at most one input, and it must be MaterialAttributes. Use Properties for layer controls." cause="Two or more inputs, or any non-MaterialAttributes input, on a layer." fix="Move the control into Properties." />
+  <D msg="ShaderLayerBlend '{Function}' must declare exactly two inputs, both MaterialAttributes. Use Properties for blend controls." cause="An input count other than two, or any non-MaterialAttributes input, on a blend." />
+  <D msg="{Kind} '{Function}' must declare exactly one MaterialAttributes output." cause="More than one output, or an output that is not MaterialAttributes, on a layer or blend." />
+  <D msg="Namespace '{Name}' may only contain Function or GraphFunction blocks." cause="Any other token in a Namespace body — a nested Namespace included." />
+  <D msg="Namespace name '{Name}' is not a valid identifier." cause="An illegal character in the namespace name, including ::, ., - and space. There is no multi-segment declaration form." />
+  <D msg="Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported." cause="A Code section was used. Despite the message, no reachable grammar accepts Code." fix="Use Graph." />
+</Diag>
+
+## Where to next
+
+<Cards>
+  <Card title="Sections" href="/en/docs/language/sections" description="Properties, Inputs, Outputs, Settings, Graph, Layout — and which block takes which." />
+  <Card title="Functions" href="/en/docs/language/functions" description="Function, GraphFunction and Namespace in full." />
+  <Card title="Material Settings" href="/en/docs/settings/material" description="Every key a Shader's Settings accepts." />
+  <Card title="Asset Paths" href="/en/docs/generation/asset-paths" description="How Name and Root become a package path." />
+</Cards>

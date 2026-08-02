@@ -1,18 +1,30 @@
 ---
 title: ChangeLog
-description: DreamShaderLang 生态的插件、VSCode 扩展和文档站更新记录入口。
+description: DreamShaderLang 生态的更新记录入口 —— Unreal 插件、VSCode 扩展和本站。
 ---
 
-这里集中记录 DreamShaderLang 生态中会影响使用者的版本变化。不同项目节奏不完全一致，因此分开维护。
+三个项目、三条发布节奏、三个页面。每个页面都按新版本在前，记录会影响使用者的变化。
 
-| 项目 | 当前版本 / 状态 | 页面 |
-| --- | --- | --- |
-| DreamShader 插件 | `1.4.0` | [DreamShader 插件](./dreamshader.mdx) |
-| VSCode 扩展 | `1.5.3` | [VSCode 扩展](./vscode-extension.mdx) |
-| 文档站 | `lang.64hz.cn` | [网站更新](./website.mdx) |
+| 项目 | 当前版本 | 页面 |
+| :-- | :-- | :-- |
+| DreamShader 插件 | **`1.5.0`** —— Unreal Engine `5.3` – `5.8` | [DreamShader 插件](/docs/changelog/dreamshader) |
+| VSCode 扩展 | `1.5.3` | [VSCode 扩展](/docs/changelog/vscode-extension) |
+| Rider 语言支持 | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) | — |
+| 文档站 | `lang.64hz.cn` | [网站更新](/docs/changelog/website) |
 
-推荐发布时同步检查这三处：
+<Callout type="info">
+插件页面出自插件自带的 `CHANGELOG.md`，该文件随插件目录一起分发 —— 当本页与你安装的那份对不上时，
+以插件里的文件为准。
+</Callout>
+
+发布时建议同步检查这三处：
 
 - 插件版本写入 `DreamShader.uplugin`。
 - VSCode 扩展版本写入 `package.json` 和安装脚本。
-- 网站文档写入当前版本表、对应功能页和这里的更新记录。
+- 网站更新当前版本表、对应功能页和这里的更新记录。
+
+<Cards>
+  <Card title="DreamShader 插件" href="/docs/changelog/dreamshader" description="语言、生成器、编辑器工具和引擎兼容性。" />
+  <Card title="VSCode 扩展" href="/docs/changelog/vscode-extension" description="语言服务、Bridge、预览和 Package。" />
+  <Card title="网站更新" href="/docs/changelog/website" description="本站的结构、部署和内容。" />
+</Cards>

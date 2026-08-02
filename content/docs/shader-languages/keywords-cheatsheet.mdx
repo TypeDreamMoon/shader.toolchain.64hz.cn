@@ -1,65 +1,215 @@
 ---
 title: 关键字速查
-description: DreamShaderLang、HLSL 与 GLSL 常见关键字对照。
+description: DreamShaderLang 语法特殊对待的每一个词，以及供移植代码时对照的 HLSL 与 GLSL 词汇表。
 ---
 
-这一页是速查表。DreamShaderLang 自己的关键字较少，复杂计算主要借用 HLSL 风格 helper；GLSL 关键字主要用于迁移时对照。
+一张查阅用的页面。DreamShaderLang 的几张表是穷尽的：块关键字、section 名、限定符、上下文关键字和
+保留名就是语法认得的全部集合。HLSL 和 GLSL 两张表是给从那两门语言过来的读者做参考的。
 
-## DreamShaderLang
+<Callout type="info">
+**没有任何关键字对标识符是保留的。** property、输出变量、参数或函数都可以叫 `Shader`、`Graph`、
+`Layout` 或 `float`；解析器从不会因为一个标识符和关键字撞名就拒绝它。关键字只在语法期待它们的位置
+才被识别。
 
-| 分类 | 关键字 / 标识 |
-| --- | --- |
-| 顶层声明 | `Shader`, `ShaderFunction`, `VirtualFunction`, `Function`, `Namespace`, `import` |
-| 函数模式 | `SelfContained`, `Inline` |
-| Section | `Properties`, `Inputs`, `Outputs`, `Settings`, `Options`, `Graph` |
-| 参数限定 | `in`, `out`, `opt` |
-| Graph 控制流 | `if`, `else` |
-| Graph 默认参数 | `default` |
-| Unreal 节点入口 | `UE.*`, `UE.Expression(...)`, `UE.CollectionParam(...)`, `UE.StaticSwitchParameter(...)` |
-| 资产路径 helper | `Path(...)` |
-| 输出绑定 | `Base.*`, `Expression(...).Pin[n]` |
-| 声明反射属性 | `Group`, `SortPriority`, `Description`, `SamplerType`, `SamplerSource`, `MipValueMode` 等 |
+例外根本不是关键字 —— 是[数学内置](/docs/builtins/math)和构造器的名字，它们在 `Graph` 块的名称
+解析中胜出，会静默遮蔽用户声明。
+</Callout>
 
-## DreamShaderLang 常用类型
+## 顶层块关键字
 
-| 类型族 | 类型 |
-| --- | --- |
-| 标量 | `float`, `float1`, `half`, `half1`, `int`, `uint`, `bool` |
-| 向量 | `float2`, `float3`, `float4`, `half2`, `half3`, `half4` |
-| 整数向量 | `int2`, `int3`, `int4`, `uint2`, `uint3`, `uint4` |
-| 布尔向量 | `bool2`, `bool3`, `bool4` |
-| GLSL 别名 | `vec2`, `vec3`, `vec4`, `ivec2`, `uvec2`, `bvec2` 等 |
-| 纹理 | `Texture2D`, `TextureCube`, `Texture2DArray`, `VolumeTexture`, `Texture3D`, `SamplerState` |
-| 显式 Parameter | `ScalarParameter`, `VectorParameter`, `TextureObjectParameter`, `TextureSampleParameter2D`, `StaticBoolParameter`, `StaticSwitchParameter` 等 |
+**区分大小写**，且只在下一个字符不是字母、数字或 `_` 时才匹配 —— 正是这条边界规则让
+`ShaderFunction` 不会被当成 `Shader`。
 
-## HLSL 常见关键字
+<Wide>
+
+| 关键字 | 头部 | 必填 | 生成 |
+| :-- | :-- | :-- | :-- |
+| `Shader` | `Shader(Name = "…"[, Root = "…"])` | `Name` | `UMaterial` |
+| `ShaderFunction` | `ShaderFunction(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunction` |
+| `ShaderLayer` <Since v="1.3.0" /> | `ShaderLayer(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` <Since v="1.3.0" /> | `ShaderLayerBlend(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayerBlend` |
+| `MaterialLayer`（1.3.0 起弃用） | `MaterialLayer(Name = "…")` | `Name` | 同 `ShaderLayer` |
+| `MaterialLayerBlend`（1.3.0 起弃用） | `MaterialLayerBlend(Name = "…")` | `Name` | 同 `ShaderLayerBlend` |
+| `VirtualFunction` <Since v="1.2.0" /> | `VirtualFunction(Name = "…"[, Asset = "…"])` | `Name`，外加来自 `Asset =` 或 `Options.Asset` 的资产 | 不生成 —— 声明一个已有资产 |
+| `Namespace` | `Namespace(Name = "…")` | `Name` | 不生成 —— helper 的作用域 |
+| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | 一个名字，至少一个输出 | 一个 HLSL helper |
+| `GraphFunction` <Since v="1.3.1" /> | `GraphFunction [<ret>] <Name>( … ) { <HLSL> }` | 一个名字，至少一个输出 | 带节点输入的 HLSL helper |
+
+</Wide>
+
+`Shader` 在整个翻译单元（即整个 import 闭包）中**只能有一个**。其余每种块都可以重复。
+`Function` 和 `GraphFunction` 还可以嵌在 `Namespace` 里，此时它们的名字变成 `<Namespace>::<Name>`。
+
+<Deprecated since="1.3.0" use="ShaderLayer" />
+
+`MaterialLayer` 和 `MaterialLayerBlend` 仍然能解析、生成的资产也相同，但各自会发出
+`MaterialLayer is deprecated; use ShaderLayer instead.` /
+`MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.` 之后的诊断都报现代写法。
+
+## Section 名
+
+不区分大小写。块前的 `=` 可省 <Since v="1.5.0" />，块后的 `;` 也可省。section 顺序任意，可以重复。
+
+<Wide>
+
+| 名称 | 可用于 | 含义 |
+| :-- | :-- | :-- |
+| `Properties` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 参数、`const` 和 `UE.*` 节点声明 |
+| `Properties` | `VirtualFunction` | **`Inputs` 的别名** —— 是有类型的参数，不是参数节点 |
+| `Inputs` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`VirtualFunction` | 有类型的输入参数 |
+| `Outputs` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`VirtualFunction` | 有类型的输出参数 |
+| `Outputs` | `Shader` | 输出声明与绑定 —— **另一套语法** |
+| `Results` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`VirtualFunction` | `Outputs` 的别名 |
+| `Settings` | `Shader` | 材质设置 —— 特殊键加上反射到 `UMaterial` 的属性 |
+| `Settings` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 材质函数的四个键 |
+| `Settings` | `VirtualFunction` | `Options` 的别名 |
+| `Options` | `VirtualFunction` | 声明的资产及其他存储键 |
+| `Graph` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 节点图主体，原样存储 |
+| `Code` | — | **到处都被拒绝**；请用 `Graph` |
+| `Layout` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | `Node` / `Comment` 摆放；第二个 `Layout` 会**替换**第一个 |
+
+</Wide>
+
+`Function` 和 `GraphFunction` 完全没有 section —— 它们的 `{ … }` 是裸 HLSL。
+
+## 声明限定符
+
+| 限定符 | 位置 | 效果 |
+| :-- | :-- | :-- |
+| `const` <Since v="1.2.6" /> | `Properties` 声明中类型之前 | 产出常量节点而不是参数；在参数节点和 `UE.*` 声明上被拒绝 |
+| `opt` <Since v="1.2.3" /> | `Inputs` 声明中类型之前 | 在 Unreal 里把该函数输入标记为可选；后面必须跟一个字面空格 |
+| `in` | `Function` / `GraphFunction` 参数类型之前 | 输入参数；参数只有两个 token 时的默认值 |
+| `out` | `Function` / `GraphFunction` 参数类型之前 | 输出参数；除非声明了返回类型，否则至少要有一个 |
+| `SelfContained` | `Function` 之后 | 把函数体自包含地嵌进每个调用方的 Custom 节点；**不接受用在 `GraphFunction` 上** |
+| `Inline` | `Function` 之后 | `SelfContained` 的完全别名 |
+
+函数参数上只接受 `in` 和 `out` 两个限定符。`inout` 不存在，会被拒绝。
+
+## 上下文关键字
+
+只在列出的位置被识别，且总是不区分大小写。
+
+<Wide>
+
+| 关键字 | 位置 | 含义 |
+| :-- | :-- | :-- |
+| `import` | 源文件任意位置，独占一行的第一个 token | 内联另一个源文件 |
+| `Group("…") { … }` <Since v="1.5.0" /> | `Properties` 内的语句位置 | 把参数组名盖到内部每条声明上；可嵌套，用 `\|` 拼接 |
+| `Slider(min, max)` <Since v="1.5.0" /> | `[ … ]` 元数据块内的条目 | 设置标量参数的 UI 范围 |
+| `Path( … )` | 纹理或资产型声明的默认值 | 带根写法的资产引用 |
+| `Base.` | `Outputs` 绑定目标的开头 | 绑定到一个材质属性 |
+| `Expression( … )` | `Outputs` 绑定目标的开头 | 绑定到反射节点上的某个 pin；`Class="…"` 必填 |
+| `.Pin[<index>]` | `Expression( … )` 目标之后 | 选择要绑定的 pin |
+| `Node( … )` | `Layout` 内的语句 | 钉住某个变量的节点位置 |
+| `Comment( … )` | `Layout` 内的语句 | 放置一个注释框 |
+| `#Region` / `#EndRegion` | `Graph` 体内独占一行 | 给图的一段命名；可嵌套 |
+| `UE.` | `Properties` 的类型位置、`Graph` 的调用位置 | 内置材质节点命名空间 |
+| `Substrate.` | `Graph` 的调用位置 | Substrate BSDF 命名空间，<Since v="5.4" ue /> |
+| `true` / `false` | 默认值 | 布尔字面量；期待标量的位置会转成 `1.0` / `0.0` |
+| `default` <Since v="1.2.3" /> | `Graph` 中的调用实参 | 使用该参数声明的默认值 |
+
+</Wide>
+
+## 保留名
+
+| 名称 | 位置 | 规则 |
+| :-- | :-- | :-- |
+| `__return` | `Function` / `GraphFunction` 参数名 | 为返回类型降级保留；声明的返回类型会变成叫这个名字的 `out` 参数 |
+| `return` | `Shader` 的 `Outputs` 声明 | 不能用作输出变量名；作为绑定源时只能喂给 `Base.*` 目标 |
+
+`Function` 体里的 `return` 是语句，不是保留名：顶层的 `return <expr>;` 会被改写成对 `__return`
+的赋值。
+
+## 类型 token
+
+完整集合共 44 个 token，在每个上下文中都**不区分大小写**匹配。逐上下文的有效性见
+[类型与值](/docs/language/types-and-values)。
+
+| 族 | Token | 个数 |
+| :-- | :-- | --: |
+| 标量（1 分量） | `float` `float1` `half` `half1` `int` `uint` `bool` | 7 |
+| 向量（2 / 3 / 4 分量） | `float2..4` `half2..4` `vec2..4` `int2..4` `uint2..4` `bool2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 27 |
+| 纹理 | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` | 5 |
+| 不透明及其他 | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
+
+**没有矩阵类型**：`mat2` / `mat3` / `mat4` 和 `float2x2` / `float3x3` / `float4x4` 在每个声明位置
+都被拒绝。有三个 token 已被移除，现在会落到各自上下文通用的"不支持的类型"诊断上：
+
+| 已移除的 token | 替代 |
+| :-- | :-- |
+| `Scalar` | `float` |
+| `Color` | `float4` / `vec4` |
+| `Vector` | `float2` … `float4` / `vec2` … `vec4` |
+
+`Properties` 声明还可以使用 22 个显式 `*Parameter` 节点 token（`ScalarParameter`、
+`TextureSampleParameter2D`、`ChannelMaskParameter` …）。它们收录在
+[Properties 类型](/docs/parameters/properties)。
+
+## 标识符改写
+
+只在 `Function` 和 `GraphFunction` 声明内部、输出 HLSL 之前应用。匹配不区分大小写、按整标识符进行；
+字符串和注释被跳过，`::` 限定名绕过该表。
+
+| 写的 | 改写为 | 作用于 |
+| :-- | :-- | :-- |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` | 参数与返回类型、函数体文本 |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` | 参数与返回类型、函数体文本 |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` | 参数与返回类型、函数体文本 |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` | 参数与返回类型、函数体文本 |
+| `mat2` `mat3` `mat4` | `float2x2` `float3x3` `float4x4` | 参数与返回类型、函数体文本 |
+| `mix` | `lerp` | 仅函数体文本 |
+| `fract` | `frac` | 仅函数体文本 |
+| `mod` | `fmod` | 仅函数体文本 |
+
+## HLSL 关键字
+
+参考 —— HLSL 自己的词汇，在 `Function` 体里有效。
 
 | 分类 | 关键字 |
-| --- | --- |
-| 类型 | `void`, `bool`, `int`, `uint`, `half`, `float`, `double` |
-| 控制流 | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `default` |
-| 跳转 | `return`, `break`, `continue`, `discard` |
-| 参数 | `in`, `out`, `inout` |
-| 修饰 | `const`, `static`, `uniform`, `groupshared` |
-| 纹理 | `Texture2D`, `TextureCube`, `SamplerState`, `SamplerComparisonState` |
+| :-- | :-- |
+| 类型 | `void`、`bool`、`int`、`uint`、`half`、`float`、`double` |
+| 控制流 | `if`、`else`、`for`、`while`、`do`、`switch`、`case`、`default` |
+| 跳转 | `return`、`break`、`continue`、`discard` |
+| 参数 | `in`、`out`、`inout` |
+| 修饰 | `const`、`static`、`uniform`、`groupshared` |
+| 纹理 | `Texture2D`、`TextureCube`、`SamplerState`、`SamplerComparisonState` |
+| 聚合 | `struct` |
 
-## GLSL 常见关键字
+## GLSL 关键字
+
+参考 —— 除 `vec*` / `ivec*` / `uvec*` / `bvec*` 类型别名（它们是一等 token）之外，
+这里的内容都不属于 DreamShaderLang 语法。
 
 | 分类 | 关键字 |
-| --- | --- |
-| 类型 | `void`, `bool`, `int`, `uint`, `float`, `double`, `vec2`, `vec3`, `vec4`, `mat3`, `mat4` |
-| 控制流 | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `default` |
-| 跳转 | `return`, `break`, `continue`, `discard` |
-| 参数 | `in`, `out`, `inout` |
-| 修饰 | `const`, `uniform`, `layout`, `centroid`, `flat`, `smooth` |
-| 精度 | `lowp`, `mediump`, `highp` |
+| :-- | :-- |
+| 类型 | `void`、`bool`、`int`、`uint`、`float`、`double`、`vec2`、`vec3`、`vec4`、`mat2`、`mat3`、`mat4` |
+| 控制流 | `if`、`else`、`for`、`while`、`do`、`switch`、`case`、`default` |
+| 跳转 | `return`、`break`、`continue`、`discard` |
+| 参数 | `in`、`out`、`inout` |
+| 修饰 | `const`、`uniform`、`layout`、`centroid`、`flat`、`smooth`、`attribute`、`varying` |
+| 精度 | `lowp`、`mediump`、`highp` |
 
 ## 迁移提醒
 
-| 从 GLSL 来 | 在 DreamShaderLang / HLSL 中 |
-| --- | --- |
-| `vec3` | 可以继续写 `vec3`，也可以写 `float3`。 |
-| `mix(a, b, t)` | 用 `lerp(a, b, t)`。 |
-| `fract(x)` | 用 `frac(x)`。 |
-| `texture(sampler, uv)` | 使用 HLSL 风格纹理采样 helper。 |
-| `main()` | 不需要；用 `Shader` 和 `Graph` 描述材质。 |
+| 原本的习惯 | 在 DreamShaderLang 中 |
+| :-- | :-- |
+| `vec3` | 继续写 —— `vec3` 是真正的 token；只有在生成 HLSL 时才变成 `float3` |
+| `mix(a, b, t)` | 两处都能用：在 `Graph` 里是真正的内置，在 `Function` 体里被改写成 `lerp` |
+| `fract(x)`、`mod(a, b)` | 同上 —— 在 `Graph` 里是真正的内置 <Since v="1.5.0" />，在函数体里被改写 |
+| `length(v)` | 不是内置 —— 写 `sqrt(dot(v, v))`、走 `UE.Expression(Class = …)`，或写进 `Function` 体 |
+| `main()` | 不需要；用带 `Outputs` 绑定的 `Shader` 块描述材质 |
+| `uniform` | 写成 `Properties` 声明 |
+| `sampler2D` + `texture(s, uv)` | 纹理对象用 `SampleTexture2D(tex, uv)`；`TextureSampleParameter*` 用 `Tex(Coordinates = uv)` |
+| HLSL `Custom` 节点函数体 | 用 `Function`；函数体需要 `UE.*` 值时用 `GraphFunction` |
+| 可视化材质节点 | 用具体的 `UE.*` 内置，或 `UE.Expression(Class = "…")` |
+| 共享 include 文件 | 用 `.dsh` 头文件加 `import` |
+
+## 接下来
+
+<Cards>
+  <Card title="HLSL 简介" href="/docs/shader-languages/hlsl" description="HLSL 在哪里运行，以及自带的 helper 头文件。" />
+  <Card title="GLSL 简介" href="/docs/shader-languages/glsl" description="别名、改写，以及没有对应物的东西。" />
+  <Card title="顶层块" href="/docs/language/blocks" description="每个块关键字的完整说明。" />
+  <Card title="Section" href="/docs/language/sections" description="这些名字所属的 section 语法。" />
+  <Card title="词法与大小写" href="/docs/language/lexical" description="本页背后的大小写敏感性矩阵。" />
+</Cards>

@@ -1,0 +1,630 @@
+---
+title: UE.* 节点
+description: 已注册的 UE.* 内置节点、参数、输出宽度，以及 Properties 声明形式。
+---
+
+`UE.` 命名空间是 DreamShaderLang 创建 Unreal 材质节点的入口。其中有 27 个名字属于**已注册内置节点**：
+DreamShader 自己实现了它们，每个对应一个 `UMaterialExpression` 类和一组固定参数。另有三个名字
+—— `UE.StaticSwitchParameter`、`UE.CollectionParam` 和 `UE.SceneTexture` —— 在这张表之前被特殊处理。
+
+命名空间里其余的名字都会落到通用反射路径 [`UE.Expression`](/docs/builtins/ue-expression)，
+在那里 `UE.<Name>` 的含义就是「创建 `UMaterialExpression<Name>`」。所以本页没有列出的名字并不是错误，
+只是走了另一条规则不同的代码路径。
+
+命名空间前缀和内置节点名都不区分大小写：`ue.texcoord()` 就是 `UE.TexCoord()`。参数名会先去掉首尾空白再
+按不区分大小写比较，但除此之外必须精确匹配 —— `Un_Mirror_U` 不是 `UnMirrorU`。
+
+## 看目录之前先读这两条
+
+<Callout type="warn">
+**已注册内置节点从不校验参数列表。** 每个内置节点只读取自己条目里列出的参数名，其余一律丢弃 ——
+未知名字、拼写错误、位置参数都一样，且没有任何诊断。
+
+`UE.TexCoord(Indx = 3)` 会静默地产生 UV channel 0。`UE.Panner(SpedX = 1)` 会静默地按节点默认速度平移。
+`UE.TexCoord(0)` 能通过编译并给出 channel 0，是因为位置参数被丢弃、而节点默认值恰好是 0 —— 结果对了，
+但是碰巧对的。
+
+如果某个参数看上去没生效，先对照条目检查拼写。唯一会读取位置参数的已注册内置节点只有
+`UE.TransformVector` 和 `UE.TransformPosition`（索引 0 是 `Input`），以及 `UE.StaticSwitchParameter`
+（索引 0 和 1 是 `True` 与 `False`）。
+</Callout>
+
+<Callout type="warn">
+**已注册内置节点每次调用都会新建一个节点。** 它们不查任何复用缓存，`UE.StaticSwitchParameter` 和
+`UE.CollectionParam` 也一样。在五个地方写 `UE.TexCoord(Index = 0)`，就会生成五个 `TextureCoordinate`
+节点。
+
+只有通用的 [`UE.Expression`](/docs/builtins/ue-expression) 路径、
+[`Substrate.*`](/docs/builtins/substrate) 包装节点和[数学内置](/docs/builtins/math)会对相同调用去重。
+`UE.SceneTexture` 会脱糖成通用调用，因此它也参与去重。
+
+想要只生成一个节点，就把调用结果赋给一个 `Graph` 变量，之后复用这个变量。
+</Callout>
+
+## 语法概要
+
+<Grammar />
+
+<Synopsis>
+```c
+// 表达式形式，写在 Graph 中
+UE.<Name> ( [ <argument> [ , <argument> ] … ] )
+
+<argument> := <arg-name> = <expression>
+
+// 声明形式，写在 Properties 中
+UE.<Name> [ ( <key> = <value> [ , <key> = <value> ] … ) ] <property-name> ;
+```
+</Synopsis>
+
+## 完整名单
+
+全部 27 个已注册内置节点，按注册顺序排列。类名省略了 `UMaterialExpression` 前缀。
+
+| 内置节点 | `UMaterialExpression` 类 | 输出 | 参数 |
+| :-- | :-- | :-- | :-- |
+| `UE.TexCoord` | `TextureCoordinate` | `float2` | `Index`、`UTiling`、`VTiling`、`UnMirrorU`、`UnMirrorV` |
+| `UE.Time` | `Time` | `float1` | `Period`、`IgnorePause` |
+| `UE.Panner` | `Panner` | `float2` | `Coordinate`、`Time`、`Speed`、`SpeedX`、`SpeedY`、`FractionalPart` |
+| `UE.WorldPosition` | `WorldPosition` | `float3` | 无 |
+| `UE.ObjectPositionWS` | `ObjectPositionWS` | `float3` | 无 |
+| `UE.CameraVectorWS` | `CameraVectorWS` | `float3` | 无 |
+| `UE.VertexNormalWS` | `VertexNormalWS` | `float3` | 无 |
+| `UE.VertexTangentWS` | `VertexTangentWS` | `float3` | 无 |
+| `UE.ScreenPosition` | `ScreenPosition` | `float2` | 无 |
+| `UE.VertexColor` | `VertexColor` | `float4` | 无 |
+| `UE.PixelDepth` | `PixelDepth` | `float1` | 无 |
+| `UE.SceneDepth` | `SceneDepth` | `float1` | 无 |
+| `UE.SceneColor` | `SceneColor` | `float4` | 无 |
+| `UE.TranslatedWorldPosition` | `WorldPosition`，相机相对 | `float3` | 无 |
+| `UE.ObjectPosition` | `ObjectPositionWS` | `float3` | 无 |
+| `UE.ObjectRadius` | `ObjectRadius` | `float1` | 无 |
+| `UE.ObjectBounds` | `ObjectBounds` | `float3` | 无 |
+| `UE.CameraVector` | `CameraVectorWS` | `float3` | 无 |
+| `UE.CameraPosition` | `CameraPositionWS` | `float3` | 无 |
+| `UE.ReflectionVector` | `ReflectionVectorWS` | `float3` | 无 |
+| `UE.PixelNormalWS` | `PixelNormalWS` | `float3` | 无 |
+| `UE.TwoSidedSign` | `TwoSidedSign` | `float1` | 无 |
+| `UE.PerInstanceRandom` | `PerInstanceRandom` | `float1` | 无 |
+| `UE.PerInstanceFadeAmount` | `PerInstanceFadeAmount` | `float1` | 无 |
+| `UE.ViewportUV` | `ScreenPosition` | `float2` | 无 |
+| `UE.TransformVector` | `Transform` | `float3` | **`Input`**、`Source`、`Destination` |
+| `UE.TransformPosition` | `TransformPosition` | `float3` | **`Input`**、`Source`、`Destination`、`PeriodicWorldTileSize`、`FirstPersonInterpolationAlpha` |
+
+上表中每个宽度都是**权威的**，因此任何已注册内置节点都可以在分量数不一致的二元运算中充当加宽的一方。
+参见[运算符与转换](/docs/graph/expressions)。这些内置节点都不会产生纹理对象、`MaterialAttributes`
+值或 Substrate 值。
+
+<Callout type="info">
+**有四个内置节点是条件注册的。** `UE.ObjectPositionWS`、`UE.ObjectPosition`、`UE.ScreenPosition` 和
+`UE.ViewportUV` 只有在当前编辑器能解析出对应引擎类时才会被加入表中 —— object position 在 UE 5.5+
+可直接解析，screen position 在 UE 5.6+ 可直接解析；低于这些版本时通过按名查找
+`/Script/Engine.MaterialExpressionObjectPositionWS` 和
+`/Script/Engine.MaterialExpressionScreenPosition` 解析。
+
+查找失败时该内置节点根本不会注册，调用会落到通用路径，并以
+`Unsupported UE builtin call '{Name}' in Graph. …` 失败 —— 除非你补上 `OutputType`。
+</Callout>
+
+### 别名
+
+名单里有四个名字是已有条目的第二种写法，两种写法创建的节点类完全相同。
+
+| 别名 | 等同于 | 区别 |
+| :-- | :-- | :-- |
+| `UE.ObjectPosition` | `UE.ObjectPositionWS` | 无 |
+| `UE.CameraVector` | `UE.CameraVectorWS` | 无 |
+| `UE.ViewportUV` | `UE.ScreenPosition` | 无 —— 引擎没有专门的 ViewportUV 类，两者都读 `ScreenPosition` 的 output 0，而它*就是* viewport UV |
+| `UE.TranslatedWorldPosition` | `UE.WorldPosition` | 强制打开相机相对的 shader-offset 模式，而不是节点默认的绝对模式 |
+
+## 带参数的内置节点
+
+### UE.TexCoord
+
+```c
+float2 uv    = UE.TexCoord(Index = 0);
+float2 tiled = UE.TexCoord(Index = 0, UTiling = 2.0, VTiling = 2.0);
+```
+
+| 参数 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- |
+| `Index` | 整数字面量 | 节点默认值，UV channel 0 | 否 |
+| `UTiling` | 数值字面量 | 节点默认值 | 否 |
+| `VTiling` | 数值字面量 | 节点默认值 | 否 |
+| `UnMirrorU` | 布尔字面量 | 节点默认值 | 否 |
+| `UnMirrorV` | 布尔字面量 | 节点默认值 | 否 |
+
+这里**不**接受 `CoordinateIndex` 这个写法 —— 只有[声明形式](#properties-声明形式)接受它。表达式形式下
+负的 `Index` 会被接受且没有任何诊断。
+
+### UE.Time
+
+```c
+float t      = UE.Time();
+float looped = UE.Time(Period = 2.0, IgnorePause = true);
+```
+
+| 参数 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- |
+| `Period` | 数值字面量 | 不写时节点的周期覆盖保持关闭 | 否 |
+| `IgnorePause` | 布尔字面量 | 节点默认值 | 否 |
+
+写了 `Period` 同时也会打开节点的周期覆盖开关。`Graph` 中不做范围检查：负的 `Period` 会被原样写入。
+声明形式则会拒绝它。
+
+### UE.Panner
+
+```c
+float2 panned = UE.Panner(Coordinate = UE.TexCoord(Index = 0),
+                          Time       = UE.Time(),
+                          SpeedX     = 0.1,
+                          SpeedY     = 0.0);
+```
+
+| 参数 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- |
+| `Coordinate` | 输入 pin | 未连接 | 否 |
+| `Time` | 输入 pin | 未连接 | 否 |
+| `Speed` | 输入 pin | 未连接 | 否 |
+| `SpeedX` | 数值字面量 | 节点默认值 | 否 |
+| `SpeedY` | 数值字面量 | 节点默认值 | 否 |
+| `FractionalPart` | 布尔字面量 | 节点默认值 | 否 |
+
+表达式形式不接受 `ConstCoordinate`。声明形式接受它，通用路径也可以用
+`UE.Expression(Class = "Panner", OutputType = "float2", ConstCoordinate = 1)` 触达。
+
+### UE.TransformVector
+
+在不同坐标系之间变换**方向**。只做旋转、不做平移，这也正是它不适合用于点的原因。
+
+```c
+vec3 worldNormal = UE.TransformVector(LocalNormal, Source = "Tangent", Destination = "World");
+```
+
+| 参数 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- |
+| **`Input`** | 输入 pin；也可以作为索引 0 的位置参数传入 | — | **是** |
+| `Source` | 文本字面量 | `"Tangent"` | 否 |
+| `Destination` | 文本字面量 | `"World"` | 否 |
+
+两个坐标系参数接受同样的九种写法，对应六个引擎取值。所有写法在 UE 5.3 – 5.8 上都可用，也不存在某一侧
+接受而另一侧拒绝的写法。
+
+| 写法 | 坐标系 |
+| :-- | :-- |
+| `Tangent` | 切线空间 |
+| `Local` | 局部空间 |
+| `World` | 绝对世界空间 |
+| `AbsoluteWorld` | 绝对世界空间 —— `World` 的别名，不是独立的坐标系 |
+| `View` | 视图空间 |
+| `Camera` | 相机空间 |
+| `Instance` | instance / particle 空间 |
+| `Particle` | instance / particle 空间 |
+| `InstanceParticle` | instance / particle 空间 |
+
+坐标系名会先去掉首尾空白再按不区分大小写比较，因此 `"world"`、`"World"` 和 `" WORLD "` 是同一个 token。
+空格、下划线和连字符**不会**被去掉：`"absolute world"` 和 `"absolute_world"` 解析不了 —— 要写
+`"AbsoluteWorld"`。带引号的字符串和裸标识符等价，`Source = World` 与 `Source = "World"` 相同。
+
+任何一侧解析失败都只会产生这一条消息：`UE.TransformVector Source/Destination is invalid.` ——
+它不会告诉你是哪一侧。
+
+### UE.TransformPosition
+
+在不同坐标系之间变换**点**，会应用平移。
+
+```c
+vec3 viewP = UE.TransformPosition(UE.WorldPosition(),
+                                  Source      = "World",
+                                  Destination = "TranslatedWorld");
+```
+
+| 参数 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- |
+| **`Input`** | 输入 pin；也可以作为索引 0 的位置参数传入 | — | **是** |
+| `Source` | 文本字面量 | `"Local"` | 否 |
+| `Destination` | 文本字面量 | `"World"` | 否 |
+| `PeriodicWorldTileSize` <Since v="5.5" ue /> | 输入 pin | 未连接 | 否 |
+| `FirstPersonInterpolationAlpha` <Since v="5.6" ue /> | 输入 pin | 未连接 | 否 |
+
+注意默认的 `Source` 与 `UE.TransformVector` 不同：这里是 `"Local"`，那里是 `"Tangent"`。
+
+`Source` 和 `Destination` 共用同一个解析器，因此两个参数接受的集合完全一致。十三种写法对应八个引擎取值。
+
+| 写法 | 坐标系 | 要求 |
+| :-- | :-- | :-- |
+| `Local` | 局部空间 | — |
+| `World` | 绝对世界空间 | — |
+| `AbsoluteWorld` | 绝对世界空间 | — |
+| `PeriodicWorld` | 周期世界空间 | <Since v="5.5" ue /> |
+| `TranslatedWorld` | 相机相对世界空间 | — |
+| `CameraRelativeWorld` | 相机相对世界空间 | — |
+| `FirstPerson` | 第一人称平移世界空间 | <Since v="5.6" ue /> |
+| `FirstPersonTranslatedWorld` | 第一人称平移世界空间 | <Since v="5.6" ue /> |
+| `View` | 视图空间 | — |
+| `Camera` | 相机空间 | — |
+| `Instance` | instance / particle 空间 | — |
+| `Particle` | instance / particle 空间 | — |
+| `InstanceParticle` | instance / particle 空间 | — |
+
+<Callout type="warn">
+**低于版本门槛的写法会被报成坐标系无效，而不是版本错误。** 在 UE 5.3 或 5.4 上，
+`UE.TransformPosition(P, Destination = "PeriodicWorld")` 报的是
+`UE.TransformPosition Source/Destination is invalid.` —— 和拼错时一模一样的消息。
+
+两个受版本限制的*输入*彼此还不一致。低于 UE 5.5 时，`PeriodicWorldTileSize` 会被**静默丢弃**：不应用、
+不校验、不报错。低于 UE 5.6 时，`FirstPersonInterpolationAlpha` 是硬错误
+（`UE.TransformPosition FirstPersonInterpolationAlpha requires Unreal Engine 5.6 or newer.`）。
+
+要让源文件在 5.3 – 5.8 之间可移植，应该在编写侧自行判断，而不是指望参数会被拒绝。
+</Callout>
+
+## 不带参数的内置节点
+
+27 个里有 22 个完全不接受参数。它们创建节点时所有输入 pin 都保持未连接。
+
+### 位置与几何
+
+| 调用 | 输出 | 说明 |
+| :-- | :-- | :-- |
+| `UE.WorldPosition()` | `float3` | 绝对世界位置；节点的 shader-offset 模式保持默认 |
+| `UE.TranslatedWorldPosition()` | `float3` | 同一个节点，但强制打开相机相对模式；等价于 HLSL 的 `GetTranslatedWorldPosition(Parameters)` |
+| `UE.ObjectPositionWS()` | `float3` | 条件注册 |
+| `UE.ObjectPosition()` | `float3` | `UE.ObjectPositionWS` 的别名，条件注册规则相同 |
+| `UE.ObjectRadius()` | `float1` | — |
+| `UE.ObjectBounds()` | `float3` | — |
+| `UE.CameraPosition()` | `float3` | `CameraPositionWS` |
+
+要用 `WorldPosition` 的其他 shader-offset 模式，走通用路径：
+`UE.Expression(Class = "WorldPosition", OutputType = "float3", WorldPositionShaderOffset = …)`。
+
+### 向量与法线
+
+| 调用 | 输出 | 说明 |
+| :-- | :-- | :-- |
+| `UE.CameraVectorWS()` | `float3` | — |
+| `UE.CameraVector()` | `float3` | `UE.CameraVectorWS` 的别名 |
+| `UE.VertexNormalWS()` | `float3` | — |
+| `UE.VertexTangentWS()` | `float3` | — |
+| `UE.PixelNormalWS()` | `float3` | — |
+| `UE.ReflectionVector()` | `float3` | `ReflectionVectorWS` |
+| `UE.TwoSidedSign()` | `float1` | — |
+
+### 屏幕与场景
+
+| 调用 | 输出 | 说明 |
+| :-- | :-- | :-- |
+| `UE.ScreenPosition()` | `float2` | 条件注册；节点的 output 0 是 viewport UV |
+| `UE.ViewportUV()` | `float2` | `UE.ScreenPosition` 的别名，读同一个输出 |
+| `UE.PixelDepth()` | `float1` | 当前像素的场景读取；不接 UV 也不接 offset 输入 |
+| `UE.SceneDepth()` | `float1` | 节点的 UV 输入保持未连接 |
+| `UE.SceneColor()` | `float4` | — |
+
+要给场景深度读取接一个 UV，走通用路径：
+`UE.Expression(Class = "SceneDepth", OutputType = "float1", Input = <uv>)`。
+
+<Callout type="info">
+两个使用面对 `ScreenPosition` 的看法不一致。在 `Graph` 中结果是 **2** 个分量；作为
+[property 声明](#properties-声明形式)时解析器声明为 **4** 个分量。没有任何机制去调和它们 ——
+宽度要紧时请写 `Graph` 形式。
+</Callout>
+
+### 逐顶点与逐实例数据
+
+| 调用 | 输出 |
+| :-- | :-- |
+| `UE.VertexColor()` | `float4` |
+| `UE.PerInstanceRandom()` | `float1` |
+| `UE.PerInstanceFadeAmount()` | `float1` |
+
+## 特殊处理的内置节点
+
+这三个名字在已注册表*之前*被解析，不遵循那张表的规则。
+
+### UE.StaticSwitchParameter
+
+<Since v="1.2.3" />
+
+创建一个会出现在材质实例编辑器里的静态开关，美术不用改源码就能切换分支。
+
+```c
+vec3 color = UE.StaticSwitchParameter(Name        = "UseDetail",
+                                      True        = detailColor,
+                                      False       = baseColor,
+                                      Default     = true,
+                                      Group       = "Switches",
+                                      Description = "Choose the detail branch");
+```
+
+| 参数 | 别名 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- | :-- |
+| **`Name`** | `ParameterName` | 文本字面量，去空白后非空 | — | **是** |
+| **`True`** | `A`、位置索引 0 | 值 | — | **是** |
+| **`False`** | `B`、位置索引 1 | 值 | — | **是** |
+| `Default` | `DefaultValue` | 布尔字面量 | `false` | 否 |
+| `Group` | — | 文本字面量 | 无 | 否 |
+| `Description` | — | 文本字面量 | 无 | 否 |
+| `SortPriority` | — | 整数字面量 | 节点默认值 | 否 |
+
+输出的分量数和 `MaterialAttributes` 标记都取自 `True` 分支。两条分支必须一致：都不能是纹理对象或
+Substrate 值，不能一边是 `MaterialAttributes` 一边是数值，分量数也必须相等。
+
+参数会以「仅编辑器」的静态开关值注册到生成的**材质**上；在材质函数内部则不会注册任何东西。如果同一个
+property 名下已经注册过节点，会复用它而不是再建一个。
+
+<Callout type="info">
+`Group` 和 `Description` 走的是宽容的文本处理：值如果不是文本字面量，参数会被**静默丢弃**。
+`SortPriority` 和 `Default` 则会对非法值报错。
+</Callout>
+
+### UE.CollectionParam
+
+<Since v="1.2.3" />
+
+从 `UMaterialParameterCollection` 中读取标量或向量参数。`UE.CollectionParameter` 是可接受的第二种写法。
+
+```c
+float wind = UE.CollectionParam(Collection = Path(Game, "Collections/MPC_Wind"),
+                                Parameter  = "WindStrength");
+```
+
+| 参数 | 别名 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- | :-- |
+| **`Collection`** | `Asset` | `Path(…)` 调用或 Unreal object path | — | **是** |
+| **`Parameter`** | `ParameterName` | 文本字面量，非空 | — | **是** |
+| `Group` <Since v="5.7" ue /> | — | 文本字面量 | 无 | 否 |
+| `SortPriority` <Since v="5.7" ue /> | — | 整数字面量 | 节点默认值 | 否 |
+| `Description` | — | 文本字面量 | 无 | 否 |
+
+集合会在生成时加载，参数按名字在其中查找。输出宽度取决于查到的类型：
+
+| 集合中的参数类型 | 输出 |
+| :-- | :-- |
+| 向量 | `float4` |
+| 标量 | `float1` |
+| 都不是 | 错误 |
+
+<Callout type="warn">
+低于 UE 5.7 时，`Group` 和 `SortPriority` 会被**静默丢弃**。`SortPriority` 在所有引擎版本上仍会被解析、
+仍会对非整数值报错 —— 只是不起作用。节点的 `ExpressionGUID` 同样只在 UE 5.7+ 上写入。`Description`
+在所有版本上都会写入。
+</Callout>
+
+<Callout type="info">
+和名单里所有内置节点不同，这个节点的输出宽度**不是**权威的 —— `UE.StaticSwitchParameter` 也一样。
+两者都不能在分量数不一致的二元运算中充当加宽的一方。
+</Callout>
+
+`UE.CollectionParam` 也是唯一被放在负 X 坐标（-520）上的内置节点；其余已注册内置节点落在 520，
+声明形式落在 -800。
+
+`Path(…)` 的语法和可用根目录见 [Path 资产引用](/docs/parameters/path)。
+
+### UE.SceneTexture
+
+纯语法糖，在所有其他 `UE.` 名字之前解析。
+
+```c
+float4 scene = UE.SceneTexture(Id = "PostProcessInput0");
+```
+
+| 参数 | 类型 | 默认值 | 必需 |
+| :-- | :-- | :-- | :-- |
+| **`Id`** | 文本字面量 | — | **是** |
+
+它会把调用改写成
+
+```c
+UE.Expression(Class = "SceneTexture", OutputType = "float4", SceneTextureId = <Id>)
+```
+
+然后求值，所以节点是 `UMaterialExpressionSceneTexture`、输出 `float4`，之后
+[通用路径的所有规则](/docs/builtins/ue-expression)都适用 —— 包括节点复用。
+
+调用必须**恰好**有一个参数，且名字必须是 `Id`；其他写法都会失败：
+`UE.SceneTexture expects exactly Id="..." (e.g. Id="PostProcessInput0").`
+
+`Id` 文本走反射枚举写入器，它接受带或不带枚举前缀的条目名、完全限定名和显示名，比较时忽略大小写，
+并忽略空格、`_`、`-`、`:`、`.`、`/` 这些字符。`"PostProcessInput0"`、`"PPI_PostProcessInput0"` 和
+`"ppi postprocessinput0"` 都选中同一个值。
+
+## Properties 声明形式
+
+`UE.<Name>(…)` 也可以出现在[`Properties` section](/docs/language/sections) 中类型 token 的位置。
+节点在生成时创建一次，并绑定到一个 property 名上，供 `Graph` 读取。
+
+```c
+Properties {
+    UE.TexCoord(Index = 0) UV;
+    UE.CollectionParam(Collection = Path(Game, "MPC_Weather"), Parameter = "Wind") Wind;
+}
+
+Graph {
+    Color = vec3(UV.x, UV.y, Wind);
+}
+```
+
+<Callout type="warn">
+这是一套**独立的实现**，目录更小、规则也不同。不要把表达式形式的规则套到这里。
+</Callout>
+
+| 规则 | 声明形式 | 表达式形式 |
+| :-- | :-- | :-- |
+| 参数语法 | `Key=Value` 文本对；值不带引号并去空白，键转小写 | 完整表达式，允许嵌套调用 |
+| 未知参数名 | **错误** | 静默忽略 |
+| 重复参数名 | **错误** | 最后一个生效 |
+| 位置参数 | 无法表达 | 三个内置节点接受 |
+| 参数顺序 | 丢失 —— 参数存在 map 里 | 保留 |
+| 行内默认值（`= …`） | **错误** | 不适用 |
+| 节点画布 X | -800 | 520，`UE.CollectionParam` 为 -520 |
+| 输出宽度 | 来自解析器自己的表，或 `OutputType` | 来自节点 |
+
+最容易踩的是行内默认值。参数要写在括号里：
+
+```c
+// 正确
+UE.TexCoord(Index = 0) UV;
+
+// 错误：UE builtin property 'UV' does not support inline defaults.
+UE.TexCoord UV = 0;
+```
+
+### 可识别的名字
+
+不在本行范围内的参数会被拒绝：
+`UE.{Name} for property '{Property}' does not support argument '{Argument}'.`
+
+<Wide>
+
+| `UE.Name` | 节点类 | 接受的参数 | 与表达式形式的差异 |
+| :-- | :-- | :-- | :-- |
+| `TexCoord` | `TextureCoordinate` | `Index`、`CoordinateIndex`、`UTiling`、`VTiling`、`UnMirrorU`、`UnMirrorV` | 接受 `CoordinateIndex`；两种写法同时给出是错误；负索引是错误 |
+| `Time` | `Time` | `Period`、`IgnorePause` | `Period` 必须 ≥ 0 |
+| `Panner` | `Panner` | `Coordinate`、`Time`、`Speed`、`SpeedX`、`SpeedY`、`ConstCoordinate`、`FractionalPart` | 接受 `ConstCoordinate`；`Coordinate` 接受*整数*（写入 `ConstCoordinate`）*或* property 引用 |
+| `WorldPosition` | `WorldPosition` | `ShaderOffsets` | 接受 `ShaderOffsets` |
+| `ObjectPositionWS` | `ObjectPositionWS` | `Origin` | 接受 `Origin` |
+| `CameraVectorWS` | `CameraVectorWS` | 无 | 任何参数都是错误，而不是被忽略 |
+| `ScreenPosition` | `ScreenPosition` | 无 | 声明为 **4** 个分量，不是 2 |
+| `VertexColor` | `VertexColor` | 无 | 任何参数都是错误 |
+| `CollectionParam`、`CollectionParameter` | `CollectionParameter` | `Collection`、`Asset`、`Parameter`、`ParameterName`、`OutputType`、`ResultType` | 没有 `Group` / `SortPriority` / `Description` |
+| *其他任何名字* | 由反射解析 | 需要 `OutputType` 或 `ResultType` | 见 [`UE.Expression`](/docs/builtins/ue-expression) |
+
+</Wide>
+
+`ShaderOffsets` 词表 —— 转小写并去掉空格后比较：
+
+| Token | 含义 |
+| :-- | :-- |
+| `default`、`includingshaderoffsets`、`absolute` | 含 shader offset 的绝对世界位置 |
+| `excludeallshaderoffsets`、`excludingallshaderoffsets`、`nooffsets` | 绝对世界位置，排除 offset |
+| `camerarelative` | 相机相对世界位置 |
+| `camerarelativenooffsets`、`camerarelativeexcludeoffsets` | 相机相对世界位置，排除 offset |
+
+`Origin` 词表 —— 转小写并去掉空格后比较：
+
+| Token | 含义 |
+| :-- | :-- |
+| `absolute`、`world` | 绝对原点 |
+| `camerarelative` | 相机相对原点 |
+
+### 声明的输出宽度
+
+声明宽度取自下列第一个能解析出结果的来源：
+
+1. 显式的 `OutputType` 或 `ResultType` 参数，取自[缩减 token 集](/docs/builtins/ue-expression#outputtype)；
+2. 解析器自己的名字表，见下；
+3. `CollectionParam` / `CollectionParameter`，声明为 1 分量标量；
+4. 都不满足则拒绝该声明。
+
+| 名字 | 声明为 |
+| :-- | :-- |
+| `TexCoord`、`Panner` | 向量，2 |
+| `Time` | 标量，1 |
+| `WorldPosition`、`CameraVectorWS`、`ObjectPositionWS`、`VertexNormalWS`、`VertexTangentWS` | 向量，3 |
+| `ScreenPosition`、`VertexColor` | 向量，4 |
+
+<Callout type="info">
+这张表列了十个名字，它**既不是**表达式形式的名单，也不是上面那张可识别名字表。`VertexNormalWS` 和
+`VertexTangentWS` 在这里有声明宽度，却没有建节点的分支，所以它们和 `SceneColor`、`PixelDepth`、
+`TranslatedWorldPosition` 以及其余 27 个一样，只能通过显式 `OutputType` 以声明形式使用。不写
+`OutputType` 时声明能解析通过，然后在生成阶段失败：
+`This builtin is not implemented by the material generator yet. …`
+</Callout>
+
+`UE.*` property 上不允许写 `const` 限定符：
+`Const property '{Name}' must use a plain scalar, vector, or texture type instead of a parameter node or UE builtin declaration.`
+
+## 一些值得知道的细节
+
+- `UE.*` 调用可以直接 swizzle —— `UE.TexCoord(Index = 0).x` 就是普通的后缀链。参见
+  [运算符与转换](/docs/graph/expressions)。
+- `UE.*` 名字在用户声明之前解析，所以叫 `TexCoord` 的 property 或函数不会遮蔽 `UE.TexCoord`。不过也
+  没有任何机制阻止你声明一个叫 `TexCoord` 的 property，并以裸标识符形式读取它。参见
+  [调用](/docs/graph/calls)。
+- 已注册内置节点从不接受 `OutputType`、`Class`、`Output`、`OutputName` 或 `OutputIndex`。它们只在
+  [通用路径](/docs/builtins/ue-expression)上被读取；在已注册内置节点上会像任何未知名字一样被静默丢弃。
+- 在 [`GraphFunction`](/docs/language/functions) 内部，`UE.*` 调用会被提升出 HLSL 体，变成生成的
+  Custom 节点上的输入 pin。
+
+## 诊断
+
+`{Function}` 是**作者书写的**内置节点名，保留原始大小写 —— 只有一个例外：
+`Failed to create UE.{Function}.` 打印的是注册时的写法。
+
+<Diag>
+  <D msg="UE.{Function} requires parameter: {Argument}" cause="必需的输入既没有按名字给出，也没有按位置给出 —— 最常见的是 UE.TransformVector 或 UE.TransformPosition 的 Input。" fix="用 Input = … 传值，或作为第一个位置参数传入。" />
+  <D msg="UE.{Function} {Argument} must be an integer literal." cause="整数参数处给了非整数值。" />
+  <D msg="UE.{Function} {Argument} must be a numeric literal." cause="标量参数处给了非数值。" />
+  <D msg="UE.{Function} {Argument} must be a boolean literal." cause="值不是 true / false。" />
+  <D msg="UE.{Function} {Argument} must be a text value." cause="文本参数处给了非文本值。" />
+  <D msg="UE.TransformVector Source/Destination is invalid." cause="任一坐标系 token 不在向量词表中。消息不会说明是哪一侧失败。" fix="对照九个可用的向量坐标系检查两侧拼写。" />
+  <D msg="UE.TransformPosition Source/Destination is invalid." cause="任一坐标系 token 不在位置词表中，包括高于当前引擎版本的 token。" />
+  <D msg="UE.TransformPosition FirstPersonInterpolationAlpha requires Unreal Engine 5.6 or newer." cause="在 UE 5.3 – 5.5 上给出了该参数。" />
+  <D msg={'UE.SceneTexture expects exactly Id="..." (e.g. Id="PostProcessInput0").'} cause="参数不是恰好一个，或参数名不是 Id。" />
+  <D msg="StaticSwitchParameter '{Name}' requires True=... and False=... inputs." cause="缺少一条分支。" />
+  <D msg="StaticSwitchParameter '{Name}' branches must have the same component count, got {Left} and {Right}." cause="两条分支宽度不同。这里不做加宽。" />
+  <D msg="StaticSwitchParameter '{Name}' cannot switch Texture object values." cause="某条分支是纹理对象。" fix="先采样纹理，再切换采样结果。" />
+  <D msg="UE.CollectionParam collection '{Collection}' does not contain parameter '{Name}'." cause="该名字既不是集合的标量参数也不是向量参数。" />
+  <D msg="UE.CollectionParam could not load MaterialParameterCollection '{Path}'." cause="资产加载成了别的类型，或者根本没加载上。" />
+  <D msg="Failed to create UE.{Function}." cause="材质节点创建失败。" />
+  <D msg={'Unsupported UE builtin function \'{Function}\'. Use OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture" for generic MaterialExpression calls.'} cause="property 声明的名字不在解析器的表里，又没有给 OutputType。" fix="补上 OutputType，或把调用移进 Graph 块。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Function} for property '{Property}' does not support argument '{Argument}'." cause="声明形式中给了该内置节点接受集合之外的参数。" />
+  <D msg="UE builtin property '{Property}' does not support inline defaults. Put arguments inside UE.{Function}(...)." cause="声明写成了 UE.TexCoord(…) UV = 1;" />
+</Diag>
+
+声明形式在生成阶段产生的每条消息还会再包一层：
+`UE.{Function} for property '{Property}': {Message}`。完整清单见[错误速查](/docs/diagnostics)。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_UEBuiltins")
+{
+    Properties {
+        vec3 Tint = vec3(1.0, 0.6, 0.2);
+        UE.TexCoord(Index = 0) UV0;
+    }
+
+    Settings {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        float2 uv   = UE.Panner(Coordinate = UV0, Time = UE.Time(), SpeedX = 0.1, SpeedY = 0.0);
+        float3 wp   = UE.TranslatedWorldPosition();
+        float3 nrm  = UE.TransformVector(UE.VertexNormalWS(), Source = "World", Destination = "Tangent");
+        float  fade = UE.PerInstanceFadeAmount();
+        float4 vcol = UE.VertexColor();
+
+        Color = (vec3(uv.x, uv.y, wp.z) + nrm) * Tint * vcol.rgb * fade;
+    }
+}
+```
+
+生成的节点：
+
+```text
+TextureCoordinate  (Index 0)                  <- UV0        (Properties, X = -800)
+Panner             (Coordinate, Time, SpeedX) <- uv         (X = 520)
+Time                                          <- Panner.Time
+WorldPosition      (camera-relative)          <- wp
+VertexNormalWS                                -> Transform
+Transform          (World -> Tangent)         <- nrm
+PerInstanceFadeAmount                         <- fade
+VertexColor                                   <- vcol
+```
+
+## 接下来
+
+<Cards>
+  <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" description="本页之外的每一个 UMaterialExpression。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="pow、lerp、saturate 等无前缀调用。" />
+  <Card title="Substrate 节点" href="/docs/builtins/substrate" description="Substrate.* 命名空间，UE 5.4+。" />
+  <Card title="Path 资产引用" href="/docs/parameters/path" description="UE.CollectionParam 使用的 Path(...) 语法。" />
+</Cards>

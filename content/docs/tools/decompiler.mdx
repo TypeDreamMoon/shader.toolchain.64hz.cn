@@ -1,0 +1,407 @@
+---
+title: 反编译导出
+description: 把已有的 UMaterial 或 UMaterialFunction 导出成 .dsm / .dsf —— 什么能忠实还原、什么会退化成 UE.Expression、什么会直接丢失。
+---
+
+反编译器会遍历一个已有的 `UMaterial` 或 `UMaterialFunction` 节点图，写出等价的 DreamShaderLang 源文件。
+这是把一个已经存在的材质迁进这门语言的办法 —— 不用手工重搭。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 接受 | `UMaterial` · `UMaterialFunction` · `UMaterialFunctionMaterialLayer` · `UMaterialFunctionMaterialLayerBlend` |
+| 产出 | 一个 `.dsm` 或 `.dsf` 文件，UTF-8 无 BOM |
+| 写到 | `<SourceDirectory>/Decompiled/…`，除非显式给了输出路径 |
+| 起始版本 | <Since v="1.3.5" /> Content Browser 操作 |
+
+<Callout type="warn">
+**这是迁移的起点，不是往返保证。** 导出器会还原图的结构，以及它能表达的那部分节点状态，
+其余的留下一条 `// Warning:` 注释。删掉原资产之前先读[已知缺口](#已知缺口) ——
+有好几类节点状态是被丢掉的，而且完全没有针对具体属性的警告。
+</Callout>
+
+## 怎么调用
+
+| 入口 | 位置 | 产出 |
+| :-- | :-- | :-- |
+| Content Browser | 右键 `UMaterial` ▸ *DreamShader* ▸ **Export DSM** | `.dsm` |
+| Content Browser | 右键 `UMaterialFunction`、`UMaterialFunctionMaterialLayer` 或 `UMaterialFunctionMaterialLayerBlend` ▸ *DreamShader* ▸ **Export DSF** | `.dsf` |
+| 材质编辑器 | **DreamShader** 工具栏组合按钮 ▸ **Export DSM** / **Export DSF** | 同上 |
+| 命令行 | `-run=DreamShader decompile -Asset=<object path> [-Out=<file>]` | 同上 |
+
+两个编辑器入口都要求**恰好选中一个**资产，写完文件后用你偏好的编辑器打开它 —— 见
+[编辑器工具](/docs/tools/editor)。无头入口见[命令行](/docs/tools/commandlet)。
+
+进度对话框在 0.25 秒延迟后出现，标题是 `Decompiling Material '{Asset}'...` 或
+`Decompiling Material Function '{Asset}'...`，每访问一个节点走一帧。commandlet 运行中不显示。
+
+## 文件写到哪
+
+| 资产类 | 目录 | 扩展名 |
+| :-- | :-- | :-- |
+| `UMaterial` | `<SourceDirectory>/Decompiled/Materials/` | `.dsm` |
+| `UMaterialFunction` | `<SourceDirectory>/Decompiled/Functions/` | `.dsf` |
+| `UMaterialFunctionMaterialLayer` | `<SourceDirectory>/Decompiled/Layers/` | `.dsf` |
+| `UMaterialFunctionMaterialLayerBlend` | `<SourceDirectory>/Decompiled/LayerBlends/` | `.dsf` |
+
+`<SourceDirectory>` 是 *Source Directory* 项目设置，默认 `DShader`。Layer 和 layer blend 各有自己的目录，
+而且类判定是 blend 优先，所以 layer blend 永远不会落进 `Layers`。
+
+在分类目录内部，资产的 **package path** 变成相对文件路径，每个 package 段一层目录：
+
+```text
+/Game/Materials/Metal/M_Steel
+  →  <Project>/DShader/Decompiled/Materials/Game/Materials/Metal/M_Steel.dsm
+```
+
+| 规则 | 细节 |
+| :-- | :-- |
+| 首尾的 `/` | 从 package 名上剥掉 |
+| 非法字符 | 控制字符和 `< > : " / \ \| ? *` 变成 `_` |
+| 空段 | 目录段变成 `Folder<N>`，最后一段变成 `Asset<N>`，`<N>` 是从 1 开始的序号 |
+| 没有 package | 用资产自己的名字作为唯一一段 |
+
+给 commandlet 传 `-Out=` 会覆盖整套计算，路径归一化后精确写到指定位置。编辑器入口不接受覆盖。
+
+### 文件里的那个名字
+
+写在文件**内部**的 `Name=` 不是文件路径。它是 `Decompiled/<Category>/<package 段>`，
+每段里的 `\ / . :` 都换成 `_`：
+
+```text
+/Game/Materials/Metal/M_Steel
+  →  Shader(Name="Decompiled/Materials/Game/Materials/Metal/M_Steel")
+```
+
+<Callout type="info">
+因此重新编译导出的文件会在 `/Game/Decompiled/Materials/…` 下创建一个**新**资产，原件原封不动。
+这是刻意的：你可以先对比两者再决定。等你准备好接管原路径时，再改 `Name=` 和 `Root=` ——
+见[资产路径](/docs/generation/asset-paths)。
+</Callout>
+
+## 文件结构
+
+<Grammar />
+
+<Synopsis>
+```c
+// Decompiled from <full object path>
+[// Warning: <text>]…
+
+[<VirtualFunction declaration>]…
+
+{ Shader | ShaderFunction | ShaderLayer | ShaderLayerBlend }(Name="<generated name>")
+{
+    [Properties = { … }]
+    [Inputs     = { … }]   // function kinds only
+    [Settings   = { … }]   // Shader only
+    [Outputs    = { … }]
+    [Graph      = { … }]
+    [Layout     = { … }]
+}
+```
+</Synopsis>
+
+| 产出的块类型 | 源资产 |
+| :-- | :-- |
+| `Shader` | `UMaterial` |
+| `ShaderFunction` | `UMaterialFunction` |
+| `ShaderLayer` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` | `UMaterialFunctionMaterialLayerBlend` |
+
+反编译出来的 `Shader` 的 `Settings` 块总是以 `Domain`、`ShadingModel` 和 `BlendMode` 开头，无条件写出。
+其他每一项设置只在与 `UMaterial` 类默认值不同时才写；能往返的集合见
+[材质 Settings](/docs/settings/material)。当反编译到 `Base.FrontMaterial` 绑定时，shading model 会被强制成
+`Substrate`，因为 Substrate 材质自己的 shading-model 枚举并不描述它的表面。
+
+`Outputs` 为每个已连接的材质属性声明一个变量并绑定它，顺序固定：
+
+```text
+EmissiveColor, BaseColor, Metallic, Specular, Roughness, Anisotropy, Opacity, OpacityMask,
+Normal, Tangent, WorldPositionOffset, SubsurfaceColor, CustomData0, CustomData1,
+AmbientOcclusion, Refraction, PixelDepthOffset, MaterialAttributes,
+FrontMaterial        (UE 5.4 及以上)
+```
+
+未连接的属性整条跳过。
+
+## 能忠实还原的部分
+
+节点遍历器对下面每个类都有一条精心写好的分支。其余全部落到[通用回退](#ueexpression-回退)。
+
+### 直接写成 DreamShaderLang 语法
+
+| `UMaterialExpression` 类 | 写成 |
+| :-- | :-- |
+| `Constant` | 浮点字面量 |
+| `Constant2Vector` | `float2(x, y)` |
+| `Constant3Vector` | `float3(r, g, b)` |
+| `Constant4Vector` | `float4(r, g, b, a)` |
+| `Add` | `a + b` |
+| `Subtract` | `a - b` |
+| `Multiply` | `a * b` |
+| `Divide` | `a / b` |
+| `OneMinus` | `1.0 - x` |
+| `LinearInterpolate` | `lerp(a, b, alpha)` |
+| `Clamp` | `clamp(x, min, max)` —— 仅当 clamp 模式是默认的双边钳制 |
+| `Power` | `pow(base, exponent)` |
+| `DotProduct` | `dot(a, b)` |
+| `Normalize` | `normalize(v)` |
+| `Min` | `min(a, b)` |
+| `Max` | `max(a, b)` |
+| `Abs` | `abs(x)` |
+| `Saturate` | `saturate(x)` |
+| `Floor` | `floor(x)` |
+| `Ceil` | `ceil(x)` |
+| `Frac` | `frac(x)` |
+| `SquareRoot` | `sqrt(x)` |
+| `Sine` | `sin(x)` —— 仅当 `Period` 为 1 |
+| `Cosine` | `cos(x)` —— 仅当 `Period` 为 1 |
+| `ComponentMask` | 输入上的一个 swizzle，按 R/G/B/A 标志的顺序拼出 |
+| `AppendVector` | `floatN(a, b)`；两个操作数 swizzle 的是同一个基值时合并成单个 swizzle |
+| `Time` | `UE.Time()` —— 仅当它既不忽略暂停也不覆盖周期 |
+| `Reroute` | 什么都不写 —— 普通 reroute 被穿透追踪，带环检测 |
+| `NamedRerouteDeclaration`、`NamedRerouteUsage` | 一个具名 `Graph` 临时变量，被每次使用复用 |
+| `FunctionInput` | `Inputs` 段里声明的那个名字 |
+| `MaterialFunctionCall` | 在块上方生成一段 [`VirtualFunction`](/docs/language/blocks) 声明，加上对它的调用 |
+
+未连接的操作数 pin 会退回节点自己的常量属性（`Min`、`Max`、`LinearInterpolate`、`Power` 和 `Clamp`
+都会读它们的 `Const*` 值），再退不成就退到字面量 `0.0`。
+
+<Callout type="info">
+上面那些数学内置写法就是[数学内置](/docs/builtins/math)里记的那 19 个名字。注意缺口：反编译器没有处理
+`UMaterialExpressionFmod` 的分支，所以已有的 `Fmod` 节点会回来成通用的
+`UE.Expression(Class="Fmod", …)` 调用，而不是 `fmod(…)`。源码是等价的，只是不是内置写法。
+</Callout>
+
+### 写成 property 声明
+
+这些会变成 `Properties` 段里的条目，并在 `Graph` 中按名字引用。名字会做唯一化处理；
+当 DreamShaderLang 标识符不得不与资产的参数名不同时，会补一条 `ParameterName=` 元数据。
+
+| `UMaterialExpression` 类 | 声明 |
+| :-- | :-- |
+| `ScalarParameter` | `ScalarParameter <Name> = <default>;` |
+| `VectorParameter` | `VectorParameter <Name> = float4(r, g, b, a);` |
+| `TextureObjectParameter` | `TextureObjectParameter <Name>[ = <asset path>];` |
+| `TextureSampleParameter2D` | `TextureSampleParameter2D <Name>[ = <asset path>];` —— **仅当没有输入 pin 被连接** |
+
+只要有任何输入 pin 被连接，`TextureSampleParameter2D` 就改为写成一条精选的 `UE.Expression`，
+参数实参和采样器实参一起带上 <Since v="1.3.7" />。它的 `RGBA` 输出被写进一个具名临时变量一次，
+其他每个 pin 都变成它的 swizzle。
+
+### 写成精选的 `UE.Expression`
+
+这些保留手写的参数列表，而不是反射 dump，所以只有真正与节点默认值不同的属性才会出现。
+
+| `UMaterialExpression` 类 | 写出的参数 |
+| :-- | :-- |
+| `CurveAtlasRowParameter` | 非默认时的 `ParameterName`、`Group`、`SortPriority` 和 `Desc`，然后是 `DefaultValue`、`Curve`、`Atlas`、`UseCustomPrimitiveData` 及 `PrimitiveDataIndex`，以及 time pin 已连接时的 `CurveTime` |
+| `StaticComponentMaskParameter` | `Input`、`DefaultR`、`DefaultG`、`DefaultB`、`DefaultA`，以及已设置时的 `ParameterName`。`OutputType` 跟随启用通道数 |
+| `StaticSwitchParameter` | `True`、`False`，以及非默认时的 `ParameterName`、`DefaultValue`、`DynamicBranch` |
+| `TextureCoordinate` | `CoordinateIndex`、`UTiling`、`VTiling` —— 各自仅在非默认时 |
+| `Time` | `bIgnorePause`、`bOverride_Period`、`Period` —— 节点不在默认值时使用 |
+| `Sine` / `Cosine` | `Input`、`Period` —— `Period` 不为 1 时使用 |
+| `Clamp` | `Input`、`Min`、`Max`、`ClampMode` —— clamp 模式是只钳下限或只钳上限时使用 |
+| `Panner` | `Coordinate` 或 `ConstCoordinate`、`Time`，以及 `Speed` 或非零的 `SpeedX` / `SpeedY`，加上 `bFractionalPart` |
+| `Rotator` | `Coordinate` 或 `ConstCoordinate`、`Time`，以及非默认时的 `CenterX`、`CenterY`、`Speed` |
+| `WorldPosition` | 非默认时的 `WorldPositionShaderOffset` |
+| `CameraVectorWS` | *（无）* |
+| `ObjectPositionWS` | *（无）* |
+| `ScreenPosition` | *（无）* |
+| `VertexColor` | *（无）* —— 类型恒为 `float4`，pin 的掩码写成 swizzle |
+| `TextureSample` | 纹理、采样器和 mip 参数；`RGBA` 输出只写一次，其他每个 pin 变成它的 swizzle |
+| `Custom` | `Code`、`Description`、次级输出用的 `Output`、完整的 `AdditionalOutputs` 列表，以及每个已连接输入一个参数。`OutputType` 取节点自己声明的返回类型，**绝不**取所选输出的类型 |
+
+## `UE.Expression` 回退
+
+上面没有分支的类都会被导出成一个通用的 [`UE.Expression`](/docs/builtins/ue-expression) 调用，
+反编译器同时为它记一条警告。
+
+参数列表分两趟构建：
+
+1. 每个**已连接**的输入 pin，按 pin 名命名，按 pin 顺序。
+2. 每个值与类默认值不同的**反射字面量属性** <Since v="1.3.7" />。
+
+一个属性只有同时满足下列全部条件，才会在第 2 趟被导出：
+
+| 要求 | 细节 |
+| :-- | :-- |
+| 不是 deprecated、transient 或 duplicate-transient | |
+| 不是 material-expression 输入 | 那些属于第 1 趟 |
+| 标记为可编辑 | `CPF_Edit` |
+| 不是控制名 | `Class`、`OutputType`、`ResultType`、`Output`、`OutputName`、`OutputIndex` |
+| 不是 editor-only 名 | `MaterialExpressionEditorX`、`MaterialExpressionEditorY`、`Desc`、`bCommentBubbleVisible`、`bShowOutputNameOnPin`、`bHidePreviewWindow`、`bCollapsed`、`bShaderInputData`、`SortPriority` |
+| 属于受支持的属性类型 | bool、数值、枚举、byte、name、string、text，或对象引用 |
+| 与类默认值不同 | 相同的值被省略 |
+| 尚未成为参数 | 同名的第一个写入者胜出 |
+
+名字比较是在归一化之后做的，所以 `bTwoSided` 和 `Two Sided` 会冲突。
+
+<Callout type="warn">
+**struct、array、map、set 和 delegate 属性被静默丢弃。** 它们不属于受支持的属性类型，
+所以一个状态存在 struct 里的节点会以类默认值导出，而且没有任何警告指出是哪个属性。
+首次编译后手工重设这些值，或者保留 `UE.Expression` 节点并自己补上缺的参数。
+</Callout>
+
+`OutputType` 总是写出，按真实输出索引解析。存在具名输出选择器（`Output=` / `OutputName=`）时，
+`OutputIndex` 会被抑制，因为生成器拒绝同时带两者的调用。参数超过三个、或长度超过 120 字符的调用会拆成多行。
+
+## Layout 导出
+
+由 *Export Decompiled Layout* 项目设置控制，默认**开**。打开时文件会带一个 `Layout` 段：
+
+| 写出的行 | 来自 |
+| :-- | :-- |
+| `Comment(Name="<text>", X=<x>, Y=<y>, W=<w>, H=<h>, Color=float4(r, g, b, a));` | 每一个编辑器注释框 |
+| `Node(Var="<name>", X=<x>, Y=<y>);` | 每一个具名表达式，按 X、再 Y、再名字排序 |
+
+文本以 `DreamShader: ` 开头的注释框会被跳过 —— 那些是生成的标记，不是作者写的注释。
+
+与这个设置无关地，每个表达式还会被归到**最小的**那个包住它的注释框，这些归属会变成对应 `Graph` 语句周围的
+`#Region` / `#EndRegion` 指令。关掉 layout 导出会去掉 `Layout` 块，但**不会**去掉 region。
+见 [Layout 与 #Region](/docs/language/layout)。
+
+## 诊断
+
+运行期替换写作 `{Placeholder}`。
+
+### 写进文件里的警告
+
+每条只写一次，作为 `// Decompiled from …` 头行下面的 `// Warning: …` 注释。它们都不会让导出失败。
+
+| 消息 | 原因 |
+| :-- | :-- |
+| `Exported '{Class}' as UE.Expression; review reflected literal properties if the node has editor-only state.` | 一个没有精选分支的节点 |
+| `MaterialFunctionCall '{Path}' is not a plain MaterialFunction; it was exported through UE.Expression.` | 调用目标是 layer 或 layer blend，而不是普通材质函数 |
+| `A MaterialFunctionCall had no function asset and was exported as a zero literal.` | 调用节点没有指定函数 |
+| `Failed to emit VirtualFunction for '{Path}': {Error}` | 被调函数的声明构建失败 |
+| `Named reroute usage '{Node}' has no valid declaration; emitted a default literal.` | 作为节点触达的悬空具名 reroute 使用 |
+| `Named reroute usage '{Node}' has no valid declaration; emitted its default value.` | 同上，但经由输入 pin 触达 |
+| `Detected a recursive graph dependency while decompiling node '{Node}'; emitted a default literal to avoid stack overflow.` | 表达式图里有环 |
+| `Detected a recursive reroute dependency while decompiling node '{Node}'; emitted a default literal to avoid stack overflow.` | 经由普通 reroute 的环 |
+| `Detected a recursive named reroute dependency for '{Node}'; emitted a default literal to avoid stack overflow.` | 经由具名 reroute 的环 |
+| `Append node '{Node}' resolved to {A} + {B} components, which cannot fit a float4; masked its inputs down to {A2} + {B2}. Review the emitted swizzle.` | 操作数分量数之和超过四的 append |
+
+### 导出失败
+
+<Diag>
+  <D msg="No Material asset was provided." cause="一个空材质进到了反编译器。" />
+  <D msg="No MaterialFunction asset was provided." cause="一个空函数进到了反编译器。" />
+  <D msg="No asset was provided." cause="一个空资产进到了服务层。" />
+  <D msg="MaterialFunction '{Name}' does not expose any outputs." cause="该函数没有声明输出。" fix="给资产加一个输出，或者改为导出调用它的那个材质。" />
+  <D msg="DreamShader decompile supports Material and MaterialFunction assets only: {Path}" cause="任何其他资产类 —— 包括 UMaterialInstanceConstant。" fix="导出父级 UMaterial，然后重新创建实例。" />
+  <D msg="Decompile did not produce source text." cause="反编译报告失败但没有消息。" />
+  <D msg="DreamShader failed to resolve an output file path." cause="算出来的输出路径为空。" />
+  <D msg="DreamShader failed to create output directory '{Directory}'." cause="目录创建失败。" />
+  <D msg="DreamShader failed to write decompiled source '{File}'." cause="文件写入失败。" />
+</Diag>
+
+### 编辑器 toast
+
+| Toast | 原因 |
+| :-- | :-- |
+| `DreamShader could not find the selected Material.` / `…Material Function.` | 从右键到点击之间资产被卸载了 |
+| `DreamShader failed to export DSM: {Error}` / `DreamShader failed to export DSF: {Error}` | 反编译失败 |
+| *（原始写入错误）* | 文件保存失败 |
+| `Exported DSM but could not open it: {File}` | 写出来了，但编辑器启动不了 |
+| `Exported DSM: {File}` / `Exported DSF: {File}` | 成功 |
+
+日志：Display 级的 `Exported Material '{Asset}' to DSM '{File}'.`，以及 Warning 级的
+`Failed to export Material '{Asset}' to DSM: {Error}`。
+
+## 已知缺口
+
+**1.5.0** 的实测行为。每一行都是导出文件还原不了的东西。把源文件当作事实来源之前，
+先核对与你的资产相关的那几行。
+
+<Wide>
+
+| 缺口 | 后果 | 变通办法 |
+| :-- | :-- | :-- |
+| 材质函数的 settings 从不写出 | 导出 `UMaterialFunction` 时 `Description`、`ExposeToLibrary`、`LibraryCategories` 和 `UserExposedCaption` 全部丢失 | 手写一个 `Settings` 块 |
+| 只写出被认可的那组 `UMaterial` 属性 | 之外的属性 —— `OpacityMaskClipValue`、`NumCustomizedUVs`、半透明光照模式、位移缩放、Nanite 覆盖 —— 保持类默认值 | 把这些键加进 `Settings`，它们按反射解析 —— 见[材质 Settings](/docs/settings/material) |
+| struct、array、map、set 类型的节点属性不参与反射 | 回退成 `UE.Expression` 的节点丢掉那部分状态，而且没有针对属性的警告 | 生成之后在材质上设置该属性，或者扩写导出的调用 |
+| 节点注释文本（`Desc`）和节点 `SortPriority` 被丢弃 | 注释气泡和 pin 顺序还原不了 | 手工重设 |
+| 节点位置取决于一个设置 | *Export Decompiled Layout* 关掉时，重新生成的图改为自动布局 | 保持该设置开启，或者手写 `Layout` |
+| 前缀为 `DreamShader: ` 的注释框被丢弃 | 生成的标记不会被重新写出，这是设计如此 | 无需处理 |
+| 指向 layer 或 layer blend 的 `MaterialFunctionCall` 回退成 `UE.Expression` | 该调用不会被表达成 `VirtualFunction` | 单独导出那个 layer 再调用它 |
+| 没有指定函数的 `MaterialFunctionCall` 变成 `0.0` | 该分支被静默常量折叠 | 在原资产里重新指定函数再导出 |
+| 环会写出一个默认字面量 | 成环的那条分支求值成常量 | 在原图里打断这个环 |
+| 宽度超过四分量的 append 会被掩码收窄 | 分量被丢掉 | 检查写出的 swizzle |
+| 不支持材质**实例** | `UMaterialInstanceConstant` 会被直接拒绝 | 导出父级 `UMaterial`，再重新创建实例 |
+| 纹理采样的 `GatherMode` 只在 UE 5.6 及以上往返 | 更老的引擎上该属性被省略 | 无 |
+| `bHasPixelAnimation` 只在 UE 5.4 及以上进入写出的 flag 集合 | 更老的引擎上该 flag 被省略 | 无 |
+| `Base.FrontMaterial` 和 `Substrate` 这个 shading-model 写法只存在于 <Since v="5.4" ue /> | 5.4 以下无法有意义地导出 Substrate 材质 | 无 |
+| 生成的 `Name=` 指向 `Decompiled/…` | 重新编译会创建第二个资产，而不是替换原件 | 确认源文件可信之后改 `Name=` / `Root=` |
+| 大图在生成时会跳过自动布局 | 没有 `Layout` 块时，重新生成的大图回来可能视觉上毫无秩序 | 保持 layout 导出开启 |
+
+</Wide>
+
+## 示例
+
+无头导出 `/Game/Materials/M_Steel`，然后看结果：
+
+```powershell
+& "$Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "I:\Project\Project.uproject" `
+    -run=DreamShader decompile -Asset="/Game/Materials/M_Steel" `
+    -unattended -nopause -nosplash -stdout -log
+```
+
+```text
+DreamShader decompiled '/Game/Materials/M_Steel.M_Steel' to
+'I:/Project/DShader/Decompiled/Materials/Game/Materials/M_Steel.dsm'.
+```
+
+写出的文件：
+
+```c
+// Decompiled from /Game/Materials/M_Steel.M_Steel
+Shader(Name="Decompiled/Materials/Game/Materials/M_Steel")
+{
+    Properties = {
+        ScalarParameter Roughness_0 = 0.35 [ParameterName="Roughness"];
+        VectorParameter Tint = float4(0.8, 0.8, 0.82, 1.0);
+    }
+    Settings = {
+        Domain = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode = "Opaque";
+    }
+
+    Outputs = {
+        float3 BaseColor;
+        float Metallic;
+        float Roughness;
+
+        Base.BaseColor = BaseColor;
+        Base.Metallic  = Metallic;
+        Base.Roughness = Roughness;
+    }
+
+    Graph = {
+        BaseColor = Tint.rgb;
+        Metallic  = 1.0;
+        Roughness = saturate(Roughness_0);
+    }
+
+    Layout = {
+        Node(Var="Tint", X=-640, Y=-208);
+        Node(Var="Roughness_0", X=-640, Y=48);
+    }
+}
+```
+
+注意第一条 property 上的 `ParameterName="Roughness"`。资产里那个参数就叫 `Roughness`，
+但这个标识符在本文件里已经被占用了，于是声明被唯一化成 `Roughness_0`，真实参数名作为元数据保留下来 ——
+否则重新生成的材质会以错误的名字暴露参数。见[元数据与分组](/docs/parameters/metadata)。
+
+## 继续阅读
+
+<Cards>
+  <Card title="编辑器工具" href="/docs/tools/editor" description="Export DSM / Export DSF 两个菜单项。" />
+  <Card title="命令行" href="/docs/tools/commandlet" description="decompile -Asset、-Out 和退出码。" />
+  <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" description="回退路径写出的那种通用调用。" />
+  <Card title="材质 Settings" href="/docs/settings/material" description="导出器能写进 Settings 的和写不进的。" />
+  <Card title="Layout 与 #Region" href="/docs/language/layout" description="Node 和 Comment 指令，以及 region。" />
+  <Card title="资产路径" href="/docs/generation/asset-paths" description="写出的 Name= 解析成什么。" />
+</Cards>

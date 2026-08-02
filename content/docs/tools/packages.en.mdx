@@ -1,0 +1,383 @@
+---
+title: Packages
+description: DShader/Packages — the install root the plugin implements, the manifest and lock file the extensions implement, and the enumeration gap between them.
+---
+
+A package is a reusable DreamShaderLang library: `.dsh` headers, `.dsf` function files, examples, a
+README. Packages are installed under `DShader/Packages` and reached by `import`.
+
+| Aspect | Value |
+| :-- | :-- |
+| Kind | directory convention |
+| Path | `<SourceDirectory>/Packages` — `<Project>/DShader/Packages` by default |
+| Created by | the `DreamShader` runtime module at startup, unconditionally |
+| Configurable | only indirectly, through the *Source Directory* project setting |
+
+<Callout type="warn">
+**The plugin implements exactly two things about packages**: the import root, and the exclusion of
+package files from source enumeration. The manifest, the lock file, the store and the install
+commands are conventions the **editor extensions** implement — no plugin C++ reads either JSON file.
+Read [Division of labour](#division-of-labour) before you debug a package problem, because it decides
+which repository to look in.
+</Callout>
+
+## Layout
+
+<Files>
+  <Folder name="MyProject" defaultOpen>
+    <Folder name="DShader" defaultOpen>
+      <Folder name="Materials" defaultOpen>
+        <File name="M_Sample.dsm" />
+      </Folder>
+      <File name="dreamshader.lock.json" />
+      <Folder name="Packages" defaultOpen>
+        <Folder name="@scope" defaultOpen>
+          <Folder name="package-name" defaultOpen>
+            <File name="dreamshader.package.json" />
+            <File name="README.md" />
+            <File name="LICENSE" />
+            <Folder name="Library" defaultOpen>
+              <File name="Noise.dsh" />
+            </Folder>
+            <Folder name="Examples">
+              <File name="M_NoisePreview.dsm" />
+            </Folder>
+          </Folder>
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+| Path | Compiled by the plugin? |
+| :-- | :-- |
+| `DShader/Materials/M_Sample.dsm` | yes — an ordinary source |
+| `DShader/Packages/**/Library/*.dsh` | never compiled directly; **importable**, and inlined into whatever imports it |
+| `DShader/Packages/**/*.dsf` | see [the `.dsf` gap](#source-file-enumeration) — interactively yes, headlessly no |
+| `DShader/Packages/**/Examples/*.dsm` | **never**, by any path |
+| `DShader/dreamshader.lock.json` | not read by the plugin at all |
+
+The directory name is hard-coded: the package root is always the literal subdirectory `Packages` of
+the configured source directory. Changing *Source Directory* moves it; there is no separate package
+directory setting.
+
+## Division of labour
+
+Everything marked *extension* is defined and enforced by the
+[editor extensions](/en/docs/tools/vscode) in their own repositories, and cannot be observed from the
+plugin at all.
+
+| Aspect | Implemented by |
+| :-- | :-- |
+| Creating `<SourceDirectory>/Packages` at startup | **plugin** |
+| `<SourceDirectory>/Packages` as the third `import` resolution root | **plugin** |
+| Excluding package files from source enumeration | **plugin** |
+| `dreamshader.package.json` — existence, fields, validation | extension |
+| `dreamshader.lock.json` — existence, contents, updates | extension |
+| Installing, updating, removing packages | extension |
+| Package store, index sources, GitHub topic search | extension |
+| Package scaffolding / "create package" flows | extension |
+| Scoped (`@scope/name`) naming | extension |
+
+<Callout type="info">
+A package is resolvable purely because its files exist under `<SourceDirectory>/Packages`. Deleting
+the manifest does not break `import`, and adding one does not change how the plugin behaves. The
+manifest and the lock file exist for the extensions' installer and store.
+</Callout>
+
+## Import resolution
+
+An `import` specifier is normalized, then tried against three candidate roots in order. The first
+candidate that both stays inside its own root and exists on disk wins. This resolver is shared by the
+compiler's import inliner and the editor's dependency scanner, so both agree.
+
+### Specifier normalization
+
+| Step | Rule |
+| :-- | :-- |
+| 1 | leading and trailing whitespace trimmed |
+| 2 | every `\` replaced with `/` |
+| 3 | **all** leading `./` sequences stripped, repeatedly — `././X` becomes `X` |
+| 4 | if the result has no extension, `.dsh` is appended |
+
+Step 4 means `import "@scope/pkg/Library/Noise"` and `import "@scope/pkg/Library/Noise.dsh"` are the
+same import. An extensionless specifier can therefore **never** resolve to a `.dsf`.
+
+### Candidate roots
+
+| Order | Candidate path | Root it must stay under |
+| :-- | :-- | :-- |
+| 1 | `<directory of the importing file>/<specifier>` | the importing file's own import root — whichever of `<SourceDirectory>` or `<SourceDirectory>/Packages` contains it (longest match), or the file's own directory if neither does |
+| 2 | `<SourceDirectory>/<specifier>` | `<SourceDirectory>` |
+| 3 | `<SourceDirectory>/Packages/<specifier>` | `<SourceDirectory>/Packages` |
+
+Because candidate 1 is rooted at `Packages` for a file that lives inside a package, a `.dsh` inside a
+package can reach its siblings with a relative specifier but **cannot climb out of the package tree**
+with `../`: the escape guard rejects that candidate, and resolution falls through to roots 2 and 3.
+
+A specifier that resolves under no root produces
+`DreamShader import '{Specifier}' referenced from '{File}' could not be resolved.` The full grammar,
+cycle handling and line-number mapping are on
+[Imports and Namespaces](/en/docs/language/imports).
+
+## Source-file enumeration
+
+The plugin has **two** enumerators. They exclude different things, and that asymmetry decides which
+package files are compiled.
+
+| Enumerator | Extensions scanned | Excluded | Sorted |
+| :-- | :-- | :-- | :-- |
+| Full source enumeration | `.dsm`, `.dsh`, `.dsf` | **everything** under `<SourceDirectory>/Packages` | yes |
+| Material source enumeration | `.dsm`, `.dsf` | only `.dsm` files under `<SourceDirectory>/Packages` | no |
+
+The exclusion test is a case-insensitive path-prefix comparison against the package directory, and it
+matches the package directory itself as well as anything beneath it at any depth.
+
+| Feature | Enumerator | Sees package `.dsm` | Sees package `.dsf` / `.dsh` |
+| :-- | :-- | :-- | :-- |
+| Startup in-memory generation | full | no | no |
+| [Commandlet](/en/docs/tools/commandlet) `compile -All` | full | no | no |
+| Cook-time materialization | full | no | no |
+| Material Content Browser, Gen page list | full | no | no |
+| VirtualFunction declaration sync | full | no | no |
+| *Recompile DSM* / full rescan queue | material | no | **`.dsf` yes** |
+| Dependency-graph rebuild | material | no | **`.dsf` yes** |
+
+<Callout type="warn">
+**The `Packages` exclusion is complete for `.dsm` but only partial for `.dsf`.** The auto-compile
+paths test for "a `.dsm` under `Packages`", which no `.dsf` can satisfy — so a `.dsf` inside a package
+is queued by *Recompile DSM*, is recompiled when the file watcher sees it saved, and participates in
+the dependency graph, while remaining invisible to `compile -All`, to cook, to the Gen page and to
+VirtualFunction sync.
+
+A package that ships `.dsf` function assets will therefore generate those assets in an interactive
+editor session and **not** generate them in a headless build. Ship library code as `.dsh` headers, or
+copy the `.dsf` out of `Packages` into the project's own source tree.
+</Callout>
+
+<Callout type="warn">
+`Examples/**/*.dsm` inside a package is **never compiled by any path**, and never appears in the
+Material Content Browser's Gen page. To use an example, copy it out of `DShader/Packages` into
+`DShader/`, or any subdirectory of it that is not `Packages`.
+</Callout>
+
+Package `.dsh` headers are fully importable but are never scanned for `VirtualFunction` declarations,
+so a `VirtualFunction` block shipped inside a package is never validated or refreshed against its
+`UMaterialFunction` asset. See [Editor Tools](/en/docs/tools/editor#virtualfunction-tools).
+
+## `dreamshader.package.json`
+
+Placed at the root of a package. **Not read by the plugin.** The fields below are the convention the
+extension's installer and store use; the extension repository is authoritative.
+
+```json
+{
+  "name": "@typedreammoon/dream-noise",
+  "version": "1.0.0",
+  "displayName": "Dream Noise",
+  "description": "Reusable noise functions for DreamShaderLang.",
+  "author": "TypeDreamMoon",
+  "repository": "https://github.com/TypeDreamMoon/dream-noise",
+  "license": "MIT",
+  "dreamshader": {
+    "language": "DreamShaderLang",
+    "version": ">=1.0.0",
+    "entry": "Library/Noise.dsh"
+  },
+  "keywords": ["noise", "fbm", "voronoi"]
+}
+```
+
+| Field | Type | Purpose |
+| :-- | :-- | :-- |
+| `name` | string | package identity; plain `name` or scoped `@scope/name` |
+| `version` | string | package version; SemVer recommended |
+| `displayName` | string | human-readable name shown in the store |
+| `description` | string | short description shown in the store |
+| `author` | string | author attribution |
+| `repository` | string | Git URL; used to update an installed package |
+| `license` | string | SPDX identifier |
+| `dreamshader.language` | string | language identity, `DreamShaderLang` |
+| `dreamshader.version` | string | DreamShaderLang version range the package targets |
+| `dreamshader.entry` | string | recommended entry header, for documentation and store display |
+| `keywords` | string[] | store search terms |
+
+A package repository becomes discoverable in the store by carrying the GitHub topic
+`dreamshader-package`.
+
+## `dreamshader.lock.json`
+
+| Aspect | Value |
+| :-- | :-- |
+| Path | `<SourceDirectory>/dreamshader.lock.json` |
+| Written by | the extension, on install and update |
+| Read by | the extension |
+| Records | package name, version, repository, commit, install path |
+
+**Neither read nor written by the plugin.** Deleting it changes nothing about compilation; it exists
+so a team can see which package revisions are checked in. Commit it if your team installs packages.
+
+## Extension commands
+
+Command-palette entries provided by the VSCode extension. Install and update require a working `git`
+on `PATH` — the plugin never downloads anything.
+
+```text
+DreamShaderLang: Install Package from GitHub
+DreamShaderLang: Browse Package Store
+DreamShaderLang: Update Installed Packages
+DreamShaderLang: Remove Installed Package
+DreamShaderLang: Open Packages Folder
+DreamShaderLang: Add Package Store Index Source
+DreamShaderLang: Remove Package Store Index Source
+DreamShaderLang: Create Package Step by Step
+```
+
+Install accepts either an `owner/repo` shorthand or a full `https://github.com/owner/repo` URL. The
+store reads one or more index JSON files, configured through
+`dreamshader.packageStoreIndexUrls`, plus an optional GitHub topic search — see
+[VSCode and Rider](/en/docs/tools/vscode#vscode-settings).
+
+## Authoring a package
+
+<Steps>
+
+<Step>
+
+### Create the directory
+
+Under a scoped name, so it cannot collide with anyone else's:
+`DShader/Packages/@scope/package-name/`.
+
+</Step>
+
+<Step>
+
+### Add the manifest
+
+`dreamshader.package.json` at the package root, with at least `name` and `version`. The plugin does
+not need it; the store and the installer do.
+
+</Step>
+
+<Step>
+
+### Put the public API under `Library/`
+
+One `.dsh` per topic, wrapped in a `Namespace` so the helper names cannot collide with the consuming
+project's own. Point `dreamshader.entry` at the header users should import.
+
+</Step>
+
+<Step>
+
+### Add examples under `Examples/`
+
+They will never be compiled from inside the package, which is exactly what you want — they document
+usage without generating assets in every project that installs the package.
+
+</Step>
+
+<Step>
+
+### Publish
+
+Push to GitHub with the topic `dreamshader-package`, and add an entry to a package store index if the
+package should be discoverable there.
+
+</Step>
+
+</Steps>
+
+A library header:
+
+```c
+Namespace(Name = "DreamNoise")
+{
+    Function float Remap01(float x)
+    {
+        return saturate(x * 0.5 + 0.5);
+    }
+}
+```
+
+And a project material consuming it:
+
+```c
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+
+Shader(Name="Materials/M_Noise")
+{
+    Properties = {
+        float Scale = 4.0 [Slider(0.1, 32)];
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        vec2  UV = UE.TexCoord(Index = 0);
+        float N  = DreamNoise::Remap01(UV.x * Scale);
+        Color = vec3(N, N, N);
+    }
+}
+```
+
+### Versioning
+
+| Change | Suggested bump |
+| :-- | :-- |
+| Add a helper without breaking existing calls | minor |
+| Fix an implementation while keeping the API | patch |
+| Rename or remove a public helper | major |
+| Change generated output behaviour significantly | major, plus migration notes in the README |
+
+### Design guidance
+
+| Practice | Reason |
+| :-- | :-- |
+| Keep public helpers namespaced | package names and project names cannot collide |
+| Export stable entry headers | materials should not depend on your internal file layout |
+| Ship library code as `.dsh`, not `.dsf` | a package `.dsf` is invisible to headless builds — see [above](#source-file-enumeration) |
+| Put examples in `Examples/` | they document usage and are never compiled |
+| Avoid project-specific asset paths | a package should move between projects unchanged |
+| Document the `import` line in the README | it is the only thing every user needs |
+
+## Notes
+
+- The package directory is created at module startup even when it is empty, and even in a commandlet
+  process, alongside the source directory and the generated-shader directory.
+- Package files are ordinary files. Nothing prevents editing a package `.dsh` in place — but the
+  extension's update command overwrites it.
+- Because the exclusion is a path test, a symbolic link or junction that points a non-package path at
+  package content is treated as whatever its resolved path is.
+
+## Example
+
+A package installed at `DShader/Packages/@typedreammoon/dream-noise/`, and how its specifier
+resolves:
+
+```text
+specifier   @typedreammoon/dream-noise/Library/Noise.dsh
+candidate 1 <Project>/DShader/Materials/@typedreammoon/dream-noise/Library/Noise.dsh   missing
+candidate 2 <Project>/DShader/@typedreammoon/dream-noise/Library/Noise.dsh             missing
+candidate 3 <Project>/DShader/Packages/@typedreammoon/dream-noise/Library/Noise.dsh    resolved
+```
+
+Dropping the extension resolves identically:
+
+```c
+import "@typedreammoon/dream-noise/Library/Noise";
+```
+
+## Where next
+
+<Cards>
+  <Card title="Imports and Namespaces" href="/en/docs/language/imports" description="The directive's grammar, cycles and line mapping." />
+  <Card title="Source Files" href="/en/docs/language/file-model" description="What .dsm, .dsh and .dsf may each contain." />
+  <Card title="VSCode and Rider" href="/en/docs/tools/vscode" description="The extensions that own the installer and the store." />
+  <Card title="Commandlet" href="/en/docs/tools/commandlet" description="compile -All, which uses the full enumerator." />
+  <Card title="Project Layout" href="/en/docs/start/project-layout" description="Where Packages sits in the source tree." />
+</Cards>

@@ -1,0 +1,182 @@
+---
+title: 当前限制
+description: DreamShaderLang 1.5.0 还做不到的事 —— Graph 语言的边界、静默失败、反编译器的往返缺口，以及材质图层只到函数级的上限。
+---
+
+DreamShaderLang 覆盖的是那些值得以可评审文本形式保存下来的材质编写模式。它不是 Unreal 材质编辑器的替代品，
+也不是着色器编译器。本页是 **1.5.0** 上边界所在位置的诚实清单，好让你在这里发现它们，而不是在写了三小时着色器之后。
+
+每一节都链接到真正展开讲这个主题的页面。下面不重复叙述细节。
+
+## `Graph` 不是通用编程语言
+
+`Graph` 块构建的是节点图。它有十种语句形式、四个算术运算符，除 `if` / `else` 之外没有任何控制流。
+它没有关键字表，所以不支持的语法不会被当成「不支持的语法」拒绝 —— 而是会被归错类。
+
+| 不存在 | 替代方案 |
+| :-- | :-- |
+| `for`、`while`、`do`、`switch` | 手工展开，或者把循环搬进函数体是真正 HLSL 的 [`Function`](/docs/language/functions) |
+| `Graph` 内部的 `return` | 直接给声明好的输出变量赋值 |
+| 三元 `? :` | `if` / `else`、`lerp`，或者 `StaticSwitchParameter` 调用 |
+| `&&`、`\|\|`、位运算与移位运算符 | 嵌套 `if` 语句，或者一个 `Function` |
+| `%` | `fmod(a, b)` 或 `mod(a, b)` |
+| 复合赋值与 `++` / `--` | `a = a + b` |
+| 矩阵类型与数组 | [`UE.TransformVector` / `UE.TransformPosition`](/docs/builtins/ue-nodes)、[swizzle](/docs/graph/expressions)，或者 `Function` 体内部的矩阵局部变量 |
+| 整数运算 | `int`、`uint`、`bool` 和 `half` 都塌缩成浮点宽度；整数标记存在的唯一目的是拒绝 `int(a) / int(b)` |
+| C 风格强制转换、十六/八/二进制字面量、逗号运算符、嵌套花括号初始化式、预处理指令 | 构造器、十进制字面量、拆成多条语句、`import` |
+
+这是设计，不是待办清单。任何真正命令式的东西都属于 `Function` 或 `GraphFunction` —— 它们的函数体是 HLSL，
+会被编译进一个 `Custom` 节点。
+
+<Callout type="warn">
+**代价高的不是缺了什么，而是其中一部分会静默失败。** `Graph` 的词法器把它不认识的每个字符都映射成表达式结束 token，
+parser 随后接受它前面那段表达式。`a % b` 编译成 `a`。`if (x > 0 && y > 0)` 编译成 `if (x > 0)`。`v[0]` 编译成 `v`。
+任何界面上都不会有消息。
+
+[不支持的写法](/docs/graph/unsupported) 是完整版，包括确实会报错的那两个位置，以及用括号逼出诊断的技巧。
+</Callout>
+
+### 其余的静默类别
+
+截断是最大的一类，但不是唯一一类。下面这些全都能干净编译：
+
+| 写法 | 实际发生什么 |
+| :-- | :-- |
+| `a+=b;` —— 不带空格 | 变成一次普通赋值，创建了一个字面名为 `a+` 的新变量；`a` 从未改变 |
+| `++a` / `--a` | 重复的一元运算符；`++a` 什么节点都不产生，`--a` 产生两个 `Multiply` 节点，数值上仍是 `a` |
+| `If (x) { }`、`Else { }` | `if` 和 `else` 是 Graph 里仅有的区分大小写的关键字；大小写写错就变成声明 |
+| `Shader(Name="A", Name="B")` | 块头属性重复 —— 最后一个值胜出 |
+| 重复的 `Settings` 键 | 最后一个值胜出。重复的 **元数据**、**UE 内置节点**、**Expression** 和 **Layout** 参数则都是硬错误 |
+| 材质函数 `Settings` 块里的未知键 | 被忽略；只有 `Description`、`UserExposedCaption`、`ExposeToLibrary` 和 `LibraryCategories` 会被读取 |
+| 传给 *已注册* `UE.*` 内置节点的未知参数或位置参数 | 被忽略。通用 `UE.Expression` 路径两者都拒绝 |
+| 纹理采样节点上的 `[Texture=Path(Game,"Typo")]` | 槽位被设成 null，写入却报告成功；材质带着一个未绑定的采样器编译过去 |
+| 材质函数 `Outputs` / `Results` 条目上的默认值 | 会被解析，然后永远不被使用 |
+| `Properties` 里的 `float Strength = 1.0f;` 或 `1abc;` | 两者都解析成 `1.0` |
+| 作为 property 默认值的 `float3(1,0,0)`、`vec3(1,0,0)`、`(1,0,0)`、`Nonsense(1,0,0)` | 完全等价 —— `(` 之前的文本被忽略 |
+| 第二个 `Layout = { … }` section | 替换掉第一个。`Properties`、`Inputs` 和 `Outputs` 则是追加 |
+| 未闭合的 `/* … */` 注释 | 一直吃到文件末尾并被接受 |
+
+<Callout type="info">
+遮蔽规则值得读两遍：19 个 [数学内置节点](/docs/builtins/math) 和所有向量构造器名都是保留名。
+命名为 `lerp`、`clamp`、`dot` 或 `float3` 的 `Function`、`GraphFunction` 或 property 仍然能编译、仍然会生成对应资产，
+但从 `Graph` 块里根本触达不到，而且没有任何诊断。
+</Callout>
+
+## 诊断只有一个级别，位置也不完美
+
+每条入库的诊断都是 `error`。解析警告 —— 两条图层弃用警告、缺少 `Outputs` 的提醒 —— 从不入库，只出现在 Output Log，
+所以编辑器扩展无从区分它们。而且 **section 体内部** 抛出的解析错误，其行列号是按错误的偏移基准算出来的：文件对，位置不对。
+
+两件事都在[错误速查](/docs/diagnostics)里，那里也讲了一条消息会到达哪些界面。
+
+bridge 同样不在 commandlet 和 cook 里运行，所以无头运行不产生 `diagnostics.json`、不产生分片、不产生 `bridge.db` 行 ——
+只有日志行。见[命令行](/docs/tools/commandlet)。
+
+## 反编译器是迁移辅助，不是往返系统
+
+导出一个已有的 `UMaterial` 或 `UMaterialFunction`，得到的是一个能用的起点，不是保证一致的复现。导出器为大约四十个
+表达式类写了专门分支，其余一律走通用 `UE.Expression` 兜底，并为它表达不了的东西写一条 `// Warning:` 注释。
+
+删掉原始资产之前值得手工核对的缺口：
+
+| 缺口 | 后果 |
+| :-- | :-- |
+| 结构体、数组、map、set 类型的节点属性不参与反射 | 兜底的 `UE.Expression` 节点会保留类默认值，而且没有逐属性的警告 |
+| 材质函数的 settings 从不导出 | 导出的 `.dsf` 会丢掉 `Description`、`ExposeToLibrary`、`LibraryCategories` 和 `UserExposedCaption` |
+| 只导出一份钦定的 `UMaterial` 属性集合 | `OpacityMaskClipValue`、`NumCustomizedUVs`、半透明光照模式、位移缩放、Nanite 覆盖等等都保持类默认值 |
+| 节点注释文本和节点 `SortPriority` 被丢弃 | 注释气泡和 pin 顺序不会被复现 |
+| 材质 **实例** 直接被拒绝 | 请导出父级 `UMaterial`，然后重新创建实例 |
+| 指向图层或图层混合的 `MaterialFunctionCall` 退化为 `UE.Expression` | 这次调用不会被表达成 `VirtualFunction` |
+| 没有指派函数的 `MaterialFunctionCall` 变成 `0.0` | 这一路分支被静默常量折叠 |
+| 图中的环产生一个默认字面量 | 成环的那条分支求值成常量 |
+| 超过四分量的 append 会被掩码收窄 | 分量被丢掉；请检查导出的 swizzle |
+| 生成的 `Name=` 指向 `Decompiled/…` | 重新编译会创建 **第二个** 资产，而不是替换原来那个 |
+
+请把一次导出当成初稿：先编译它，在编辑器里对比两个材质，等确认可靠之后再改 `Name=` 和 `Root=` 接管原路径。
+完整细节见[反编译导出](/docs/tools/decompiler)。
+
+## 材质图层只到函数级
+
+`ShaderLayer` 和 `ShaderLayerBlend` 生成两种图层 *函数* 资产 —— `UMaterialFunctionMaterialLayer` 和
+`UMaterialFunctionMaterialLayerBlend`。支持到此为止。
+
+| 边界 | 细节 |
+| :-- | :-- |
+| 图层 **栈** 不能从源码编写 | 把图层和混合指派到材质或材质实例上，仍然是编辑器操作 |
+| 图层接口是固定的 | layer 最多一个 `MaterialAttributes` 输入；blend 恰好两个。两者都恰好产出一个 `MaterialAttributes` 输出 |
+| 标量、向量和纹理不能作为图层输入 | 请通过 `Properties` 暴露；它们会变成生成函数内部的参数节点，并出现在图层栈的参数面板上 |
+| 同一个 `Shader` 上 `Base.MaterialAttributes` 与 `Base.FrontMaterial` 互斥 | 二选一 |
+| `MaterialLayer` / `MaterialLayerBlend` 已弃用 | 自 1.3.0 起；两者仍然生成完全相同的资产，并各发一次警告 |
+
+arity 规则和生成资产的形状见[顶层块](/docs/language/blocks)。
+
+## 节点覆盖面是反射形状的
+
+有 27 个 `UE.*` 名字被注册为带手写参数处理的语法糖。引擎里其余的一切只能通过通用
+[`UE.Expression`](/docs/builtins/ue-expression) 路径触达 —— 它按反射解析类、按字面量写属性。三个后果：
+
+- **结构体和数组属性很别扭。** 它们走 Unreal 自己的文本导入，所以需要 Unreal 的字面量语法 ——
+  `(R=1,G=0,B=0,A=1)` —— 而这套语法表达不了的东西会以
+  `Property '{Property}' on '{Class}' is not a supported literal type yet.` 失败。
+- **类名不带 `U` 前缀。** 解析比较的是反射类名，所以 `Sine`、`MaterialExpressionSine` 和
+  `/Script/Engine.MaterialExpressionSine` 都能解析，而 `UMaterialExpressionSine` 永远不行。
+- **只有通用路径会去重。** 通用 `UE.Expression` 调用、`Substrate.*` 包装节点和数学内置节点会做公共子表达式缓存。
+  那 27 个已注册的语法糖内置节点每次调用都新建节点。
+
+还有两个 parser 接受但 generator 完全没有实现的内置节点 —— `UE.VertexNormalWS` 和 `UE.VertexTangentWS` ——
+必须写成带显式 `OutputType` 的通用形式。
+
+## 引擎版本边界
+
+支持的引擎是 **UE 5.3 – 5.8**。高于下限的特性会明确报错，而不是静默处理：
+
+| 特性 | 需要 |
+| :-- | :-- |
+| `Substrate.*` 调用、`Substrate` 值、`Base.FrontMaterial`、`ShadingModel="Substrate"` | <Since v="5.4" ue /> |
+| `UE.TransformPosition` / `UE.TransformVector` 的 `PeriodicWorld` 基 | <Since v="5.5" ue /> |
+| `UE.TransformPosition` 的 `FirstPerson` 基与 `FirstPersonInterpolationAlpha` | <Since v="5.6" ue /> |
+| `Path( … )` 与 `Root=` 上的插件内容挂载检查 | <Since v="5.6" ue /> |
+| `UE.CollectionParam` 的 `Group` / `SortPriority` | <Since v="5.7" ue /> —— 低于此版本会先校验再丢弃 |
+| `ShaderLayerBlend` 的 `BlendInputRelevance` | <Since v="5.7" ue /> —— 低于此版本不写入 |
+
+Substrate 还要求项目里启用 Substrate，这一点与引擎版本无关。
+
+## Backend 边界
+
+`ThinCustom` 是默认 backend，它把一个 `Shader` 降级成隐藏 base 材质上的一个 HLSL `Custom` 节点。这条路径产生不出 Substrate 值：
+
+```text
+{File}: Material output '{Name}' expects a Substrate value and cannot be driven by a material
+Custom node. Use a Graph block and Substrate.* nodes.
+```
+
+做 Substrate 请设 `Backend = "Graph"`。默认 backend 的另一个后果是交互式编译是 **纯内存** 的 ——
+生成的材质在你执行 *Materialize* 之前不会出现在 Content Browser 里。这是刻意的，不是故障；见
+[内存材质](/docs/generation/in-memory)和 [Backend](/docs/settings/backend)。
+
+## import 与 package
+
+| 边界 | 细节 |
+| :-- | :-- |
+| import 环被拒绝 | 菱形 import 没问题；成环会让解析失败 |
+| 每个解析单元只能有一个 `Shader` | 这条规则作用于整个传递 import 闭包，不是单个文件 |
+| `.dsh` / `.dsf` 的文件种类检查是子串扫描 | `.dsh` 里 *注释中* 出现的 `Shader(` 同样会让文件被拒 |
+| `DShader/Packages` 下的源文件从不自动编译 | 也不会出现在 Gen 页 —— 见 [Package](/docs/tools/packages) |
+| 解析是相对根目录的 | 机器绝对路径带不走；请让 import 相对项目根或 package |
+
+## 刻意不做的事
+
+DreamShaderLang 存在的意义，是让那些必须被评审、重新生成和共享的行为以文本形式存在。它不打算吞并材质编辑器。
+探索性的、高度视觉化的一次性图，在 Unreal 里搭更快 —— 就在那里搭，然后把稳定下来的部分
+[反编译](/docs/tools/decompiler)出来放进源码。
+
+## 继续阅读
+
+<Cards>
+  <Card title="错误速查" href="/docs/diagnostics" description="你大概率会遇到的每条消息，按流水线阶段分组。" />
+  <Card title="不支持的写法" href="/docs/graph/unsupported" description="Graph 语言边界的完整版，带可运行的对照示例。" />
+  <Card title="反编译导出" href="/docs/tools/decompiler" description="导出器会写出什么，以及完整的往返缺口清单。" />
+  <Card title="Backend" href="/docs/settings/backend" description="ThinCustom 与 Graph 的取舍，以及各自能生成什么。" />
+  <Card title="函数" href="/docs/language/functions" description="循环、位运算和矩阵合法的地方。" />
+  <Card title="顶层块" href="/docs/language/blocks" description="ShaderLayer、ShaderLayerBlend 以及其余的块清单。" />
+</Cards>

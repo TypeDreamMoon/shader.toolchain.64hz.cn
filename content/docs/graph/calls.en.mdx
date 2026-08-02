@@ -1,0 +1,458 @@
+---
+title: Calls
+description: Calling Function, GraphFunction, ShaderFunction, VirtualFunction and parameter pins from a Graph block — value form, statement form, arguments and output selection.
+---
+
+Anything in a `Graph` body written as `Name(...)` is a call. Six declaration kinds and two kinds of
+parameter are callable, plus the builtins and constructors that are resolved first. Which form a call
+may take, whether it can be used as a value, and whether it accepts named arguments all depend on the
+kind of thing being called.
+
+## Synopsis
+
+<Synopsis>
+```c
+// value form — the call produces a value
+<target> = <callee> ( [ <argument> [ , <argument> ] … ] ) ;
+
+// statement form — the call writes into named out variables
+<callee> ( [ <input-argument> , ] … <out-target> [ , <out-target> ] … ) ;
+
+<callee>     := <identifier> | <namespace> :: <identifier>
+<argument>   := <expression> | <identifier> = <expression> | default
+<out-target> := <identifier>
+```
+</Synopsis>
+
+## Callable kinds
+
+<Wide>
+
+| Kind | Value form | Statement form | Named arguments | Node produced |
+| :-- | :-- | :-- | :-- | :-- |
+| `Function` | only with exactly one declared output | yes | **no** | `Custom` |
+| `GraphFunction` | only with exactly one declared output | yes | **no** | `Custom` |
+| `ShaderFunction` | yes, any output count | yes | yes, value form only | `MaterialFunctionCall` |
+| `ShaderLayer` | yes, any output count | yes | yes, value form only | `MaterialFunctionCall` |
+| `ShaderLayerBlend` | yes, any output count | yes | yes, value form only | `MaterialFunctionCall` |
+| `VirtualFunction` | yes, any output count | yes | yes, value form only | `MaterialFunctionCall` |
+| `StaticSwitchParameter` property | yes | no | yes | `StaticSwitchParameter` |
+| input-bearing parameter | yes | no | **only** named | the parameter's own node, configured |
+
+</Wide>
+
+<Callout type="info">
+The current site once said return-style calls were unsupported. They are not: a single-output
+`Function` or `GraphFunction` **is** value-callable <Since v="1.3.1" />, and every
+`ShaderFunction`-family and `VirtualFunction` call always has been.
+</Callout>
+
+`UE.*`, `Substrate.*`, math builtins, constructors and `SampleTexture2D` also use call syntax, but
+they are resolved *before* any of the kinds above. See [UE.* Nodes](/en/docs/builtins/ue-nodes) and
+[Math Builtins](/en/docs/builtins/math).
+
+## Dispatch order
+
+A call name is probed strictly in this order. The first surface that claims the name wins; later
+surfaces are never consulted.
+
+| Order | Surface | Case |
+| --: | :-- | :-- |
+| 1 | vector/scalar constructor name — the 34 spellings | insensitive |
+| 2 | `UE.SceneTexture` | insensitive |
+| 3 | any name beginning with `UE.` | insensitive |
+| 4 | any name beginning with `Substrate.` <Since v="5.4" ue /> | insensitive |
+| 5 | math builtin — the 19 spellings | insensitive |
+| 6 | `SampleTexture2D` | **sensitive** |
+| 7 | a declared property whose node type is `StaticSwitchParameter` | insensitive |
+| 8 | a declared property whose node type owns input pins | insensitive |
+| 9 | `Function`, `GraphFunction`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | insensitive |
+| 10 | fallback `Function` lookup — otherwise `Unknown Graph function '{Name}'.` | insensitive |
+
+Step 5 has one subtlety: the math-builtin handler distinguishes "this is not a math builtin" from
+"this **is** one and the call is malformed". Only the second aborts, so `clamp(x)` reports
+`Math function 'clamp' expects exactly 3 arguments.` rather than falling through to a user function.
+
+At step 9, if more than one declaration kind matches, the call fails with
+`Graph call '{Name}' is ambiguous because multiple definitions use that name: {Kinds}.` When exactly
+one matched, dispatch precedence is material function → `VirtualFunction` → `GraphFunction`, with
+`Function` reached through step 10.
+
+<Callout type="warn">
+Shadowing is silent and always runs one way — an earlier surface hides a later one. A `Function`
+named `lerp`, `dot`, `saturate`, `float3`, `vec2` or any other builtin or constructor spelling parses
+fine, generates its HLSL helper, and is **never invoked**. Rename it. `SampleTexture2D` is the one
+case-sensitive comparison in the ladder, so a `Function` named `sampletexture2d` *is* reachable.
+</Callout>
+
+## Callee spellings
+
+| Spelling | Resolves to |
+| :-- | :-- |
+| `Name` | a `Function` / `GraphFunction` whose declared name matches, or a `ShaderFunction`-family / `VirtualFunction` block whose declared name matches |
+| `Namespace::Name` | a `Function` / `GraphFunction` declared inside `Namespace(Name="Namespace")`. Namespaced functions are reachable **only** by their fully qualified name — there is no `using` and no unqualified fallback. |
+| `DreamShaderFn_Name` | the same `Function` — its generated HLSL symbol name is accepted as an alias |
+| trailing path segment | for a block declared `Name="Functions/F_Tint"`, the segment after the final `/` — `F_Tint` |
+
+There is no overload resolution. Names are not distinguished by argument count or type; the first
+declaration whose name matches wins.
+
+## Value form
+
+```c
+float L = Luma(BaseColor);
+vec3  C = Common::ApplyTint(BaseColor, Tint);
+vec3  N = F_Normal(uv, Output="Normal");
+```
+
+| Kind | Requirements |
+| :-- | :-- |
+| `Function` | Exactly one declared output, otherwise `DreamShader Function '{Name}' has {Count} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB).` The argument count must equal the declared input count **exactly**. |
+| `GraphFunction` | The same two rules, plus an active `Graph` build context. Internally the call is rewritten as a statement call whose out target is a generated temporary named `__ds_<function name>_value<N>`. |
+| `ShaderFunction` family, `VirtualFunction` | Any output count. Exactly one output is selected — implicitly when only one is declared, otherwise with `Output=` / `OutputName=` / `OutputIndex=`. Optional inputs may be omitted or passed as `default`. |
+
+A call result is an ordinary postfix expression, so it can be swizzled directly:
+`SampleTexture2D(Albedo, uv).rgb`.
+
+## Statement form
+
+```c
+F_PulseTint(BaseColor, Tint, TintedColor, PulseAmount);
+```
+
+Multi-output `ShaderFunction` / `VirtualFunction` statement calls are available <Since v="1.3.5" />.
+
+Arguments are **inputs first, then one out target per output**, in declaration order. Every declared
+output must receive a target — there is no way to discard one.
+
+| Kind | Arity rule |
+| :-- | :-- |
+| `Function`, `GraphFunction` | exact: `inputs + outputs`. `DreamShader Function '{Name}' expects {Total} arguments ({Inputs} inputs, {Outputs} out targets) but got {Got}.` |
+| `ShaderFunction` family, `VirtualFunction` | at least as many arguments as outputs; the leading `arguments − outputs` are inputs and must not exceed the declared input count. Every input not covered must be declared `opt`, otherwise `{Kind} '{Name}' is missing required input '{Input}'.` |
+
+### Out-target rules
+
+| Rule | Failure |
+| :-- | :-- |
+| each out target is a **plain variable name** — not an expression, a member path or a swizzle | `DreamShader Function '{Name}' out argument {Index} must be a plain variable name.` *(1-based)* |
+| the name is non-empty after trimming | `DreamShader Function '{Name}' has an empty out target name.` |
+| the names are distinct within one call, compared **case-sensitively** | `DreamShader Function '{Name}' cannot write multiple out results into '{Target}' in the same call.` |
+
+An out target does not need to exist beforehand and does not need to be declared. Each target is
+bound in the current scope to the call's output with that output's declared shape, **replacing** any
+previous value of that name without a type check. Declare the variable first if a specific width
+matters.
+
+<Callout type="info">
+Out targets are compared case-sensitively for uniqueness, but Graph variables are looked up
+case-insensitively. `F(a, Result, result)` therefore passes the uniqueness check and then binds two
+entries whose later reads resolve to whichever the case-insensitive scan finds first. Use one
+spelling.
+</Callout>
+
+## Arguments
+
+### Positional and named
+
+| Callee | Positional | Named | Mixing |
+| :-- | :-- | :-- | :-- |
+| `Function`, value or statement | required | rejected: `DreamShader Function '{Name}' currently uses positional arguments only.` | — |
+| `GraphFunction`, value or statement | required | rejected: `DreamShader GraphFunction '{Name}' currently uses positional arguments only.` | — |
+| `ShaderFunction` family / `VirtualFunction`, **value** form | allowed | allowed | **forbidden** — `{Kind} '{Name}' input arguments cannot mix positional and named forms.` |
+| `ShaderFunction` family / `VirtualFunction`, **statement** form | required | rejected: `{Kind} '{Name}' statement calls currently use positional arguments only.` | — |
+| input-bearing parameter | rejected: `Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...)).` | required | — |
+| `StaticSwitchParameter` | allowed — index 0 is the true branch, index 1 the false branch | allowed — `True`/`A`, `False`/`B` | allowed |
+
+Argument names are normalised before comparison: trimmed, then lower-cased. `Coordinates=`,
+`coordinates=` and ` COORDINATES =` are the same argument. Positional arguments are indexed among the
+**unnamed** arguments only, so a positional index skips over any named argument that precedes it.
+
+The no-mixing rule is per call, not per argument: if *any* argument is named, *no* positional
+argument may appear. A named argument matching no declared input fails with
+`{Kind} '{Name}' does not have an input named '{Argument}'.`; too many positional arguments fail with
+`{Kind} '{Name}' received {Got} positional input argument(s), but only {Declared} input(s) are declared.`
+
+Every input argument is coerced to the input's declared type, with the usual silent narrowing — see
+[Conversions](/en/docs/graph/expressions#conversions).
+
+### `default`
+
+<Since v="1.2.3" /> `default` is a bare identifier, matched case-insensitively, that explicitly
+requests an optional input's declared default instead of supplying a value.
+
+| Situation | Behaviour |
+| :-- | :-- |
+| `default` for an input declared `opt` | the input pin is left unconnected; the function's own default applies |
+| `default` for a required input | `{Kind} '{Name}' input '{Input}' is not optional and cannot use default.` |
+| `default` in a `Function` / `GraphFunction` call | not recognised — evaluated as an ordinary identifier and fails with `Unknown Graph identifier 'default'.` |
+
+Omitting a trailing optional input entirely has the same effect as passing `default`.
+
+```c
+float3 tinted = F_Tint(BaseColor, default, Output="OutColor");
+```
+
+## Output selection
+
+`Output`, `OutputName` and `OutputIndex` are reserved named arguments on the **value form** of
+`ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` and `VirtualFunction` calls. They are removed
+from the input argument list before inputs are bound.
+
+| Argument | Accepts | Meaning |
+| :-- | :-- | :-- |
+| `Output` | a literal | select the output whose declared name matches, case-insensitively |
+| `OutputName` | a literal | exact synonym of `Output` |
+| `OutputIndex` | an integer literal | select by 0-based index into the declared `Outputs` list |
+
+```c
+float value = F_MultiOutput(Input=Mask, Output="Height");
+float other = F_MultiOutput(Input=Mask, OutputIndex=1);
+```
+
+| Rule | Failure |
+| :-- | :-- |
+| `Output`/`OutputName` and `OutputIndex` are mutually exclusive | `{Kind} '{Name}' cannot use OutputName/Output together with OutputIndex.` |
+| neither given while more than one output is declared | `{Kind} '{Name}' exposes multiple outputs. Specify Output="Name" or OutputIndex=N.` |
+| `OutputIndex` must be an integer literal within range | `{Kind} '{Name}' OutputIndex is out of range.` |
+| `Output` / `OutputName` must be a literal, not an expression | `{Kind} '{Name}' OutputName must be a literal value.` |
+| the name must match a declared output | `{Kind} '{Name}' does not expose an output named '{Output}'.` |
+| the selected output must exist on the loaded asset — matched by name first, then by ordinal | `{Kind} '{Name}' output '{Output}' does not exist on MaterialFunction asset '{Asset}'.` |
+
+<Callout type="warn">
+These three names are **not** available on `Function` or `GraphFunction` calls, which reject named
+arguments outright — a multi-output `Function` must use the statement form with explicit out targets.
+They are also unavailable in the statement form of every kind, for the same reason.
+</Callout>
+
+`UE.Expression(…)` accepts the same three selectors with the same rules; see
+[UE.Expression](/en/docs/builtins/ue-expression).
+
+### `BreakOutFloatNComponents`
+
+A `VirtualFunction` call whose declared name is `BreakOutFloat2Components`,
+`BreakOutFloat3Components` or `BreakOutFloat4Components` (case-insensitive) is **inlined as a
+swizzle** instead of generating a `MaterialFunctionCall` node, provided it has a usable first input
+argument and an output selector:
+
+| Output name | Channel |
+| :-- | --: |
+| `x`, `r` | 0 |
+| `y`, `g` | 1 |
+| `z`, `b` | 2 |
+| `w`, `a` | 3 |
+
+`OutputIndex=` selects the same channel by index. If any precondition is unmet — a `default` first
+argument, both selectors given, no selector at all — the call falls through to the ordinary
+`MaterialFunctionCall` path.
+
+## Calling a parameter
+
+### Input-pin wiring
+
+<Since v="1.4.1" /> A declared parameter whose node owns input pins may be "called" to wire those
+pins. The call materialises the parameter node exactly as a bare reference does and connects each
+named argument to the input pin of the same name. The node is cached under the parameter's name, so a
+later bare reference shares the configured node.
+
+The complete list of parameter node types that accept this form:
+
+| | | |
+| :-- | :-- | :-- |
+| `ChannelMaskParameter` | `StaticComponentMaskParameter` | `TextureSampleParameter2D` |
+| `TextureSampleParameter2DArray` | `TextureSampleParameterCube` | `TextureSampleParameterCubeArray` |
+| `TextureSampleParameterVolume` | `TextureSampleParameterSubUV` | `RuntimeVirtualTextureSampleParameter` |
+| `SparseVolumeTextureSampleParameter` | | |
+
+Pin names use the same normalisation as argument names. Every argument must be named, and every value
+must be numeric.
+
+<Callout type="warn">
+Only the `TextureSampleParameter*` family — and the other node types above — own input pins. A
+compact `Texture2D` property is a texture *object* parameter and has none, so it cannot be called
+this way.
+
+Asset slots are not call arguments either. The texture, curve or font a sampler parameter points at
+is set with `[TextureSlot=Path(…)]`-style declaration metadata. Passing one as a call argument fails
+with `Parameter '{Name}' ({NodeType}) has no input pin named '{Argument}'. Asset slots (Texture/Curve/Font/...) are set via [{Argument}=Path(...)] metadata, not call arguments.`
+See [Property Types](/en/docs/parameters/properties) and [Metadata and Groups](/en/docs/parameters/metadata).
+</Callout>
+
+```c
+Properties = {
+    TextureSampleParameter2D Albedo = Path(Game, "Textures/T_Albedo");
+}
+
+Graph = {
+    vec2 UV  = UE.TexCoord(Index = 0);
+    vec4 Tex = Albedo(Coordinates = UV);
+}
+```
+
+### `StaticSwitchParameter`
+
+<Since v="1.2.3" /> A `StaticSwitchParameter` property does **not** resolve as a bare identifier — it
+needs its two branches, so it is readable only through the call form.
+
+| Branch | Argument names, in lookup order |
+| :-- | :-- |
+| true | `True=`, then `A=`, then positional index 0 |
+| false | `False=`, then `B=`, then positional index 1 |
+
+Both branches must be present, must not be texture objects or `Substrate` values, must agree on the
+`MaterialAttributes` flag, and must have the same component count.
+
+```c
+Properties = {
+    StaticSwitchParameter UseDetail = true [
+        Group="Switches";
+        SortPriority=30;
+    ];
+}
+
+Graph = {
+    vec3 Albedo = UseDetail(True = DetailColor, False = BaseColor);
+}
+```
+
+Because the switch is resolved at shader-permutation time rather than per pixel, this is the cheap
+alternative to an `if` when the choice is a material setting rather than a computed value.
+
+## Recursion and nesting
+
+| Situation | Behaviour |
+| :-- | :-- |
+| `GraphFunction` calling itself, directly or indirectly | detected at build time: `GraphFunction cycle detected: {Path}.` with the active call stack joined by ` -> `; names compared case-insensitively |
+| `Function` marked `SelfContained` / `Inline` calling itself | `SelfContained Function cycle detected: {Path}. HLSL Custom nodes cannot compile recursive DreamShader functions.` |
+| nested calls in one expression | legal — arguments are ordinary expressions, so `F(G(x), 2.0)` works for any callable kind |
+| a call used as an `Outputs` binding expression | legal — bindings are full expressions |
+
+## Which calls are reused
+
+| Call kind | Deduplicated |
+| :-- | :-- |
+| `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` / `VirtualFunction` | **yes**, keyed on the argument list plus the asset path, with a second key per selected output — so the node is shared across calls that differ only in which output they read |
+| generic reflected `UE.*` (`UE.Expression`, and any `UE.<Name>` that is not a registered sugar builtin) and every `Substrate.*` call | **yes** |
+| math builtins | **yes** |
+| registered `UE.*` sugar builtins and `UE.CollectionParam` | **no** — dispatched before any key is computed, so every call site gets a fresh node |
+| `Function` and `GraphFunction` | **no** — the generated `Custom` node is built fresh per call site |
+| `UE.Expression` whose resolved class derives from `UMaterialExpressionCustom` | **no** — explicitly exempt |
+| `StaticSwitchParameter` calls | **no** |
+
+Because positional arguments are keyed by index, `F_Tint(a, b)` and `F_Tint(b, a)` are different
+keys; because argument names are normalised, `F_Tint(Color = a)` and `F_Tint(color = a)` are the
+same. If any argument produces no key token, the whole call is not cached and the node is always
+created.
+
+## Diagnostics
+
+<Diag>
+  <D msg="Unknown Graph function '{Name}'." cause="The call name matched nothing on any surface — often a misspelled constructor such as vec1 or mat3." href="/en/docs/graph/expressions" />
+  <D msg="Graph calls must target a named function." cause="The callee is not an identifier or a :: / . qualified name." />
+  <D msg="Graph call '{Name}' is ambiguous because multiple definitions use that name: {Kinds}." cause="Two or more declaration kinds declare the same name." fix="Rename one of them, or qualify the Function with its Namespace." />
+  <D msg="Graph expression statements currently support only Function calls with explicit out arguments." cause="A statement that is not a call at all." href="/en/docs/graph/unsupported" />
+  <D msg="Graph expression statement '{Name}' is unsupported. Only DreamShader Function, GraphFunction, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction calls may use statement syntax." cause="A statement call to a builtin, a constructor or a parameter." fix="Assign the result instead: v = UE.Time();" />
+  <D msg="DreamShader Function '{Name}' has {Count} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB)." cause="Value form on a multi-output Function." fix="Use the statement form with one out target per output." />
+  <D msg="DreamShader Function '{Name}' returns one value and expects {Expected} input argument(s) when used as a value expression, but got {Got}." cause="Wrong argument count in the value form." />
+  <D msg="DreamShader Function '{Name}' currently uses positional arguments only." cause="A named argument on a Function or GraphFunction call." />
+  <D msg="DreamShader Function '{Name}' out argument {Index} must be a plain variable name." cause="An out target that is not a bare identifier." />
+  <D msg="DreamShader Function '{Name}' cannot write multiple out results into '{Target}' in the same call." cause="The same out target used twice." />
+  <D msg="DreamShader Function '{Name}' input '{Input}': {Error}" cause="An input argument failed to evaluate or to coerce to the declared type." href="/en/docs/graph/expressions" />
+  <D msg="GraphFunction cycle detected: {Path}." cause="Direct or indirect GraphFunction recursion." />
+  <D msg="DreamShader GraphFunction '{Name}' contains an unterminated UE.* call." cause="A UE. call in the body has no closing )." />
+  <D msg="{Kind} '{Name}' input arguments cannot mix positional and named forms." cause="Both argument forms present in one value call." />
+  <D msg="{Kind} '{Name}' is missing required input '{Input}'." cause="A non-opt input received no argument." fix="Pass a value, or declare the input opt." />
+  <D msg="{Kind} '{Name}' exposes multiple outputs. Specify Output=&quot;Name&quot; or OutputIndex=N." cause="Value form on a multi-output material function with no selector." />
+  <D msg="{Kind} '{Name}' does not expose an output named '{Output}'." cause="No declared output has that name." />
+  <D msg="{Kind} '{Name}' output '{Output}' does not exist on MaterialFunction asset '{Asset}'." cause="The declaration and the loaded asset disagree about the outputs." fix="Regenerate the asset, or fix the declaration." />
+  <D msg="{Kind} '{Name}' could not load MaterialFunction asset '{Asset}'." cause="The generated or referenced asset is missing." href="/en/docs/generation/asset-paths" />
+  <D msg="VirtualFunction '{Name}' asset reference is invalid: {Error}" cause="Options.Asset did not resolve to a UMaterialFunction." href="/en/docs/parameters/path" />
+  <D msg="Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...))." cause="A positional argument in a parameter pin call." />
+  <D msg="Parameter '{Name}' ({NodeType}) has no input pin named '{Argument}'. Asset slots (Texture/Curve/Font/...) are set via [{Argument}=Path(...)] metadata, not call arguments." cause="The argument name matches no input pin on the node." href="/en/docs/parameters/metadata" />
+  <D msg="StaticSwitchParameter '{Name}' requires True=... and False=... inputs." cause="One or both branches missing." />
+  <D msg="StaticSwitchParameter '{Name}' branches must have the same component count, got {Left} and {Right}." cause="The two branches have different widths." />
+</Diag>
+
+The complete cross-stage list is in the [diagnostics index](/en/docs/diagnostics).
+
+## Example
+
+```c
+import "Helpers.dsh";
+
+Shader(Name="Docs/M_Calls")
+{
+    Properties {
+        vec3                     Tint    = vec3(1.0, 0.4, 0.1);
+        TextureSampleParameter2D Albedo  = Path(Game, "Textures/T_Albedo");
+        StaticSwitchParameter    UseTint = true;
+    }
+
+    Settings {
+        Domain       = "Surface";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        vec2 UV  = UE.TexCoord(Index = 0);
+
+        // Parameter pin call: wires the sampler's Coordinates pin.
+        vec4 Tex = Albedo(Coordinates = UV);
+
+        // Value form, single-output Function declared in Helpers.dsh.
+        float L  = Luma(Tex.rgb);
+
+        // Value form, namespaced Function.
+        vec3 Lit = Common::ApplyTint(Tex.rgb, Tint);
+
+        // Statement form: two out targets, inputs first. The targets need no declaration.
+        PulseTint(Lit, Tint, Pulsed, Amount);
+
+        // StaticSwitchParameter call selects between the two.
+        Color = UseTint(True = Pulsed, False = vec3(L, L, L));
+    }
+}
+```
+
+`Helpers.dsh`:
+
+```c
+Function float Luma(in vec3 color) { return dot(color, float3(0.299, 0.587, 0.114)); }
+
+Function PulseTint(in vec3 color, in vec3 tint, out vec3 result, out float amount) {
+    amount = 0.5 + 0.5 * sin(color.r * 6.28318);
+    result = color * tint * amount;
+}
+
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```text
+TextureCoordinate                      -> UV
+TextureSampleParameter2D  Albedo       -> Tex          (Coordinates pin wired to UV)
+Custom  "Luma"                         -> L
+Custom  "Common::ApplyTint"            -> Lit
+Custom  "PulseTint"                    -> Pulsed (output 0), Amount (output 1)
+StaticSwitchParameter  UseTint         -> Color
+```
+
+The two additional output pins on the `PulseTint` Custom node are named after the **caller's** out
+variables, not after the declared result names.
+
+## See also
+
+- [Functions](/en/docs/language/functions) — declaring `Function`, `GraphFunction` and `Namespace`
+- [Imports and Namespaces](/en/docs/language/imports) — where `::` names come from
+- [Property Types](/en/docs/parameters/properties) — which parameters own input pins
+- [Statements](/en/docs/graph/statements) — the statement-form call as a statement
+- [Expressions and Conversions](/en/docs/graph/expressions) — how a call fits into the expression grammar
+- [UE.Expression](/en/docs/builtins/ue-expression) — the generic node builtin and its output selectors

@@ -1,0 +1,671 @@
+---
+title: 运算符与转换
+description: 四个运算符及其优先级、字面量、构造器、swizzle，以及决定一个值何时被静默改变宽度的转换规则。
+---
+
+Graph 语言产生值的那一半：字面量、标识符、调用、成员访问和四个算术运算符，最终求值成
+`UMaterialExpression` 节点。本页内容同样适用于 `Outputs` 绑定表达式和 `Outputs` 声明默认值——它们就是
+同一套文法下的单条表达式。
+
+## 语法概要
+
+<Synopsis>
+```c
+<expression>     := <additive>
+<additive>       := <multiplicative> [ { + | - } <multiplicative> ] …
+<multiplicative> := <unary> [ { * | / } <unary> ] …
+<unary>          := { + | - } <unary> | <postfix>
+<postfix>        := <primary> [ <postfix-op> ] …
+<postfix-op>     := . <identifier> | :: <identifier> | ( [ <argument> [ , <argument> ] … ] )
+<primary>        := <identifier> | <number-literal> | <string-literal> | ( <additive> )
+<argument>       := [ <identifier> = ] <additive>
+```
+</Synopsis>
+
+这就是全部文法。`( ) , . :: = + - * /` 是它认识的全部标点。
+
+## 优先级与结合性
+
+绑定最紧的排在最前。解析器实现的就是这四层，没有第五层。
+
+| 层级 | 运算符 | 元数 | 结合性 | 说明 |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 | `f(…)` 调用、`.member`、`::name` | 后缀 | 左 | 可自由串联：`A::F(x).rgb.b` |
+| 2 | `+` `-` | 一元前缀 | 右 | 可递归，所以 `--x` 能解析且合法 |
+| 3 | `*` `/` | 二元 | 左 | `a / b / c` 是 `(a / b) / c` |
+| 4 | `+` `-` | 二元 | 左 | `a - b - c` 是 `(a - b) - c` |
+| — | `( … )` 分组 | — | — | 覆盖上面各层；不产生节点 |
+
+### 不存在的运算符
+
+| 类别 | 文法中不存在的写法 |
+| :-- | :-- |
+| 取模 | `%` —— 请用 `fmod` / `mod` 内置 |
+| 比较 | `==` `!=` `<` `>` `<=` `>=` —— **只**在 `if` 条件里合法 |
+| 逻辑 | `&&` `\|\|` `!` |
+| 位运算 / 移位 | `&` `\|` `^` `~` `<<` `>>` |
+| 条件 | `? :` |
+| 自增 / 自减 | `++` `--` |
+| 复合赋值 | `+=` `-=` `*=` `/=` |
+| 表达式内赋值 | `=`，命名调用参数除外 |
+| 下标 | `[ ]` —— 请用 [swizzle](#swizzle) |
+| 逗号运算符 | `,`，调用参数表除外 |
+| 矩阵类型与运算 | 本语言任何地方都不存在 |
+
+<Callout type="warn">
+**无法识别的字符会静默终止表达式。** 分词器把每个不认识的字符都映射成输入结束记号，而解析器接受
+"一条表达式后面跟着输入结束"。于是 `a % b` 编译成 `a`，`a && b` 编译成 `a`，`v[0]` 编译成 `v`——
+没有任何诊断。有两个位置会报错：位于开头的未知字符（`!x`）会报错，括号内的未知字符（`(a % b)`）也会
+报错，因为找不到 `)`。把可疑表达式套上括号，是让截断暴露出来的可靠办法。完整清单见
+[不支持的写法](/docs/graph/unsupported)。
+</Callout>
+
+## 操作数规则
+
+`+ - * /` 的两个操作数按此顺序检查。
+
+| # | 检查 | 失败时 |
+| --: | :-- | :-- |
+| 1 | 两个操作数都不是纹理对象 | `Arithmetic operators cannot be applied to texture values.` |
+| 2 | 两个操作数都不是 `MaterialAttributes` 值 | `Arithmetic operators cannot be applied to MaterialAttributes values.` |
+| 3 | 两个操作数都不是 `Substrate` 值 | `Arithmetic operators cannot be applied to Substrate values.` |
+| 4 | 分量数相等，**或**其中一个是标量 | 尝试一次挽救（规则 5），然后走规则 6 |
+| 5 | 挽救：若恰好一个操作数带权威分量数，另一个可以被**加宽**到它 | 跳过挽救 |
+| 6 | 重新检查兼容性 | `Operator '{Op}' requires matching vector sizes or a scalar/vector pair, got {Left} and {Right} component(s).` |
+
+规则 5 的完整含义：被加宽的必须是*不带*权威分量数的那一个，权威分量数必须大于零，另一个操作数的分量数
+必须**小于或等于**它。运算符处从不尝试收窄——在这里丢通道是被刻意拒绝的，宁可让尺寸错误暴露出来。
+
+这里没有单独的标量提升步骤。标量操作数原样传给材质节点，由 Unreal 自行复制，所以 `A` 是 `vec3`、`K` 是
+`float` 时 `A * K` 只产生一个 `Multiply` 节点，而不是先 `AppendVector` splat。
+
+### 二元运算符的结果
+
+| 属性 | 取值 |
+| :-- | :-- |
+| 节点 | `Add` / `Subtract` / `Multiply` / `Divide` |
+| 分量数 | 规则 5 之后的 `max(left, right)` |
+| 权威分量数 | 只要**任一**操作数带有就置位 |
+| 输入通道掩码 | 清空——结果是全宽度值 |
+| 整数标记 | **不**传播；任何运算符的结果都不是整数 |
+
+## 一元运算符
+
+| 形式 | 降级为 | 节点开销 | 结果 |
+| :-- | :-- | :-- | :-- |
+| `+x` | 恒等 | 无 | `x` 原样返回，所有标志位保留 |
+| `-x` | `Multiply(x, Constant(-1))` | 一个 `Multiply`，外加一个与资产内所有一元负号共享的 `Constant` | `x` 的分量数 |
+
+表达式求值器**不会**把 `-2.0` 折叠成负字面量：它变成 `Constant(2.0) * Constant(-1)`。但在**构造器参数**
+内部会被折叠，因为常量折叠接受字面量前的一元 `+` 或 `-`——`vec3(-1.0, 0.0, 1.0)` 只产生一个
+`Constant3Vector`。
+
+## 整数除法
+
+`/` 是唯一带额外类型规则的运算符：
+
+```text
+Integer division is not supported by the material graph; use float() or floor(a/b).
+```
+
+它在**两个**操作数都带整数标记时触发。这个标记只由一件事设置：直接调用整数构造器（`int`、`int2..4`、
+`ivec2..4`、`uint`、`uint2..4`、`uvec2..4`）。字面量不会设置它，变量不会，`3u` 这类带后缀的字面量不会，
+任何运算符的结果也不会。
+
+| 表达式 | 结果 |
+| :-- | :-- |
+| `int(7) / int(2)` | 报错 |
+| `int(7) / 2` | 允许——`2` 是字面量，不带标记 |
+| `7 / 2` | 允许——浮点 `Divide`，结果 `3.5` |
+| `float(int(7)) / int(2)` | 允许——每次构造器调用都按自身名字设置标记，所以 `float(…)` 清掉了它 |
+| `int a = int(7); int b = int(2); a / b` | 报错——标记随变量传递 |
+| `int a = 7; int b = 2; a / b` | 允许——`int` *声明类型*不设标记，只有 `int(…)` *调用*才设 |
+
+<Callout type="info">
+这个标记存在的唯一目的就是拒绝这一种情况。除此之外 `int`、`uint`、`bool` 和 `half` 在生成图里与 `float`
+毫无区别——没有整数运算，也没有截断。
+</Callout>
+
+## 字面量
+
+### 数值字面量
+
+<Synopsis>
+```c
+<number-literal> := { <digit> | . } … [ { e | E } [ { + | - } ] <digit> … ] [ <suffix> ]
+<suffix>         := { f | F | h | H | u | U | l | L }
+```
+</Synopsis>
+
+每个数值字面量都是**1 分量浮点值**。不存在整数字面量类型。
+
+| 写法 | 值 | 结果 |
+| :-- | :-- | :-- |
+| `1` | 1.0 | `Constant`，1 分量 |
+| `1.0` | 1.0 | 与 `1` **同一个** `Constant` 节点 |
+| `.5` | 0.5 | `Constant`——允许前导 `.` |
+| `1e-3` | 0.001 | `Constant` |
+| `2.5E+2` | 250.0 | `Constant` |
+| `0.55f` | 0.55 | `Constant`——后缀被剥掉 |
+| `3u` | 3.0 | `Constant`——**不是**整数值 |
+| `0.5.5` | 0.5 | `Constant`——转换保留最长的合法前缀，**静默丢弃**其余部分 |
+| `0x10` | — | 报错：`Unexpected token 'x10' in Graph expression.` |
+| `1.0fx` | — | 报错：`Unexpected token 'fx' in Graph expression.` |
+| `3ul` | — | 报错：`Unexpected token 'ul' in Graph expression.` |
+
+词法细节：
+
+- 数字和 `.` 会被贪婪地吞进同一个记号。**多个 `.` 是被接受的**，而数值转换很宽容：它取最长的合法前缀，
+  把余下部分丢掉且不报诊断，所以 `0.5.5` 是 `0.5`，`0..5` 是 `0`。
+- 最多消耗**一个**指数。第二个 `e` / `E` 会终止该记号并开始一个标识符。
+- **没有**十六进制、二进制或八进制写法，也没有数字分隔符。
+- 前导 `-` 不属于字面量，它是一元负号运算符。
+
+`f F h H u U l L` 这八个后缀会被消耗并排除在记号文本之外。它们没有任何语义效果——不改类型、不改宽度、
+不改整数标记。只允许一个后缀字符，而且只有当它后面的字符既非字母数字也非 `_` 时才被消耗。这就是
+`0.55f;` 与 `1.0fx` 的区别。
+
+### 字符串字面量
+
+字符串字面量在分词时解码转义，且**永远不会求值成一个值**。它只在参数处理器读取字面*文本*而非对其求值的
+地方合法：`UE.*` 或 `Substrate.*` 的命名参数、`Output=` / `OutputName=` 选择器，或 `Path(…)` 资产引用。
+
+| 转义 | 产生 |
+| :-- | :-- |
+| `\n` | 换行 |
+| `\r` | 回车 |
+| `\t` | 制表符 |
+| `\"` | `"` |
+| `\\` | `\` |
+| `\` + 任意其他字符 | 该字符本身，反斜杠丢弃 |
+
+```c
+vec4 Scene = UE.SceneTexture(Id = "PostProcessInput0");   // 可以
+float x    = "0.5";   // String literals can only be used in named UE builtin arguments.
+```
+
+<Callout type="info">
+**未闭合**的字符串字面量不会被诊断。词法器一直吞到输入结束，把收集到的内容作为字符串记号发出；错误随后
+以缺少 `)` 或语句被截断的形式浮现。
+</Callout>
+
+### 布尔字面量
+
+`true` 和 `false` *（未发布）* 按普通标识符词法处理，并且**很晚**才解析——排在 Graph 变量和已声明属性
+之后。它们产生一个 1 分量的 `UMaterialExpressionStaticBool` 节点，匹配不区分大小写，也是从 `Graph` 块里
+给 `StaticSwitch` 输入或 `StaticBool` 函数输入供值的唯一方式。
+
+<Callout type="warn">
+因为它们排在变量和属性之后解析，一个叫 `True` 或 `False` 的 Graph 变量或已声明属性会静默遮蔽这个字面量。
+请避免使用这些名字。
+</Callout>
+
+## 标识符解析
+
+裸标识符按顺序在三个表面上查找：
+
+| 顺序 | 表面 | 大小写 | 结果 |
+| --: | :-- | :-- | :-- |
+| 1 | 已存在的 Graph 值——声明的、赋值的，或本作用域内已物化的参数 | 不敏感 | 存储的值 |
+| 2 | 已声明的属性或参数——先函数局部 `Properties`，再所在块的 `Properties` | 不敏感 | 参数节点，首次读取时创建并按属性声明名缓存 |
+| 3 | `true` / `false` | 不敏感 | 一个 `StaticBool` 节点 |
+| 4 | 无匹配 | — | `Unknown Graph identifier '{Name}'.` |
+
+步骤 1 先比对精确拼写，再退化为不区分大小写扫描。步骤 2 是参数变成节点的地方：它在首次读取时惰性创建
+并插入值表，之后每次读取都由步骤 1 服务。
+
+<Callout type="info">
+`StaticSwitchParameter` 属性刻意**不**作为裸标识符解析——它需要两个分支。按名字读取会失败并报
+`Unknown Graph identifier '{Name}'.`，请改用调用形式。见
+[调用](/docs/graph/calls#staticswitchparameter)。
+</Callout>
+
+Graph 变量*查找*不区分大小写，但值表是按赋值时使用的拼写建键的。`float3 Color = …;` 后面跟
+`color = …;` 会写入**第二个**条目；之后的读取取精确匹配找到的那个，否则退回第一个不区分大小写命中项。
+每个变量请只用一种拼写。
+
+## 构造器
+
+<Synopsis>
+```c
+<constructor-call> := <constructor-name> ( <expression> [ , <expression> ] … )
+```
+</Synopsis>
+
+共 **34 个名字**，全部不区分大小写。分量数完全由名字的**最后一个字符**决定：`2` → 2，`3` → 3，
+`4` → 4，其余 → 1。
+
+| 名字 | 分量数 | 带整数标记 | 家族 |
+| :-- | --: | :-- | :-- |
+| `float` | 1 | 否 | HLSL float |
+| `float1` | 1 | 否 | HLSL float |
+| `float2` | 2 | 否 | HLSL float |
+| `float3` | 3 | 否 | HLSL float |
+| `float4` | 4 | 否 | HLSL float |
+| `half` | 1 | 否 | HLSL half——行为与 `float` 完全相同 |
+| `half1` | 1 | 否 | HLSL half |
+| `half2` | 2 | 否 | HLSL half |
+| `half3` | 3 | 否 | HLSL half |
+| `half4` | 4 | 否 | HLSL half |
+| `vec2` | 2 | 否 | GLSL 浮点向量 |
+| `vec3` | 3 | 否 | GLSL 浮点向量 |
+| `vec4` | 4 | 否 | GLSL 浮点向量 |
+| `int` | 1 | **是** | HLSL 有符号整数 |
+| `int2` | 2 | **是** | HLSL 有符号整数 |
+| `int3` | 3 | **是** | HLSL 有符号整数 |
+| `int4` | 4 | **是** | HLSL 有符号整数 |
+| `ivec2` | 2 | **是** | GLSL 有符号整数向量 |
+| `ivec3` | 3 | **是** | GLSL 有符号整数向量 |
+| `ivec4` | 4 | **是** | GLSL 有符号整数向量 |
+| `uint` | 1 | **是** | HLSL 无符号整数 |
+| `uint2` | 2 | **是** | HLSL 无符号整数 |
+| `uint3` | 3 | **是** | HLSL 无符号整数 |
+| `uint4` | 4 | **是** | HLSL 无符号整数 |
+| `uvec2` | 2 | **是** | GLSL 无符号整数向量 |
+| `uvec3` | 3 | **是** | GLSL 无符号整数向量 |
+| `uvec4` | 4 | **是** | GLSL 无符号整数向量 |
+| `bool` | 1 | 否 | HLSL 布尔 |
+| `bool2` | 2 | 否 | HLSL 布尔 |
+| `bool3` | 3 | 否 | HLSL 布尔 |
+| `bool4` | 4 | 否 | HLSL 布尔 |
+| `bvec2` | 2 | 否 | GLSL 布尔向量 |
+| `bvec3` | 3 | 否 | GLSL 布尔向量 |
+| `bvec4` | 4 | 否 | GLSL 布尔向量 |
+
+看起来该有、实际没有的名字：`vec1`、`ivec1`、`uvec1`、`bvec1`（GLSL 家族从 2 开始）；`int1`、`uint1`、
+`bool1`（只有 `float1` 和 `half1` 有 `1` 的拼法）；`hvec2..4`（没有 GLSL half 家族）；`double`、
+`dvec2..4`；`float2x2`、`float3x3`、`float4x4`、`mat2`、`mat3`、`mat4`（本语言**任何地方都没有矩阵
+类型**）；以及已移除的别名 `Scalar`、`Vector`、`Color`。它们都按普通标识符词法处理，落到用户函数查找，
+最后报 `Unknown Graph function '{Name}'.`
+
+<Callout type="warn">
+**构造器名字会遮蔽一切。** 构造器检测是调用解析的*第一*步，排在 `UE.*`、`Substrate.*`、数学内置、参数和
+所有用户声明之前。一个叫 `float3`、`int`、`bool4` 或 `vec2` 的 `Function`、`GraphFunction`、
+`ShaderFunction` 或 `VirtualFunction` 可以毫无诊断地声明出来，却**永远无法被调用**——每个调用点构建的都是
+构造器。请改名。
+</Callout>
+
+### 参数规则
+
+参数从左到右求值，并在任何元数检查之前先过筛。
+
+| # | 条件 | 行为 |
+| --: | :-- | :-- |
+| 1 | 任一参数是命名参数，如 `float3(x = 1.0)` | 报错：`Constructor '{Name}' does not accept named arguments.` |
+| 2 | 任一参数是纹理对象 | 报错：`Constructor '{Name}' cannot use Texture2D arguments.` |
+| 3 | 任一参数是 `MaterialAttributes` 值 | 报错：`Constructor '{Name}' cannot use MaterialAttributes arguments.` |
+| 4 | 任一参数是 `Substrate` 值 | 报错：`Constructor '{Name}' cannot use Substrate arguments.` |
+
+然后，记构造器分量数为 `N`：
+
+| # | 情况 | 行为 | 节点 |
+| --: | :-- | :-- | :-- |
+| 5 | `N == 1`，恰好一个参数，且该参数正好 1 分量 | **原样**返回，再按名字设置整数标记 | 无 |
+| 6 | `N == 1`，其他情况 | 报错：`Constructor '{Name}' expects a single scalar input.` | — |
+| 7 | `N > 1`，恰好一个标量参数 | **splat**：复制 `N` 次 | N−1 个 `AppendVector` |
+| 8 | `N > 1`，恰好一个已经是 `N` 分量的参数 | 原样返回 | 无 |
+| 9 | `N > 1`，其他情况 | 各参数分量数之和必须**正好**等于 `N` | N−1 个 `AppendVector` |
+| 10 | `N > 1`，和 ≠ `N` | 报错：`Constructor '{Name}' expects {N} total components but got {Total}.` | — |
+
+规则 9 就是从左到右的通道拼接；只要总数精确，混合宽度完全没问题。
+
+| 调用 | 总数 | 合法 | 结果 |
+| :-- | :-- | :-- | :-- |
+| `float4(rgb, 1.0)` | 3 + 1 | 是 | `float4` |
+| `float4(uv, uv)` | 2 + 2 | 是 | `float4` |
+| `float3(x, yz)` | 1 + 2 | 是 | `float3` |
+| `vec3(0.5)` | 标量 splat | 是 | `(0.5, 0.5, 0.5)` |
+| `float3(rgba)` | 4 | **否** | `Constructor 'float3' expects 3 total components but got 4.` |
+| `float3(uv)` | 2 | **否** | `Constructor 'float3' expects 3 total components but got 2.` |
+| `float(rgb)` | 3 | **否** | `Constructor 'float' expects a single scalar input.` |
+| `float3()` | 0 | **否** | `Constructor 'float3' expects 3 total components but got 0.` |
+
+<Callout type="info">
+构造器**从不收窄**，也从不补零。`float3(rgba)` 是错误而不是截断——请写 `rgba.rgb`。`float3(uv)` 同样是
+错误——请写 `float3(uv, 0.0)`。加宽只发生在标量上。收窄只发生在[转换](#转换)一节列出的那些位置。
+</Callout>
+
+### 常量折叠
+
+当 `N >= 2`、名字不是整数构造器、且每个参数都是无名的数值字面量（可以带一个前导一元 `+` 或 `-`）时，
+整个调用会塌缩成一个常量向量节点。
+
+| 写法 | 折叠为 |
+| :-- | :-- |
+| `vec2(0.5, 1.0)` | `Constant2Vector(0.5, 1.0)` |
+| `vec3(0.5)` | `Constant3Vector(0.5, 0.5, 0.5)`——单个字面量先被复制到所有通道 |
+| `float4(1.0, 2.0, 3.0, -1.0)` | `Constant4Vector(1, 2, 3, -1)` |
+| `int3(1, 2, 3)` | **不折叠**——整数构造器被排除在外，以保住整数标记 |
+| `vec3(K, 0.0, 0.0)` | 不折叠——`K` 不是字面量 |
+
+折叠出来的节点是构造器结果中**唯一**带权威分量数的一种。折叠向量按值去重，所以 `vec3(0.5)` 写五次也只有
+一个 `Constant3Vector`。
+
+## Swizzle
+
+<Synopsis>
+```c
+<swizzle>  := <expression> . <channels>
+<channels> := <channel> [ <channel> ] [ <channel> ] [ <channel> ]
+<channel>  := { x | y | z | w | r | g | b | a }
+```
+</Synopsis>
+
+| 字符 | 通道索引 |
+| :-- | --: |
+| `x`、`X`、`r`、`R` | 0 |
+| `y`、`Y`、`g`、`G` | 1 |
+| `z`、`Z`、`b`、`B` | 2 |
+| `w`、`W`、`a`、`A` | 3 |
+
+只存在两套字符集：`xyzw` 和 `rgba`。没有 `stpq`，也没有 `uv`——`u` 和 `v` 都无法解析，所以 `.uv` 会失败。
+通道字符不区分大小写，而且**在一个 swizzle 里混用两套字符集是被接受的**：`.xg` 就是通道 0 和 1，
+和 `.xy` 完全一样。
+
+### 长度与边界
+
+| 规则 | 违反时 |
+| :-- | :-- |
+| 一到四个通道字符 | 5 个或更多：`Unsupported swizzle '{Channels}'.` |
+| 每个字符都必须解析出通道索引 | `Swizzle '{Channels}' is invalid for a value with {Count} components.` |
+| 每个通道索引都必须**小于**基值的分量数 | 同一条信息 |
+
+swizzle 只能收窄或重排，绝不能读到基值宽度之外。
+
+| 基值 | Swizzle | 结果 |
+| :-- | :-- | :-- |
+| `float4` | `.rgb` | `float3` |
+| `float3` | `.a` | 报错——通道 3 不小于 3 |
+| `float2` | `.xyz` | 报错 |
+| `float` | `.x`、`.r` | 基值原样返回 |
+| `float` | `.xx`、`.rrr` | splat 成 `float2` / `float3` |
+| `float` | `.y`、`.z`、`.w`、`.g`、`.b`、`.a` | **报错** |
+
+<Callout type="warn">
+**标量不会通过越界通道 splat。** 对标量参数写 `Roughness.yz` 是硬错误，而不是双分量广播：
+`Swizzle 'yz' is invalid for a value with 1 components.` 要广播标量，请重复通道 0（`Roughness.xx`）、
+使用构造器（`float2(Roughness)`），或者依赖赋值处的标量加宽。
+</Callout>
+
+### 降级策略
+
+三种策略，按此顺序尝试。
+
+| # | 适用条件 | 产生的节点 | 结果 |
+| --: | :-- | :-- | :-- |
+| 1 | 基值有表达式节点**且**通道索引严格递增无重复 | **无** | 该选择被记录为通道掩码，在值接到引脚时应用 |
+| 2 | 基值 2–4 分量，且掩码有重排或重复 | N−1 个 `AppendVector` | 每个通道各自变成单通道掩码值，再拼接起来 |
+| 3 | 基值 1 分量且所有通道都在范围内 | N−1 个 `AppendVector` | 标量被复制 N 次 |
+
+| Swizzle | 通道 | 策略 | 节点开销 |
+| :-- | :-- | :-- | --: |
+| `.r` / `.x` | 0 | 1 | 0 |
+| `.a` | 3 | 1 | 0 |
+| `.rg` / `.xy` | 0,1 | 1 | 0 |
+| `.rgb` / `.xyz` | 0,1,2 | 1 | 0 |
+| `.ga` | 1,3 | 1——递增，允许跳跃 | 0 |
+| `.xg` | 0,1 | 1——混用字符集仍然递增 | 0 |
+| `.rgba` | 0,1,2,3 | 1 | 0 |
+| `.gr` | 1,0 | 2 | 1 |
+| `.bgr` | 2,1,0 | 2 <Since v="1.3.3" /> | 2 |
+| `.xxx` | 0,0,0 | 2 | 2 |
+| `.rrgg` | 0,0,1,1 | 2 | 3 |
+| `float` 上的 `.rr` | 0,0 | 3 | 1 |
+
+"严格递增"判断的是底层节点的**源通道**，而不是写出来的字母。
+
+### 复合 swizzle
+
+对已经带掩码的值再做 swizzle，会经由已有掩码重新映射，所以编号永远相对于被 swizzle 的那个值，而不是原始
+节点。
+
+| 写法 | 含义 |
+| :-- | :-- |
+| `v.rgb.b` | `v` 的通道 2——`.rgb` 选出 0,1,2，再由 `.b` 取第 2 项 |
+| `v.ga.r` | `v` 的通道 1——`.ga` 选出 1,3，再由 `.r` 取第 0 项 |
+| `v.ga.g` | `v` 的通道 3 |
+| `v.bgr.r` | `v` 的通道 2 |
+
+只要结果仍然递增，复合就会折叠成单个掩码，所以 `v.rgb.rg` 完全不产生节点。选取外层列表里不存在的项，
+是相对*掩码后*宽度的普通越界失败：`v.ga.b` 报
+`Swizzle 'b' is invalid for a value with 2 components.`
+
+因为 `.` 是普通后缀运算符，任何调用结果都可以直接 swizzle，不需要临时变量：
+
+```c
+float u  = UE.TexCoord().x;
+vec3  c  = SampleTexture2D(Albedo, uv).rgb;
+vec2  yx = vec4(1.0, 2.0, 3.0, 4.0).yx;
+float m  = MyFunction(A, B).r;
+```
+
+### 不能 swizzle 的基值
+
+| 基值 | 行为 |
+| :-- | :-- |
+| `MaterialAttributes` | 不是 swizzle——成员名按材质属性解析，生成一次 `BreakMaterialAttributes` 读取 |
+| 纹理对象 | 报错：`Texture values do not support swizzle/member access in Code.` |
+| `Substrate` | 报错：`Substrate values do not support swizzle/member access in Graph.` |
+
+<Callout type="info">
+纹理那条信息写的是 "in Code"，`Substrate` 那条写的是 "in Graph"。两者出自同一个构建器；措辞早于
+`Code` → `Graph` 的 section 改名。
+</Callout>
+
+## 转换
+
+转换不是作者写出来的。它在任何"值遇到期望形状"的地方自动应用，也是生成材质里大多数静默宽度变化的成因。
+
+### 应用位置
+
+| # | 位置 | 期望形状来自 |
+| --: | :-- | :-- |
+| 1 | 带初始值的声明——`float3 c = A;` | 声明的类型 token，除非权威逃生口生效 |
+| 2 | 赋给已有 Graph 变量——`c = A;` | 该变量已有值的形状 |
+| 3 | 赋给匹配某个 `Outputs` 声明的名字——`Color = A;` | 该输出的声明类型 |
+| 4 | `MaterialAttributes` 成员写入——`Attrs.BaseColor = A;` | 该属性的分量数 |
+| 5 | `Function` / `GraphFunction` / `ShaderFunction` / `VirtualFunction` 的输入参数 | 该输入的声明类型 |
+| 6 | `if` 分支合并 | 分支前的值，否则 `Outputs` 声明，否则两个分支必须本来就一致 |
+| 7 | 二元运算符挽救 | 权威操作数的分量数——**只加宽** |
+| 8 | `Outputs` 绑定表达式 | 所绑定输出的声明类型 |
+
+赋给一个既不是已有变量也不是 `Outputs` 声明的名字时，**不做任何**转换：新变量直接带上该值自身的形状。
+
+### 规则顺序
+
+| # | 条件 | 行为 | 失败信息 |
+| --: | :-- | :-- | :-- |
+| 1 | 期望是 `MaterialAttributes` | 输入必须也是；原样通过 | `Expected a MaterialAttributes value.` |
+| 2 | 期望是 `Substrate` | 输入必须也是；原样通过 | `Expected a Substrate value.` |
+| 3 | 期望是纹理 | 输入必须是纹理对象 | `Expected a texture object value.` |
+| 3a | 两边都是纹理 | **维度**必须完全相同 | `Expected a texture object value with a matching texture type.` |
+| 4 | 输入是 `MaterialAttributes`，期望是数值 | 拒绝 | `MaterialAttributes values cannot be assigned to numeric outputs.` |
+| 5 | 输入是 `Substrate`，期望是数值 | 拒绝 | `Substrate values cannot be assigned to numeric outputs.` |
+| 6 | 输入是纹理对象，期望是数值 | 拒绝 | `Texture objects cannot be assigned to numeric outputs.` |
+| 7 | 分量数相等 | 原样通过，所有标志位保留 | — |
+| 8 | **收窄**——输入分量数大于期望 | 应用前导顺序 swizzle（`r`、`rg`、`rgb`）；**静默**，不产生节点 | — |
+| 9 | **从标量加宽**——期望大于 1 且输入为 1 | 经 `AppendVector` 复制 | — |
+| 10 | 其他情况 | 拒绝 | `Expected {Expected} component(s) but got {Actual}.` |
+
+纵向是输入宽度，横向是期望宽度：
+
+| 输入 \ 期望 | 1 | 2 | 3 | 4 |
+| :-- | :-- | :-- | :-- | :-- |
+| **1** | 不变 | splat，1 个 `AppendVector` | splat，2 个 `AppendVector` | splat，3 个 `AppendVector` |
+| **2** | `.r`，无节点 | 不变 | **报错** | **报错** |
+| **3** | `.r`，无节点 | `.rg`，无节点 | 不变 | **报错** |
+| **4** | `.r`，无节点 | `.rg`，无节点 | `.rgb`，无节点 | 不变 |
+
+跨种类的情况：
+
+| 期望 \ 输入 | 数值 | MaterialAttributes | Substrate | 纹理对象 |
+| :-- | :-- | :-- | :-- | :-- |
+| **MaterialAttributes** | 报错 | 通过 | 报错 | 报错 |
+| **Substrate** | 报错 | 报错 | 通过 | 报错 |
+| **Texture(T)** | 报错 | 报错 | 报错 | 维度为 `T` 时通过 |
+| **Numeric(N)** | 见上表 | 报错 | 报错 | 报错 |
+
+四种纹理维度是四种不同的期望形状。`Texture2D` 和 `SamplerState` 都表示 `Texture2D`；`Texture3D` 和
+`VolumeTexture` 都表示 `VolumeTexture`；`TextureCube` 和 `Texture2DArray` 各自独立。`TextureCube` 永远
+不会转换成 `Texture2D`。
+
+<Callout type="warn">
+**收窄是静默的。** 没有警告，也没有节点开销，因为它是用一个位于连线上的前导顺序 swizzle 实现的。
+
+```c
+vec4   Src = vec4(0.1, 0.2, 0.3, 0.4);
+float3 Rgb = Src;      // 静默变成 Src.rgb —— A 通道被丢弃
+float  R   = Src;      // 静默变成 Src.r
+```
+
+如果生成材质里少了某个通道，请检查所有右侧比目标更宽的赋值。显式写出 swizzle 能表明意图，行为完全相同。
+</Callout>
+
+收窄被刻意**排除**在以下位置之外：二元运算符的操作数（那里改为抛尺寸不匹配错误）、构造器参数、
+swizzle 边界。
+
+唯一的加宽规则是标量 splat。没有补零，也没有部分加宽：`float3 v = SomeFloat2;` 会报
+`Expected 3 component(s) but got 2.` 请用构造器说明多出来的通道装什么。
+
+### float、int 与 bool
+
+Graph 语言里根本没有数值表示层面的转换。
+
+| Token 家族 | 对转换意味着什么 |
+| :-- | :-- |
+| `float`、`float1..4`、`half`、`half1..4`、`vec2..4` | 1 / 2 / 3 / 4 分量 |
+| `int`、`int2..4`、`ivec2..4` | 同样是 1 / 2 / 3 / 4 分量——不截断、不舍入 |
+| `uint`、`uint2..4`、`uvec2..4` | 同样——不做范围钳制、不处理符号 |
+| `bool`、`bool2..4`、`bvec2..4` | 同样——不归一化到 0 或 1 |
+| `StaticBool`、`StaticBoolParameter` | 1 分量；自身不带任何标记 |
+
+所以 `int x = 7.9;` 存的就是 7.9——想截断请用 `floor(…)`；`bool b = 0.5;` 存的就是 0.5。整数值与浮点值
+之间唯一可观察的差别就是整数标记，而它唯一的作用就是[整数除法](#整数除法)的拒绝。
+
+### 权威分量数
+
+当一个值的宽度来自引擎而不是来自声明推断时，它就带有**权威分量数**。
+
+| 来源 | 是否权威 |
+| :-- | :-- |
+| 常量折叠的构造器——`vec3(0.5)`、`float4(1,0,0,1)` | **是**——这是构造器唯一能产生该标志的路径 |
+| 节点类在下面已知宽度表里的 `UE.*` 内置 | **是** |
+| `dot` 数学内置 | **是**，1 分量 |
+| 其他数学内置 | 继承——`lerp`/`min`/`max` 取两个值操作数的逻辑或，其余继承第一个操作数 |
+| 裸数值字面量 | 否 |
+| 任意宽度的已声明 `Properties` 参数 | 否 |
+| 未折叠的构造器——`vec3(K)`、`float4(rgb, A)` | 继承，取各参数的逻辑或 |
+| swizzle | 继承自基值 |
+| `+ - * /` 的结果 | 继承，取两个操作数的逻辑或 |
+| 被收窄或加宽后的值 | 继承自输入 |
+| 变量 | 赋给它的值带什么就是什么 |
+
+已知宽度的内置节点类：
+
+| 分量数 | 节点类 |
+| --: | :-- |
+| 1 | `PixelDepth`、`TwoSidedSign`、`Arctangent2Fast`、`Length`、`MaterialXLuminance` |
+| 2 | `TextureCoordinate`、`Panner`、`ScreenPosition`、`Rotator`、`SceneTexelSize` |
+| 3 | `WorldPosition`、`ObjectPositionWS`、`CameraVectorWS`、`VertexNormalWS`、`VertexTangentWS`、`Transform`、`TransformPosition`、`SkyAtmosphereLightDirection`、`PixelNormalWS`、`CrossProduct` |
+
+其他任何节点的输出宽度对生成器都是未知的。
+
+这个标志会改变两件事。
+
+**作用 1——运算符挽救。** `+ - * /` 遇到两个不兼容宽度时，可以把其中一个加宽到权威那一个，但只能往上加。
+这就是 `Tint` 是 4 分量 `VectorParameter` 时 `UE.CameraVectorWS() * Tint` 会失败的原因：内置是权威的 3，
+参数是非权威的 4，而 4 大于 3，挽救被阻止，于是抛出尺寸错误。
+
+**作用 2——声明宽度可能被忽略。**
+
+<Callout type="warn">
+当声明的初始值带有的权威分量数与声明类型的宽度**不同**时，该值被原样存储、不做转换、也不产生任何诊断。
+声明宽度实际上被忽略了。
+
+```c
+float2 dir = UE.CameraVectorWS();   // 存成 3 分量；float2 被忽略，不报错
+Color = dir * Tint;                 // 如果 Tint 是 4 分量，错误在这里才出现
+```
+
+不匹配并没有丢失——它会在第一个真正在意宽度的使用处浮现，届时信息里给出的是真实宽度而不是声明宽度。
+其理由是：静默截断一个引擎已知的宽度，比晚一步报错更糟糕。这个逃生口**只对声明生效**；赋给已有变量或
+输出名字时总会做转换，因此即使值是权威的也会静默收窄。
+</Callout>
+
+**作用 3——分支合并。** 判断某个 `if` 分支是否改变了一个值时，权威标志和整数标志*不*参与比较，所以只在
+这两个标志上不同的两个值被视为相同，该名字不会被合并。
+
+## 节点复用
+
+在相同操作数值上的、文本相同的子表达式会塌缩成一个节点。`A + B` 写两次只产生一个 `Add`；一个资产里所有
+`0.5` 都映射到一个 `Constant`；一元负号背后的 `Constant(-1)` 被资产内所有一元负号共享。缓存按值身份令牌
+建键——节点、输出索引、分量数、全部五个掩码字段，以及纹理、属性、`Substrate`、权威和整数标志——所以
+`int(2)` 和 `float(2)` 永远不会撞车，而在两次文本相同的调用之间重新给变量赋值，会正确地产生两个节点。
+
+`F_Tint(a, b)` 和 `F_Tint(b, a)` 是不同的键，因为位置参数按下标建键；`F_Tint(Color = a)` 和
+`F_Tint(color = a)` 是同一个键，因为参数名会被规范化。哪些调用种类会去重，见
+[调用](/docs/graph/calls#哪些调用会被复用)。
+
+## 诊断
+
+<Diag>
+  <D msg="Unexpected token '{Text}' in Graph expression." cause="在主表达式位置出现非主记号（!x、= b），或完整表达式之后残留了一个真实记号（a == b）。位于末尾的未知字符永远不会触发这条。" href="/docs/graph/unsupported" />
+  <D msg="Expected token type {Code} in Graph expression near '{Text}'." cause="需要 ) 或 , 却找不到——通常是括号内或参数表里出现了未知字符。" />
+  <D msg="Expected member name after '.'." cause=". 后面不是标识符。" />
+  <D msg="Empty Graph expression." cause="去空白后表达式文本为空。" />
+  <D msg="Operator '{Op}' requires matching vector sizes or a scalar/vector pair, got {Left} and {Right} component(s)." cause="操作数宽度不同，都不是标量，且权威挽救不适用。" fix="显式 swizzle 较宽的那个操作数，或用构造器构建较窄的那个。" />
+  <D msg="Integer division is not supported by the material graph; use float() or floor(a/b)." cause="/ 的两个操作数都来自整数构造器。" />
+  <D msg="Arithmetic operators cannot be applied to texture values." cause="纹理对象用作 + - * / 的操作数。" />
+  <D msg="Arithmetic operators cannot be applied to MaterialAttributes values." cause="MaterialAttributes 值用作操作数。" />
+  <D msg="Arithmetic operators cannot be applied to Substrate values." cause="Substrate 值用作操作数。" />
+  <D msg="Expected {Expected} component(s) but got {Actual}." cause="把 2 或 3 分量的值加宽到更宽的目标。" fix="用构造器：float3(v, 0.0)。" />
+  <D msg="Constructor '{Name}' expects {N} total components but got {Total}." cause="各参数宽度之和不等于构造器宽度。" />
+  <D msg="Constructor '{Name}' expects a single scalar input." cause="1 分量构造器传了零个参数、多个参数，或一个宽于 1 分量的参数。" />
+  <D msg="Constructor '{Name}' does not accept named arguments." cause="构造器调用里出现了 name = value 参数。" />
+  <D msg="Swizzle '{Channels}' is invalid for a value with {Count} components." cause="某个通道字符无法解析，或其索引不小于基值宽度。" />
+  <D msg="Unsupported swizzle '{Channels}'." cause="超过四个通道字符。" />
+  <D msg="Unknown Graph identifier '{Name}'." cause="既不是 Graph 变量、也不是已声明属性、也不是 true/false 的名字——包括按名字读取 StaticSwitchParameter。" href="/docs/graph/calls" />
+  <D msg="String literals can only be used in named UE builtin arguments." cause="字符串字面量被当作值求值。" />
+  <D msg="Invalid numeric literal '{Text}'." cause="转换结果为零、但记号里含有任何零的写法都不可能含有的字符——实际上就是下溢的指数，例如 1e-9999。" />
+</Diag>
+
+## 示例
+
+```c
+Shader(Name="Docs/M_Expressions")
+{
+    Properties {
+        vec3 A = vec3(1.0, 0.5, 0.2);
+        vec3 B = vec3(0.1, 0.2, 0.3);
+        float K = 2.0;
+    }
+    Settings { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs { vec3 Color; Base.EmissiveColor = Color; }
+    Graph {
+        vec3 Sum    = A + B;
+        vec3 Diff   = A - B;
+        vec3 Scaled = A * K;
+        vec3 Ratio  = A / K;
+        vec3 Neg    = -Scaled;
+        Color = (Sum + Diff - Scaled + Ratio) * 0.25 + Neg;
+    }
+}
+```
+
+```text
+VectorParameter A, VectorParameter B, ScalarParameter K   (property nodes)
+Add(A, B)                                        -> Sum
+Subtract(A, B)                                   -> Diff
+Multiply(A, K)                                   -> Scaled
+Divide(A, K)                                     -> Ratio
+Multiply(Scaled, Constant(-1))                   -> Neg
+Add / Subtract / Add chain, Multiply(..., 0.25), Add(..., Neg)
+```
+
+## 参见
+
+- [语句与声明](/docs/graph/statements) —— 表达式出现在哪些语句形式里
+- [调用](/docs/graph/calls) —— 调用语法、命名参数、输出选择
+- [数学内置](/docs/builtins/math) —— `fmod`、`pow`、`min`、`max`、`lerp`、`saturate`
+- [UE.* 节点](/docs/builtins/ue-nodes) —— 哪些内置有已知输出宽度
+- [不支持的写法](/docs/graph/unsupported) —— 所有被拒绝和被静默截断的写法

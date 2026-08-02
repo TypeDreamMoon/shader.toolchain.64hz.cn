@@ -1,160 +1,531 @@
 ---
 title: Recipes
-description: Composable DreamShaderLang material snippets.
+description: Complete DreamShaderLang materials — animated tint, panning UVs, branching, static-switch variants, translucent UI, PBR, MaterialAttributes, Substrate, parameter collections and a Settings tour.
 ---
 
-These snippets are intentionally small. Copy them into a material and adapt the parameter
-names to your project.
+Each recipe below is a finished `.dsm` that compiles on its own. They are written to be read top to
+bottom: parameters, settings, outputs, graph. Where a construct has a sharp edge, it is called out
+next to the code rather than left for you to find.
 
-## Time Pulse
+| | |
+| :-- | :-- |
+| Applies to | DreamShaderLang `1.5.0` |
+| Engines | UE 5.3 – 5.8; the Substrate recipe needs <Since v="5.4" ue /> |
+| Assumed source root | `<Project>/DShader` |
+| Generated output | in memory by default — see [In-memory Materials](/en/docs/generation/in-memory) |
 
-```c
-Graph = {
-    float t = UE.Time();
-    float pulse = sin(t * Speed) * 0.5 + 0.5;
-    Color = Tint * pulse;
-}
-```
+For the language constructs these are assembled from, see [Patterns](/en/docs/examples/patterns).
 
-## UV Panning
+## Animated tint
 
-```c
-Graph = {
-    float2 uv = UE.TexCoord(Index=0);
-    float t = UE.Time();
-    float2 moved = uv + float2(t * SpeedX, t * SpeedY);
-}
-```
-
-## Conditional Shading
+`UE.Time()` gives a scalar clock; `sin` is one of the [math builtins](/en/docs/builtins/math), so it
+is called bare and positionally.
 
 ```c
-Graph = {
-    if (UseTint)
-    {
-        Color = BaseColor * Tint;
-    }
-    else
-    {
-        Color = BaseColor;
-    }
-}
-```
-
-## Transparent UI Material
-
-```c
-Settings = {
-    Domain = "UI";
-    ShadingModel = "Unlit";
-    BlendMode = "Translucent";
-}
-
-Outputs = {
-    vec3 Color;
-    float Alpha;
-    Base.EmissiveColor = Color;
-    Base.Opacity = Alpha;
-}
-```
-
-## Surface PBR Skeleton
-
-```c
-Settings = {
-    Domain = "Surface";
-    ShadingModel = "DefaultLit";
-    BlendMode = "Opaque";
-}
-
-Outputs = {
-    vec3 BaseColor;
-    float Roughness;
-    float Metallic;
-    Base.BaseColor = BaseColor;
-    Base.Roughness = Roughness;
-    Base.Metallic = Metallic;
-}
-```
-
-## Parameter Groups and Sorting
-
-```c
-Properties = {
-    VectorParameter Tint = float4(1, 1, 1, 1) [
-        Group="Color";
-        SortPriority=10;
-    ];
-
-    ScalarParameter Strength = 1.0 [
-        Group="Color";
-        SortPriority=20;
-    ];
-}
-```
-
-## Static Switch Branch
-
-```c
-Properties = {
-    StaticSwitchParameter UseDetail = true;
-}
-
-Graph = {
-    if (UseDetail)
-    {
-        Color = BaseColor * DetailColor;
-    }
-    else
-    {
-        Color = BaseColor;
-    }
-}
-```
-
-## Material Parameter Collection
-
-```c
-float Wind = UE.CollectionParam(
-    Collection=Path("/Game/MPC_Global.MPC_Global"),
-    ParameterName="Wind");
-```
-
-## Optional Material Function Input
-
-Use defaults in `Inputs` so calls can omit less important values when the function wrapper
-or generator supports optional inputs.
-
-```c
-Inputs = {
-    vec3 Color;
-    float Strength = 1.0;
-}
-```
-
-## Custom MaterialExpression Output
-
-```c
-float pulse = UE.Expression(
-    Class="Sine",
-    OutputType="float1",
-    Input=t);
-```
-
-## Multi-output Helper
-
-```c
-Function void SplitColor(vec3 color, out float r, out float g, out float b)
+// DShader/Materials/M_Pulse.dsm
+Shader(Name="Materials/M_Pulse")
 {
-    r = color.r;
-    g = color.g;
-    b = color.b;
-}
+    Properties = {
+        vec3            Tint  = vec3(1.0, 0.4, 0.1);
+        ScalarParameter Speed = 2.0 [Slider(0, 10)];
+    }
 
-Graph = {
-    float r;
-    float g;
-    float b;
-    SplitColor(Tint, r, g, b);
+    Settings = {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float t     = UE.Time();
+        float pulse = sin(t * Speed) * 0.5 + 0.5;
+        Color = Tint * pulse;
+    }
 }
 ```
+
+Writing `sin(X)` twice produces **one** `Sine` node — math builtins are common-subexpression cached.
+The registered `UE.*` builtins are not: two `UE.Time()` calls create two `Time` nodes.
+
+## Panning UVs
+
+```c
+// DShader/Materials/M_Panned.dsm
+Shader(Name="Materials/M_Panned")
+{
+    Properties = {
+        TextureSampleParameter2D BaseTex  = Path(Engine, "EngineResources/WhiteSquareTexture");
+        ScalarParameter          PanSpeed = 0.1 [Slider(-1, 1)];
+    }
+
+    Settings = {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        vec2 uv    = UE.TexCoord(Index = 0);
+        vec2 moved = UE.Panner(Coordinate = uv, Time = UE.Time(), Speed = vec2(PanSpeed, 0.0));
+        vec4 texel = BaseTex(Coordinates = moved);
+
+        Color = texel.rgb;
+    }
+}
+```
+
+<Callout type="info">
+`UE.Panner` has both kinds of argument. `Coordinate`, `Time` and `Speed` are **input pins** and take
+expressions — which is why the `PanSpeed` parameter can drive the pan above. `SpeedX`, `SpeedY` and
+`FractionalPart` are **literal properties** on the node: `SpeedX = PanSpeed` would quietly write
+nothing and the node would pan at its default rate. Registered `UE.*` builtins do not validate their
+argument list, so a misspelling is silently dropped too.
+</Callout>
+
+## Branching on a threshold
+
+Both branches are built unconditionally into the graph; a `UMaterialExpressionIf` selects between
+them at runtime. The condition must be parenthesised and each body must be braced.
+
+```c
+// DShader/Materials/M_Branch.dsm
+Shader(Name="Materials/M_Branch")
+{
+    Properties = {
+        ScalarParameter Threshold = 0.5  [Group="Surface"];
+        VectorParameter Lit       = float4(1.0, 0.85, 0.2, 1.0) [Group="Surface"];
+        VectorParameter Dark      = float4(0.05, 0.05, 0.1, 1.0) [Group="Surface"];
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "Unlit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float2 uv   = UE.TexCoord(Index = 0);
+        float  mask = uv.x;
+
+        if (mask > Threshold) {
+            Color = Lit.rgb;
+        } else if (mask > Threshold * 0.5) {
+            Color = Lit.rgb * 0.5;
+        } else {
+            Color = Dark.rgb;
+        }
+    }
+}
+```
+
+| Condition | Meaning |
+| :-- | :-- |
+| `a > b`, `a < b`, `a >= b`, `a <= b`, `a == b`, `a != b` | the six comparison operators |
+| `if (x)` | truthy — wired as `x != 0`, so a **negative** value takes the then-branch |
+
+- Both sides of a comparison must evaluate to a **scalar**.
+- A variable written in one branch must also be written in the other, or the merge fails with
+  `Graph if statement could not resolve both branch values for '…'.` This includes variables
+  *declared* only inside one branch.
+- Branch values must agree in shape, otherwise
+  `Graph if branches assign variable '…' with inconsistent types`.
+- Reading a parameter inside a branch is fine — parameters are never branch outputs.
+- `if` is matched **case-sensitively**; `If (x) { … }` is not a conditional.
+
+<Callout type="warn">
+`&&` and `||` do not exist and are **silently dropped**. `if (a > 0 && b > 0)` compiles as
+`if (a > 0)` with no diagnostic. Nest two `if` statements instead. The same truncation applies to
+`%`, `?:`, `&`, `|`, `^`, `<<` and `v[i]` in ordinary expressions — see
+[What Graph Is Not](/en/docs/graph/unsupported).
+</Callout>
+
+## A static-switch variant
+
+A `StaticSwitchParameter` is not a runtime branch — it produces a different permutation. Unlike `if`,
+it is written as a **call**.
+
+```c
+// DShader/Materials/M_Variant.dsm
+Shader(Name="Materials/M_Variant")
+{
+    Properties = {
+        Group("Surface") {
+            VectorParameter BaseColor   = float4(0.1, 0.2, 0.3, 1.0);
+            VectorParameter DetailColor = float4(1.0, 0.8, 0.3, 1.0);
+        }
+
+        Group("Switches") {
+            StaticSwitchParameter UseDetail = true [Description="Use the detail colour"];
+        }
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        float3 Color;
+        Base.BaseColor = Color;
+    }
+
+    Graph = {
+        Color = UseDetail(True = DetailColor.rgb, False = BaseColor.rgb);
+    }
+}
+```
+
+`True=` / `False=`, `A=` / `B=` and the positional form all work. What does **not** work is
+`if (UseDetail) { … }` or a bare `Color = UseDetail;` — both fail with
+`Unknown Graph identifier 'UseDetail'.` The two branch values must have the same component count.
+
+## A translucent UI material
+
+```c
+// DShader/Materials/M_UI_Glass.dsm
+Shader(Name="Materials/M_UI_Glass")
+{
+    Properties = {
+        vec3            Tint    = vec3(1.0, 1.0, 1.0);
+        ScalarParameter Opacity = 0.75 [Slider(0, 1)];
+    }
+
+    Settings = {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+        BlendMode    = "Translucent";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        Color = Tint;
+        Alpha = Opacity;
+    }
+}
+```
+
+`Domain = "UI"` and `ShadingModel = "Unlit"` are the pair a UMG material wants; `BlendMode` is what
+makes `Base.Opacity` meaningful. Every accepted spelling is on
+[Enum Values](/en/docs/settings/enums).
+
+## A Surface PBR skeleton
+
+```c
+// DShader/Materials/M_Surface.dsm
+Shader(Name="Materials/M_Surface")
+{
+    Properties = {
+        Group("Surface") {
+            VectorParameter Albedo    = float4(0.8, 0.6, 0.4, 1.0);
+            ScalarParameter Roughness = 0.5 [Slider(0, 1)];
+            ScalarParameter Metallic  = 0.0 [Slider(0, 1)];
+        }
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Rough;
+        float Metal;
+
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
+        Base.Metallic  = Metal;
+    }
+
+    Graph = {
+        Color = Albedo.rgb;
+        Rough = Roughness;
+        Metal = Metallic;
+    }
+}
+```
+
+Output *variables* and binding *targets* live in different namespaces, but keeping them visibly
+distinct (`Color` → `Base.BaseColor`) keeps the file readable. The full target catalogue is on
+[Output Bindings](/en/docs/generation/outputs).
+
+## Writing `MaterialAttributes`
+
+Binding `Base.MaterialAttributes` auto-enables *Use Material Attributes* on the generated material. A
+`MaterialAttributes` variable is a `MakeMaterialAttributes` node, and its members are written by
+name.
+
+```c
+// DShader/Materials/M_Attrs.dsm
+Shader(Name="Materials/M_Attrs")
+{
+    Properties = {
+        vec3  BaseTint = vec3(0.6, 0.8, 1.0);
+        float R        = 0.35;
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        Base.MaterialAttributes = Attrs;
+    }
+
+    Graph = {
+        MaterialAttributes Attrs;
+
+        Attrs.BaseColor = BaseTint;
+        Attrs.Roughness = R;
+        Attrs.Metallic  = 0.0;
+
+        // Members can be read back through a BreakMaterialAttributes node.
+        float Echo = Attrs.Roughness;
+        Attrs.Specular = Echo;
+    }
+}
+```
+
+<Callout type="info">
+`Attrs` must be a graph value before the binding is evaluated. Declare it **inside `Graph`**, as
+above, or give the `Outputs` declaration an initializer. `MaterialAttributes` is a valid type token
+in `Outputs`, `Inputs` and function signatures, but **not** in `Properties`.
+</Callout>
+
+- Member names are the material property names (`BaseColor`, `Metallic`, `Specular`, `Roughness`,
+  `EmissiveColor`, `Opacity`, `Normal`, …) — the same catalogue as the `Base.<X>` binding targets.
+- Arithmetic operators reject `MaterialAttributes` operands:
+  `Arithmetic operators cannot be applied to MaterialAttributes values.`
+- `Base.MaterialAttributes` and `Base.FrontMaterial` cannot both be used by one `Shader`.
+
+## A Substrate surface
+
+<Since v="5.4" ue />
+
+`Substrate.*` builds Substrate BSDF nodes; `Base.FrontMaterial` is the binding that consumes them.
+
+```c
+// DShader/Materials/M_Substrate.dsm
+Shader(Name="Materials/M_Substrate")
+{
+    Properties = {
+        vec3 Color = vec3(0.1, 0.6, 1.0);
+    }
+
+    Outputs = {
+        Substrate Surface;
+        Base.FrontMaterial = Surface;
+    }
+
+    Graph = {
+        Surface = Substrate.Unlit(EmissiveColor = Color);
+    }
+}
+```
+
+- The `Substrate` type token, the `Substrate.*` namespace and `Base.FrontMaterial` all require
+  **UE 5.4 or newer** — not 5.7. Below that, the compile fails with
+  `Substrate builtin call '…' requires Unreal Engine 5.4 or newer.`
+- `Base.FrontMaterial` force-sets the shading model to Substrate, so an explicit `ShadingModel`
+  setting must be absent or `"Substrate"`. Anything else fails with
+  `Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.`
+- Every `Substrate.*` argument must be **named** — the registered `UE.*` sugar does not apply here —
+  and `Class=` is rejected, because each name maps to a fixed expression class.
+- `Substrate.*` calls are **not** hoisted out of a `GraphFunction` body; only `UE.*` is.
+- Substrate values cannot be swizzled, cannot take arithmetic operators, and cannot be selected by an
+  `if` statement.
+
+## Driving a material from a parameter collection
+
+```c
+// DShader/Materials/M_Wind.dsm
+Shader(Name="Materials/M_Wind")
+{
+    Properties = {
+        vec3 Tint = vec3(0.4, 0.7, 0.3);
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float wind = UE.CollectionParam(
+            Collection = Path(Game, "Collections/MPC_Wind"),
+            Parameter  = "WindStrength");
+
+        Color = Tint * wind;
+    }
+}
+```
+
+- `Collection` (alias `Asset`) and `Parameter` (alias `ParameterName`) are both **required**.
+  `UE.CollectionParameter` is an accepted second spelling of the builtin.
+- The collection asset is loaded at generation time and the parameter looked up by name in it. A
+  vector parameter yields `float4`, a scalar yields `float1`, and anything else is an error.
+- `Group` and `SortPriority` arguments exist but are silently dropped below <Since v="5.7" ue />.
+
+<Callout type="warn">
+This builtin's output width is **not** authoritative, so it cannot act as the widening partner in a
+mixed-width binary operator. `Tint * wind` works because `wind` is a scalar; multiplying a `vec3` by
+a collection *vector* parameter of unknown width does not get the same rescue. See
+[Expressions and Conversions](/en/docs/graph/expressions).
+</Callout>
+
+## A multi-output helper
+
+Two or more `out` parameters mean the statement call form, whose trailing arguments are the names
+that receive the results.
+
+```c
+// DShader/Materials/M_Brightness.dsm
+Function SplitBrightness(in vec3 color, out vec3 normalized, out float brightness) {
+    brightness = max(max(color.r, color.g), color.b);
+    normalized = color / max(brightness, 0.0001);
+}
+
+Shader(Name="Materials/M_Brightness")
+{
+    Properties = {
+        vec3 Tint = vec3(1.0, 0.5, 0.25);
+    }
+
+    Settings = {
+        Domain       = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        SplitBrightness(Tint, Normalized, Brightness);
+        Color = Normalized * Brightness;
+    }
+}
+```
+
+- The function body is **HLSL**, so `max` here is the HLSL intrinsic, not the `Graph` math builtin.
+- A declared return type implies exactly one output and forbids every `out` parameter. `Function void
+  Name(…, out float r)` is therefore an error — drop the return type when you want several results.
+- The out targets are created by the call; they do not need a prior declaration.
+
+## Settings tour: glass with an explicit backend
+
+```c
+// DShader/Materials/M_Glass.dsm
+Shader(Name="Materials/M_Glass")
+{
+    Properties = {
+        vec3  Tint    = vec3(0.7, 0.9, 1.0);
+        float Opacity = 0.35;
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Translucent";
+        TwoSided     = true;
+        Wireframe    = false;
+        Backend      = "Graph";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.BaseColor = Color;
+        Base.Opacity   = Alpha;
+    }
+
+    Graph = {
+        Color = Tint;
+        Alpha = Opacity;
+    }
+}
+```
+
+<Wide>
+
+| Key | Aliases | Values |
+| :-- | :-- | :-- |
+| `MaterialDomain` | `Domain` | `Surface`, `DeferredDecal` / `Decal`, `LightFunction`, `Volume`, `PostProcess`, `UI` / `UserInterface`, `RuntimeVirtualTexture` / `VirtualTexture` |
+| `ShadingModel` | — | `Unlit`, `DefaultLit` / `Lit`, `Subsurface`, `PreintegratedSkin`, `ClearCoat`, `SubsurfaceProfile`, `TwoSidedFoliage`, `Hair`, `Cloth`, `Eye`, `SingleLayerWater`, `ThinTranslucent`, plus `Substrate` / `Strata` on UE 5.4+ |
+| `BlendMode` | `RenderType` | `Opaque`, `Masked` / `Cutout`, `Translucent` / `Transparent`, `Additive`, `Modulate`, `AlphaComposite` / `PremultipliedAlpha` / `Premultiplied`, `AlphaHoldout`, `TranslucentColoredTransmittance` |
+| `Backend` | — | `Graph`, `ThinCustom`, `Instance` *(deprecated alias for `ThinCustom`)* |
+
+</Wide>
+
+- Enum values are matched with spaces, `_` and `-` stripped, case-insensitively: `"Default Lit"`,
+  `"DefaultLit"`, `"default_lit"` and `"DEFAULT-LIT"` are one alias. Quotes are optional on every
+  setting value.
+- Those four keys plus `RenderType` and `Domain` are the only hand-handled ones. **Every other key is
+  reflected straight onto `UMaterial`** — `TwoSided` and `Wireframe` above are real `UMaterial`
+  properties. An unrecognised key in a `Shader` `Settings` block is a hard error.
+- Duplicate keys silently overwrite, last one wins. Repeated `Settings` sections merge.
+- Omitting `Backend` falls back to the project's **Default Compiler Backend**, which is `ThinCustom`.
+
+<Callout type="warn">
+`Backend = "";` resolves to **`Graph`**, not to the project default. Only *omitting* the key falls
+back to the project setting. See [Backend](/en/docs/settings/backend).
+</Callout>
+
+## Running these files
+
+1. Save them under `<Project>/DShader`, or wherever `SourceDirectory` points.
+2. With *Auto Compile On Save* enabled — the default — the editor recompiles on save after a 0.25 s
+   debounce and generates the material **in memory**. Nothing is written to a `.uasset` until a cook,
+   an explicit *Materialize* action, or the commandlet.
+3. To compile one file headlessly:
+
+```powershell
+& "<Engine>/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" `
+  "<Project>/MyProject.uproject" `
+  -run=DreamShader compile -Source="<Project>/DShader/Materials/M_Minimal.dsm" -Force `
+  -unattended -nopause -nosplash -stdout -log
+```
+
+Substitute `-All` for `-Source=` to compile every `.dsf` and `.dsm` in the project. Unlike the
+editor, the commandlet writes **persistent** assets.
+
+## Where to next
+
+<Cards>
+  <Card title="Patterns" href="/en/docs/examples/patterns" description="The building blocks these materials are made of." />
+  <Card title="Control Flow" href="/en/docs/graph/control-flow" description="if / else, truthiness and the branch-merge rules." />
+  <Card title="Material Settings" href="/en/docs/settings/material" description="Every Settings key and how reflection resolves it." />
+  <Card title="Output Bindings" href="/en/docs/generation/outputs" description="Every Base.* target and what it accepts." />
+  <Card title="Commandlet" href="/en/docs/tools/commandlet" description="Headless compilation and its switches." />
+</Cards>

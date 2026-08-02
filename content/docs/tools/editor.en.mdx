@@ -1,0 +1,685 @@
+---
+title: Editor Tools
+description: Every menu entry, toolbar button and context-menu action DreamShader registers, and the Material Content Browser tab in full.
+---
+
+Everything DreamShader adds to the Unreal editor lives in one editor-only module. This page is the
+map: what appears where, what each command actually does, and how the Material Content Browser tab
+works.
+
+| Aspect | Value |
+| :-- | :-- |
+| Implemented in | the `DreamShaderEditor` module, type `Editor`, loading phase `Default` |
+| Registered by | `UToolMenus::RegisterStartupCallback` at module startup |
+| ToolMenu owners | `DreamShaderEditor` (bridge entries) · `DreamShaderMaterialBrowser` (browser entries) |
+| Suppressed by | the `-NoDreamShaderEditorBridge` switch, and every commandlet run |
+| Log category | `LogDreamShader` |
+
+None of it exists in a packaged game — the module is editor-only, and the runtime `DreamShader`
+module carries no UI at all. Menu registration is idempotent, so a second registration pass adds
+nothing, and it is skipped entirely while the editor is shutting down.
+
+## What starts, and in what order
+
+| # | Step | Skipped when |
+| :-- | :-- | :-- |
+| 1 | Running a commandlet: install the cook hook when `-run=` contains `Cook` and `-cookworker` is absent, then stop | — |
+| 2 | Bail out entirely | `-NoDreamShaderEditorBridge` is on the command line |
+| 3 | Create and start the editor bridge | as above |
+| 4 | Register the Material Content Browser nomad tab and its menu entries | as above |
+
+The bridge's own startup then resets `bridge.db`, exports the three
+[manifests](#bridge-artifacts), runs the [VirtualFunction sync](#the-startup-sync-service), queues a
+full scan, opens the preview WebSocket server on port `17864`, registers the source-directory
+watcher, and installs the menus.
+
+## Tools menu
+
+*Tools ▸ DreamShader*, extending `LevelEditor.MainMenu.Tools`, section `DreamShader`.
+
+<Wide>
+
+| Label | Tooltip | Icon | Effect |
+| :-- | :-- | :-- | :-- |
+| **Recompile DSM** | "Recompile all DreamShader .dsm and .dsf source files and refresh diagnostics." | `Icons.Refresh` | Rebuilds the dependency graph and queues every project `.dsm` and `.dsf` — [below](#recompile-dsm) |
+| **Clean Generated Shaders** | "Delete Intermediate/DreamShader/GeneratedShaders and queue a full DreamShader recompile." | `Icons.Delete` | Deletes every generated `*.ush`, then queues a full scan — [below](#clean-generated-shaders) |
+| **Clean Persisted Generated Assets** | "Delete DreamShader-generated material assets that are saved on disk (they shadow in-memory material mode). Shows a confirmation with the full list; source files are untouched and regenerate in memory." | `Icons.Delete` | Deletes on-disk assets carrying DreamShader provenance — [below](#clean-persisted-generated-assets) |
+| **Show In-Memory Materials** | "Show memory-only DreamShader materials in the Content Browser and asset pickers — needed when picking one as a material instance Parent or referencing it from a detail panel. While shown, an explicit Save on one would persist it to disk (the shadow warning and Clean command cover recovery)." | *(none)* | Toggle button over `bShowInMemoryMaterialsInContentBrowser` — [below](#show-in-memory-materials) |
+| **Open Dream Shader Workspace (VSCode)** <Since v="1.2.1" /> | "Open the configured DreamShader source workspace in VSCode, or Notepad if VSCode is unavailable." | `Icons.OpenInExternalEditor` | Re-exports the three manifests, rewrites the workspace file, launches it — [VSCode and Rider](/en/docs/tools/vscode) |
+| **Material Content Browser** <Since v="1.5.0" /> | "Open the DreamShader Material Content Browser." | `ClassIcon.Material` | Invokes the `DreamShaderMaterialBrowser` nomad tab — [below](#material-content-browser) |
+
+</Wide>
+
+<Callout type="info">
+The first five entries and the sixth are registered by two different startup callbacks into the same
+`DreamShader` section. Their relative order inside the section depends on registration order and is
+not guaranteed to be stable between editor runs.
+</Callout>
+
+## Level Editor toolbar
+
+Extending `LevelEditor.LevelEditorToolBar.AssetsToolBar`, section `DreamShader`. Two buttons, both
+duplicates of Tools-menu entries.
+
+| Label | Tooltip | Icon | Effect |
+| :-- | :-- | :-- | :-- |
+| **DSM** | "Recompile all DreamShader .dsm and .dsf source files." | `Icons.Refresh` | Identical to *Recompile DSM* |
+| **Open Dream Shader Workspace (VSCode)** | "Open the configured DreamShader source workspace in VSCode, or Notepad if VSCode is unavailable." | `Icons.OpenInExternalEditor` | Identical to the Tools-menu entry |
+
+## Window menu
+
+The Material Content Browser registers a nomad tab, which puts it under *Window ▸ Tools* as well.
+
+| Aspect | Value |
+| :-- | :-- |
+| Tab id | `DreamShaderMaterialBrowser` |
+| Display name | **Material Content Browser** |
+| Tooltip | "Browse, manage, and create instances of project and DreamShader-generated materials." |
+| Icon | `ClassIcon.Material` |
+| Workspace group | Tools category |
+| Tab role | `ETabRole::NomadTab` |
+
+## Content Browser context menus
+
+Every entry is added into the stock `GetAssetActions` section of the per-class asset context menu.
+
+<Callout type="warn">
+**Every DreamShader context-menu entry requires exactly one selected asset.** With two or more assets
+selected the section is empty and nothing explains why. Right-click a single asset.
+</Callout>
+
+| Asset class extended | What appears |
+| :-- | :-- |
+| `UMaterial` | submenu **DreamShader** — [Material submenu](#material-submenu) |
+| `UMaterialFunction` | submenu **DreamShader** — [Material Function submenu](#material-function-submenu) |
+| `UMaterialFunctionMaterialLayer` | the same Material Function submenu |
+| `UMaterialFunctionMaterialLayerBlend` | the same Material Function submenu |
+| `UMaterialInstanceConstant` | flat entry **Create DreamShader instance** |
+| `UDreamShaderMaterialInstance` | flat entry **Create DreamShader instance** |
+
+Menu names in Unreal are keyed on the exact class, so the instance entry is registered twice — once
+for the stock class and once for the DreamShader subclass.
+
+| Entry | Tooltip | Icon | Effect |
+| :-- | :-- | :-- | :-- |
+| **Create DreamShader instance** <Since v="1.5.0" /> | "Create a material instance that shares this material's compiled shader map." | `ClassIcon.MaterialInstanceConstant` | Opens the [Create material instance](#create-material-instance) dialog. The selection must cast to `UMaterialInterface` |
+
+### Material submenu
+
+Label **DreamShader**, tooltip "DreamShader actions for this Material.", icon `Icons.Settings`. Built
+only when the single selected asset is a `UMaterial`. One section, **Decompiler**:
+
+| Entry | Tooltip | Icon | Effect |
+| :-- | :-- | :-- | :-- |
+| **Export DSM** <Since v="1.3.5" /> | "Export this Material graph to a DreamShader .dsm source file." | `Icons.Save` | Decompiles to `DShader/Decompiled/Materials/…​.dsm` and opens the file — [Decompiler](/en/docs/tools/decompiler) |
+
+### Material Function submenu
+
+Label **DreamShader**, tooltip "DreamShader actions for this Material Function.", icon
+`Icons.Settings`. Two sections.
+
+**Decompiler:**
+
+| Entry | Tooltip | Icon | Effect |
+| :-- | :-- | :-- | :-- |
+| **Export DSF** <Since v="1.3.5" /> | "Export this Material Function graph to a DreamShader .dsf source file." | `Icons.Save` | Decompiles to `DShader/Decompiled/{Functions,Layers,LayerBlends}/…​.dsf` and opens the file |
+
+**VirtualFunction** <Since v="1.2.1" /> — its contents depend on whether a `VirtualFunction`
+declaration already names this asset. See [VirtualFunction tools](#virtualfunction-tools).
+
+## Material Editor toolbar
+
+A dynamic entry in section `DreamShader` of `AssetEditor.MaterialEditor.ToolBar` <Since v="1.2.1" />.
+
+| Step | Behaviour |
+| :-- | :-- |
+| 1 | Requires a valid `UMaterialEditorMenuContext` with a live `IMaterialEditor` |
+| 2 | Scans the objects being edited and stops at the **first** `UMaterial`, or failing that the first `UMaterialFunction` |
+| 3 | For a `UMaterial`: a combo button labelled **DreamShader** whose content is the [Material submenu](#material-submenu) |
+| 4 | For a `UMaterialFunction`: a combo button labelled **DreamShader** whose content is the [Material Function submenu](#material-function-submenu) |
+| 5 | Neither found ⇒ nothing is added to the toolbar |
+
+## What each command does
+
+Runtime substitutions in quoted messages are written `{Placeholder}`.
+
+### Recompile DSM
+
+Rebuilds the material dependency graph, then stamps every project `.dsm` and `.dsf` into the pending
+queue with the current time. `.dsm` files under `DShader/Packages` are excluded; `.dsf` files there
+are **not** — see [Packages](/en/docs/tools/packages). The queued files are then compiled by the
+debounce ticker exactly as if you had saved them.
+
+Log: `DreamShader queued a full .dsm/.dsf recompile scan.`
+
+### Clean Generated Shaders
+
+Deletes the generated `.ush` includes and queues a full scan.
+
+| Behaviour | Detail |
+| :-- | :-- |
+| Safety guard | refuses to run when *Generated Shader Directory* is not inside the project's `Intermediate/` directory |
+| Deletion scope | only `*.ush` files, recursively, one at a time. The directory itself is never removed |
+| Flags | missing files are tolerated; read-only files are deleted anyway |
+
+| Message | Severity |
+| :-- | :-- |
+| `DreamShader refused to clean generated shaders: '{Directory}' is not inside the project Intermediate directory. Point DreamShaderSettings.GeneratedShaderDirectory back under Intermediate/ before cleaning.` | Warning |
+| `DreamShader deleted {Count} generated shader file(s) from '{Directory}'.` | Display |
+| `DreamShader cleaned generated shader includes and queued a full .dsm/.dsf recompile scan.` | Display |
+
+### Clean Persisted Generated Assets
+
+Finds and deletes DreamShader-generated assets that exist on disk, because a saved asset shadows the
+memory-only material generated from the same source.
+
+| Aspect | Value |
+| :-- | :-- |
+| Search scope | the asset registry, package paths `/Game`, recursive paths, recursive classes |
+| Classes | `UMaterial`, `UMaterialFunction`, `UDreamShaderMaterialInstance` |
+| Gate 1 | the package must exist on disk |
+| Gate 2 | the package must carry non-empty `DreamShader.SourceFile` metadata |
+| Deletion | the standard editor delete flow, with its confirmation dialog and reference check |
+| After deletion | every source file is regenerated in memory immediately, so references resolve without an editor restart |
+
+Because the filter is provenance-based, hand-authored materials are never touched — while orphans
+whose source file was deleted or renamed still qualify.
+
+| Toast | Cause |
+| :-- | :-- |
+| `No persisted DreamShader-generated assets found.` | nothing matched |
+| `Deleted {Deleted} of {Total} persisted generated asset(s).` | after the delete flow |
+
+### Show In-Memory Materials
+
+Flips `bShowInMemoryMaterialsInContentBrowser` and writes it straight to the project's
+`DefaultEngine.ini`. It then walks every live `UDreamShaderMaterialInstance` whose package is newly
+created and broadcasts asset creation or removal, so tiles appear or disappear immediately rather
+than at the next re-enumeration.
+
+| Toast | Condition |
+| :-- | :-- |
+| `Showing {Count} in-memory material(s) in the Content Browser and asset pickers.` | turned on |
+| `Hidden {Count} in-memory material(s) from the Content Browser and asset pickers.` | turned off |
+
+<Callout type="warn">
+While memory-only materials are shown they also appear in **save** pickers, and an explicit *Save*
+writes one to disk. The saved copy then shadows the in-memory material for that path. Recover with
+*Clean Persisted Generated Assets*; use [*Materialize*](#materialize) when you actually want a file.
+</Callout>
+
+The [Project page](#project-page) of the Material Content Browser carries a checkbox for the same
+**global** setting. The checkbox early-outs when the value is unchanged and shows no toast; the menu
+entry always toasts. The menu entry's check mark is read live from the settings object, so changing
+the value in Project Settings updates it.
+
+### Open Dream Shader Workspace (VSCode)
+
+Re-exports `material-expressions.json`, `settings.json` and `substrate-builtins.json`, rewrites
+`DShader/DreamShader.code-workspace`, and then launches it through a three-step fallback chain —
+VSCode, the OS default editor, Notepad. The discovery order, the exact file contents and the "this
+file is rewritten from scratch" warning are on [VSCode and Rider](/en/docs/tools/vscode).
+
+## Material Content Browser
+
+A dockable tab with two pages: one for browsing the project's materials and instancing them, one for
+the DreamShader source files and their generated assets.
+
+| Aspect | Value |
+| :-- | :-- |
+| Kind | nomad tab |
+| Pages | **Project** (index 0, active by default) · **Dream Shader Gen** (index 1) |
+| Since | <Since v="1.5.0" /> |
+
+### Opening it
+
+| Route | Path |
+| :-- | :-- |
+| Tools menu | *Tools ▸ DreamShader ▸ Material Content Browser* |
+| Window menu | *Window ▸ Tools ▸ Material Content Browser* |
+
+The tab is registered only when the editor bridge starts, so
+[`-NoDreamShaderEditorBridge`](#disabling-the-integration) removes both routes.
+
+The root widget is a header bar of two radio-style check boxes over a widget switcher. Only the
+*checked* transition is honoured, so re-clicking the page you are already on does nothing. The two
+pages keep independent state, and switching refreshes neither.
+
+### Project page
+
+A horizontal splitter: the asset picker takes `0.62` of the width, the details panel `0.38`.
+
+#### Asset picker
+
+| Aspect | Value |
+| :-- | :-- |
+| Classes | `UMaterial`, `UMaterialInstanceConstant` |
+| Recursive classes | yes — this is what includes `UDreamShaderMaterialInstance` |
+| Package paths | `/Game`, recursive |
+| Initial view | Tile |
+| Selection mode | single |
+| Dragging | allowed |
+| Class column | hidden |
+| Engine content | never force-shown |
+| Path in column view | shown |
+| Double-click | opens the asset in its editor |
+| Empty state | "No materials found under /Game." |
+
+#### Header controls
+
+| Control | Label | Effect |
+| :-- | :-- | :-- |
+| Button | **Create instance** | Opens the [Create material instance](#create-material-instance) dialog for the selected asset. With nothing selected it raises the toast `Select a material to create an instance of.` and opens no window |
+| Status text | *(dynamic)* | `Selected: {Asset}` when something is selected, otherwise `Select a material, then create an instance.` |
+| Checkbox | **Show in-memory materials** | Writes `bShowInMemoryMaterialsInContentBrowser` to `DefaultEngine.ini` and re-broadcasts asset creation or removal for every newly created in-memory instance |
+
+#### Details panel
+
+Empty state: "Select a material to see its inheritance and settings." The thumbnail is 96×96, drawn
+from a 16-entry pool refreshed by a 0.05 s timer.
+
+| Button | Tooltip | Visible when |
+| :-- | :-- | :-- |
+| **Create instance** | — | always |
+| **Open** | — | always |
+| **Materialize** | "Write this memory-only material (and its base) to disk." | only when the selected material is memory-only; collapsed otherwise |
+
+| Info row | Value |
+| :-- | :-- |
+| **Base** | the name of the material's base material, or `-` |
+| **Domain** | the base material's material-domain display name |
+| **Blend mode** | the base material's blend-mode display name |
+| **Storage** | `memory-only (not saved)` or `on disk` |
+| **Source** | the `.dsm` path recorded on a `UDreamShaderMaterialInstance`, or `-` |
+
+| Section | Contents |
+| :-- | :-- |
+| **Inheritance** | the parent chain, root first, built by walking each instance's parent upward. Every row is a clickable link that re-targets the panel. Rows are indented four spaces per level behind a `└ ` prefix; ancestors are drawn in blue, the selected material in the default foreground |
+| **Child instances (N)** | material instance constants whose parent is the selected material. Empty state: "No loaded child instances." |
+
+<Callout type="warn">
+**Child instances** scans only instances that are currently **loaded** in the editor. An instance that
+exists on disk but has not been loaded does not appear, and the count is not a reference count. Load
+the asset, or use the Content Browser's *Reference Viewer*, for the complete picture.
+</Callout>
+
+### Dream Shader Gen page
+
+A horizontal splitter: the source list takes `0.6` of the width, the preview pane `0.4`. Thumbnails
+come from an 8-entry pool refreshed by a 0.05 s timer.
+
+#### Header controls and filters
+
+| Control | Label / hint | Effect |
+| :-- | :-- | :-- |
+| Button | **Refresh** | Re-runs the whole [refresh pipeline](#refresh-pipeline). Tooltip: "Rescan the source directory and recompute status." |
+| Button | **Compile all** | "Force-recompile every .dsm/.dsf source (in memory)." — see [Compile actions](#compile-actions) |
+| Search box | hint **Search sources** | Case-insensitive substring filter matched against the **display name only** — not the path, not the status |
+| Checkbox | **Errors only** | Keeps only items with status `compile error` or `unresolved` |
+| Checkbox | **Hide functions** | Drops every `.dsf` and `.dsh` item |
+| Counter | `{Visible} / {Total}` | Subdued text at the right of the bar; counts items, so a `.dsh` header contributes one row |
+
+The page lists **`.dsm`, `.dsh` and `.dsf`** sources found recursively under the configured source
+directory. Everything under `DShader/Packages` is excluded — including package headers and function
+files, which therefore never appear here.
+
+#### Status values
+
+| Status | Glyph | Label | Meaning |
+| :-- | :-- | :-- | :-- |
+| `UpToDate` | `●` green | **up to date** | The generated asset exists and its stored source hash matches the current source |
+| `Stale` | `●` amber | **stale** | The generated asset exists but its stored hash differs from the current source |
+| `NeverCompiled` | `○` grey | **not compiled** | No object exists at the resolved object path. Detail: `No generated asset at {ObjectPath}` |
+| `Error` | `▲` red | **compile error** | A compile through this page failed, or `diagnostics.json` reports an error for this file |
+| `Function` | `◆` blue | **function / header** | The item is a `.dsf` or `.dsh`. Detail: "Function library / header. Recompiles the materials that import it." |
+| `Unresolved` | `▲` red | **unresolved** | The source could not be read, could not be parsed, or declares no top-level `Shader` block |
+
+Each row draws the status glyph — whose tooltip is the status detail — then the file name, then a
+subdued sub-label. For `.dsf` and `.dsh` items the sub-label reads `function · used by {N} material(s)`.
+
+#### Refresh pipeline
+
+| # | Step |
+| :-- | :-- |
+| 1 | Enumerate `.dsm`, `.dsh` and `.dsf` under the source directory, excluding `DShader/Packages`, and sort |
+| 2 | Rebuild the material dependency graph to fill each header's and function's dependent count |
+| 3 | Recompute every item's status |
+| 4 | Clear the selection — the list is rebuilt, so the previously selected item no longer exists |
+| 5 | Overlay errors read from `diagnostics.json` |
+| 6 | Re-apply the search box and the two filter check boxes |
+| 7 | Rebuild the preview pane |
+
+Status per item:
+
+| # | Step | Failure |
+| :-- | :-- | :-- |
+| 1 | `.dsf` / `.dsh` short-circuit | ⇒ `function / header` |
+| 2 | Resolve the generated asset's object path from `Name=` and `Root=` | ⇒ `unresolved` |
+| 3 | Look the object up **without loading it** | ⇒ `not compiled` |
+| 4 | Load the prepared source, with `import` directives inlined | ⇒ `unresolved` |
+| 5 | Hash the prepared source and compare against the asset's recorded source file and hash | mismatch ⇒ `stale` |
+
+Step 2 reads the file and strips every `import` line before parsing — import lines carry no top-level
+block and would confuse block detection — then resolves the asset destination as described on
+[Asset Paths](/en/docs/generation/asset-paths).
+
+| Message | Cause |
+| :-- | :-- |
+| `Failed to read DreamShader source '{File}'.` | the file could not be read |
+| `{File}: {ParserError}` | the file did not parse |
+| `{File}: this file does not define a top-level Shader block.` | the parse produced no `Shader` |
+
+<Callout type="info">
+Because step 3 is a non-loading lookup, a material that exists on disk but has not been loaded in
+this session reports **not compiled** until something loads it.
+</Callout>
+
+#### Error overlay
+
+Errors on this page are read straight out of
+`<Project>/Saved/DreamShader/Bridge/diagnostics.json`, not from the bridge's in-memory store — the
+page is deliberately decoupled from the bridge internals.
+
+| Rule | Detail |
+| :-- | :-- |
+| Accepted severities | an empty `severity`, or `error` compared case-insensitively |
+| Formatting | `L{Line}:{Column} {Message}` when the line is greater than zero, otherwise just the message |
+| Per file | **only the first accepted diagnostic is kept** |
+| Effect | a matching item's status is overwritten to `compile error` |
+
+<Callout type="info">
+A file with five errors shows one here. The Output Log and the editor extension have the full list;
+the plugin emits exactly one severity — `error` — so no warning or hint ever reaches this page.
+</Callout>
+
+#### Compile actions
+
+Both actions generate **in memory** and force a rebuild, ignoring the source-hash cache.
+
+| Action | Scope | Progress UI | Toast |
+| :-- | :-- | :-- | :-- |
+| **Compile all** | every listed item except `.dsh` headers — `.dsf` files *are* included | a modal slow task titled "Compiling all DreamShader sources...", one frame per file | `Compiled {Count} source(s), {Failed} failed` — success only when `{Failed}` is 0 |
+| **Compile** (preview pane) | the selected item | none | `Compiled {File}` / `Failed to compile {File}` |
+
+Headers are skipped by *Compile all* because their dependents are already in the target set. A failed
+single compile also logs `Material Content Browser compile failed: {Message}` at Error level and pins
+the message onto the item, so the preview pane shows why.
+
+#### Preview pane
+
+Empty state: "Select a source file to preview its material."
+
+<Callout type="warn">
+This pane's image is a **static asset thumbnail**, 160×160, of the already-generated material. It is
+not the streaming renderer, it does not update while you type, and it has no mesh or camera control.
+The live preview is the WebSocket surface described under [Previews](#previews), and it is driven by
+the editor extension, not by this tab.
+</Callout>
+
+The placeholder tile reads "function library" for `.dsf` / `.dsh` items and "not compiled yet"
+otherwise. The material is resolved by loading the object path, and only for non-function items.
+
+| Button | Tooltip | Shown when |
+| :-- | :-- | :-- |
+| **Compile** | "Force-recompile this source (in memory)." | always |
+| **Create instance** | "Create a material instance of this material." | the item is not a function or header |
+| **Open material** | "Open the generated material asset." | the material resolved |
+| **Materialize** | "Write this memory-only material (and its base) to disk." | the material resolved **and** it is memory-only |
+| **Open source** | "Open the .dsm/.dsf in your preferred editor." | always |
+
+Below the buttons: the file name in large text, the status glyph and label, the absolute source path
+in small text, `used by {N} material(s)` for functions and headers, and — only for `compile error`
+and `unresolved` — the error detail in red.
+
+*Create instance* on an item that was never compiled first force-compiles it and re-resolves the
+object. If it is still missing, the toast reads `Compile {File} first.`
+
+### Create material instance
+
+Reached from the Project page button, the details panel, the Gen page preview pane, and the Content
+Browser entry **Create DreamShader instance**.
+
+| Aspect | Value |
+| :-- | :-- |
+| Window title | **Create material instance** |
+| Size | 480×240, modal, not resizable through minimize or maximize |
+
+| Field | Kind | Default |
+| :-- | :-- | :-- |
+| **Parent** | read-only text | the parent material's name |
+| **Name** | text box | `MI_<ParentName>`, uniquified against existing assets |
+| **Folder** | text box | the parent's folder plus the *Material Instance Subfolder* setting (`Instances` by default); an empty subfolder puts the instance alongside the parent |
+| **Browse...** | button | opens a folder picker titled "Choose a destination folder" |
+| **Open the instance after creating** | checkbox | checked |
+| **Cancel** / **Create** | buttons | — |
+
+| Guard | Error |
+| :-- | :-- |
+| No parent material | `No parent material was provided.` |
+| Empty name or empty folder | `Provide a name and a destination folder.` |
+| The parent is memory-only | forwards the [Materialize](#materialize) error |
+| An asset already exists at the target path | `An asset already exists at {PackageName}.` |
+| The package could not be created | `Failed to create package {PackageName}.` |
+| The object could not be created | `Failed to create the material instance object.` |
+| The package could not be saved | `Generated DreamShader asset '{Path}' could not be saved.` |
+| The parent died between opening and confirming | `The parent material is no longer available.` — the window closes |
+
+On success the toast reads `Created {Name}` — the asset name from the **Name** box, not the object
+path — and the window closes. On failure the error is toasted and **the window stays open**, so the
+name or folder can be corrected.
+
+| Detail | Behaviour |
+| :-- | :-- |
+| Created class | a plain `UMaterialInstanceConstant`, not a `UDreamShaderMaterialInstance` |
+| Object flags | `RF_Public \| RF_Standalone` |
+| Parent assignment | set editor-only, followed by a post-edit change and an asset-created broadcast |
+| Save failure rollback | the half-created object is un-broadcast, stripped of its flags, renamed into the transient package without redirectors, marked as garbage, and the package's dirty flag is cleared — so it cannot survive GC, appear in the Content Browser, be persisted by *Save All*, or block a same-name retry |
+
+Instancing a memory-only parent materializes the parent first, so a child instance never references a
+transient object.
+
+### Materialize
+
+*Materialize* writes a memory-only material, and the hidden base it wraps, to disk.
+
+| Rule | Detail |
+| :-- | :-- |
+| "Memory-only" test | the material's package carries the newly-created package flag |
+| Already on disk | returned unchanged — the action is a no-op |
+| Requirement | the material must be a `UDreamShaderMaterialInstance` with a recorded source file path |
+| Implementation | re-runs generation for that source file with force on and transient **off**, then reloads the object at the same object path |
+
+| Message | Cause |
+| :-- | :-- |
+| `This material is memory-only and has no DreamShader source file to materialize from.` | the material is not a DreamShader instance, or records no source path |
+| `Failed to materialize the material to disk: {Error}` | generation failed |
+| `Materialized the material but could not reload it at {ObjectPath}.` | generation succeeded but the object did not reload |
+| `Materialized {Name} to disk` | success — the details panel re-targets the persisted asset |
+
+The Gen page's *Materialize* button deliberately re-resolves the material by object path when
+clicked, rather than holding the pointer captured when the pane was built, so a delete or a garbage
+collection between build and click cannot crash it. The whole memory-only model is on
+[In-memory Materials](/en/docs/generation/in-memory).
+
+## Previews
+
+Two different renderers exist, and they are easy to confuse.
+
+| | Gen page thumbnail | One-shot preview | Streaming preview |
+| :-- | :-- | :-- | :-- |
+| What it is | a plain 160×160 engine asset thumbnail | a rendered PNG plus `preview.json` | a live PNG stream over WebSocket |
+| Triggered by | selecting an item in the Gen page | a `previewMaterial` request file, or a WebSocket message with `stream` false | a `previewMaterial` WebSocket message with `stream` true (the default) |
+| Waits for shader compilation | n/a | yes — which is why it can block the editor briefly | no |
+| Camera control | none | request-file path: no. WebSocket path: yes | yes, through `previewControl` |
+| Since | <Since v="1.5.0" /> | — | <Since v="1.5.0" /> |
+
+Only `.dsm` can be previewed; a `.dsf` or `.dsh` is rejected with
+`DreamShader preview only supports .dsm material files: '{File}'.` The material is always compiled
+transiently — a preview never writes an asset.
+
+| Aspect | Value |
+| :-- | :-- |
+| Endpoint | `ws://127.0.0.1:17864`, loopback only; a non-loopback client is refused |
+| Size | `width` / `height` default `512`, clamped to `[64, 2048]` |
+| Frame rate | `frameRate` default `2.0`, clamped to `[0.25, 60.0]`; `<= 0` disables streaming |
+| Meshes | `plane`, `cube`, `cylinder`, `shaderball`, and `sphere` as the silent fallback for anything else |
+| Orbit defaults | yaw `-157.5`, pitch `-11.25` — Unreal's own scene-thumbnail defaults |
+| Output | PNGs under `Saved/DreamShader/Bridge/Preview/`, plus `preview.json` |
+
+<Callout type="warn">
+The mesh and the two orbit angles are written onto the **material asset's own** scene thumbnail info
+— the same fields the native Material Editor's preview-shape button and drag-to-orbit viewport write.
+A preview render therefore changes the shape and camera the Content Browser tile and the Material
+Editor viewport use for that material. An unknown mesh name is accepted silently and renders a
+sphere; check the `mesh` echoed back in `preview.json` to see what was actually used.
+</Callout>
+
+There is no pitch clamp on the plugin side — the editor extension clamps to roughly ±89° before
+sending, and a client that does not will flip the camera over. Motion blur, anti-aliasing and dynamic
+screen percentage are off, alpha is forced opaque, and a UI-domain material is always drawn on a
+plane. The client half of this protocol is on [VSCode and Rider](/en/docs/tools/vscode).
+
+## VirtualFunction tools
+
+The actions that generate, open and refresh a [`VirtualFunction`](/en/docs/language/blocks) block for
+an existing `UMaterialFunction` asset.
+
+| Aspect | Value |
+| :-- | :-- |
+| Attaches to | `UMaterialFunction`, `UMaterialFunctionMaterialLayer`, `UMaterialFunctionMaterialLayerBlend` |
+| Writes | `<SourceDirectory>/VirtualFunctions/<Name>.dsh`, UTF-8 without BOM |
+| Since | <Since v="1.2.0" /> the declaration · <Since v="1.2.1" /> the menu · <Since v="1.2.2" /> reuse, *OpenVirtualFunction* and the startup sync |
+
+The section is built fresh on every right-click. Before building it, the editor searches every project
+source file for a `VirtualFunction` declaration whose resolved asset matches the selection — and
+**the entries you get depend on the answer**.
+
+| Declaration exists? | Entries |
+| :-- | :-- |
+| yes | **OpenVirtualFunction** — opens the file at the declaration's line and column · **Copy Virtual Function Reference** — copies a call built from the **declared** name, not the asset name |
+| no | **CopyVirtualFunction** — copies the whole declaration · **CreateVirtualFunction** — writes it to a new `.dsh` and opens it · **CopyVirtualFunctionCall** — copies a call example |
+
+<Callout type="warn">
+The lookup **re-enumerates and re-lexes every `.dsm`, `.dsh` and `.dsf`** outside `DShader/Packages`,
+from disk, on every right-click of a Material Function asset. The cost scales with the number of
+project source files and is paid before the menu appears. There is no cache, and no way to disable it
+short of `-NoDreamShaderEditorBridge`, which removes the menu entirely.
+</Callout>
+
+<Callout type="info">
+**CreateVirtualFunction on an asset that already has a declaration silently redirects to
+OpenVirtualFunction.** It never writes a duplicate file, and the toast reads
+`Opened VirtualFunction definition: {File}`, not a "created" message.
+</Callout>
+
+The file name is `<sanitized MaterialFunction name>.dsh`, or
+`<sanitized name>_<crc32 of the object path>.dsh` on collision, with the CRC in eight lowercase hex
+digits. A `.dsh` written here is picked up by the source-directory watcher like any other header, so
+the materials importing it recompile automatically. The generated declaration carries
+`Options.Asset = Path(Game|Engine|Plugins.<Name>, "…")` — see [Asset References](/en/docs/parameters/path)
+— one `Inputs` entry per function input, and one `Outputs` entry per output. Copied call examples
+always end with `OutputIndex=0`, even for a single-output function.
+
+### The startup sync service
+
+Once per editor session, at bridge startup, DreamShader re-reads every `VirtualFunction` declaration
+in the project, rebuilds it from the live asset, and writes the file back when the text changed.
+
+<Callout type="warn">
+**There is no watcher for this.** Editing a `UMaterialFunction`'s inputs or outputs does not refresh
+the declaration, and neither does saving the `.dsh`. Declarations are re-synchronized only on the
+next editor start.
+</Callout>
+
+| Aspect | Behaviour |
+| :-- | :-- |
+| Scanned files | every `.dsm`, `.dsh` and `.dsf` under the source directory, excluding `DShader/Packages` |
+| Keyword matching | the bare word `VirtualFunction`, matched **case-sensitively**, with identifier-boundary checks |
+| Skipped regions | quoted strings with `\` escapes, `//` line comments and `/* */` block comments |
+| Validation | each extracted block is re-parsed and must yield **exactly one** `VirtualFunction` whose `Options.Asset` resolves |
+| Comparison | on normalized text — CRLF and CR become LF, then the whole text is trimmed — so line-ending differences never trigger a rewrite |
+| Write-back | the whole file, UTF-8 without BOM |
+
+Sync problems are published as diagnostics with stage `virtualFunctionSync`, code
+`virtual-function-sync` and severity `error`; the full list is in the
+[diagnostics index](/en/docs/diagnostics). Reporting logs:
+`DreamShader refreshed {Count} VirtualFunction definition(s) in '{File}'.` and
+`DreamShader scanned {Scanned} VirtualFunction definition(s), refreshed {Refreshed}, reported {Issues} issue(s).`
+
+## Bridge artifacts
+
+The editor writes a set of files under `<Project>/Saved/DreamShader/Bridge/` for external tooling to
+read. Three of them are catalogues exported at bridge startup and again on every *Open Dream Shader
+Workspace*; the rest are produced as work happens.
+
+| Artifact | Contents |
+| :-- | :-- |
+| `material-expressions.json` | the reflected `UMaterialExpression` catalogue — schema `DreamShader.MaterialExpressions`, version 1, one entry per class with `className`, `pathName`, `defaultOutputType`, `properties[]`, `inputs[]` and `outputs[]`. This is what powers [`UE.Expression`](/en/docs/builtins/ue-expression) completion <Since v="1.2.10" /> |
+| `substrate-builtins.json` | the [`Substrate.*`](/en/docs/builtins/substrate) catalogue — schema `DreamShader.SubstrateBuiltins`, version 1, with `qualifiedName`, `className`, `outputType`, `isSubstrateOutput`, curated `parameters[]` and a snippet. Below UE 5.4 it carries an empty array, `"supported": false` and `"unsupportedReason"` |
+| `settings.json` | the `ShadingModel` / `BlendMode` / `MaterialDomain` alias tables — schema `DreamShader.Settings`, version 1. See [Enum Values](/en/docs/settings/enums) |
+| `diagnostics.json`, `diagnostics/` | all current diagnostics, aggregated and sharded per file |
+| `bridge.db` | a SQLite mirror of the diagnostics and the three manifests, deleted at startup and shutdown |
+| `preview.json`, `Preview/*.png` | one-shot preview results |
+| `Requests/*.json` | the inbound request directory, polled every 0.1 s and deleted on read |
+
+Every manifest carries a `generatedAt` ISO-8601 UTC timestamp. Only `diagnostics.json` is ever read
+back by the plugin — the [Gen page](#error-overlay) reads it. The schemas and the request protocol
+are covered from the consumer's side on [VSCode and Rider](/en/docs/tools/vscode).
+
+## Disabling the integration
+
+```powershell
+UnrealEditor.exe "<Project>.uproject" -NoDreamShaderEditorBridge
+```
+
+The switch is parsed as a bare command-line parameter, so `-NoDreamShaderEditorBridge` is the only
+accepted spelling. When present, `StartupModule` returns before creating anything.
+
+| Disabled | Still active |
+| :-- | :-- |
+| The editor bridge — file watcher and auto-compile-on-save, the debounce queue, the diagnostics store and all three sinks, `bridge.db`, the request-file poller, the VirtualFunction startup sync, the post-engine-init in-memory generation of all sources, the settings watcher | The runtime `DreamShader` module — parser, generator, settings object, `UDreamShaderMaterialInstance` |
+| The preview WebSocket server on port `17864`, and the whole preview renderer | The [commandlet](/en/docs/tools/commandlet), which never uses the bridge |
+| Every menu, toolbar and context-menu entry on this page | Assets already generated and saved on disk |
+| The Material Content Browser tab registration — the tab cannot be opened at all | |
+| The three exported manifests, and `DreamShader.code-workspace` regeneration | |
+
+A commandlet run reaches the same state by a different route: the module returns early whenever it
+detects a commandlet process, installing only the cook-time materialization hook, and only when
+`-run=` contains `Cook` and `-cookworker` is absent.
+
+## Notes
+
+- Four VirtualFunction entry labels are CamelCase with no spaces — `OpenVirtualFunction`,
+  `CopyVirtualFunction`, `CreateVirtualFunction`, `CopyVirtualFunctionCall` — while the fifth reads
+  **Copy Virtual Function Reference**. The inconsistency is in the shipped labels.
+- Toasts raised by the bridge expire after 4 seconds; toasts raised from the Dream Shader Gen page
+  after 3.5 seconds.
+- The editor never writes a per-material `.uasset` on its own. Persisting happens at cook, through
+  the [commandlet](/en/docs/tools/commandlet), or through an explicit *Materialize*.
+- Changing *Default Compiler Backend* in Project Settings regenerates every source file in memory and
+  raises a toast when persisted assets would shadow the result. **No other settings property triggers
+  a reaction.**
+
+## Example
+
+Launch the editor with the integration off, then do the same work headlessly:
+
+```powershell
+# No menus, no watcher, no bridge.
+& "$Engine\Binaries\Win64\UnrealEditor.exe" "I:\Project\Project.uproject" -NoDreamShaderEditorBridge
+
+# The commandlet is unaffected by the switch.
+& "$Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "I:\Project\Project.uproject" `
+    -run=DreamShader compile -All -Force -unattended -nopause -nosplash -stdout -log
+```
+
+## Where next
+
+<Cards>
+  <Card title="Decompiler" href="/en/docs/tools/decompiler" description="What Export DSM / Export DSF produce, and what they cannot." />
+  <Card title="VSCode and Rider" href="/en/docs/tools/vscode" description="The workspace file, the extensions, and the artifacts they consume." />
+  <Card title="Commandlet" href="/en/docs/tools/commandlet" description="The headless entry point, which writes real assets." />
+  <Card title="In-memory Materials" href="/en/docs/generation/in-memory" description="Why the Content Browser is empty, and what Materialize does." />
+  <Card title="Project Settings" href="/en/docs/settings/project" description="The thirteen settings these commands read and write." />
+  <Card title="Diagnostics" href="/en/docs/diagnostics" description="Every message, with cause and fix." />
+</Cards>

@@ -1,0 +1,232 @@
+---
+title: Installation
+description: Add the DreamShader plugin to an Unreal project, find its settings, and confirm the compile chain works.
+---
+
+DreamShaderLang is compiled by the DreamShader Unreal plugin. Everything on this page happens once
+per project.
+
+| | |
+| --- | --- |
+| Repository | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
+| Plugin version | `1.5.0` |
+| Engines | Unreal Engine `5.3` – `5.8`, Win64 verified |
+| Expected path | `<Project>/Plugins/DreamShader` |
+| Plugin dependencies | `WebSocketNetworking`, `SQLiteCore` — both engine plugins, both enabled automatically |
+
+## Install
+
+<Steps>
+
+<Step>
+
+### Copy the plugin into the project
+
+```text
+MyProject/
+└─ Plugins/
+   └─ DreamShader/
+      └─ DreamShader.uplugin
+```
+
+Keep the directory named `DreamShader`; the module names, the log category and every path in this
+documentation assume it.
+
+</Step>
+
+<Step>
+
+### Enable it and restart
+
+Enable **DreamShader** in *Edit ▸ Plugins*, then restart the editor. The plugin descriptor enables
+`WebSocketNetworking` and `SQLiteCore` for you — the first is the live-preview WebSocket server, the
+second backs the editor bridge's `bridge.db`. Both are used only by the editor module.
+
+Three modules load at the `Default` phase: `DreamShader` and `DreamShaderCompiler` (Runtime), and
+`DreamShaderEditor` (Editor). Only the editor module generates assets.
+
+</Step>
+
+<Step>
+
+### Confirm the settings page
+
+Open *Project Settings* and find:
+
+```text
+Project Settings ▸ DreamPlugin ▸ Dream Shader
+```
+
+<Callout type="warn">
+  The settings live under the **DreamPlugin** category, **not** under *Plugins*. If the page is not
+  there, the plugin did not load — check the Output Log for `LogDreamShader`.
+</Callout>
+
+</Step>
+
+<Step>
+
+### Let the plugin create its directories
+
+On the first editor launch the runtime module creates all three working directories, whether or not
+you have authored anything:
+
+```text
+<Project>/DShader/                                        source root
+<Project>/DShader/Packages/                               installed shared libraries
+<Project>/Intermediate/DreamShader/GeneratedShaders/      generated .ush includes
+```
+
+`DShader` is the *Source Directory* setting; `Packages` is always the literal `Packages`
+subdirectory of it and is not separately configurable.
+
+</Step>
+
+<Step>
+
+### Write a source file and save it
+
+```c
+// <Project>/DShader/Materials/M_InstallCheck.dsm
+Shader(Name="DreamMaterials/M_InstallCheck")
+{
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Color = vec3(0.2, 0.6, 1.0);
+    }
+}
+```
+
+With *Auto Compile On Save* on (the default), the file watcher notices the save, waits out the
+debounce, and generates the material. The Output Log reports:
+
+```text
+Generated DreamShader thin-custom material /Game/DreamMaterials/M_InstallCheck from .../M_InstallCheck.dsm.
+```
+
+</Step>
+
+</Steps>
+
+## Verify the installation
+
+| Check | Expected result |
+| --- | --- |
+| Plugin loaded | *Project Settings ▸ DreamPlugin ▸ Dream Shader* exists |
+| Directories created | `DShader/` and `DShader/Packages/` exist in the project root |
+| A `.dsm` compiles | the Output Log reports `Generated DreamShader thin-custom material …` |
+| The material exists | *Tools ▸ DreamShader ▸ Material Content Browser*, **Dream Shader Gen** page, status `● up to date` |
+| Editor extension wired up | `Saved/DreamShader/Bridge/` contains `diagnostics.json`, `material-expressions.json`, `settings.json`, `substrate-builtins.json` |
+
+<Callout type="warn">
+  Do not expect the new material in the Content Browser. Under the default backend it is generated
+  **in memory** and hides itself from the Content Browser, asset pickers and save pickers. See
+  [Your First Material](/en/docs/start/first-material).
+</Callout>
+
+## The settings you will touch first
+
+The full panel has thirteen properties; these are the ones that matter on day one. Note that the
+config identifiers keep the `b` prefix Unreal drops from the display name.
+
+| UI name | Config property | Default | Effect |
+| --- | --- | --- | --- |
+| Source Directory | `SourceDirectory` | `DShader` | Root scanned for `.dsm` / `.dsf` / `.dsh`. A relative path resolves against the project directory. |
+| Generated Shader Directory | `GeneratedShaderDirectory` | `Intermediate/DreamShader/GeneratedShaders` | Where the generated `.ush` include is written. |
+| Default Compiler Backend | `DefaultBackend` | `ThinCustom` | Backend for a file that does not set `Settings = { Backend = … }`. |
+| Show In-Memory Materials In Content Browser | `bShowInMemoryMaterialsInContentBrowser` | `false` | Makes memory-only materials visible like unsaved assets. |
+| Auto Compile On Save | `bAutoCompileOnSave` | `true` | When off, the source-directory watcher ignores file changes entirely. |
+| Save Debounce Seconds | `SaveDebounceSeconds` | `0.25` | Quiet period after a change before compiling. Clamped to `[0.05, 10.0]`. |
+
+Values are written to the **project's** `Config/DefaultEngine.ini`, section
+`[/Script/DreamShader.DreamShaderSettings]`, so they are shared by everyone who checks the project
+out. All thirteen are documented on [Project Settings](/en/docs/settings/project).
+
+<Callout type="warn">
+  `GeneratedShaderDirectory` is only consulted while the `/DreamShaderGenerated` virtual shader mount
+  is unregistered. Changing it mid-session does not move the output — restart the editor.
+</Callout>
+
+## Where the asset lands
+
+`Shader(Name="DreamMaterials/M_Minimal")` resolves to `/Game/DreamMaterials/M_Minimal`. `Name` is a
+package path relative to the root and must not carry a `/Game` prefix itself. `Root` is optional and
+defaults to `Game`:
+
+```c
+Shader(Name="DreamMaterials/M_Minimal", Root="Plugin.MyPlugin")
+```
+
+That writes `/MyPlugin/DreamMaterials/M_Minimal`, on disk at
+`<Project>/Plugins/MyPlugin/Content/DreamMaterials/M_Minimal.uasset`. Only **project** plugins under
+`<Project>/Plugins` are accepted; engine and marketplace plugins are rejected. `Root` may also
+append folders — `Game/Generated`, `Plugin.MyPlugin/Generated`. The complete dispatch table is on
+[Asset Paths](/en/docs/generation/asset-paths).
+
+## Engine compatibility
+
+DreamShader `1.5.0` is developed against Unreal Engine `5.8` and verified on Win64 with
+single-plugin `RunUAT BuildPlugin` builds:
+
+| Unreal Engine | Status |
+| --- | --- |
+| `5.8` | Verified |
+| `5.7` | Verified |
+| `5.6` | Verified |
+| `5.5` | Verified |
+| `5.4` | Verified |
+| `5.3` | Verified |
+
+To validate the plugin against an engine without building a full project target:
+
+```powershell
+& "<EngineDir>\Engine\Build\BatchFiles\RunUAT.bat" BuildPlugin `
+  -Plugin="<ProjectDir>\Plugins\DreamShader\DreamShader.uplugin" `
+  -Package="<OutputDir>\DreamShader" `
+  -TargetPlatforms=Win64 `
+  -Rocket
+```
+
+`-Package` must point outside the source tree — UAT stages a clean copy there.
+
+<Callout type="warn">
+  On Windows, UE `5.3` and `5.4` may require the MSVC `14.38` toolchain. Newer toolchains can fail
+  while compiling **older engine headers**, before any plugin code is reached — the failure is not in
+  `Source/DreamShader*`. Install `14.38` from the Visual Studio Installer and select it in
+  `BuildConfiguration.xml` before concluding the plugin is broken on those engines.
+</Callout>
+
+Feature availability differs by engine version: `Substrate.*`, `ShadingModel = "Substrate"` and
+`Base.FrontMaterial` need <Since v="5.4" ue />, and a few transform bases and arguments need `5.5`
+or `5.6`. The gate is compile-time, so moving a project to a newer engine means rebuilding the
+plugin.
+
+## Editor extensions
+
+The language service is not part of the plugin. Install one of the two extensions for highlighting,
+completion, diagnostics and preview:
+
+| Editor | Repository |
+| --- | --- |
+| VSCode | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) |
+| JetBrains Rider | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) |
+
+*Tools ▸ DreamShader ▸ Open Dream Shader Workspace (VSCode)* writes
+`DShader/DreamShader.code-workspace`, refreshes the three bridge manifests, and launches VSCode on
+it. See [VSCode and Rider](/en/docs/tools/vscode).
+
+## Next
+
+- [Your First Material](/en/docs/start/first-material) — write one, then find it
+- [Project Layout](/en/docs/start/project-layout) — how to organize `DShader/`
+- [Daily Workflow](/en/docs/start/workflow) — the save, debounce and generate loop
+- [About DreamShader](/en/docs/start/about) — what the plugin is made of

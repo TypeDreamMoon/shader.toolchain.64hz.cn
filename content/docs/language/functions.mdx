@@ -1,0 +1,498 @@
+---
+title: 函数
+description: Function、GraphFunction 与 Namespace —— 参数、返回类型、SelfContained 内嵌、UE.* 提升，以及调用如何解析。
+---
+
+`Function` 和 `GraphFunction` 把可复用逻辑从裸的 `Graph` 语句里挪出来。两者都用 C 风格签名加一段 HLSL
+函数体；区别在于这段函数体的去向。
+
+| | `Function` | `GraphFunction` |
+| :-- | :-- | :-- |
+| 函数体去向 | 生成的 `.ush` include，符号名 `DreamShaderFn_<Name>` | 直接内联进调用方的 `Custom` 节点 |
+| 函数体里的 `UE.*` 调用 | 原样留作 HLSL 文本 | 求值成材质表达式，作为 `Custom` 节点输入传入 |
+| `Inline` / `SelfContained` | 接受 | 在这里**不是**修饰符 |
+| 需要活动的 `Graph` 构建 | 不需要 | 需要 |
+| 可被其他 HLSL 调用 | 可以 | 不可以 —— 它没有生成符号 |
+
+`Namespace` 把这两种块归到 `Ns::` 前缀之下。
+
+## 语法概览
+
+<Synopsis>
+
+```c
+Function      [ { Inline | SelfContained } ] [ <return-type> ] <name> ( [ <parameter-list> ] ) { <hlsl> }
+GraphFunction                                [ <return-type> ] <name> ( [ <parameter-list> ] ) { <hlsl> }
+
+<parameter-list> := <parameter> [ , <parameter> ] …
+<parameter>      := [ { in | out } ] <type-token> <parameter-name>
+```
+
+</Synopsis>
+
+<Grammar />
+
+它没有 `(Key = Value)` 头部、没有 `Settings`、也没有任何 section。参数列表之后的 `{ … }` 是原始 HLSL，
+通过感知 `//`、`/* */` 和 `"…"` 的花括号配平扫描提取出来。
+
+关键字 `Function` 和 `GraphFunction` **大小写敏感**；修饰符、`in` / `out` 限定符和所有类型 token 不敏感。
+
+## 声明顺序
+
+解析器从左到右读标识符，靠一个字符的前瞻消歧：读完一个标识符后跳过空白和注释，如果下一个字符不是 `(`，
+那么刚读到的标识符就是*返回类型*。
+
+| 形式 | 读作 |
+| :-- | :-- |
+| `Function Name(…)` | 名字 |
+| `Function Type Name(…)` | 返回类型，然后名字 |
+| `Function SelfContained Name(…)` | 修饰符，然后名字 |
+| `Function SelfContained Type Name(…)` | 修饰符、返回类型、名字 |
+| `Function Type SelfContained Name(…)` | 返回类型 `Type`、名字 `SelfContained`，然后多出一个 `Name` —— 解析错误 |
+
+所以修饰符的位置是固定的：紧跟在关键字**之后**的**第一**位。
+
+<Callout type="warn">
+
+函数不能**取名**为 `Inline` 或 `SelfContained`。`Function SelfContained(in float a, out float b) { … }`
+会走修饰符分支，然后在本该是名字的位置发现 `(`，失败于
+`Function declaration is missing a valid function name after SelfContained.`
+
+</Callout>
+
+## 参数
+
+参数先按顶层 `,` 切分，每个参数再按**任意一段空白**切分。接受 2 或 3 个 token：
+
+| Token 数 | 形式 | 限定符 |
+| :-- | :-- | :-- |
+| 2 | `<type> <name>` | 默认为 `in` |
+| 3 | `<qualifier> <type> <name>` | 按写的来 |
+| 少于 2 或多于 3 | — | `Function '{Name}' has an invalid parameter declaration '{Text}'.` |
+
+| 规则 | 行为 |
+| :-- | :-- |
+| 限定符 | 只有 `in` 和 `out`，比较前会小写化，所以 `In`、`OUT`、`iN` 都可以。 |
+| `inout` | **不存在。** `inout float x` 会被拒绝：`Function '{Name}' parameter '{Text}' uses unsupported qualifier 'inout'. Supported qualifiers are in and out.` |
+| 空白 | 任意空白都能分隔 token，制表符也行 —— 这一点*不同于* `Inputs` / `Outputs` section，那里必须是字面空格。 |
+| 空参数 | 被静默跳过，所以 `)` 前的尾随逗号是可以的。 |
+| 顺序 | `in` 参数按声明顺序成为输入，`out` 参数按声明顺序成为结果。两者可以交错。 |
+| 保留名 | 名为 `__return`（忽略大小写）的参数会被拒绝 —— 这个名字保留给返回类型降级使用。 |
+| 不可用 | `opt`、默认值和 `[ … ]` 元数据**不属于**这套语法，它们属于 [`Inputs` / `Outputs` section](/docs/language/sections)。 |
+
+### 至少一个输出
+
+函数必须产出点什么：解析完成后结果列表不能为空。这意味着声明里**要么**至少有一个 `out` 参数，**要么**
+有返回类型。两者都没有会得到 `Function '{Name}' must declare at least one out parameter.`
+
+## 返回类型
+
+| 形式 | 合法 | 结果 |
+| :-- | :-- | :-- |
+| `Function Name(in T a, out U r)` | 是 | 一个结果 `r` |
+| `Function Name(in T a, out U r1, out V r2)` | 是 | 两个结果，先 `r1` 后 `r2` |
+| `Function U Name(in T a) { return expr; }` | 是 | 一个名为 `__return`、类型为 `U` 的合成结果 |
+| `Function U Name(in T a, out V r)` | **否** | `Function '{Name}' has a return type and cannot also declare out parameters. Use out parameters without a return type for multiple outputs.` |
+| `Function Name(in T a)` | **否** | 完全没有输出 |
+| `Function U Name(…) { return; }` | **否** | 有返回类型却写了裸 `return;` |
+
+**有返回类型就意味着恰好一个输出，并且禁止任何显式 `out`。** 多输出必须用 `out` 参数且不写返回类型。
+
+### `return` 降级
+
+声明了返回类型时，函数体在 codegen 之前会被改写：**花括号深度 0** 上、两侧是非标识符字符的每个
+`return` 都变成字面文本 `__return =`。后面的表达式和它的 `;` 原样保留，扫描会跳过注释、`"…"` 和
+`'…'`，所以 `returnValue` 和 `my_return` 不受影响。
+
+深度 0 的裸 `return;` 是硬错误：
+`A function with a return type cannot use a bare 'return;'. Return a value, e.g. 'return expr;'.`
+
+<Callout type="info">
+
+只有深度 0 的 `return` 会被降级。嵌在 `if { … }` 里的 `return expr;` 在产出的 `DreamShaderFn_*` 函数体
+中仍然是真正的 HLSL `return`。那是合法 HLSL 且返回同样的类型，但它绕过了 `__return` 变量 —— 而在
+`GraphFunction` 里，因为函数体被内联进 `Custom` 节点，它会直接从节点返回，完全跳过结果回写。
+
+</Callout>
+
+## 接受的参数类型
+
+15 个 GLSL 别名规范化之后，解析器接受：
+
+| Token | 可作 `in` | 可作结果 / 返回 |
+| :-- | :-- | :-- |
+| `float` `float1` `half` `half1` `int` `uint` `bool` | 可以 | 可以 |
+| `float2` `half2` `int2` `uint2` `bool2` | 可以 | 可以 |
+| `float3` `half3` `int3` `uint3` `bool3` | 可以 | 可以 |
+| `float4` `half4` `int4` `uint4` `bool4` | 可以 | 可以 |
+| `MaterialAttributes` | 可以 | 可以 |
+| `StaticBool`、`StaticBoolParameter` | 可以 | **不可以** |
+| `Texture2D`、`SamplerState` | 可以 | **不可以** |
+| `TextureCube` | 可以 | **不可以** |
+| `Texture2DArray` | 可以 | **不可以** |
+| `Texture3D`、`VolumeTexture` | 可以 | **不可以** |
+| `Substrate` | **不可以** | **不可以** |
+
+未知 token **在解析阶段不会被校验** —— 它被透传过去，只有函数被调用时才失败。矩阵就走这条路径：
+`DreamShader Function 'Rotate' input 'basis' uses unsupported type 'float3x3'.`
+
+<Callout type="warn">
+
+`Substrate` 在 `Function` 和 `GraphFunction` 上永远不可用。UE 5.4+ 时 `Function` 报
+`… uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or
+ShaderFunction instead.`；UE 5.3 时报 `… requires Unreal Engine 5.4 or newer.` Substrate 值根本无法
+跨越 `Custom` 节点边界 —— 请在 `ShaderFunction` 或 `Shader` 的 `Graph` 里构建它们。
+
+</Callout>
+
+### 纹理参数与采样器
+
+有五个 token 被当作*纹理函数参数*：`Texture2D`、`TextureCube`、`Texture2DArray`、`Texture3D`、
+`VolumeTexture`。每遇到一个，生成的 HLSL 签名就会在它后面多出一个 `SamplerState <ParamName>Sampler`
+参数，每个生成的调用点也会传入对应的 `<argument>Sampler`。在函数体里用这个名字来采样纹理。
+
+`SamplerState` **不在**这个列表里：声明为 `SamplerState S` 的参数解析成普通的 `Texture2D` 对象，不会
+获得伴随参数。
+
+```c
+Function SampleTinted(in Texture2D tex, in vec2 uv, in vec3 tint, out vec3 rgb, out float alpha)
+{
+    float4 texel = Texture2DSample(tex, texSampler, uv);
+    rgb   = texel.rgb * tint;
+    alpha = texel.a;
+}
+```
+
+## 函数体规范化
+
+每个 `Function` 和 `GraphFunction` 的函数体 —— 语言里也只有它们 —— 在存储之前会过一遍标识符级别的改写。
+扫描感知注释和字符串，做两件事：替换 18 个别名（15 个 GLSL 类型拼法，加上 `mix` → `lerp`、
+`fract` → `frac`、`mod` → `fmod`），以及把 `A::B` 压平成净化后的标识符 `A_B`。
+
+<Callout type="warn">
+
+因为别名匹配忽略大小写、且作用于函数体内任意位置的整个标识符，你自己写的名为 `Mix`、`Mod`、`Fract`、
+`Vec3` 或 `Mat4` 的 helper 或*变量*会在产出的 HLSL 里被静默改名。没有任何诊断。请改名，或者换一个不会
+撞上的拼法（`MixColor`、`ModValue`）。
+
+</Callout>
+
+## 生成的 HLSL
+
+每个 `Function` 以这种形态写进生成的 include：
+
+```hlsl
+<ResultType0> DreamShaderFn_<SanitizedName>(<params>)
+{
+	<ResultType0> <Result0Name> = (<ResultType0>)0;
+	<Result1Name> = (<ResultType1>)0;
+	<body, indented>
+	return <Result0Name>;
+}
+```
+
+| 元素 | 规则 |
+| :-- | :-- |
+| 符号名 | `DreamShaderFn_` 加上函数的完整名字，经过净化。`Common::ApplyTint` → `DreamShaderFn_Common_ApplyTint`。 |
+| 为什么要前缀 | 不带前缀的 `Luminance(float3)` 会重定义 `Common.ush` 里的引擎内建，导致 shader 编译失败于 `redefinition of 'Luminance'`。 |
+| 返回值 | `Results[0]` 是 HLSL 返回值，永远不是参数。 |
+| 参数 | 每个 `in` 参数；每个纹理类型输入之后一个 `SamplerState <Name>Sampler`；然后其余每个结果作为 `out <Type> <Name>`。 |
+| 类型改写 | `VolumeTexture` → `Texture3D`；其他一律原样。 |
+
+一个解析单元里的每个 `Function` 都会进 include —— 包括 `SelfContained` 的。`GraphFunction` 永远不会。
+见 [生成流程](/docs/generation/pipeline)。
+
+## `Inline` / `SelfContained`
+
+`Inline` 是 `SelfContained` 的**完全同义词** —— 同一个解析分支、同一个标志位，行为上毫无差别。两者都
+不被 `GraphFunction` 接受。
+
+不带修饰符时，调用点产出的 `Custom` 节点代码会去调用 include。带修饰符时，这个函数*以及它调用的普通
+`Function` 的传递闭包*会被内嵌进调用节点自己的代码里，包在一个结构体中。
+
+| 方面 | 默认 | `Inline` / `SelfContained` |
+| :-- | :-- | :-- |
+| 函数体所在位置 | 共享的生成 `.ush` | 在每个调用它的 `Custom` 节点里复制一份 |
+| `IncludeFilePaths` | 总是包含生成的 include | 只有当某个其他直接被调方没有被内嵌时才包含 |
+| 结构体包装 | 无 | 一个 `generated_wrapper_*` 类型加一个 `__ds_wrapper_*` 实例 |
+| 成员产出顺序 | — | 依赖顺序，被调方在调用方之前 |
+| 递归 | include 允许，但 HLSL 会拒绝 | 在产出之前就被检测并报错 |
+| 仍然写进 include | 是 | **是** —— 修饰符只是增加内嵌，不会移除 include 条目 |
+
+<Callout type="info">
+
+内嵌是由*调用点*驱动的，不是只看声明。只有从内嵌根可达的函数才会被拉进包装结构体；被内嵌闭包调用的
+普通 `Function` 会跟着一起被内嵌。
+
+</Callout>
+
+## `GraphFunction` 与 `UE.*` 提升
+
+在 `Custom` 节点的代码被组装之前，函数体会被扫描一遍，每个 `UE.*` 调用都会被替换成一个生成输入引脚的
+名字，那个引脚承载这次调用求值得到的值。
+
+只有下列条件按顺序全部满足时才会被提升：
+
+| 步骤 | 条件 |
+| :-- | :-- |
+| 1 | `U` 前面的字符是标识符边界 |
+| 2 | 接下来三个字符是 `U`、`E`、`.` —— **忽略大小写**匹配，所以 `ue.`、`Ue.`、`uE.` 都会触发 |
+| 3 | `.` 后面的字符能开始一个标识符 |
+| 4 | 跳过可选空白后，下一个字符是 `(` |
+| 5 | 存在配对的 `)` —— 搜索感知字符串 |
+
+第 1–4 步不满足时，文本原样静默透传。第 5 步失败时生成停止，报
+`DreamShader GraphFunction '{Name}' contains an unterminated UE.* call.` 扫描会跳过注释和字符串字面量，
+所以写在注释里的 `UE.Time()` 不会被提升。
+
+提取出的文本会被重新按 Graph 表达式解析，并在一个包含外层 `Graph` 块变量和本次调用实参的作用域中求值，
+所以任何 [`UE.*` 内置](/docs/builtins/ue-nodes)（包括
+[`UE.Expression`](/docs/builtins/ue-expression)）都可用。
+
+### 生成的引脚名
+
+| 步骤 | 规则 |
+| :-- | :-- |
+| 1 | 基础名是 `__ds_<SanitizedFunctionName>_UE<N>`，`N` **在每个调用点都从 0 开始** |
+| 2 | 整个名字经过标识符净化，开头的 `__` 被塌缩成单个 `_` |
+| 3 | 结果为空时变成 `__ds_input` |
+| 4 | 只要和已有输入名冲突，就追加 `_1`、`_2`… |
+
+所以函数体里含一个 `UE.Time()` 调用的 `GraphFunction WindPulse` 会产出一个字面名为：
+
+```text
+_ds_WindPulse_UE0
+```
+
+的引脚，而带命名空间的 `Common::Pulse` 产出 `_ds_Common_Pulse_UE0`。这些名字在生成的节点上、以及任何
+提到它们的 shader 编译错误里都是用户可见的。
+
+<Callout type="info">
+
+提升恰好消费 `UE.Name( … )` 到配对的 `)` 为止，一个字符都不多。尾随的 swizzle 或成员访问会留在原地，
+作为作用于引脚的 HLSL，所以 `UE.CameraVector().xy` 变成 `_ds_<Fn>_UE0.xy`，由 shader 编译器求值。引脚
+本身承载的是内置的完整分量数。
+
+</Callout>
+
+<Callout type="warn">
+
+**只有 `UE.` 会被提升。** `Substrate.*` 调用不被扫描识别，会原样抄进 `Custom` 节点的 HLSL，而
+`Substrate.Slab(…)` 不是合法 HLSL，shader 编译器会拒绝它。请在 `ShaderFunction` 或 `Shader` 的
+`Graph` 里构建 Substrate 图。
+
+</Callout>
+
+被提升的表达式必须产出普通数值。纹理对象、`MaterialAttributes` 值或 Substrate 材质会失败于
+`DreamShader GraphFunction '{Name}' UE input '{CallText}' cannot be passed into a Custom node input.`
+
+```c
+GraphFunction WindPulse(in float2 uv, out float pulse)
+{
+    float t = UE.Time();
+    pulse = sin(uv.x * 8.0 + t);
+}
+```
+
+一次调用会生成：
+
+```text
+UMaterialExpressionTime                →  Custom pin "_ds_WindPulse_UE0"
+UMaterialExpressionTextureCoordinate   →  Custom pin "uv"
+UMaterialExpressionCustom  Description="WindPulse"  OutputType=CMOT_Float1
+```
+
+```hlsl
+float pulse = (float)0;
+float t = _ds_WindPulse_UE0;
+pulse = sin(uv.x * 8.0 + t);
+return pulse;
+```
+
+## `Namespace`
+
+`Namespace` 给它包含的 `Function` 和 `GraphFunction` 声明的名字加前缀。它不是一个实体：不会为它存储
+任何对象，它也**不创建作用域**。它唯一的作用是改写成员的记录名。
+
+```text
+Namespace(Name = "Common") { Function ApplyTint(…) }   →   名字 "Common::ApplyTint"
+```
+
+| 规则 | 行为 |
+| :-- | :-- |
+| `Name` | 必须是合法标识符，逐字符校验。`Namespace(Name="A::B")` 是错误 —— **没有多段声明形式**。 |
+| 函数体 | 只能是 `Function` 和 `GraphFunction`。嵌套命名空间、section 和资产块都会失败于 `Namespace '{Name}' may only contain Function or GraphFunction blocks.` |
+| 重复打开 | 允许且不作检查。同一文件或跨 import 的两个 `Namespace(Name="Common")` 块都会加 `Common::` 前缀。 |
+| 查找 | 成员**只能**通过完整限定名访问。没有 `using`，没有名字导入，也没有不限定的回退。 |
+| 大小写 | 比较对整个限定串忽略大小写，所以 `common::applytint(…)` 能解析。 |
+
+```c
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+
+    Function float Remap01(in float value) {
+        return saturate(value * 0.5 + 0.5);
+    }
+
+    GraphFunction Pulse(in float speed, out float value) {
+        value = sin(UE.Time() * speed);
+    }
+}
+```
+
+```c
+Graph = {
+    vec3 Tinted;
+    Common::ApplyTint(BaseColor, Tint, Tinted);   // 语句式调用
+    float K = Common::Remap01(Tinted.r);          // 值式调用
+}
+```
+
+<Callout type="warn">
+
+因为 `::` 和 `_` 净化后是同一个符号，`Namespace(Name="Common")` 的成员 `ApplyTint` 和顶层的
+`Function Common_ApplyTint` 会产出同一个 `DreamShaderFn_Common_ApplyTint`。include 写出器会拒绝这一对：
+`DreamShader Function '{Name}' collides with another generated helper symbol '{Symbol}'. Rename the
+Function or Namespace.`
+
+</Callout>
+
+<Callout type="warn">
+
+**写在另一个 `Function` 或 `GraphFunction` 函数体里的 `Ns::Fn(…)` 调用不会解析。** 函数体规范化会在
+codegen 看到它之前把限定 token `Common::ApplyTint` 改写成 `Common_ApplyTint`，而改写表的键是
+`Common::ApplyTint` 和 `DreamShaderFn_Common_ApplyTint` —— 从来不是 `Common_ApplyTint`。症状是一条指出
+未定义 `Common_ApplyTint` 的 shader 编译错误；DreamShader 侧没有任何诊断。
+
+绕过办法：在 `Graph` 块里调用这个带命名空间的函数，把结果作为参数传进来；或者把 helper 声明在顶层、
+不限定地调用；或者在函数体里直接写净化后的符号 `DreamShaderFn_Common_ApplyTint(…)`，规范化器不会动它。
+从 `Graph` 块发起的调用不受影响。
+
+</Callout>
+
+## 调用
+
+两种调用形式都写在 `Graph` 块里。
+
+| 形式 | 要求 |
+| :-- | :-- |
+| `x = Fn(a, b);` —— **值式调用** <Since v="1.3.1" /> | 恰好一个声明的输出；实参个数必须等于输入个数 |
+| `Fn(a, b, OutX, OutY);` —— 语句式调用 | 先全部输入，再按声明顺序每个 `out` 结果一个**纯变量名** |
+
+<Callout type="info">
+
+单输出的 `Function` 和 `GraphFunction` 调用**可以**当作值使用，从 1.3.1 起就可以。单输出的
+`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` 和 `VirtualFunction` 调用同样可以
+<Since v="1.5.0" />。只有*多*输出的 helper 才需要语句式。
+
+</Callout>
+
+`Function` 和 `GraphFunction` 在两种形式下都**不**支持命名参数 —— 传 `Key = Value` 会失败于
+`… currently uses positional arguments only.` out 目标必须是裸名字、非空，且在一次调用内互不重复。
+因为查找也接受净化后的拼法，`DreamShaderFn_Luma(c)` 是合法调用。
+
+完整的参数规则、`default`、输出选择器和跨类型歧义见 [调用](/docs/graph/calls)。
+
+## 说明
+
+- **没有重载解析。** 名字不按 arity 或参数类型区分；忽略大小写后第一个匹配的声明胜出。
+- **忽略大小写的冲突就是真冲突。** `Luma` 和 `luma` 会被判为"声明了多次"，`A::B` 和 `A_B` 也是。
+- **解析单元是整个 import 闭包**，所以跨导入 header 的重名就是冲突。见
+  [import 与命名空间](/docs/language/imports)。
+- 只含 `Function` 块的 `.dsm` 或 `.dsf` 能编译成功且不产出资产：
+  `Generated DreamShader helper include '{Path}' from {File}.`
+- 如果一个 `Function` 和一个 `GraphFunction` 同名，所有调用都会有歧义。
+- UE 5.3 上生成的 `Custom` 节点会在材质图里显示代码；UE 5.4 起 `ShowCode` 被设为 `false`。
+- 旧的 section 式函数体 `Function Name { Inputs = { … } Code = { … } }` **不是**受支持的形式。
+
+## 示例
+
+```c
+// DShader/Lib/Color.dsh
+
+Function float Luma(in vec3 color)
+{
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
+Function SelfContained Remap01(in float value, out float result)
+{
+    result = saturate(value * 0.5 + 0.5);
+}
+```
+
+```c
+import "Lib/Color.dsh";
+
+Shader(Name="Materials/M_Tinted")
+{
+    Properties = {
+        TextureSampleParameter2D BaseTex = Path(Game, "Textures/T_Base");
+        vec3                     Tint    = vec3(1.0, 0.6, 0.2);
+    }
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+    Graph = {
+        vec2 UV  = UE.TexCoord(Index = 0);
+        vec4 Tex = BaseTex(Coordinates = UV);
+
+        float Key;
+        Remap01(Luma(Tex.rgb), Key);      // 语句式调用，内层是值式调用
+
+        Color = Tex.rgb * Key;
+    }
+}
+```
+
+## 诊断
+
+<Diag>
+  <D msg="Function declaration is missing a valid function name." cause="Function 后面的 token 不是标识符。" />
+  <D msg="Function declaration is missing a valid function name after SelfContained." cause="写成了 Function SelfContained( 或 Function Inline( —— 修饰符分支在本该是名字的位置发现了 (。" />
+  <D msg="Function declaration is missing a function name after the return type '{Token}'." cause="返回类型后面没跟标识符 —— 在参数列表 ( 的位置写了 { 也会走到这里。" />
+  <D msg="Function '{Name}' has an invalid parameter declaration '{Text}'." cause="参数按空白切分后少于 2 个或多于 3 个 token，或类型 / 名字为空。" />
+  <D msg="Function '{Name}' parameter '{Text}' uses unsupported qualifier '{Qualifier}'. Supported qualifiers are in and out." cause="使用了 in / out 之外的限定符，inout 也在其中。" fix="把这个参数拆成一个 in 参数和一个 out 参数。" />
+  <D msg="Function '{Name}' parameter name '__return' is reserved for return-type lowering." cause="参数字面名为 __return。" />
+  <D msg="Function '{Name}' has a return type and cannot also declare out parameters. Use out parameters without a return type for multiple outputs." cause="返回类型和任意 out 参数同时出现 —— GraphFunction SelfContained Foo(… out …) 也会走到这里。" />
+  <D msg="Function '{Name}' must declare at least one out parameter." cause="既没有 out 参数也没有返回类型。" />
+  <D msg="A function with a return type cannot use a bare 'return;'. Return a value, e.g. 'return expr;'." cause="有返回类型的函数体里出现了深度 0 的裸 return。" />
+  <D msg="DreamShader Function '{Name}' is declared more than once." cause="import 闭包内有两个忽略大小写后同名的声明。" />
+  <D msg="DreamShader Function '{Name}' collides with another generated helper symbol '{Symbol}'. Rename the Function or Namespace." cause="两个名字净化成同一个 DreamShaderFn_* 符号 —— 典型是 Ns::Fn 撞上 Ns_Fn。" />
+  <D msg="SelfContained Function cycle detected: {Path}. HLSL Custom nodes cannot compile recursive DreamShader functions." cause="内嵌闭包里出现了环。" />
+  <D msg="GraphFunction cycle detected: {Path}." cause="GraphFunction 直接或间接递归；{Path} 是当时的调用栈。" />
+  <D msg="Unknown Graph function '{Name}'." cause="没有这个名字的可调用项 —— 常见原因是不限定地调用了带命名空间的成员。" fix="改写成 Ns::Fn(…)。" />
+  <D msg="Graph call '{Name}' is ambiguous because multiple definitions use that name: {Kinds}." cause="两种可调用类型声明了同一个名字。" />
+  <D msg="DreamShader Function '{Name}' has {N} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB)." cause="对多输出函数使用了值式调用。" />
+  <D msg="DreamShader Function '{Name}' currently uses positional arguments only." cause="给 Function 或 GraphFunction 传了命名参数。" />
+  <D msg="DreamShader Function '{Name}' out argument {N} must be a plain variable name." cause="out 目标不是裸标识符。序号从 1 开始。" />
+  <D msg="DreamShader GraphFunction '{Name}' contains an unterminated UE.* call." cause="函数体里的 UE.*( 没有配对的 )。" />
+  <D msg="DreamShader GraphFunction '{Name}' UE input '{CallText}' cannot be passed into a Custom node input." cause="被提升的调用产出了纹理对象、MaterialAttributes 值或 Substrate 值。" />
+  <D msg="GraphFunction call requires an active Graph build context." cause="在 Graph 块之外调用了 GraphFunction。" />
+  <D msg="Namespace '{Name}' may only contain Function or GraphFunction blocks." cause="Namespace 体内出现了其他任何 token，包括嵌套的 Namespace。" />
+  <D msg="Expected function name after '::'." cause="限定调用的 :: 后面什么都没有。" />
+</Diag>
+
+## 该选哪一种
+
+| 场景 | 用 |
+| :-- | :-- |
+| 复用的纯数学 | `Function`，放在 `.dsh` |
+| 复用的、需要真实材质节点的逻辑 | `GraphFunction` |
+| 供其他材质调用的可复用资产 | `ShaderFunction`，放在 `.dsf` |
+| 已经存在的 `UMaterialFunction` | `VirtualFunction` |
+| `MaterialAttributes` 或 Substrate 传递 | `ShaderFunction` —— 绝不用 `Function` |
+| 公共库 API | 放进 `Namespace` 的稳定名字，作为 package 发布 |
+
+## 继续阅读
+
+<Cards>
+  <Card title="调用" href="/docs/graph/calls" description="全部参数形式、default、输出选择器与歧义。" />
+  <Card title="import 与命名空间" href="/docs/language/imports" description="把 helper header 送进调用它的文件。" />
+  <Card title="UE.* 节点" href="/docs/builtins/ue-nodes" description="GraphFunction 函数体能提升的一切。" />
+  <Card title="生成流程" href="/docs/generation/pipeline" description="生成的 .ush include 写在哪里。" />
+</Cards>

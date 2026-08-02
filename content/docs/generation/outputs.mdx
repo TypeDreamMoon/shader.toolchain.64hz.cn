@@ -1,0 +1,355 @@
+---
+title: 输出绑定
+description: Outputs section —— 声明输出变量、完整的 Base 目标清单，以及 Expression(...).Pin[i] 写法。
+---
+
+`Shader` 的 `Outputs` section 同时干两件事：
+
+1. **声明** `Graph` 将要写入的变量；
+2. 把这些变量 **绑定** 到 Unreal 材质属性输入，或绑定到显式创建的 `UMaterialExpression` 节点的 pin 上。
+
+真正造出材质的是绑定，不是声明。只有声明、没有绑定的 `Shader` 会先带着警告
+`No Outputs block was provided. Generation requires explicit material property bindings.` 解析通过，然后在生成阶段以
+`{File}: Outputs block is required.` 失败。
+
+## 语法概览
+
+<Grammar />
+
+<Synopsis>
+```c
+Outputs [=]
+{
+    <output-declaration>…
+    <output-binding>…
+}
+
+output-declaration := <type> <name> [ = <expression> ] ;
+
+output-binding     := Base. <target> = <source> ;
+                    | Expression( <key> = <value> [, <key> = <value> ]… ) . Pin[ <index> ] = <source> ;
+```
+</Synopsis>
+
+`<source>` 是一个输出变量名，或者保留名 `return`。`<index>` 两侧的 `[` 和 `]` 是 **字面量**。
+
+<Callout type="warn">
+绑定右侧是一个 **名字**，不是表达式。`Base.EmissiveColor = Tint * Strength;` 不是合法绑定 —— 请在 `Graph` 块里算出值，
+再绑定得到的那个变量。
+</Callout>
+
+语句归类是逐条判断的，不是按 section 判断的：
+
+| 语句形态 | 归类为 |
+| :-- | :-- |
+| 顶层没有 `=` | 裸输出变量声明 |
+| 顶层有 `=`，左侧是合法的带类型声明 | 带初始化的输出声明 <Since v="1.3.4" /> |
+| 顶层有 `=`，左侧 **不是** 合法的带类型声明 | 输出 **绑定** |
+
+## 绑定目标种类
+
+| 目标文本开头 | 种类 | 含义 |
+| :-- | :-- | :-- |
+| `Base.`（不区分大小写） | 材质属性 | 连到 `UMaterial` 的某个属性输入 |
+| `Expression`（不区分大小写） | 表达式输入 | 创建一个 `UMaterialExpression` 并连到它的某个输入 pin |
+| 其它 | — | `Output binding target '{Target}' must start with Base. for material outputs or Expression(...) for output nodes.` |
+
+## `Base.<target>` 清单
+
+目标名 **不区分大小写** 匹配。下面列出了全部可接受的写法；没有通配符，也没有"等等"。
+
+在 UE 5.4 及更新版本上是 **46 种写法，对应 31 个不同的 `EMaterialProperty`**。UE 5.3 上没有 `FrontMaterial`，
+所以是 45 种写法、30 个属性。另有 5 种写法只存在于定制引擎分支中，见下面的"仅 fork 可用的目标"。
+
+| `Base.` 写法 | `EMaterialProperty` | 值类型 |
+| :-- | :-- | :-- |
+| `BaseColor` | `MP_BaseColor` | Float3 |
+| `MaterialAttributes`、`Attributes` | `MP_MaterialAttributes` | MaterialAttributes |
+| `FrontMaterial` <Since v="5.4" ue /> | `MP_FrontMaterial` | Substrate |
+| `EmissiveColor`、`Emissive` | `MP_EmissiveColor` | Float3 |
+| `Opacity` | `MP_Opacity` | Float1 |
+| `OpacityMask` | `MP_OpacityMask` | Float1 |
+| `Metallic` | `MP_Metallic` | Float1 |
+| `Specular` | `MP_Specular` | Float1 |
+| `Roughness` | `MP_Roughness` | Float1 |
+| `Normal` | `MP_Normal` | Float3 |
+| `AmbientOcclusion`、`AO` | `MP_AmbientOcclusion` | Float1 |
+| `Refraction` | `MP_Refraction` | Float3 |
+| `WorldPositionOffset`、`WPO` | `MP_WorldPositionOffset` | Float3 |
+| `PixelDepthOffset`、`PDO` | `MP_PixelDepthOffset` | Float1 |
+| `SubsurfaceColor` | `MP_SubsurfaceColor` | Float3 |
+| `ClearCoat` | `MP_CustomData0` | Float1 |
+| `ClearCoatRoughness` | `MP_CustomData1` | Float1 |
+| `CustomData0` | `MP_CustomData0` | Float1 |
+| `CustomData1` | `MP_CustomData1` | Float1 |
+| `DiffuseColor` | `MP_DiffuseColor` | Float3 |
+| `SpecularColor` | `MP_SpecularColor` | Float3 |
+| `SurfaceThickness` | `MP_SurfaceThickness` | Float1 |
+| `Displacement` | `MP_Displacement` | Float1 |
+| `CustomizedUV0`、`CustomizedUVs0` | `MP_CustomizedUVs0` | Float2 |
+| `CustomizedUV1`、`CustomizedUVs1` | `MP_CustomizedUVs1` | Float2 |
+| `CustomizedUV2`、`CustomizedUVs2` | `MP_CustomizedUVs2` | Float2 |
+| `CustomizedUV3`、`CustomizedUVs3` | `MP_CustomizedUVs3` | Float2 |
+| `CustomizedUV4`、`CustomizedUVs4` | `MP_CustomizedUVs4` | Float2 |
+| `CustomizedUV5`、`CustomizedUVs5` | `MP_CustomizedUVs5` | Float2 |
+| `CustomizedUV6`、`CustomizedUVs6` | `MP_CustomizedUVs6` | Float2 |
+| `CustomizedUV7`、`CustomizedUVs7` | `MP_CustomizedUVs7` | Float2 |
+| `Anisotropy` | `MP_Anisotropy` | Float1 |
+| `Tangent` | `MP_Tangent` | Float3 |
+
+无法识别的名字会失败并报 `Unsupported material output '{Name}'.`
+
+<Callout type="info">
+`ClearCoat` 和 `CustomData0` 是 **同一个** 材质属性，`ClearCoatRoughness` 和 `CustomData1` 也是。在一个 `Shader` 里
+同时绑定一对里的两种写法，等于往同一个输入写了两次；后面那条语句赢，且没有任何诊断。
+</Callout>
+
+### 仅 fork 可用的目标
+
+这些只有在引擎定义了 `MOON_ENGINE` 时才能解析。在原版 Unreal 上它们都是 `Unsupported material output`。
+
+| `Base.` 写法 | `EMaterialProperty` | 值类型 |
+| :-- | :-- | :-- |
+| `MooaEncodedAttribute0` | `MP_MooaEncodedAttribute0` | Float4 |
+| `MooaEncodedAttribute1` | `MP_MooaEncodedAttribute1` | Float4 |
+| `MooaEncodedAttribute2` | `MP_MooaEncodedAttribute2` | Float4 |
+| `MooaEncodedAttribute3` | `MP_MooaEncodedAttribute3` | Float4 |
+| `MooaEncodedAttribute4` | `MP_MooaEncodedAttribute4` | Float4 |
+
+## 带副作用的目标
+
+有两个 `Base.` 目标，**仅仅因为被绑定** 就会改变生成材质的渲染状态。只有这两个会这样，而且都很容易踩到。
+
+### `Base.MaterialAttributes`
+
+<Since v="1.2.5" />
+
+绑定 `Base.MaterialAttributes` 会把 `UMaterial::bUseMaterialAttributes` 设为 `true` —— 也就是
+**Use Material Attributes** 那个勾选框 —— 于是材质暴露的是单一的 attributes 输入，而不是各个独立属性输入。这个勾不需要你自己打，
+你也无法在材质编辑器里取消：该属性在每次重新生成时都会被重置并重新应用。
+
+被绑定的变量必须携带 `MaterialAttributes` 值，否则：
+
+```text
+{File}: Material output '{Name}' expects a MaterialAttributes value.
+```
+
+### `Base.FrontMaterial`
+
+<Since v="5.4" ue />
+
+绑定 `Base.FrontMaterial` 会：
+
+- **强制把着色模型设为 Substrate**（`MSM_Strata`）；
+- 要求 `Settings` 要么声明 `ShadingModel="Substrate"`（或它接受的别名 `ShadingModel="Strata"`），要么完全不声明
+  `ShadingModel` —— 其它情况都失败并报
+  `{File}: Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.`；
+- 与 `Base.MaterialAttributes` **互斥** ——
+  `{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader.`；
+- 无法由整表面 `Custom` 节点路径驱动 ——
+  `{File}: Base.FrontMaterial expects a Substrate value and cannot be driven by a material Custom node. Use a Graph block and Substrate.* nodes.`；
+- 在 UE 5.3 上不存在，会报 `Base.FrontMaterial requires Unreal Engine 5.4 or newer.`
+
+被绑定的变量必须是 Substrate 值，由 [`Substrate.*` 内置节点](/docs/builtins/substrate) 产生：
+
+```c
+Outputs = {
+    Substrate Surface;
+    Base.FrontMaterial = Surface;
+}
+Graph = {
+    Surface = Substrate.Unlit(EmissiveColor = Color);
+}
+```
+
+## `Expression( … ).Pin[i]` 目标
+
+有些 Unreal 输出根本不是材质属性输入，而是散落在图里的 *custom output* 节点。非 `Base` 的绑定形式就是用来创建这类节点、
+并把源变量连到它的某个输入 pin 上的。
+
+```c
+Expression( Class = "<ExpressionClass>" [, <key> = <value> ]… ) . Pin[ <index> ] = <source> ;
+```
+
+### 检查顺序与要求
+
+| 要求 | 违反时的诊断 |
+| :-- | :-- |
+| 目标文本非空 | `Output binding target cannot be empty.` |
+| 目标以 `Base.` 或 `Expression` 开头 | `Output binding target '{Target}' must start with Base. for material outputs or Expression(...) for output nodes.` |
+| 存在配对的 `( … )` | `Invalid output expression target '{Target}'.` |
+| `(` 之前的文本正好是 `Expression` | `Unsupported output target '{Target}'.` |
+| `)` 之后的文本以 `.` 开头 | `Expression output target '{Target}' must select a pin with .Pin[index].` |
+| 该后缀是 `Pin[` … `]`，其中 `Pin[` 不区分大小写匹配 | `Expression output target '{Target}' must use .Pin[index] syntax.` |
+| 索引能解析成大于等于 0 的整数 | `Expression output target '{Target}' has an invalid pin index.` |
+| 每个参数都是 `Key=Value` | `Expression output target argument '{Argument}' must use Key=Value syntax.` |
+| 没有参数的键或值为空 | `Invalid expression output target argument '{Argument}'.` |
+| 没有重复的参数键 | `Expression output target argument '{Key}' is declared more than once.` |
+| 存在 `Class` 参数 | `Expression output target '{Target}' must specify Class="...".` |
+
+参数键会被规范化 —— 去空白并转小写；值会去引号并去空白。
+
+### 类解析
+
+含 `/` 或 `.` 的值会被直接当作 object 路径加载，且只有当加载到的类派生自 `UMaterialExpression` 时才被接受。否则会构造一个候选列表 ——
+`<Value>`，以及在 `<Value>` 尚未以对应前缀开头时加上 `U<Value>`、`MaterialExpression<Value>` 和
+`UMaterialExpression<Value>` —— 然后扫描每一个非抽象的 `UMaterialExpression` 子类，找名字与任一候选相等（忽略大小写）的那个。
+
+<Callout type="warn">
+扫描比较的是 **反射** 类名，而反射类名不带 `U` 前缀：`UMaterialExpressionThinTranslucentMaterialOutput` 的反射名是
+`MaterialExpressionThinTranslucentMaterialOutput`。因此以 `U` 开头的写法 **永远匹配不上**。
+`Class="ThinTranslucentMaterialOutput"` 和 `Class="MaterialExpressionThinTranslucentMaterialOutput"` 指的是同一个类；
+`Class="UMaterialExpressionThinTranslucentMaterialOutput"` 会失败并报
+`Output target '{Target}' could not resolve MaterialExpression class '{Class}'.`
+</Callout>
+
+`Class=` 出现的其它所有地方都适用同一条规则 —— 见 [通用 UE.Expression](/docs/builtins/ue-expression)。
+
+### 其它参数
+
+除 `Class` 之外的每个参数，都会用与[声明元数据](/docs/parameters/metadata)相同的字面量语法，写入所创建节点上同名的反射属性。
+`Class` 仍留在参数表里，但在写反射属性时被跳过，所以它永远不会引发"不是属性"的错误。
+
+<Callout type="warn">
+指向节点 **输入** 属性（`FExpressionInput`）的参数会被拒绝，而不是被连接：
+`Output target '{Target}': inline input property '{Key}' is not supported yet. Bind through .Pin[index] instead.`
+输入只能通过 `.Pin[index]` 后缀触达。
+</Callout>
+
+### Pin 索引与节点复用
+
+- `Pin[<index>]` 是节点输入列表的零基索引，顺序按引擎声明的顺序。
+  `Expression(Class="ThinTranslucentMaterialOutput").Pin[0]` 是 `TransmittanceColor`，`.Pin[1]` 是 `SurfaceCoverage`。
+- 索引越界会失败并报 `Output target '{Target}' does not have Pin[{Index}].`
+- 每个 pin 只能绑定 **一次**：`Output target pin '{Target}' is bound more than once.`
+- 节点按 **类加上排序后的参数列表** 去重。两条 `Expression( … )` 规格完全相同的绑定共用一个节点、绑不同的 pin；
+  任何一个参数不同都会创建第二个节点。
+- 源变量必须已经在 `Outputs` 中 **声明**：
+  `Output variable '{Name}' must declare an explicit type before binding to expression target '{Target}'.`
+- 创建出来的输出目标节点放在图的 X `1200` 处，Y 从 `200` 开始，每个 `+220`。
+
+```c
+Outputs = {
+    float3 Transmittance;
+    float  Coverage;
+    float3 CoatNormal;
+
+    // Both statements reuse one ThinTranslucentMaterialOutput node.
+    Expression(Class="ThinTranslucentMaterialOutput").Pin[0] = Transmittance;
+    Expression(Class="ThinTranslucentMaterialOutput").Pin[1] = Coverage;
+
+    // A different class -> a second node.
+    Expression(Class="ClearCoatNormalCustomOutput").Pin[0] = CoatNormal;
+}
+```
+
+## 保留名 `return`
+
+`return` 可以作为绑定的 **源**，但绝不能作为声明名。
+
+| 规则 | 诊断 |
+| :-- | :-- |
+| `return` 不能被声明 | `Outputs declarations cannot use the reserved name 'return'.` |
+| `return` 只能绑定到 `Base.*` 目标 | `The reserved output name 'return' can only bind to Base material properties.` |
+| `return` 绑定到的所有 `Base.*` 目标类型必须一致 | `The return value is bound to material properties with incompatible types.` |
+| 带 `Graph` 块的 `Shader` 完全不允许绑定 `return` | `{File}: Graph blocks do not support binding Outputs to the reserved name 'return'.` |
+
+实际用法中，`return` 属于整表面 `Custom` 节点路径，那种 `Shader` 没有 `Graph` 块。任何带 `Graph` 块的材质都应该声明具名输出变量。
+
+## 校验规则
+
+在解析之后、创建任何节点之前执行。
+
+| 规则 | 诊断 |
+| :-- | :-- |
+| 声明的类型必须能解析 | `Unsupported output type '{Type}' for '{Name}'.` |
+| `Substrate` 声明需要 UE 5.4 或更新 | `Output '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer.` |
+| 同一个名字不能用不同类型声明两次 | `Output variable '{Name}' is declared with conflicting types.` |
+| 一个变量不能绑到两个类型不同的 `Base.*` 目标 | `Output variable '{Name}' is bound to incompatible material properties.` |
+| 声明类型不能与被绑属性的类型冲突 | `Output variable '{Name}' is declared as '{Type}' but bound material property '{Property}' expects a different type.` |
+| 绑到 `Expression(…)` 目标的变量必须先声明 | `Output variable '{Name}' must declare an explicit type before binding to expression target '{Target}'.` |
+| 目标名必须能解析 | `Unsupported material output '{Name}'.` |
+
+## 说明
+
+- 绑定和声明可以自由穿插；绑定可以引用同一 section 中稍后才声明的变量。
+- 重复出现的 `Outputs` section 会分别追加到两份列表。
+- `Shader` 的任何 `Outputs` 语句都不接受 `[ … ]` 元数据块。
+- 每条绑定都会经过一对生成的 `NamedReroute`，好让大图里的材质根节点保持可读。声明命名为 `DS_<Sanitized>` 加索引后缀。
+- 绑定到当前着色模型或混合模式用不到的属性 **不会** 被诊断出来 —— Unreal 只是不去读那个输入。请看材质编辑器里变灰的输入。
+
+## 常见错误
+
+<Diag>
+  <D msg={"Output binding target '{Target}' must start with Base. for material outputs or Expression(...) for output nodes."} cause="目标前缀无法识别。" />
+  <D msg={"Unsupported material output '{Name}'."} cause="Base. 名字不在上面的清单里。" fix="对照清单核对拼写；匹配不区分大小写，但名字必须完全对得上。" />
+  <D msg={"Invalid output binding '{Statement}'."} cause="绑定右侧为空。" />
+  <D msg={"{File}: Outputs block is required."} cause="Shader 一条绑定都没声明。" fix="光有声明不够 —— 至少加一条 Base. 绑定。" />
+  <D msg={"{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader."} cause="一个 Shader 里同时绑定了两个带副作用的目标。" />
+  <D msg={"{File}: Base.FrontMaterial requires ShadingModel=\"Substrate\" or no explicit ShadingModel setting."} cause="Base.FrontMaterial 与显式着色模型冲突。" />
+  <D msg={"Base.FrontMaterial requires Unreal Engine 5.4 or newer."} cause="在 UE 5.3 上使用 Base.FrontMaterial。" />
+  <D msg={"{File}: Material output '{Name}' expects a MaterialAttributes value."} cause="把非 attributes 值绑到了 Base.MaterialAttributes。" />
+  <D msg={"{File}: Material output '{Name}' expects a Substrate value."} cause="把非 Substrate 值绑到了 Substrate 目标。" href="/docs/builtins/substrate" />
+  <D msg={"{File}: Material output '{Name}' expects a numeric value, but got Substrate."} cause="把 Substrate 值绑到了数值目标。" />
+  <D msg={"{File}: Graph output '{Name}' does not match its declared type."} cause="赋值的类型与声明不符。" />
+  <D msg={"Output variable '{Name}' is declared as '{Type}' but bound material property '{Property}' expects a different type."} cause="声明类型与目标类型冲突。" />
+  <D msg={"Output variable '{Name}' must declare an explicit type before binding to expression target '{Target}'."} cause="Expression(...) 绑定的源变量未声明。" />
+  <D msg={"Output target '{Target}' could not resolve MaterialExpression class '{Class}'."} cause="Class= 指向的类不存在 —— 最常见的原因是写法带了 U 前缀。" fix="去掉开头的 U。" href="/docs/builtins/ue-expression" />
+  <D msg={"Output target '{Target}' does not have Pin[{Index}]."} cause="pin 索引超出了节点输入列表。" />
+  <D msg={"Output target pin '{Target}' is bound more than once."} cause="同一个 pin 被绑定了两次。" />
+  <D msg={"Output target '{Target}': inline input property '{Key}' is not supported yet. Bind through .Pin[index] instead."} cause="参数指向了一个输入 pin。" />
+  <D msg={"{File}: Base.FrontMaterial expects a Substrate value and cannot be driven by a material Custom node. Use a Graph block and Substrate.* nodes."} cause="在整表面 Custom 路径上使用 Base.FrontMaterial。" />
+  <D msg={"Outputs declarations cannot use the reserved name 'return'."} cause="把 return 用作声明名。" />
+  <D msg={"{File}: Graph blocks do not support binding Outputs to the reserved name 'return'."} cause="在带 Graph 块的 Shader 里绑定 return。" />
+</Diag>
+
+跨阶段的完整列表在[错误速查](/docs/diagnostics)。
+
+## 完整示例
+
+```c
+Shader(Name="DreamShaderTests/Corpus/M_Outputs")
+{
+    Properties = {
+        vec3  Tint = vec3(0.4, 0.8, 1.0);
+        float A    = 0.75;
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        Color = Tint;
+        Alpha = A;
+    }
+}
+```
+
+生成的连接：
+
+```text
+UMaterial /Game/DreamShaderTests/Corpus/M_Outputs
+  MP_EmissiveColor  <- NamedReroute DS_Color_<n>  <- VectorParameter "Tint"  RGB output
+  MP_Opacity        <- NamedReroute DS_Alpha_<n>  <- ScalarParameter "A"     R output
+  bUseMaterialAttributes = false
+```
+
+## 继续阅读
+
+<Cards>
+  <Card title="生成流程" href="/docs/generation/pipeline" />
+  <Card title="Substrate 节点" href="/docs/builtins/substrate" />
+  <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" />
+  <Card title="材质 Settings" href="/docs/settings/material" />
+  <Card title="Section" href="/docs/language/sections" />
+</Cards>

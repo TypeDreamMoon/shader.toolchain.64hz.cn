@@ -1,0 +1,202 @@
+---
+title: 生成流程
+description: 一个 DreamShaderLang 源文件如何变成 Unreal 资产 —— 每个阶段、触发条件，以及各阶段可能的失败。
+---
+
+DreamShaderLang 的编译目标不是字节码，也不是可执行文件，而是 **Unreal 资产**：一个 `UMaterial` 或
+`UDreamShaderMaterialInstance`、若干材质函数资产，以及一个生成的 HLSL include。本页跟着一个源文件走完全程。
+
+| 项目 | 说明 |
+| :-- | :-- |
+| 输入 | 一个 `.dsm` 或 `.dsf` 文件，加上它 `import` 的传递闭包 |
+| 拒绝的输入 | `.dsh` —— 头文件永远不直接生成资产 |
+| 产物 | `UMaterial` / `UDreamShaderMaterialInstance`、`UMaterialFunction`、`UMaterialFunctionMaterialLayer`、`UMaterialFunctionMaterialLayerBlend`，以及一个 `.ush` helper include |
+| 运行环境 | 仅编辑器进程 —— 生成器依赖 editor-only 的材质 API |
+
+没有运行时路径。打包后的游戏里不存在从 DreamShaderLang 构建材质的代码，那时资产早已存在。
+
+## 阶段
+
+一次编译一个文件会走完下面这串流程。**每一步都是一道闸门**：第一个失败会中止编译，它的消息就是这次编译返回的结果。
+
+<Wide>
+
+| # | 阶段 | 做什么 | 失败消息 |
+| :-- | :-- | :-- | :-- |
+| 1 | 规范化路径 | 完整路径、`NormalizeFilename`、`MakeStandardFilename` | — |
+| 2 | 文件类型闸门 | `.dsh` 永不生成 | `DreamShader header '{File}' does not generate assets directly. Recompile dependent .dsm or .dsf files instead.` |
+| 3 | 加载预处理源码 | 递归内联 `import`，合成一份文本 | `DreamShader import '{Import}' referenced from '{File}' could not be resolved.` · `DreamShader import cycle detected at '{File}'.` · `DreamShader could not read '{File}'.` |
+| 4 | 内容闸门 | 逐文件子串扫描，针对每个文件自身的文本，其中 `import` 行已被清空 | `DreamShader header '{File}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports.` · `DreamShader function file '{File}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks.` |
+| 5 | 解析 | 整份预处理文本，作为一个解析单元 | 任何解析诊断 |
+| 6 | 计算哈希 | 对 **预处理后** 文本做 CRC32 —— 即 source hash | — |
+| 7 | `.dsf` 闸门 | `.dsf` 不允许声明顶层 `Shader` | `{File}: .dsf files cannot define top-level Shader blocks.` |
+| 8 | 写 helper include | 仅当该单元至少声明了一个 `Function` | `Failed to write generated helper include '{Path}'.` · `DreamShader Function '{Name}' is declared more than once.` |
+| 9 | 材质函数资产 | 每个 `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` 一个资产，按声明顺序 | `{Kind} '{Name}' must declare at least one output.` · `{Kind} '{Name}' must provide a Graph block.` · 资产创建错误 |
+| 10 | 材质资产 | 仅当该单元声明了顶层 `Shader` | `{File}: Outputs block is required.` · `Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` · 资产创建错误 |
+| 11 | 组装结果 | 成功文本，以及当有解析警告时追加的 `Warnings:` 块 | — |
+
+</Wide>
+
+本节中的 `{Placeholder}` 表示编译器在运行时替换的值。
+
+上表里有两点值得单独拎出来：
+
+- **解析单元是 import 闭包，不是单个文件。** `import` 在解析 *之前* 就被内联，所以"一个文件一个 `Shader`"
+  实际上是"一个闭包一个 `Shader`"—— 第 6 步的 source hash 也因此覆盖了每一个被导入的字节。见
+  [import 与命名空间](/docs/language/imports)。
+- **材质函数先于材质生成。** 所以同一个文件里的 `Shader` 可以调用写在它旁边的 `ShaderFunction`。
+
+`import` 行会被替换成空行，每个被内联的文件用
+`// Begin DreamShader source: <path>` / `// End DreamShader source: <path>` 标记包裹，因此报告出来的行列号仍然指向你真正编辑的那个文件。
+
+第 9 步和第 10 步共用同一个图构建器。只请求生成材质时（编辑器的 *compile material* 入口），会执行 1–7 和 10，跳过 9。
+
+### 第 10 步内部 —— 材质
+
+| # | 子阶段 | 失败消息 |
+| :-- | :-- | :-- |
+| 1 | 拒绝 `.dsh` 与 `.dsf` | `DreamShader source '{File}' cannot generate a material asset directly.` |
+| 2 | 要求存在顶层 `Shader` | `{File}: This file does not define a top-level Shader block.` |
+| 3 | 要求 `Outputs` 非空 | `{File}: Outputs block is required.` |
+| 4 | 先校验 `Settings`，再校验 `Outputs` | 见 [材质 Settings](/docs/settings/material) 与 [输出绑定](/docs/generation/outputs) |
+| 5 | 检测 `Base.FrontMaterial` / `Base.MaterialAttributes` | `{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader.` |
+| 6 | 写 helper include —— 两种 backend 都需要 | 同上面第 8 步 |
+| 7 | 解析 backend | `Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` |
+| 8 | 创建或复用目标资产 | 见 [资产路径](/docs/generation/asset-paths) |
+| 9 | source hash 短路 | *（一旦命中，后面全部跳过）* |
+| 10 | 构建图、应用设置、布局、重新编译 | 见 [重新生成](/docs/generation/regeneration) |
+| 11 | 持久化，或在纯内存模式下清除脏标记 | `Generated DreamShader asset '{Path}' could not be saved.` |
+
+<Callout type="info">
+backend 在子阶段 7 就被解析，*早于* 任何材质对象存在，也早于 `Settings` 的其余部分被校验。因此一个无法识别的
+`Backend` 值会最先失败，该文件不会再报出其它 settings 诊断。见 [Backend](/docs/settings/backend)。
+</Callout>
+
+### 图构建内部
+
+两种 backend 共用。在 `ThinCustom` 下，它作用于隐藏的 base 材质，而不是发出的那个实例。
+
+1. 清空现有表达式，然后把每一个材质属性重置为引擎默认值。
+2. 应用 `Settings`。
+3. 绑定了 `Base.FrontMaterial` 时，强制切到 `Substrate` 着色。
+4. 拒绝重名的 `Properties` —— 比较时忽略大小写。
+5. 为每个未初始化的 `MaterialAttributes` 输出声明各生成一个 `MakeMaterialAttributes` 节点。
+6. 构建主体 —— 要么是 `Graph` 块，要么在既无 `Graph` 又无已初始化输出时，用一个整表面 `Custom` 节点。
+7. 连接每一条 `Outputs` 绑定。
+8. 布局。**纯内存模式下跳过**；表达式数量达到 1200 及以上且没有 [`Layout`](/docs/language/layout) section 时同样跳过。
+9. 重新编译材质。
+
+第 1 步就是"手改生成出来的资产没有意义"的原因 —— 见 [重新生成](/docs/generation/regeneration)。
+
+## 什么会触发编译
+
+| 触发方式 | 强制 | 目标 | 结果 |
+| :-- | :-- | :-- | :-- |
+| 保存时自动编译 —— 文件监视器加防抖 | 否 | 内存 | hash 短路生效；最常见的路径 |
+| *Generate all in-memory materials* —— 编辑器启动，以及每次修改 **Default Compiler Backend** | 是 | 内存 | 重编所有项目源文件 |
+| Material Content Browser 的 *Compile* / 缩略图刷新按钮 | 是 | 内存 | 单个源文件 |
+| 实时预览渲染器 | 是 | 内存 | 单个源文件 |
+| *Materialize*，以及为纯内存材质创建子实例 | 是 | **磁盘** | 单个源文件，持久化 |
+| Commandlet `-run=DreamShader` | 由调用方决定 —— `-Force` | **磁盘** | 持久化 |
+| Cook，仅在 cook director 进程上 | 是 | **磁盘** | 所有项目源文件，持久化 |
+
+保存时自动编译由两个项目设置控制：**Auto Compile On Save**（默认开）与 **Save Debounce Seconds**
+（默认 `0.25`，钳制在 `[0.05, 10.0]`）。关掉前者，源目录监视器会完全忽略文件变化。见
+[项目设置](/docs/settings/project)。
+
+<Callout type="info">
+交互式编辑器从不写出每个材质自己的 `.uasset`。源文件才是创作面；生成的资产一直留在内存里，直到 cook、commandlet
+或一次显式的 *Materialize* 把它们落盘。几乎每个人第一次都会被这一点绊住 ——
+[内存材质](/docs/generation/in-memory) 有完整解释。
+</Callout>
+
+## 不产出资产的结果
+
+一个源文件可以编译成功，却没有任何东西能放进 Content Browser。
+
+| 结果消息 | 结果 |
+| :-- | :-- |
+| `Generated DreamShader helper include '{Path}' from {File}.` | 该单元只声明了 `Function` 块 —— **成功** |
+| `DreamShader file '{File}' contains VirtualFunction declarations only; no assets were generated.` | **成功** |
+| `DreamShader file '{File}' contains GraphFunction declarations only; no assets were generated.` | **成功** |
+| `DreamShader file '{File}' did not contain any material, ShaderFunction, ShaderLayer, or ShaderLayerBlend assets to generate.` | **失败** |
+
+要留意的是最后一行：一个什么可生成物都没声明的文件是错误，而只声明 helper 的文件没有问题。
+
+## 成功消息
+
+| 消息 | 对应 |
+| :-- | :-- |
+| `Generated {Kind} {AssetPath} from {File}.` | 每个 `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` |
+| `Generated {AssetPath} from {File}.{Suffix}` | `Graph` backend 材质；纯内存模式下 `{Suffix}` 是 ` (virtual)` |
+| `Generated DreamShader thin-custom material {AssetPath} from {File}.` | `ThinCustom` backend 材质 |
+| `Skipped {AssetPath} from {File}; source hash is unchanged.` | source hash 短路 —— 见 [重新生成](/docs/generation/regeneration) |
+| `Generated DreamShader helper include '{Path}' from {File}.` | 只有 `Function` 块、没有资产的单元 |
+
+解析警告永远不会让编译失败。它们会被追加到上面对应的消息后面，放在一个 `Warnings:` 标题下。
+
+## 进度反馈
+
+生成过程通过 Unreal 的 slow task 系统汇报。对话框有延迟，所以一次快速编译不会闪出窗口；在
+`IsRunningCommandlet()` 下则完全不弹。
+
+| 范围 | 标题 | 帧数 | 对话框延迟 |
+| :-- | :-- | :-- | :-- |
+| 整个文件 | `Compiling DreamShader source '{File}'...` | 6 | 0.35 s |
+| 单个材质 | `Generating DreamShader material from '{File}'...` | 11 | 0.25 s |
+| 单个材质函数 | `Generating DreamShader function '{Name}'...` | 10 | 0.25 s |
+| ThinCustom 发出 | `Generating thin-custom material for '{Name}'...` | 8 | 继承 |
+| 图构建（嵌套） | `Building material graph for '{Name}'...` | 11 | 继承 |
+| 自动布局 | `Laying out DreamShader material graph...` | 每个节点一帧 | 继承 |
+
+## 完整示例
+
+```c
+// DShader/Materials/M_Emissive.dsm
+import "Common.dsh";
+
+ShaderFunction(Name="Functions/F_Tint")
+{
+    Inputs  { vec3 InColor; vec3 InTint; }
+    Outputs { vec3 OutColor; }
+    Graph   { OutColor = InColor * InTint; }
+}
+
+Shader(Name="Materials/M_Emissive")
+{
+    Properties { vec3 Tint = vec3(1.0, 0.4, 0.1); }
+    Settings   { ShadingModel = "Unlit"; }
+    Outputs    { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      { Color = F_Tint(vec3(1.0, 1.0, 1.0), Tint); }
+}
+```
+
+编译这个文件一次会产出：
+
+```text
+Intermediate/DreamShader/GeneratedShaders/M_Emissive_9f2c41ab.ush   (only if Common.dsh declares Function blocks)
+/Game/Functions/F_Tint                                             UMaterialFunction
+/Game/Materials/M_Emissive                                         UDreamShaderMaterialInstance + hidden UMaterial base
+```
+
+并报告：
+
+```text
+Generated ShaderFunction /Game/Functions/F_Tint from I:/.../M_Emissive.dsm.
+Generated DreamShader thin-custom material /Game/Materials/M_Emissive from I:/.../M_Emissive.dsm.
+```
+
+这个 `.ush` include 位于 **Generated Shader Directory** 项目设置指向的目录（默认
+`Intermediate/DreamShader/GeneratedShaders`），并映射到虚拟着色器路径 `/DreamShaderGenerated/`。它的文件名里嵌的是
+*源文件路径* 的哈希，不是源码文本的哈希，所以改动 `Function` 体只会重写同一个文件，不会越积越多。
+
+## 继续阅读
+
+<Cards>
+  <Card title="资产路径" href="/docs/generation/asset-paths" />
+  <Card title="内存材质" href="/docs/generation/in-memory" />
+  <Card title="输出绑定" href="/docs/generation/outputs" />
+  <Card title="重新生成" href="/docs/generation/regeneration" />
+  <Card title="Backend" href="/docs/settings/backend" />
+  <Card title="命令行" href="/docs/tools/commandlet" />
+</Cards>

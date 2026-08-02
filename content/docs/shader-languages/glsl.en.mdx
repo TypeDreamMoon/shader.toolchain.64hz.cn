@@ -1,62 +1,202 @@
 ---
 title: GLSL Overview
-description: GLSL syntax, vector types, and how they map to DreamShaderLang.
+description: GLSL for DreamShaderLang authors — which GLSL spellings are first-class tokens, which are rewritten inside Function bodies, and what has no equivalent at all.
 ---
 
-GLSL is common in shader examples online. DreamShaderLang accepts familiar GLSL-style vector
-aliases such as `vec2`, `vec3`, and `vec4`.
+GLSL is what most shader examples on the internet are written in. DreamShaderLang is not a GLSL
+compiler and never emits GLSL — the target is Unreal's material graph and HLSL. But GLSL spellings
+are deliberately accommodated, in two quite different ways, and telling the two apart is the whole
+point of this page.
 
-## Basic Shape
+| Mechanism | Where | What happens |
+| :-- | :-- | :-- |
+| **First-class token** | `Properties`, `Inputs`, `Outputs`, `Graph` declarations, `Graph` constructors | `vec3` *is* a type token. Nothing is rewritten; it is stored and reported as you wrote it |
+| **Identifier rewrite** | `Function` / `GraphFunction` signatures and bodies | whole identifiers are substituted before the HLSL is emitted, so `vec3` becomes `float3` and `mix` becomes `lerp` |
 
 ```glsl
-float luma(vec3 color)
+// GLSL
+vec3 applyTint(vec3 color, vec3 tint)
 {
-    return dot(color, vec3(0.2126, 0.7152, 0.0722));
+    return color * tint;
 }
 ```
 
-## Common Types
-
-| GLSL | DreamShaderLang |
-| --- | --- |
-| `float` | `float` |
-| `int` | `int` |
-| `bool` | `bool` |
-| `vec2` | `vec2` / `float2` |
-| `vec3` | `vec3` / `float3` |
-| `vec4` | `vec4` / `float4` |
-
-## Constructors and Swizzle
-
 ```c
-vec3 color = vec3(1.0, 0.2, 0.1);
-float r = color.r;
-vec2 rg = color.rg;
+// DreamShaderLang — the same helper. vec3 survives in the declaration,
+// and becomes float3 in the generated HLSL.
+Function vec3 ApplyTint(in vec3 color, in vec3 tint) {
+    return color * tint;
+}
 ```
 
-DreamShaderLang supports these common shader-language patterns in Graph and helper code.
+## GLSL type aliases
 
-## Common Functions
+These are real tokens, accepted everywhere the corresponding `float` / `int` / `uint` / `bool`
+spelling is accepted.
 
-| Function | Use |
-| --- | --- |
-| `dot` | Dot product. |
-| `mix` / `lerp` | Interpolation, depending on available aliases. |
-| `clamp` / `saturate` | Range limiting. |
-| `sin`, `cos` | Trigonometry. |
-| `normalize` | Normalize a vector. |
+| GLSL spelling | Equivalent |
+| :-- | :-- |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` |
 
-## Common Keywords
+<Callout type="info">
+There is no `vec1`, `ivec1`, `uvec1` or `bvec1`, and no GLSL vector spelling for `half`. The
+single-component GLSL-style forms simply do not exist — use `float` or `float1`.
+</Callout>
 
-| Keyword | Meaning |
-| --- | --- |
-| `return` | Return from a helper. |
-| `if`, `else` | Conditional flow. |
-| `for`, `while` | Loop flow in helper code when supported. |
-| `in`, `out`, `inout` | Function parameter direction in shader languages. |
+Because `int`, `uint`, `bool` and `half` all collapse to the same float component counts, choosing
+between `int3`, `ivec3`, `bool3` and `float3` is a documentation decision, not a semantic one. The
+single observable difference is the integer marker set by an integer **constructor call** in a
+`Graph` block, which exists solely to reject integer division. See
+[Types and Values](/en/docs/language/types-and-values).
 
-## Relation to DreamShaderLang
+## Rewrites inside function bodies
 
-DreamShaderLang is not GLSL, but GLSL snippets are often easy to port into `Function`
-helpers. Keep Unreal node creation in `Graph` with `UE.*`, and keep reusable math in
-`Function` / `GraphFunction`.
+A `Function` / `GraphFunction` **signature** runs every type token through a normalizer, and the
+**body** runs every identifier through a superset of the same map. Both match on the lower-cased
+whole identifier, so the rewrite is case-insensitive.
+
+| Rewritten identifier | Becomes | In signature types | In body text |
+| :-- | :-- | :-: | :-: |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` | ✔ | ✔ |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` | ✔ | ✔ |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` | ✔ | ✔ |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` | ✔ | ✔ |
+| `mat2` | `float2x2` | ✔ | ✔ |
+| `mat3` | `float3x3` | ✔ | ✔ |
+| `mat4` | `float4x4` | ✔ | ✔ |
+| `mix` | `lerp` | ✘ | ✔ |
+| `fract` | `frac` | ✘ | ✔ |
+| `mod` | `fmod` | ✘ | ✔ |
+
+15 signature aliases; 18 body aliases. The rewrite is comment- and string-aware, and it applies to
+`Function` and `GraphFunction` bodies **only** — a `Graph` block, a `Shader` body and a
+`ShaderFunction` body are not normalized.
+
+<Callout type="warn">
+The body rewrite matches the whole identifier, ignoring case. A helper, local variable or struct
+member named `Mix`, `Mod`, `Fract`, `Vec3`, `Mat4` … inside a `Function` or `GraphFunction` body is
+silently renamed to `lerp`, `fmod`, `frac`, `float3`, `float4x4`. There is no diagnostic; the failure
+surfaces as an HLSL compile error, or as silently different math. Rename the identifier.
+</Callout>
+
+Note that `mat2` / `mat3` / `mat4` rewrite cleanly but resolve to types the language does not
+support. The declaration parses and the **call** fails —
+`… input 'basis' uses unsupported type 'float3x3'.` See
+[Matrices](/en/docs/shader-languages/hlsl#matrices).
+
+## GLSL function names in a `Graph` block
+
+Inside a `Graph` block nothing is rewritten, so the GLSL spellings have to be real builtins — and
+three of them are:
+
+| GLSL name | In a `Graph` block | In a `Function` body |
+| :-- | :-- | :-- |
+| `mix` | a real builtin, an alias of `lerp` | rewritten to `lerp` |
+| `fract` | a real builtin <Since v="1.5.0" />, same node as `frac` | rewritten to `frac` |
+| `mod` | a real builtin <Since v="1.5.0" />, same node as `fmod` | rewritten to `fmod` |
+| `clamp`, `dot`, `min`, `max`, `pow`, `sqrt`, `abs`, `floor`, `ceil`, `sin`, `cos`, `normalize` | spelled the same in both languages — real builtins | HLSL intrinsics |
+| `smoothstep`, `step`, `length`, `distance`, `cross`, `reflect`, `refract`, `exp`, `log` | **not builtins** — use `UE.Expression(Class = …)` or a `Function` body | HLSL intrinsics, available directly |
+
+The complete builtin catalogue is [Math Builtins](/en/docs/builtins/math).
+
+## Constructors and swizzle
+
+Both survive the trip, with GLSL spelling intact.
+
+```c
+Graph = {
+    vec3  color = vec3(1.0, 0.2, 0.1);
+    float r     = color.r;
+    vec2  rg    = color.rg;
+    vec3  bgr   = color.bgr;
+}
+```
+
+- Constructor names follow the type tokens, so `vec2(…)`, `vec3(…)`, `vec4(…)`, `ivec3(…)` and so on
+  all work in a `Graph` block.
+- Swizzles accept between one and four channel characters, from either the `xyzw` or the `rgba` set,
+  matched case-insensitively. Reordering and repeating are both allowed. There is no `stpq` set and
+  no `uv` set — `.uv` fails.
+- A swizzle can only narrow or rearrange. `Roughness.yz` on a scalar is a hard error, **not** a
+  broadcast: `Swizzle 'yz' is invalid for a value with 1 components.` Repeat channel 0 (`.xx`) or use
+  a constructor instead.
+
+Details: [Expressions and Conversions](/en/docs/graph/expressions).
+
+## What has no equivalent
+
+| GLSL habit | In DreamShaderLang |
+| :-- | :-- |
+| `void main() { … }` | none — a `Shader` block with `Outputs` bindings describes the material |
+| `uniform float x;` | a `Properties` declaration; the node becomes a real material parameter |
+| `in` / `out` / `varying` / `attribute` at file scope | none — inputs come from `UE.*` nodes and parameters |
+| `sampler2D` + `texture(s, uv)` | a texture property plus `SampleTexture2D(tex, uv)`, or a `TextureSampleParameter2D` called as `Tex(Coordinates = uv)` |
+| `layout(…)`, `lowp` / `mediump` / `highp` | none |
+| `mat3 m; m * v` | no matrix types — use `UE.TransformVector` / `UE.TransformPosition` |
+| `#version`, `#extension` | none |
+| `discard` | valid inside a `Function` HLSL body only |
+
+## Porting a snippet
+
+A typical GLSL fragment, and the two ways to land it.
+
+```glsl
+float ring(vec2 uv, float t)
+{
+    vec2  p = uv - 0.5;
+    float d = length(p);
+    return fract(sin(t) * 0.5 + d * 4.0);
+}
+```
+
+As a `Function`, where the body is HLSL and the aliases are rewritten for you:
+
+```c
+Function float Ring(in vec2 uv, in float t)
+{
+    vec2  p = uv - 0.5;          // vec2 -> float2 on emission
+    float d = length(p);         // HLSL intrinsic, fine inside a body
+    return fract(sin(t) * 0.5 + d * 4.0);   // fract -> frac
+}
+```
+
+As `Graph` statements, where nothing is rewritten and `length` does not exist as a builtin:
+
+```c
+Graph = {
+    vec2  uv = UE.TexCoord(Index = 0);
+    vec2  p  = uv - 0.5;
+    float d  = sqrt(dot(p, p));                    // length, spelled out
+    float r  = fract(sin(UE.Time()) * 0.5 + d * 4.0);
+}
+```
+
+The `Function` version is shorter; the `Graph` version produces inspectable material nodes that can
+be wired to parameters. Pick per case — see [Functions](/en/docs/language/functions).
+
+## Common GLSL keywords
+
+For reference. Nothing in this table is part of the DreamShaderLang grammar except where noted
+above.
+
+| Category | Keywords |
+| :-- | :-- |
+| Types | `void`, `bool`, `int`, `uint`, `float`, `double`, `vec2`, `vec3`, `vec4`, `mat2`, `mat3`, `mat4` |
+| Control flow | `if`, `else`, `for`, `while`, `do`, `switch`, `case`, `default` |
+| Jumps | `return`, `break`, `continue`, `discard` |
+| Parameters | `in`, `out`, `inout` |
+| Modifiers | `const`, `uniform`, `layout`, `centroid`, `flat`, `smooth`, `attribute`, `varying` |
+| Precision | `lowp`, `mediump`, `highp` |
+
+## Where to next
+
+<Cards>
+  <Card title="HLSL Overview" href="/en/docs/shader-languages/hlsl" description="Where HLSL runs, and the shipped helper header." />
+  <Card title="Keyword Cheatsheet" href="/en/docs/shader-languages/keywords-cheatsheet" description="All three vocabularies side by side." />
+  <Card title="Types and Values" href="/en/docs/language/types-and-values" description="The closed token set and its validity matrix." />
+  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The 19 names a Graph block understands." />
+  <Card title="Expressions and Conversions" href="/en/docs/graph/expressions" description="Operators, constructors, swizzle and widening." />
+</Cards>

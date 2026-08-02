@@ -1,0 +1,257 @@
+---
+title: 资产路径
+description: Name= 与 Root= 如何变成 Unreal package 路径、object 路径和磁盘文件 —— 包括 Plugin.X 根。
+---
+
+每个会生成资产的块都带同样两个头部属性，由同一个解析器把它们变成一个目标位置。
+
+| 项目 | 说明 |
+| :-- | :-- |
+| 适用于 | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` —— 四者完全一致 |
+| 种类 | 头部属性 |
+| `Root="Plugin.X"` | <Since v="1.2.0" /> |
+
+## 语法概览
+
+<Grammar />
+
+<Synopsis>
+```c
+Shader        (Name = "<name-path>" [, Root = "<root>"]) { … }
+ShaderFunction(Name = "<name-path>" [, Root = "<root>"]) { … }
+
+<name-path> := [<folder> /] … <leaf>
+<root>      := "" | Game | Plugin.<PluginName> | Plugins.<PluginName>
+             | Plugin / <PluginName> | Plugins / <PluginName>
+             | / <MountRoot> [/ <folder>] …
+             | <folder> [/ <folder>] …
+```
+</Synopsis>
+
+`Name` 是 **必填** 的。缺少时报 `Shader(Name="...") is required.`，函数类块则报
+`{Kind}(Name="...") is required.`。`Root` 可选，默认是空字符串。属性名按不区分大小写匹配，所以 `name=` 和
+`ROOT=` 都能识别。
+
+## 解析顺序
+
+1. **`Root` 变成根 package 路径。** 去空白；`\` 换成 `/`；记住原串是否以 `/` 开头；去掉首尾的 `/`；按 `/`
+   切分。任何一步得到空结果都退回 `/Game`。
+2. **`Name` 变成若干文件夹加一个 leaf。** 去空白；`\` 换成 `/`；去掉所有首尾 `/`；按 `/` 切分。**最后一段**
+   是资产名，前面每一段都是追加到根后面的文件夹。
+3. 每一段都经过 `ObjectTools::SanitizeObjectName`。空段被静默跳过。
+4. `PackageName = <root>/<folders…>/<Leaf>`，`ObjectPath = <PackageName>.<Leaf>`。
+5. `PackageName` 由 `FPackageName::IsValidObjectPath` 校验。
+
+## `Root=` 的分派
+
+分派看的是 `Root` 的 **第一段**，比较时不区分大小写。
+
+| 第一段 | 附加条件 | 根 package | 从 `Root` 取走的文件夹段数 |
+| :-- | :-- | :-- | :-- |
+| *（省略、为空、`/`、或全是空白）* | — | `/Game` | — |
+| `Game` | — | `/Game` | 1 |
+| `Plugin.<Name>` | — | 该插件的挂载点 | 1 |
+| `Plugins.<Name>` | — | 该插件的挂载点 | 1 |
+| `Plugin` | 存在第二段 | 由第 1 段命名的插件 | 2 |
+| `Plugins` | 存在第二段 | 由第 1 段命名的插件 | 2 |
+| 其它任意值 | `Root` 串以 `/` 开头 | 原样使用 `/<第 0 段>` | 1 |
+| 其它任意值 | 不以 `/` 开头 | `/Game`，第 0 段变成文件夹 | 0 |
+
+### 省略或为空
+
+| `Root` | `Name` | Package | Object 路径 |
+| :-- | :-- | :-- | :-- |
+| *（省略）* | `M_Flat` | `/Game/M_Flat` | `/Game/M_Flat.M_Flat` |
+| `""` | `Materials/M_Flat` | `/Game/Materials/M_Flat` | `/Game/Materials/M_Flat.M_Flat` |
+| `"/"` | `M_Flat` | `/Game/M_Flat` | `/Game/M_Flat.M_Flat` |
+
+### `Game`
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `Game` | `M_Flat` | `/Game/M_Flat` |
+| `/Game` | `Materials/M_Flat` | `/Game/Materials/M_Flat` |
+| `Game/Materials` | `M_Flat` | `/Game/Materials/M_Flat` |
+| `game/materials` | `M_Flat` | `/Game/Materials/M_Flat` |
+
+比较不区分大小写，但输出的根永远是字面量 `/Game`。
+
+### `Plugin.<Name>` 与 `Plugins.<Name>`
+
+点号形式用一段就指定了插件，后面的全部是文件夹。
+
+| `Root` | `Name` | Package | 磁盘位置 |
+| :-- | :-- | :-- | :-- |
+| `Plugin.MoonToon` | `Mat/Test` | `/MoonToon/Mat/Test` | `<Project>/Plugins/MoonToon/Content/Mat/Test.uasset` |
+| `Plugins.MoonToon` | `Test` | `/MoonToon/Test` | `<Project>/Plugins/MoonToon/Content/Test.uasset` |
+| `Plugin.MoonToon/Shared` | `Test` | `/MoonToon/Shared/Test` | `<Project>/Plugins/MoonToon/Content/Shared/Test.uasset` |
+
+### `Plugin/<Name>` 与 `Plugins/<Name>`
+
+斜杠形式要花两段来指定插件。
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `Plugin/MoonToon` | `Test` | `/MoonToon/Test` |
+| `Plugins/MoonToon` | `Mat/Test` | `/MoonToon/Mat/Test` |
+| `Plugins/MoonToon/Shared` | `Test` | `/MoonToon/Shared/Test` |
+
+<Callout type="warn">
+`Root="Plugin"` 和 `Root="Plugins"` 在 **没有** 第二段时并不指代插件。它们会落到分派表最后一行，被当成普通文件夹名，
+生成 `/Game/Plugin` 和 `/Game/Plugins`。没有任何诊断 —— 资产只是安静地落到了你没打算放的地方。
+</Callout>
+
+### 显式挂载根
+
+以 `/` 开头、又不属于上面任何形式的 `Root`，会被原样当作一个挂载点。
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `/MyMount` | `Test` | `/MyMount/Test` |
+| `/MyMount/Sub` | `Test` | `/MyMount/Sub/Test` |
+| `/Engine` | `Test` | `/Engine/Test` |
+
+第一段必须原样通过 `SanitizeObjectName`，否则报
+`DreamShader Root '{Root}' has an invalid package root.`。挂载点本身在这里 **不** 检查是否存在 ——
+未挂载的根会在后面的 `IsValidObjectPath` 闸门处失败。
+
+### 裸相对路径
+
+其余不以 `/` 开头的 `Root` 都变成 `/Game` 下的文件夹。
+
+| `Root` | `Name` | Package |
+| :-- | :-- | :-- |
+| `Foo` | `Test` | `/Game/Foo/Test` |
+| `Foo/Bar` | `Test` | `/Game/Foo/Bar/Test` |
+| `Foo/Bar` | `Deep/Test` | `/Game/Foo/Bar/Deep/Test` |
+
+这一分支和上一分支的差别只在开头那个斜杠：`Root="Foo/Bar"` 是 `/Game/Foo/Bar`，`Root="/Foo/Bar"` 是
+`/Foo/Bar`。
+
+## 插件根的要求
+
+两种插件写法走同一个校验器。下面每一道闸门都必须按顺序通过，各有各的消息。
+
+| # | 要求 | 失败消息 |
+| :-- | :-- | :-- |
+| 1 | 插件名非空，且经过 `SanitizeObjectName` 后不变 | `DreamShader Root '{Root}' has an invalid plugin name.` |
+| 2 | 插件管理器认识这个名字 | `DreamShader Root '{Root}' references project plugin '{Plugin}', but no enabled plugin with that name was found.` |
+| 3 | 它是 **项目** 插件，基目录位于项目的 `Plugins` 目录下 | `DreamShader Root '{Root}' must reference a project plugin under '{PluginsDir}'.` |
+| 4 | 它已启用 | `DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin is not enabled.` |
+| 5 | 它可以包含内容 | `DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin cannot contain content.` |
+| 6 | 磁盘上存在它的 `Content` 目录 | `DreamShader Root '{Root}' references project plugin '{Plugin}', but its Content directory does not exist: '{ContentDir}'.` |
+| 7 | 它的内容已挂载 <Since v="5.6" ue /> | `DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin content is not mounted.` |
+
+第 7 道闸门在 UE 5.3 – 5.5 上不存在；在那些引擎上，未挂载的插件会在稍后的 object 路径校验中被抓到。
+
+根 package 路径就是插件自己的挂载资产路径 —— 规范化成正斜杠、去掉结尾斜杠、强制加上开头斜杠。如果结果退化成空或者
+`/`，则使用 `/<PluginName>`。
+
+<Callout type="info">
+引擎插件、以及安装在引擎目录下的商城插件，即使已启用、已挂载，也会被第 3 道闸门拒绝。只有物理位置在
+`<Project>/Plugins` 下的插件才被接受。要写进引擎侧的挂载点，请用显式挂载根分支（`Root="/SomeMount"`），它会完全跳过插件校验器。
+</Callout>
+
+## 各资产类型
+
+四种块的路径解析完全一致。不同的是创建的类，以及函数类块被打上的 material function usage。
+
+| 源块 | 资产类 | Material function usage |
+| :-- | :-- | :-- |
+| `Shader`，`Graph` backend | `UMaterial` | — |
+| `Shader`，`ThinCustom` backend <Since v="1.5.0" /> | `UDreamShaderMaterialInstance` 加一个隐藏的 `UMaterial` 子对象 | — |
+| `ShaderFunction` | `UMaterialFunction` | `Default` |
+| `ShaderLayer` <Since v="1.3.0" /> | `UMaterialFunctionMaterialLayer` | `MaterialLayer` |
+| `ShaderLayerBlend` <Since v="1.3.0" /> | `UMaterialFunctionMaterialLayerBlend` | `MaterialLayerBlend` |
+
+当解析出来的路径上已经存在资产时，它的类必须匹配：
+
+| 类型 | 匹配规则 |
+| :-- | :-- |
+| `ShaderFunction` | **精确** 类匹配 —— 该路径上是 `UMaterialFunctionMaterialLayer` 会被拒绝 |
+| `ShaderLayer`、`ShaderLayerBlend` | `IsA` 期望的类即可 |
+| `Shader`，`Graph` backend | 已有对象必须是 `UMaterial` |
+| `Shader`，`ThinCustom` backend | 已有对象必须是 `UDreamShaderMaterialInstance` |
+
+类匹配不等于归属检查。除 `ThinCustom` 路径之外，DreamShader 还会拒绝覆盖不是自己生成的资产 —— 见
+[重新生成](/docs/generation/regeneration)。
+
+## 磁盘映射
+
+| Package 根 | 磁盘目录 |
+| :-- | :-- |
+| `/Game/…` | `<Project>/Content/…` |
+| `/<PluginName>/…` | `<Project>/Plugins/<PluginName>/Content/…` |
+| `/<MountRoot>/…` | 该挂载点注册到的任何位置 |
+
+文件是 `<directory>/<Leaf>.uasset`，而且 **只在持久化模式下** 才会写出。日常编辑器工作中什么都不会落盘 —— 见
+[内存材质](/docs/generation/in-memory)。
+
+## 说明
+
+- **`Name` 可以带文件夹，`Root` 只是前缀。** `Root="Game"` 下的 `Name="A/B/C"` 得到 `/Game/A/B/C`，资产名是 `C`。
+- **重复的属性名会静默覆盖前一个。** `Shader(Name="A", Name="B")` 解析成 `B`，没有任何诊断。
+- 每一段都独立做净化，所以 `Name="My Mat"` 会得到叫 `My_Mat` 的 leaf，同样没有诊断。
+- 空段会被丢弃：`Name="A//B"` 就是 `A/B`，`Root="Game//Sub"` 就是 `/Game/Sub`。
+- Content Browser 的状态列和 *Materialize* 操作用的是同一个解析器，所以在这里失败的路径，在
+  [编辑器工具](/docs/tools/editor) 里也会显示为无法解析。
+- 不要和 `Path(Root, "…")` 混淆，那是 *另一套* 路径语法 —— 它用来 **引用** 已有资产，而不是指定生成目标。见
+  [Path 资产引用](/docs/parameters/path)。
+
+## 诊断
+
+<Diag>
+  <D msg={"Shader(Name=\"...\") is required."} cause="Shader 头部没有 Name 属性。" />
+  <D msg={"{Kind}(Name=\"...\") is required."} cause="ShaderFunction / ShaderLayer / ShaderLayerBlend 头部没有 Name 属性。" />
+  <D msg={"DreamShader asset name must resolve to a non-empty asset path."} cause="Name 去空白、去斜杠后为空。" />
+  <D msg={"DreamShader asset name '{Name}' produced an invalid asset name."} cause="leaf 段净化后为空。" />
+  <D msg={"DreamShader asset name '{Name}' contains an invalid folder segment."} cause="Name 中某个非空文件夹段被净化成了空。" />
+  <D msg={"DreamShader asset path '{Path}' is not a valid Unreal object path."} cause="拼出的路径没通过 IsValidObjectPath，且引擎没有给出自己的原因。" fix="检查挂载根是否未挂载。" />
+  <D msg={"DreamShader Root '{Root}' contains an invalid folder segment."} cause="Root 中某个非空文件夹段被净化成了空。" />
+  <D msg={"DreamShader Root '{Root}' has an invalid plugin name."} cause="插件名为空，或被净化改动过。" />
+  <D msg={"DreamShader Root '{Root}' has an invalid package root."} cause="显式挂载根被净化改动过。" />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but no enabled plugin with that name was found."} cause="插件名不存在。" />
+  <D msg={"DreamShader Root '{Root}' must reference a project plugin under '{PluginsDir}'."} cause="引擎插件，或位于项目 Plugins 目录之外的插件。" fix={"改用 Root=\"/SomeMount\" 指向引擎侧挂载点。"} />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin is not enabled."} cause="插件未启用。" />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin cannot contain content."} cause="纯代码插件。" />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but its Content directory does not exist: '{ContentDir}'."} cause="缺少 Content 目录。" />
+  <D msg={"DreamShader Root '{Root}' references project plugin '{Plugin}', but the plugin content is not mounted."} cause="插件内容未挂载。仅 UE 5.6+。" />
+  <D msg={"Failed to create package '{Package}'."} cause="package 创建失败。" />
+  <D msg={"Asset '{ObjectPath}' already exists and is not a Material."} cause="Graph backend，路径上的类不对。" />
+  <D msg={"Asset '{ObjectPath}' already exists and is not a DreamShader instance material. Delete it (or remove Backend=\"Instance\") before switching backends."} cause="ThinCustom backend，路径上的类不对。" href="/docs/settings/backend" />
+  <D msg={"Asset '{ObjectPath}' already exists and is not a MaterialFunction asset."} cause="函数类块，路径上的类不对。" />
+  <D msg={"Asset '{ObjectPath}' already exists as '{ActualClass}', but {Kind} generation requires '{ExpectedClass}'. Delete or move the existing asset and regenerate it."} cause="函数类块，material function 子类不对。" />
+  <D msg={"Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your shader or move/delete the existing asset before regenerating."} cause="材质上的归属守卫。" href="/docs/generation/regeneration" />
+  <D msg={"Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your function or move/delete the existing asset before regenerating."} cause="材质函数上的归属守卫。" href="/docs/generation/regeneration" />
+</Diag>
+
+## 完整示例
+
+```c
+Shader(Name="Mat/Test", Root="Plugin.MoonToon")
+{
+    Properties { vec3 Tint = vec3(1.0, 0.2, 0.2); }
+    Settings   { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs    { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      { Color = Tint; }
+}
+```
+
+解析出的目标：
+
+```text
+Root      "Plugin.MoonToon"  ->  /MoonToon                       (plugin mount point)
+Name      "Mat/Test"         ->  folders "Mat", leaf "Test"
+package                          /MoonToon/Mat/Test
+object path                      /MoonToon/Mat/Test.Test
+on disk                          <Project>/Plugins/MoonToon/Content/Mat/Test.uasset
+```
+
+## 继续阅读
+
+<Cards>
+  <Card title="生成流程" href="/docs/generation/pipeline" />
+  <Card title="内存材质" href="/docs/generation/in-memory" />
+  <Card title="重新生成" href="/docs/generation/regeneration" />
+  <Card title="Path 资产引用" href="/docs/parameters/path" />
+</Cards>

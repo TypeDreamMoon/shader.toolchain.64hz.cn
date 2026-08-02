@@ -1,18 +1,119 @@
 ---
 title: DreamShader 插件
-description: DreamShader 插件版本更新记录。
+description: DreamShader Unreal 插件的版本更新记录，取自插件自带的 CHANGELOG，新版本在前。
 ---
 
-DreamShader 的版本更新记录按插件版本整理。这里主要记录会影响使用者的语言、生成器、工作流和兼容性变化。
+Unreal 插件的版本更新记录，新版本在前。这里记录会影响使用者的语言、生成器、编辑器工具和引擎兼容性变化。
 
-## Current source - 2026-06-10
+| | |
+| :-- | :-- |
+| 当前版本 | **1.5.0** —— 2026-08-02 |
+| 引擎 | Unreal Engine `5.3` 到 `5.8`，Win64 |
+| 记录来源 | 插件目录内自带的 `CHANGELOG.md` |
+
+## 1.5.0 - 2026-08-02
+
+统一编译路径的一个版本。两条旧 backend 合并成唯一的 **ThinCustom**；编辑器里生成的材质默认只活在内存里，
+新增的 **Material Content Browser** 页签就是查看它们的地方。语言侧拿到了可省略的 section `=`、`Group()`
+作用域和 `Slider()`。
+
+### 语言（DreamShaderLang 1.5）
+
+- section 的 `=` 现在是**可选的**：`Properties { … }`、`Settings { … }` 和 `Graph { … }` 都可以不写赋值号。
+  两种写法都有效 —— 见 [Section](/docs/language/sections)。
+- `Properties Group("Name") { … }` 把一个 group 打在它包住的每个参数上。group 可以嵌套、可以组合，
+  `Group("Outer") { Group("Inner") { … } }` 得到 `Outer|Inner` —— 见
+  [元数据与分组](/docs/parameters/metadata)。
+- `Slider(min, max)` 简写用于设置标量参数的 UI 范围。它展开成反射属性 `SliderMin` / `SliderMax`，
+  也是唯一一个不带 `=` 的 metadata 条目。
+- 资产路径可以直接跟在 `=` 后面，裸的带引号路径也被接受 —— 见 [Path 资产引用](/docs/parameters/path)。
+- 单输出函数可以作为返回值使用（`x = Fn(…)`），`Graph` 内置也补齐到与 `Function` 路径一致：
+  `fract`、`mod` 和 `fmod` —— 见 [数学内置](/docs/builtins/math)。
+- live preview 流式推送让编辑器和语言服务器的预览在你输入时保持同步。
+- `true` / `false` 是 graph 字面量，会落成 `StaticBool` 节点，因此 `opt StaticBool X = false` 这样的输入
+  默认值能生成 Unreal 所要求的 Preview pin 节点 —— 它对 static-bool 输入会忽略 `PreviewValue`。
+- `StaticBool` 在调用点按单分量类型解析。
+- token 本身不带维度的纹理参数类型（`TextureObjectParameter`）从赋给它的默认资产上取维度，因此
+  `Texture2DArray`、`TextureCube` 或 `VolumeTexture` 默认值都能被接受。`Texture2D`、`Texture2DArray`
+  这类显式 token 仍然严格校验。
+
+### Backend —— 统一为一条编译路径
+
+- `Graph` 和实验性的 `Instance` 两条 backend 合并成唯一的 **ThinCustom** 路径：DreamShaderLang 编译成
+  一张真实的节点图，构建在隐藏的 base `UMaterial` 上，外面包一层薄的 `UDreamShaderMaterialInstance`。
+  引擎按原生方式编译和枚举这个材质，因此 Substrate、static switch、virtual texture、MaterialAttributes
+  和 cook 正确性全部来自那张真实的图。见 [Backend](/docs/settings/backend)。
+- 与旧 `Graph` backend 的 SM6 渲染结果逐位一致，已在 Unlit、带纹理和 DefaultLit MaterialAttributes
+  三类用例上验证。
+- 隐藏 base 是实例的**子对象** —— 一个资产、一个 package，在 Content Browser 里不可见，没有独立的
+  `MB_DreamThinBase_*` 兄弟资产，cook 时也没有跨 package 的父级 import 可丢。见
+  [内存材质](/docs/generation/in-memory)。
+- 单个 **Default Compiler Backend** 项目设置取代了旧的 In-Memory 开关。见
+  [项目设置](/docs/settings/project)。
+
+<Deprecated since="1.5.0" use="ThinCustom">
+`Backend = "Instance"` 和 `DefaultBackend = Instance` 保留为 `ThinCustom` 的**别名**。旧的无图 instance
+backend 已经退役，运行时不再存在 `Instance` backend。这个写法保留一个弃用窗口，让既有源码继续编译，
+并且**不产生任何诊断**。
+</Deprecated>
+
+### 编辑器 —— Material Content Browser
+
+- 新增 **DreamShader Material Content Browser** 页签，位于 *Tools ▸ DreamShader*，包含两个页面：
+  **Project** 用于浏览、过滤和检视 `/Game` 下的每个材质与材质实例，含完整继承链；
+  **Dream Shader Gen** 是源文件列表，带实时预览、搜索、过滤、全量编译和加载期错误展示。见
+  [编辑器工具](/docs/tools/editor)。
+- 可以从任意材质出发、通过文件夹选择器创建材质实例，也可以按需把纯内存（仅预览）材质 **materialize** 到磁盘。
+- 新增 Content Browser 右键菜单操作，以及显示 / 隐藏 DreamShader 纯内存材质的开关。
+
+### Decompiler
+
+- Substrate 材质和被重命名的 graph 通道现在能忠实 round-trip：导出器从**写入 mask** 推导通道 swizzle，
+  而不是从通道名，因此重新编译出的材质与源码逐位一致。见 [反编译导出](/docs/tools/decompiler)。
+
+反编译一个手写材质、再生成回去，在一些 Unreal 本身完全接受的图形状上会失败。这批问题是在 LGUI 的
+`LexUI_ImageAndFont`、`LexUI_RectBlock` 和 `MF_LexUI_SDF_Font` 上发现的。
+
+- switch 类节点 —— `StaticSwitch`、`FeatureLevelSwitch`、`QualitySwitch`、`ShadingPathSwitch`、
+  `VertexInterpolator` 等 —— 不报告输出值类型，于是「按 float4 处理」的兜底把它们连同整条下游一起放大。
+  由 float3 材质函数输出喂入的 `AppendVector` 会被写成 `float5(...)`；现在 append 会钳到 float4，
+  分量数仍然对不上时发出警告。
+- `VertexColor` 按 float4 导出，alpha pin 的 swizzle 才成立。此前它按 RGB pin 定型，会在三分量值上写出 `.a`。
+- 输入自身的通道 mask 现在**替换**所连 pin 的 mask，而不是叠加在上面。图里连的是 RGB pin 却 mask alpha 时，
+  不会再出现 `.rgb.a`。
+- `StaticBool` 函数输入保留 `StaticBool` 类型 token。`bool` 声明的是标量 pin，此前这种输入会变回 float，
+  并拒绝传给它的每一个 static-bool 值。
+- 注释、`#Region` 和 description 文本里的换行与制表符会被转义，多行注释不再把指令拆到多行。
+- Custom 节点的 additional output 现在在该节点的**每一次**发射中都会声明，读取其中一个也不再改写节点自身的
+  返回类型。此前没有选中额外输出的那次发射会产出一个缺少该输出的节点，而给它赋值的代码体会在 shader 编译阶段
+  以 `use of undeclared identifier` 失败 —— 远在生成报告成功之后。
+
+### 修复
+
+- Cook：资产只在 cook **director** 上落盘，生成错误现在会让 cook 失败，而不是发出一个陈旧资产。
+- 生成过程拒绝覆盖不是 DreamShader 生成的资产，并在清空目标材质之前先校验图语法。
+- 生成 include 的身份改为对**项目相对**源路径取哈希；记录的源路径也是项目相对的，不再携带生成时间戳。
+- 运行时构建：给编辑器专用的 `UEnum::HasMetaData` 调用加了保护，非编辑器和 Shipping（商店）构建可以编译（#12）。
+- Bridge：为 UE 5.8 改用 `FCoreDelegates::GetOnPostEngineInit`，并把 *Clean Generated Shaders* 限制在
+  `Intermediate` 内、改成逐文件删除。
+
+### 兼容性
+
+- Unreal Engine `5.3` 到 `5.8`（Win64）。
+
+## 源码快照 - 2026-06-10
+
+介于 `1.4.0` 和 `1.5.0` 之间进入源码树的改动。
 
 ### Automation Baseline
 
-- 新增 DreamShader automation 测试基线，覆盖最小材质解析、最小材质生成、`.dsf` + `import` 生成、Substrate 材质生成、source-hash skip 和 commandlet 单源编译 smoke。
-- 测试会在 `DShader/Tests/Automation` 下写入临时 `.dsm` / `.dsf` / `.dsh`，并在 `/Game/DreamShaderTests/Automation/...` 下生成临时资产，运行后清理。
+- 新增 DreamShader automation 测试基线，覆盖最小材质解析、最小材质生成、`.dsf` + `import` 生成、
+  Substrate 材质生成、source-hash skip 和 commandlet 单源编译 smoke。
+- 测试会在 `DShader/Tests/Automation` 下写入临时 `.dsm` / `.dsf` / `.dsh`，并在
+  `/Game/DreamShaderTests/Automation/…` 下生成临时资产，运行后清理。
 - `source hash is unchanged` 是未变更源文件跳过重复生成的稳定断言文本。
-- 针对 automation 运行新增显式桥接关闭开关 `-NoDreamShaderEditorBridge`，用于避免 Bridge 启动扫描噪声干扰测试日志。
+- 针对 automation 运行新增显式桥接关闭开关 `-NoDreamShaderEditorBridge`，用于避免 Bridge 启动扫描噪声
+  干扰测试日志。
 
 ## 1.4.0 - 2026-06-06
 
@@ -24,12 +125,14 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 ### Substrate
 
-- 补齐 UE 5.7 Substrate 生成链路，支持 `Substrate` 图值、`Base.FrontMaterial` 输出绑定和 `Substrate.*` wrapper。
+- 补齐 Substrate 生成链路，支持 `Substrate` 图值、`Base.FrontMaterial` 输出绑定和 `Substrate.*` wrapper。
+  Substrate 本身需要 **UE 5.4 或更新版本**并在项目中启用 —— 见 [Substrate 节点](/docs/builtins/substrate)。
 - 生成器、反编译、类型传播和编辑器 manifest 会识别 Substrate 类型与相关 wrapper。
 
 ### Material Preview
 
-- 编辑器 Bridge 新增材质预览能力，可根据 `.dsm` 源文件生成预览材质并写入 `Saved/DreamShader/Bridge/preview.json` 与 `Preview/*.png`。
+- 编辑器 Bridge 新增材质预览能力，可根据 `.dsm` 源文件生成预览材质并写入 `Saved/DreamShader/Bridge/preview.json`
+  与 `Preview/*.png`。
 - 新增本机 WebSocket 预览服务，默认监听 `127.0.0.1:17864`，用于 VSCode 预览面板接收结果和连续帧。
 
 ## 1.3.9 - 2026-05-29
@@ -44,7 +147,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### Texture Support
 
 - 新增 `VolumeTexture` property 解析、代码生成和默认纹理处理。
-- 生成 HLSL / Custom 节点输入时保留纹理对象子类型，`Texture2D`、`Texture2DArray` 和 `VolumeTexture` 会以正确 Unreal 纹理类型传入。
+- 生成 HLSL / Custom 节点输入时保留纹理对象子类型，`Texture2D`、`Texture2DArray` 和 `VolumeTexture`
+  会以正确 Unreal 纹理类型传入。
 
 ### Plugin Cleanup
 
@@ -54,7 +158,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 ### Decompiler
 
-- 泛型 `UE.Expression(...)` 反编译会导出更多 reflected literal property，减少少见 `MaterialExpression` 节点的状态丢失。
+- 泛型 `UE.Expression(...)` 反编译会导出更多 reflected literal property，减少少见 `MaterialExpression`
+  节点的状态丢失。
 - 连接了 UV 等 graph 输入的 `TextureSampleParameter2D` 会导出为 graph 表达式，而不是简单 `Properties` 声明。
 - 修复带动态命名输入和自定义输出类型 metadata 的 `MaterialExpressionCustom` 反编译。
 
@@ -72,7 +177,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 ### ShaderFunction Calls
 
-- `Graph` 支持 statement-style 多输出 `ShaderFunction` 和 `VirtualFunction` 调用：位置输入参数在前，输出目标变量在后。
+- `Graph` 支持 statement-style 多输出 `ShaderFunction` 和 `VirtualFunction` 调用：位置输入参数在前，
+  输出目标变量在后。
 
 ### Dream Shader Function Files
 
@@ -84,7 +190,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 - Content Browser 增加 `UMaterial` 导出 `.dsm`、`UMaterialFunction` 导出 `.dsf` 的入口。
 - 反编译文件会写入 `DShader/Decompiled/Materials` 或 `DShader/Decompiled/Functions`，并使用唯一文件名。
-- 常见常量、参数、算术节点、swizzle、纹理采样、Custom 节点和 MaterialFunction call 会尽量导出为 DreamShader graph 文本；少见 reflected 节点回退为 `UE.Expression(...)`。
+- 常见常量、参数、算术节点、swizzle、纹理采样、Custom 节点和 MaterialFunction call 会尽量导出为 DreamShader
+  graph 文本；少见 reflected 节点回退为 `UE.Expression(...)`。
 
 ## 1.3.4 - 2026-05-11
 
@@ -105,7 +212,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### Material Function Generation
 
 - 插件版本更新到 `1.3.2`。
-- 重新生成 `ShaderFunction` 时保留生成输入和输出 ID，普通 Unreal 材质中的既有 `MaterialFunctionCall` 节点会尽量保持连接。
+- 重新生成 `ShaderFunction` 时保留生成输入和输出 ID，普通 Unreal 材质中的既有 `MaterialFunctionCall`
+  节点会尽量保持连接。
 - Graph 和 Custom/HLSL 生成路径会跳过未使用的生成 property 节点。
 - 改进生成节点摆放，并避免对 DreamShader 生成的材质图执行 Unreal 全量自动布局。
 - 修复重新生成已打开 Material Function 资产时，编辑器仍持有 expression root 导致的崩溃。
@@ -114,8 +222,10 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 ### Function Calls
 
-- 单输出 `Function` 和 `GraphFunction` 调用现在可以作为值表达式使用，例如 `Color = Texture::Sample2DRGB(BaseTex, UV0);`。
-- 多输出 `Function` 和 `GraphFunction` 仍然需要显式 out 变量，例如 `Texture::Sample2D(BaseTex, UV0, Color, Alpha);`。
+- 单输出 `Function` 和 `GraphFunction` 调用现在可以作为值表达式使用，例如
+  `Color = Texture::Sample2DRGB(BaseTex, UV0);` —— 见 [调用](/docs/graph/calls)。
+- 多输出 `Function` 和 `GraphFunction` 仍然需要显式 out 变量，例如
+  `Texture::Sample2D(BaseTex, UV0, Color, Alpha);`。
 
 ### Graph Functions
 
@@ -128,19 +238,27 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### Shader Layer Functions
 
 - 新增顶层 `ShaderLayer(Name="...", Root="...")` 和 `ShaderLayerBlend(Name="...", Root="...")`。
-- 生成的 layer 资产使用 Unreal 原生 `UMaterialFunctionMaterialLayer` / `UMaterialFunctionMaterialLayerBlend` 类。
-- `MaterialLayer` / `MaterialLayerBlend` 保留为兼容别名并产生警告；新源码应使用 `ShaderLayer` / `ShaderLayerBlend`。
+- 生成的 layer 资产使用 Unreal 原生 `UMaterialFunctionMaterialLayer` /
+  `UMaterialFunctionMaterialLayerBlend` 类。
 - `ShaderLayer` / `ShaderLayerBlend` 复用现有 `Properties`、`Inputs`、`Outputs`、`Settings` 和 `Graph` sections。
-- 新增验证：Shader Layer block 必须输出且只输出一个 `MaterialAttributes`，Shader Layer Blend block 必须声明至少两个 `MaterialAttributes` 输入。
+- 新增验证：Shader Layer block 必须输出且只输出一个 `MaterialAttributes`，Shader Layer Blend block 必须
+  声明至少两个 `MaterialAttributes` 输入。
 - Vector parameter property 在 Graph 中保留 RGBA 输出，`.a` / `.w` 可读取 alpha，低分量赋值会自动取前置通道。
+
+<Deprecated since="1.3.0" use="ShaderLayer">
+`MaterialLayer` / `MaterialLayerBlend` 保留为兼容别名并产生警告。新源码应使用 `ShaderLayer` /
+`ShaderLayerBlend`。
+</Deprecated>
 
 ## 1.2.10 - 2026-05-08
 
 ### VSCode MaterialExpression Manifest
 
-- 新增编辑器侧 reflected `UMaterialExpression` metadata 导出，路径为 `Saved/DreamShader/Bridge/material-expressions.json`。
+- 新增编辑器侧 reflected `UMaterialExpression` metadata 导出，路径为
+  `Saved/DreamShader/Bridge/material-expressions.json`。
 - manifest 会在编辑器 bridge 启动和打开 DreamShader VSCode workspace 时刷新。
-- 导出内容包含 expression class 名称、可编辑反射属性、expression inputs、output pins 和推断的 DreamShader `OutputType` 提示。
+- 导出内容包含 expression class 名称、可编辑反射属性、expression inputs、output pins 和推断的 DreamShader
+  `OutputType` 提示。
 - Release workflow 会下载最新 `dreamshader-language-support` GitHub Release 资产并附加到 DreamShader release。
 
 ## 1.2.8 - 2026-05-05
@@ -149,16 +267,20 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 - 插件版本更新到 `1.2.8`。
 - `DreamShader.uplugin` 的文档链接改为 `https://lang.64hz.cn/`，支持链接改为 GitHub 主页。
-- Unreal Project Settings 中的插件分类从 `Plugins` 调整到 `DreamPlugin`，section 显示名为 `Dream Shader`，说明文本为 `Dream Shader Settings`。
-- 新增 `Editor` 分类下的 `OpenInNewWindow` 配置。默认开启时，从 Unreal 打开 DreamShader VSCode workspace 会新开窗口；关闭时会追加 `--reuse-window`，复用已有 VSCode 窗口。
+- Unreal Project Settings 中的插件分类从 `Plugins` 调整到 **`DreamPlugin`**，section 显示名为
+  **Dream Shader**，说明文本为 `Dream Shader Settings` —— 见 [项目设置](/docs/settings/project)。
+- 新增 `Editor` 分类下的 `OpenInNewWindow` 配置。默认开启时，从 Unreal 打开 DreamShader VSCode workspace
+  会新开窗口；关闭时会追加 `--reuse-window`，复用已有 VSCode 窗口。
 
 ## 1.2.7 - 2026-05-05
 
 ### Unreal 5.7 兼容性
 
 - 插件版本更新到 `1.2.7`。
-- 生成器补齐 `UMaterialExpressionFunctionInput` / `UMaterialExpressionFunctionOutput` 相关头文件依赖，适配新版 Unreal 材质函数输入输出节点的编译环境。
-- Moon Engine 专属的 `MooaEncodedAttribute0` 到 `MooaEncodedAttribute4` 输出现在包在 `MOON_ENGINE` 条件编译内，普通引擎构建不会再依赖这些自定义材质属性。
+- 生成器补齐 `UMaterialExpressionFunctionInput` / `UMaterialExpressionFunctionOutput` 相关头文件依赖，
+  适配新版 Unreal 材质函数输入输出节点的编译环境。
+- Moon Engine 专属的 `MooaEncodedAttribute0` 到 `MooaEncodedAttribute4` 输出现在包在 `MOON_ENGINE`
+  条件编译内，普通引擎构建不会再依赖这些自定义材质属性。
 - 该版本不改变 `.dsm` / `.dsh` 语法；主要是输出目标和引擎兼容性修正。
 
 ## 1.2.6 - 2026-04-30
@@ -167,15 +289,19 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 - `ShaderFunction` 新增 `Properties` section，用于声明只属于生成材质函数内部的 property/helper 节点。
 - `Properties` 支持 `const` 标记，可生成不可外部调参的标量、向量或 Texture Object helper 节点。
-- `ShaderFunction` 的 `Inputs` 预览默认值可以引用同一函数的 `Properties`，例如 `opt Texture2D BaseColorTex = PreviewTex;`。
+- `ShaderFunction` 的 `Inputs` 预览默认值可以引用同一函数的 `Properties`，例如
+  `opt Texture2D BaseColorTex = PreviewTex;`。
 
 ## 1.2.5 - 2026-04-30
 
-### MaterialAttributes
+### Material Attributes
 
-- 新增 `MaterialAttributes` 图值类型，可用于 `Shader` 输出声明、`ShaderFunction` 输出和 `VirtualFunction` 输出签名。
-- `Graph` 支持 `Attrs.BaseColor = Color;`、`Attrs.Roughness = Roughness;` 这类成员写入，生成器会创建 Material Attributes 相关节点。
-- `Shader` 可以将聚合值绑定到 `Base.MaterialAttributes`，生成材质会自动启用 Unreal 的 `Use Material Attributes`。
+- 新增 `MaterialAttributes` 图值类型，可用于 `Shader` 输出声明、`ShaderFunction` 输出和 `VirtualFunction`
+  输出签名。
+- `Graph` 支持 `Attrs.BaseColor = Color;`、`Attrs.Roughness = Roughness;` 这类成员写入，生成器会创建
+  Material Attributes 相关节点。
+- `Shader` 可以将聚合值绑定到 `Base.MaterialAttributes`，生成材质会自动启用 Unreal 的
+  *Use Material Attributes*。
 - `MaterialAttributes` 值可以从生成的或已有的 Material Function 返回，并继续在 Graph 中传递、分支或读取成员。
 
 ## 1.2.4 - 2026-04-30
@@ -185,33 +311,41 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 - 声明尾部的 metadata 文档写法切换为分号式 `[...]` 反射属性块。
 - `Properties` 中的显式 Parameter 节点现在可以通过属性块写入任意可反射的 `UMaterialExpression` 属性。
 - `float` / 向量 / 纹理简写生成的 Scalar / Vector / Texture Object Parameter 也使用同一套反射属性块。
-- `TextureSampleParameter2D` 等纹理采样参数可以配置 `SamplerType`、`SamplerSource`、`MipValueMode`、`AutomaticViewMipBias`、`ConstCoordinate`、`ConstMipValue` 等字段。
+- `TextureSampleParameter2D` 等纹理采样参数可以配置 `SamplerType`、`SamplerSource`、`MipValueMode`、
+  `AutomaticViewMipBias`、`ConstCoordinate`、`ConstMipValue` 等字段。
 
 ## 1.2.3 - 2026-04-29
 
 ### Parameters
 
 - `Properties` 和函数输入输出声明支持 `[Group="...", SortPriority=32, Description="..."]` 元数据。
-- `Properties` 支持显式 Parameter 节点类型，包括 `ScalarParameter`、`VectorParameter`、`TextureObjectParameter`、纹理采样参数节点、`StaticBoolParameter` 和 `StaticSwitchParameter`。
-- `StaticSwitchParameter` 可以在 `Graph` 中用同名函数调用，例如 `UseDetail(True=detailColor, False=baseColor)`。
+- `Properties` 支持显式 Parameter 节点类型，包括 `ScalarParameter`、`VectorParameter`、
+  `TextureObjectParameter`、纹理采样参数节点、`StaticBoolParameter` 和 `StaticSwitchParameter` —— 见
+  [Properties 类型](/docs/parameters/properties)。
+- `StaticSwitchParameter` 可以在 `Graph` 中用同名函数调用，例如
+  `UseDetail(True=detailColor, False=baseColor)`。
 - 新增 `UE.CollectionParam(Collection=Path(...), Parameter="...")`，用于读取 Material Parameter Collection。
 
 ### Function Defaults
 
-- `ShaderFunction` 和 `VirtualFunction` 的输入支持 `opt`，用于表示该输入可使用 Unreal FunctionInput 的预览默认值。
+- `ShaderFunction` 和 `VirtualFunction` 的输入支持 `opt`，用于表示该输入可使用 Unreal FunctionInput
+  的预览默认值。
 - 调用 `ShaderFunction` / `VirtualFunction` 时支持 `default` 参数，显式跳过可选输入并沿用预览默认值。
-- 生成 `ShaderFunction` 资产时会把输入输出的 description 和 sort priority 写入 FunctionInput / FunctionOutput 节点。
+- 生成 `ShaderFunction` 资产时会把输入输出的 description 和 sort priority 写入 FunctionInput /
+  FunctionOutput 节点。
 - `VirtualFunction` 的复制、创建和启动同步现在会尽量带上可选输入、预览默认值和 pin 元数据。
 
 ## 1.2.2 - 2026-04-29
 
-### VirtualFunction 编辑器工作流
+### VirtualFunction 工作流
 
 - `CreateVirtualFunction` 会先查找 `DShader` 中已有的同资产声明，不再重复创建多个相同定义文件。
-- 如果当前 Material Function 已经有对应 `VirtualFunction` 定义，菜单只显示 `OpenVirtualFunction` 和 `Copy Virtual Function Reference`。
+- 如果当前 Material Function 已经有对应 `VirtualFunction` 定义，菜单只显示 `OpenVirtualFunction` 和
+  `Copy Virtual Function Reference`。
 - `OpenVirtualFunction` 会优先用 VSCode 打开并跳转到定义位置。
 - `Copy Virtual Function Reference` 会复制可直接粘贴到 `Shader` / `ShaderFunction` 的 `Graph` 块中的调用表达式。
-- 插件启动时会扫描 `DShader` 下的 `VirtualFunction` 声明，检查对应 `UMaterialFunction` 是否存在，并在签名变化时刷新定义。
+- 插件启动时会扫描 `DShader` 下的 `VirtualFunction` 声明，检查对应 `UMaterialFunction` 是否存在，
+  并在签名变化时刷新定义。
 
 ### import 兼容性
 
@@ -220,12 +354,18 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 ## 1.2.1 - 2026-04-29
 
-### Material Function 编辑器
+### 编辑器工作流
 
 - Material Function 编辑器工具栏和资产右键菜单中的 VirtualFunction 相关操作统一收进 `DreamShader` 下拉菜单。
 - 新增 `CopyVirtualFunction`，用于复制完整 `VirtualFunction` 声明。
 - 新增 `CreateVirtualFunction`，用于在 `DShader/VirtualFunctions` 下创建 `.dsh` 定义文件，并打开到默认外部编辑器。
 - 新增 `CopyVirtualFunctionCall`，用于复制可直接粘贴到 `Graph` 的调用示例。
+- 编辑器 Tools 菜单和 DreamShader 工具栏新增 *Open Dream Shader Workspace (VSCode)*。它会写出
+  `DShader/DreamShader.code-workspace`，可用时用 VSCode 打开，否则回退到默认编辑器或记事本。
+
+### Release
+
+- 新增 GitHub Actions 发布工作流，打包插件源码并从版本标签或手动触发发布 GitHub Release。
 
 ## 1.2.0 - 2026-04-28
 
@@ -233,8 +373,16 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 - 新增 `VirtualFunction(Name="...")`，用于声明项目、引擎或插件中已经存在的 `UMaterialFunction` 资产。
 - `VirtualFunction` 可在 `Graph` 中像 `ShaderFunction` 一样作为值函数调用，但不会生成、保存或覆盖对应资产。
-- `Options.Asset` 支持 `Path(Game, "...")`、`Path(Engine, "...")`、`Path(Plugin.PluginName, "...")` / `Path(Plugins.PluginName, "...")`，也支持完整 Unreal object path。
-- Material Function 资产右键菜单和 Material Function 编辑器工具栏新增 VirtualFunction 定义复制能力，可自动生成包含 `Inputs`、`Outputs` 和 `Options` 的声明。
+- `Options.Asset` 支持 `Path(Game, "...")`、`Path(Engine, "...")`、`Path(Plugin.PluginName, "...")` /
+  `Path(Plugins.PluginName, "...")`，也支持完整 Unreal object path。
+- Material Function 资产右键菜单和 Material Function 编辑器工具栏新增 VirtualFunction 定义复制能力，
+  可自动生成包含 `Inputs`、`Outputs` 和 `Options` 的声明。
+
+### Asset Roots
+
+- `Root="Plugin.PluginName"` 映射到项目插件内容根，生成资产物理保存在
+  `[Project]/Plugins/PluginName/Content`。
+- `Plugins.PluginName` 和 `Plugins/PluginName` 保留为兼容写法。
 
 ### 工具链
 
@@ -245,15 +393,18 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 
 ### 资产生成
 
-- `Root="Plugins.PluginName"` / `Root="Plugins/PluginName"` 现在作为兼容写法支持，解析结果与 `Root="Plugin.PluginName"` 相同。
-- 这避免 `Plugins.MoonToon` 被当作普通 `/Game/Plugins_MoonToon` 子目录保存。
+- `Root="Plugins.PluginName"` / `Root="Plugins/PluginName"` 现在作为兼容写法支持，解析结果与
+  `Root="Plugin.PluginName"` 相同。
+- 这避免 `Plugins.MoonToon` 被当作普通 `/Game/Plugins_MoonToon` 子目录保存 —— 见
+  [资产路径](/docs/generation/asset-paths)。
 
 ## 1.1.3 - 2026-04-28
 
 ### 资产生成
 
-- 明确 `Root="Plugin.PluginName"` 只指向已启用的项目内容插件。
-- `Plugin.MoonToon` 会解析到 UE package 根 `/MoonToon`，物理保存位置是 `[Project]/Plugins/MoonToon/Content`。
+- 明确 `Root="Plugin.PluginName"` 只指向**已启用的项目内容插件**。
+- `Plugin.MoonToon` 会解析到 UE package 根 `/MoonToon`，物理保存位置是
+  `[Project]/Plugins/MoonToon/Content`。
 - 生成器会校验目标插件位于项目 `Plugins` 目录、已启用、可包含内容且存在 `Content` 目录。
 
 ## 1.1.2 - 2026-04-28
@@ -261,7 +412,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### 语言与生成
 
 - `Shader` 和 `ShaderFunction` 顶层属性新增 `Root`，用于指定生成资产根路径。
-- `Root` 默认是 `Game`，也支持 `Plugin.PluginName`，用于把生成的 `UMaterial` 或 `UMaterialFunction` 保存到已启用的项目内容插件根。
+- `Root` 默认是 `Game`，也支持 `Plugin.PluginName`，用于把生成的 `UMaterial` 或 `UMaterialFunction`
+  保存到已启用的项目内容插件根。
 - `ShaderFunction` 在 `Graph` 中被调用时，会按该函数自己的 `Root` 解析并加载生成的 `UMaterialFunction` 资产。
 
 ### 文档
@@ -273,7 +425,8 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### 修复
 
 - 修复 `Graph` 中调用带多个 `out` 参数的 `Function` 时，Custom 节点后续输出 pin 没有收到值的问题。
-- 多输出 `Function` 的第一个 `out` 仍通过 Custom 节点主 `return` 输出；第二个及后续 `out` 现在会生成显式赋值，把 `__ds_*_outN` 临时变量写回对应 Additional Output 参数，例如 `Output_ToonA = __ds_xxx_out1;`。
+- 多输出 `Function` 的第一个 `out` 仍通过 Custom 节点主 `return` 输出；第二个及后续 `out` 现在会生成
+  显式赋值，把 `__ds_*_outN` 临时变量写回对应 Additional Output 参数，例如 `Output_ToonA = __ds_xxx_out1;`。
 
 ### 兼容性
 
@@ -284,25 +437,28 @@ DreamShader 的版本更新记录按插件版本整理。这里主要记录会�
 ### 语言与 Graph
 
 - 将材质和材质函数中的 `Code = { ... }` 区块重命名为 `Graph = { ... }`，让图 DSL 与 HLSL helper 层更容易区分。
-- `Graph` 增加基础 `if` / `else` 支持，可以在图层表达简单条件分支。
+- `Graph` 增加基础 `if` / `else` 支持，可以在图层表达简单条件分支 —— 见 [if / else](/docs/graph/control-flow)。
 - 改进输出表达式处理：输出绑定从只记录变量名改为记录 source text，可用于更灵活地解析 Graph 输出。
 - 增强类型转换和 `UE.*` 通用 MaterialExpression 参数处理，减少手动补节点时的摩擦。
 
 ### Function 与生成
 
-- 新增 `Function SelfContained` / `Function Inline`，可以把 helper 依赖嵌入 Custom 节点，便于把生成材质交给未安装 DreamShader 插件的项目使用。
+- 新增 `Function SelfContained` / `Function Inline`，可以把 helper 依赖嵌入 Custom 节点，便于把生成材质
+  交给未安装 DreamShader 插件的项目使用。
 - 普通 `Function` 继续生成 `.ush` helper include，并通过 Custom 节点引用。
 - 增加清理生成 shader 文件的工作流，减少历史 include 残留。
 
 ### Package 与工作流
 
-- 新增 Package 系统，用 GitHub 分发和安装可复用 `.dsh` 共享库。
-- 增加 import dependency graph，保存共享 `.dsh` 后可以找到受影响的 `.dsm` 并增量刷新；后续版本也覆盖 `.dsf` 依赖。
+- 新增 Package 系统，用 GitHub 分发和安装可复用 `.dsh` 共享库 —— 见 [Package](/docs/tools/packages)。
+- 增加 import dependency graph，保存共享 `.dsh` 后可以找到受影响的 `.dsm` 并增量刷新；后续版本也覆盖
+  `.dsf` 依赖。
 - 缓存配置目录，减少重复解析项目设置带来的开销。
 
 ### 诊断与兼容性
 
-- 诊断信息增加 stage、platform、quality 等上下文，便于区分解析、生成和材质编译阶段的问题。
+- 诊断信息增加 stage、platform、quality 等上下文，便于区分解析、生成和材质编译阶段的问题 —— 见
+  [错误速查](/docs/diagnostics)。
 - 移除 Toon shading model 的默认映射，避免生成结果意外依赖项目自定义 shading model。
 - 配套更新 README、语言参考和示例文档。
 

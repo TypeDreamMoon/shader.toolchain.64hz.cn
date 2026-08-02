@@ -1,0 +1,198 @@
+---
+title: Graph 求值模型
+description: Graph 块究竟是什么、它在生成阶段如何执行，以及它为什么和外层的声明语言不是同一门语言。
+---
+
+`Graph` 块是 DreamShaderLang 文件从"描述材质"转为"构建材质"的地方。它的块体是一串语句，编译器在
+**生成阶段按顺序执行一次**，每条语句在目标 `UMaterial` 或 `UMaterialFunction` 上产出一个或多个
+`UMaterialExpression` 节点。
+
+Graph 块体里的东西不会以代码形式存活到运行时。存活下来的是它构建出的那张图。
+
+## Graph 不是声明语言
+
+这是往下读之前最有用的一条认知。`Graph` 外面的东西——`Shader(...)`、`Properties`、`Settings`、
+`Outputs`、`[元数据]`——由声明解析器处理。`Graph` 块体则交给**另一套解析器，有自己的分词器和自己的
+规则**。两者只是长得像。
+
+| | 声明语言 | Graph 语言 |
+| :-- | :-- | :-- |
+| 基本单位 | 块、section、键值项 | 以 `;` 结束的语句 |
+| 关键字 | 块名、section 名 | 只有两个：`if` 和 `else` |
+| 大小写 | section 名与块名各有规则 | `if` / `else` 与 `SampleTexture2D` 区分大小写，其余都不区分 |
+| 字面量 | 声明层的字面量文法 | 自己的数值文法：有后缀、无十六进制、无整数类型 |
+| 无法识别的文本 | 会报错 | 常常被*静默丢弃*，见[不支持的写法](/docs/graph/unsupported) |
+
+实际后果是：一段在 `Properties` 里完全合法的写法，放进 `Graph` 可能含义完全不同，或者根本不起作用。
+当 `Graph` 块体里出现奇怪行为时，适用的是这六页的规则，而不是[顶层块](/docs/language/blocks)的规则。
+
+## `Graph` 块能出现在哪里
+
+| 块 | `Graph` |
+| :-- | :-- |
+| [`Shader`](/docs/language/blocks) | 必须有，除非某个 `Outputs` 声明自带初始值 |
+| `ShaderFunction` | 总是必须有 |
+| `ShaderLayer` / `ShaderLayerBlend` | 总是必须有 |
+| `VirtualFunction` | 硬错误——它声明的是已有资产，不构建新的 |
+| [`Function` / `GraphFunction`](/docs/language/functions) | 函数体是 HLSL，不是 `Graph` 块 |
+
+section 名**不区分大小写**，`{` 前的 `=` 可以省略 <Since v="1.5.0" />，所以 `Graph = { … }` 和
+`Graph { … }` 完全等价。
+
+<Callout type="warn">
+`Code = { … }` 在所有能走到解析器的块里都会被拒绝。拒绝信息仍然写作
+`Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported.`，
+但文法里已经没有任何入口接受 `Code` section 了。请使用 `Graph`。
+</Callout>
+
+同一套语句语言还以简化形式用在另外两处：
+
+| 位置 | 形态 |
+| :-- | :-- |
+| `Outputs` 绑定的右侧 | 一条完整表达式，没有语句 |
+| `Outputs` 声明的 `= <default>` | 一条表达式，会被降级成声明语句并插到 `Graph` 块体之前 |
+
+## 语法概要
+
+<Synopsis>
+```c
+Graph [=] {
+    <graph-statement> …
+}
+```
+</Synopsis>
+
+<Grammar />
+
+## 求值模型
+
+1. **带初始值的 `Outputs` 声明先执行。** 每个带默认值的 `Outputs` 声明会变成一条合成的声明语句，放在
+   块体第一条语句*之前*。这些语句没有源码位置，所以它们的诊断不带行号。
+2. **块体按顶层 `;` 切分成语句。** 圆括号、花括号、方括号和字符串字面量都会被跟踪，所以它们内部的 `;`
+   不会切分语句。`if` 语句在 `;` 扫描之前就被识别出来，改用花括号配对来界定。
+3. **每条语句自上而下各执行一次。** 没有循环、没有 `return`、没有递归、没有重入。第 *n* 条语句只能看到
+   第 1 … *n*−1 条语句产生的值。
+4. **每个表达式求值得到的是一个值描述符**，不是一个数：产生它的 `UMaterialExpression`、输出索引、可选的
+   通道掩码、分量数，以及标记纹理对象 / `MaterialAttributes` / `Substrate` / 权威宽度 / 整数构造器的若干
+   标志位。变量名就是绑定到这样一个描述符上的名字。
+5. **节点在表达式求值时立即创建**并立即连线。
+6. **`Outputs` 绑定源最后求值**，各自作为一条完整表达式，在块体留下的值表上求值。
+
+## 由此推出的结论
+
+### 没有运行时控制流
+
+`if` 在构建期会执行**两个**分支。两边的节点集合都会留在最终材质里，由一个 `UMaterialExpressionIf`
+在每个像素上二选一。`if` 是 select，不是跳转——永远走不到的分支照样消耗指令。见
+[if / else](/docs/graph/control-flow)。
+
+### 声明出来的变量不是存储
+
+给一个名字赋值只是把它重新绑定到另一个节点和引脚上。原先绑定的节点如果还有别处引用就留在图里，否则被
+丢弃。这里没有可以自增的存储单元，所以 `a = a + 1;` 是重新接线，而 `a++;` 什么也不是。
+
+### 相同的子表达式会合并
+
+构建器按结构化 key 缓存值，所以同一个字面量、同一个 `A + B`、同一个
+`UE.Expression(Class = "TextureCoordinate", OutputType = "float2")` 无论写多少遍都只产生**一个**节点。
+缓存的生命周期是一个生成资产，且不按块作用域划分——在 `if` 某个分支里首次构建的子表达式，会在另一个分支
+以及合并之后继续复用。
+
+<Callout type="warn">
+并不是所有东西都会去重。已注册的 `UE.*` 语法糖内置——`UE.TexCoord`、`UE.Time`、`UE.Panner`、
+`UE.TransformVector`、`UE.CollectionParam` 以及各种无参状态读取，共 27 个名字——由专门的处理器分发，
+这个处理器跑在任何缓存 key 计算*之前*，所以每个调用点都会拿到一个新节点。`UE.TexCoord(Index = 0)`
+写五次就是五个 `TextureCoordinate` 节点。通用反射形式 `UE.Expression(Class = "TextureCoordinate", …)`
+和所有 `Substrate.*` 调用**会**去重，数学内置也会。如果在意重复节点，先把语法糖内置读进一个变量。
+见 [UE.* 节点](/docs/builtins/ue-nodes)。
+</Callout>
+
+`Function` 和 `GraphFunction` 调用也从不复用：每个调用点都会构建自己的 `Custom` 节点。
+`MakeMaterialAttributes` / `SetMaterialAttributes` / `BreakMaterialAttributes` 节点和
+`UMaterialExpressionIf` 节点同样不复用。
+
+### 有些写法根本不产生节点
+
+有序且不重复的 swizzle（`.rgb`、`.ga`）会变成*连线上*的通道掩码，而不是一个 `ComponentMask` 节点。
+`Src.rgb` 用十次也不花任何代价。分组用的圆括号同样不产生节点。见
+[运算符与转换](/docs/graph/expressions)。
+
+### 类型错误其实是形状错误
+
+对构建器来说 `int`、`bool`、`half` 和 `float` 是同一个东西。它检查的是分量数和几个不透明值标志位。
+这里没有整数运算，也没有截断；`7 / 2` 就是 `3.5`。
+
+### 无法识别的字符会被静默丢弃
+
+Graph 分词器把每个它不认识的字符都映射成输入结束记号，而解析器接受"一条表达式后面跟着输入结束"。
+于是 `a % b` 编译成 `a`，`if (a > 0 && b > 0)` 编译成 `if (a > 0)`——没有任何诊断。这是本语言里价值最高
+的一个坑，它有专门的一页：[不支持的写法](/docs/graph/unsupported)。
+
+## 注释与 `#Region`
+
+注释不会被 section 解析器剥掉——它们原样进入 graph 解析器，然后被替换成空格，换行保留，所以每条诊断的行号
+列号仍然指向原始源码。块注释不嵌套，遇到第一个 `*/` 就闭合。字符串字面量会被正确识别，所以 `"…"` 里的
+`//` 不是注释。
+
+`#Region "Name"` / `#EndRegion` 指令行把它们之间的语句所产生的节点归入生成图里的一个注释框。它们可以嵌套，
+不改变求值和作用域，并且在解析前被替换成等长的空格，所以不产生任何行列偏移。完整语法见
+[Layout 与 #Region](/docs/language/layout)。
+
+## 诊断指向哪里
+
+Graph 诊断是相对**源文件**报告的，不是相对块：
+
+```text
+<file>(<line>,<column>): <message>
+```
+
+行号是 `Graph` 块首个内容行加上块内行号再减一；列号只在块的第一行上加上块的起始列偏移。分支内部抛出的
+错误会在位置*之后*加上前缀 `In Graph if body: ` / `In Graph else body: `，所以文件和行号永远排在最前面。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_Arithmetic")
+{
+    Properties = {
+        vec3  A = vec3(1.0, 0.5, 0.2);
+        vec3  B = vec3(0.1, 0.2, 0.3);
+        float K = 2.0;
+    }
+    Settings = { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs  = { vec3 Color; Base.EmissiveColor = Color; }
+    Graph = {
+        vec3 Sum    = A + B;
+        vec3 Diff   = A - B;
+        vec3 Scaled = A * K;
+        vec3 Ratio  = A / K;
+        Color = Sum + Diff - Scaled + Ratio;
+    }
+}
+```
+
+生成的节点：
+
+```text
+VectorParameter A, VectorParameter B, ScalarParameter K   (property nodes)
+Add       (A, B)          -> Sum
+Subtract  (A, B)          -> Diff
+Multiply  (A, K)          -> Scaled
+Divide    (A, K)          -> Ratio
+Add       (Sum, Diff)
+Subtract  (.., Scaled)
+Add       (.., Ratio)     -> Base.EmissiveColor
+```
+
+五条语句，七个节点，外加它们读取的三个属性节点。没有控制流，除了写出来的顺序之外没有别的执行顺序，
+运行时也不残留任何东西。
+
+## 接下来读什么
+
+<Cards>
+  <Card title="语句与声明" href="/docs/graph/statements" />
+  <Card title="运算符与转换" href="/docs/graph/expressions" />
+  <Card title="if / else" href="/docs/graph/control-flow" />
+  <Card title="调用" href="/docs/graph/calls" />
+  <Card title="不支持的写法" href="/docs/graph/unsupported" />
+</Cards>

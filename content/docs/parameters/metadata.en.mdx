@@ -1,0 +1,422 @@
+---
+title: Metadata and Groups
+description: The trailing [ … ] block — recognized keys and aliases, Slider(min,max), Group scopes and the SortPriority counter, and the reflected-property passthrough.
+---
+
+A declaration can carry a trailing `[ … ]` block: a list of `Key = Value` entries that set the
+generated node's organization fields and — for any key the parser does not recognize — write
+directly to a **reflected UPROPERTY** of that node's class.
+
+That last part is what makes the block useful. Only five entry forms are special-cased; everything
+else is looked up on the Unreal class by reflection, so any property the engine exposes on the node
+you generated is reachable from source.
+
+## Writing a block
+
+<Synopsis>
+```c
+<declaration> [ <entry> ; <entry> ; … ] ;
+<declaration> [ <entry> , <entry> , … ] ;
+
+<entry> := <key> = <value>
+         | Slider( <min> , <max> )
+```
+</Synopsis>
+
+Every `[`, `]`, `;`, `,`, `=` and `( )` above is **literal punctuation**. `;` and `,` may be mixed in
+one block, and a trailing separator before `]` is accepted. `Slider(…)` is the only entry form
+without an `=`.
+
+```c
+ScalarParameter Roughness = 0.5 [Group="Surface"; Slider(0, 1); Desc="Micro-surface roughness"];
+```
+
+| Rule | Behaviour |
+| :-- | :-- |
+| The block must be the **last** thing in the statement | a statement that does not end with `]` has no metadata at all — the `[ … ]` stays in the declaration text and fails elsewhere |
+| The opening `[` is found at paren-depth 0 and bracket-depth 0 | brackets inside `( … )` and inside string literals are safe |
+| Text before the block must be non-empty | otherwise `Metadata must follow a declaration.` |
+| Entries split on `;` **or** `,` at top level | mixing both in one block is accepted |
+| A trailing `;` or `,` before `]` | accepted; the empty entry is dropped |
+| Keys are trimmed and lower-cased before comparison | `[ Group = "X" ]`, `[group="X"]` and `[GROUP="X"]` are the same entry |
+| Values are unquoted, then trimmed | `"  X  "` becomes `X`; an unquoted value is trimmed as written |
+| A duplicate key (after lower-casing) | `Metadata key '{Key}' is declared more than once.` |
+
+Semicolon-separated entries arrived in <Since v="1.2.4" />; the block itself in <Since v="1.2.3" />.
+
+## Recognized keys
+
+| Key | Aliases | Value | Effect |
+| :-- | :-- | :-- | :-- |
+| `Group` | `Category` | string | The node's parameter group; also written to the `Group` UPROPERTY (an `FName`) |
+| `Description` | `Desc`, `Tooltip` | string | Written to the node's **`Desc`** UPROPERTY |
+| `SortPriority` | `Sort` | integer | The node's `SortPriority`; a non-integer is an error |
+| `ParameterName` | — | string | Overrides the material parameter name; the declared identifier is used when absent |
+| `Slider(min, max)` | — | two numbers, no `=` | Expands to the reflected `SliderMin` and `SliderMax` properties |
+| *anything else* | — | see [Reflected passthrough](#reflected-property-passthrough) | Written to the same-named reflected UPROPERTY of the generated node's class |
+
+All key comparisons are case-insensitive. Every entry — including the recognized ones — is *also*
+stored under its lower-cased key and pushed through the reflected-property writer, so the recognized
+keys are the ones with an **extra** typed effect, not a separate namespace.
+
+`SortPriority` defaults to **32** when nothing sets it, matching Unreal's own node default.
+
+### `Slider(min, max)`
+
+<Since v="1.5.0" />
+
+```c
+ScalarParameter Roughness = 0.5 [Slider(0, 1)];
+```
+
+Matched case-insensitively, must end with `)`, and the inner text must split on a top-level `,` into
+**exactly two** numeric values. Both are written as reflected `SliderMin` / `SliderMax`, so it is
+exactly equivalent to `[SliderMin = 0; SliderMax = 1]` — and combining the two forms is a duplicate.
+
+| Written | Result |
+| :-- | :-- |
+| `[Slider(0, 1)]` | `SliderMin = 0`, `SliderMax = 1` |
+| `[SliderMin = 0; SliderMax = 1]` | identical |
+| `[Slider(0, 1); SliderMin = 0]` | `Metadata SliderMin/SliderMax is declared more than once (entry '{Entry}').` |
+| `[Slider(0)]` / `[Slider(0, 1, 2)]` / `[Slider(a, b)]` | `Metadata 'Slider(min, max)' requires exactly two numeric bounds: '{Entry}'.` |
+
+`SliderMin` / `SliderMax` exist on `UMaterialExpressionScalarParameter`. On a class without them the
+entry fails as an unreflected property.
+
+### `ParameterName`
+
+```c
+ScalarParameter Rough [ParameterName = "Surface Roughness"];
+```
+
+The declared identifier stays the name `Graph` uses; `ParameterName` changes only the name the
+material exposes to instances and Blueprints. An empty value falls back to the declared name.
+
+<Callout type="info">
+`ParameterName` is *also* left in the reflected-property list, so it is written twice — once as the
+node's parameter name and once through reflection. Harmless on a `UMaterialExpressionParameter`
+subclass. On a class with **no** `ParameterName` UPROPERTY — `DynamicParameter` is the one in the
+token set — `[ParameterName="…"]` is a **hard error**, not a warning.
+</Callout>
+
+## Alias rewriting and auto-injection
+
+Before anything is written, the entry list is completed and its keys are rewritten:
+
+| Step | Behaviour |
+| :-- | :-- |
+| 1 | `Group` is injected as key `group` unless `Group` **or** `Category` was typed literally |
+| 2 | `SortPriority` is injected unless `SortPriority` **or** `Sort` was typed literally |
+| 3 | `Description` is injected as key `desc` unless `Description`, `Desc` **or** `Tooltip` was typed literally |
+| 4 | keys are rewritten to their real UPROPERTY names |
+
+| Typed key | Reflected UPROPERTY |
+| :-- | :-- |
+| `Description` | `Desc` |
+| `Tooltip` | `Desc` |
+| `Category` | `Group` |
+| `Sort` | `SortPriority` |
+| anything else | passes through as the lower-cased key |
+
+Injection in steps 1–3 is what applies a value that came from somewhere other than this block — most
+often the enclosing [`Group("Name") { … }` scope](#group-scopes-and-the-sortpriority-counter).
+
+## Reflected property passthrough
+
+Any key that is not `Slider(…)` is resolved to an `FProperty` on the generated node's class:
+
+1. the key is trimmed, lower-cased and compared against each UPROPERTY name, case-insensitively;
+2. if that fails, a second pass **strips a leading `b`** from every `FBoolProperty` name and compares
+   again.
+
+So `[FractionalPart = true]` binds `bFractionalPart`, and `[UseCustomPrimitiveData = true]` binds
+`bUseCustomPrimitiveData`. Writing the `b` explicitly also works.
+
+### Value grammar by property type
+
+| Property type | Accepted text | Error on failure |
+| :-- | :-- | :-- |
+| `bool` | `true` / `false`, case-insensitive | `'{Value}' is not a valid boolean value for '{Property}'.` |
+| `int32` | a signed 32-bit integer | `'{Value}' is not a valid integer value for '{Property}'.` |
+| `uint32` | an integer in `[0, 4294967295]` | `'{Value}' is not a valid unsigned integer value for '{Property}'.` |
+| `float` | a number, or `true` / `false` (`1.0` / `0.0`) | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `double` | as `float` | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FString` | anything, verbatim after trimming | — |
+| `FName` | anything, converted to an `FName` | — |
+| object reference | `Path(…)`, an absolute `/…` path, or a bare path | see [Object properties](#object-properties) |
+| `enum` | an enum literal, four spellings | `'{Value}' is not a valid enum value for '{Property}'.` |
+| `uint8` backed by an enum | an enum literal | `'{Value}' is not a valid enum value for '{Property}'.` |
+| plain `uint8` | an integer in `[0, 255]` | `'{Value}' is not a valid byte value for '{Property}'.` |
+| anything else (structs, arrays, …) | Unreal's own import text, e.g. `(R=1,G=0,B=0,A=1)` | `Property '{Property}' on '{Class}' is not a supported literal type yet.` |
+
+### Enum literals
+
+An enum value is normalized by trimming, lower-casing and then removing every space, `_`, `-`, `:`,
+`.` and `/`. Each enumerator that is **not** tagged `UMETA(Hidden)` is tried against four spellings:
+
+| # | Spelling | Example for `SAMPLERTYPE_LinearColor` |
+| :-- | :-- | :-- |
+| 1 | short name | `SAMPLERTYPE_LinearColor` |
+| 2 | fully qualified name | `EMaterialSamplerType::SAMPLERTYPE_LinearColor` |
+| 3 | `DisplayName` metadata | `Linear Color` |
+| 4 | short name with everything up to the first `_` removed | `LinearColor` |
+
+Because of the normalization, `"LinearColor"`, `"linear color"`, `"linear-color"`,
+`"SAMPLERTYPE_LinearColor"` and `"linear.color"` all select the same value.
+
+<Callout type="info">
+`_MAX` sentinels of engine enums usually carry no `Hidden` metadata, so a value such as
+`"SAMPLERTYPE_MAX"` resolves rather than erroring — and writes something that is not a real value.
+Do not use them.
+</Callout>
+
+### Object properties
+
+An object-valued UPROPERTY takes an asset reference resolved by the metadata resolver described on
+[Asset References](/en/docs/parameters/path).
+
+| Situation | Result |
+| :-- | :-- |
+| Value starts with `Path(` or `/` and does not resolve | the resolver's own message is reported |
+| Value is neither and does not resolve | `Object property '{Property}' expects Path(...) or an absolute Unreal object path.` |
+| Asset loads but is the wrong class | `Asset '{Path}' is not compatible with '{Property}'. Expected '{Class}'.` |
+| Asset fails to load | `Failed to load asset '{Path}' for '{Property}'.` |
+
+<Callout type="warn">
+**A texture that fails to load is silently accepted.** When the property is a `UTexture` subclass
+*and* is named exactly `Texture` or `TextureObject`, a failed load writes `nullptr` and the write is
+reported as successful. `[Texture = Path(Game, "Typo")]` therefore generates with no diagnostic and
+leaves an unbound sampler, which fails later at shader compile. Check the asset path when a sampler
+comes out empty.
+</Callout>
+
+## Organization fields that are not reflected
+
+`Group`, `SortPriority` and `Desc` exist on `UMaterialExpressionParameter` subclasses — but not every
+parameter node is one. `UMaterialExpressionDynamicParameter` is not. When one of those three fields
+is missing from the class it is **skipped with a warning**, not an error:
+
+```text
+'{Class}' does not expose the '{Field}' organization field; ignoring it for this parameter.
+```
+
+Any *other* unresolved key is a hard error:
+
+```text
+Metadata property '{Key}' is not a reflected property on '{Class}'.
+```
+
+<Callout type="info">
+The practical consequence: `DynamicParameter Dyn = float4(0,0,0,0) [Group="S"; SortPriority=10];`
+compiles, logs two warnings, and the node ends up in no group. Its default value *is* applied, and
+its parameter name is written to `ParamNames[0]`.
+</Callout>
+
+## `Group(…)` scopes and the SortPriority counter
+
+<Since v="1.5.0" /> A `Group("Name") { … }` scope inside a `Properties` section stamps its members.
+How it interacts with an explicit entry:
+
+| Situation | Result |
+| :-- | :-- |
+| Member typed neither `Group` nor `Category` | the enclosing group is injected |
+| Member typed `Group` or `Category` | the typed value wins; the scope is ignored for that member |
+| Nested scopes | composed with `\|` — `Group("Outer") { Group("Inner") { … } }` yields `Outer\|Inner` |
+| A literal `Group("Manual\|Literal")` | passes through unchanged |
+| Member typed neither `SortPriority` nor `Sort` | it receives the next value from an auto counter |
+| Member typed `SortPriority` or `Sort` | the typed value wins **and does not consume a counter slot** |
+| Declaration outside any scope | untouched — no group, and no auto sort priority |
+
+The counter starts at **0** and steps by **10**. It is **shared across every scope in the block**,
+not reset per group:
+
+```c
+Properties {
+    Group("Surface") {
+        ScalarParameter A = 0.5;                   // SortPriority = 0
+        VectorParameter B = float4(1, 1, 1, 1);    // SortPriority = 10
+    }
+    Group("Detail") {
+        ScalarParameter C = 1.0 [SortPriority=99]; // 99 — does not consume a slot
+        ScalarParameter D = 2.0;                   // SortPriority = 20
+    }
+    ScalarParameter Loose = 3.0;                   // no group, no auto sort
+}
+```
+
+## Texture keys
+
+The keys you will write most often are reflected ones on a texture node. They have no dedicated code
+path — `SamplerType` is an ordinary reflected key that happens to land on a
+`TEnumAsByte<EMaterialSamplerType>` UPROPERTY — but they are worth knowing by name.
+
+| Key | Type | Default |
+| :-- | :-- | :-- |
+| `SamplerType` | `EMaterialSamplerType` | derived from the asset |
+| `SamplerSource` | `ESamplerSourceMode` | `FromTextureAsset` |
+| `MipValueMode` | `ETextureMipValueMode` | `None` |
+| `GatherMode` <Since v="5.6" ue /> | enum | `None` |
+| `AutomaticViewMipBias` | bool | `true` |
+| `ConstCoordinate` | `uint8` | `0` |
+| `ConstMipValue` | `int32` | `-1` |
+| `IsDefaultMeshpaintTexture` | bool | `false` |
+
+`MipValueMode` is the one key that changes the node's **pin** set, and therefore what
+[the call form](/en/docs/parameters/properties#which-pins-are-reachable) can wire.
+
+### `SamplerType` values
+
+17 enumerators. All four spellings of a row select it, and the comparison ignores case and strips
+` `, `_`, `-`, `:`, `.` and `/`.
+
+| Value | Enum constant | `DisplayName` spelling |
+| :-- | :-- | :-- |
+| `Color` | `SAMPLERTYPE_Color` | `Color` |
+| `Grayscale` | `SAMPLERTYPE_Grayscale` | `Grayscale` |
+| `Alpha` | `SAMPLERTYPE_Alpha` | `Alpha` |
+| `Normal` | `SAMPLERTYPE_Normal` | `Normal` |
+| `Masks` | `SAMPLERTYPE_Masks` | `Masks` |
+| `DistanceFieldFont` | `SAMPLERTYPE_DistanceFieldFont` | `Distance Field Font` |
+| `LinearColor` | `SAMPLERTYPE_LinearColor` | `Linear Color` |
+| `LinearGrayscale` | `SAMPLERTYPE_LinearGrayscale` | `Linear Grayscale` |
+| `Data` | `SAMPLERTYPE_Data` | `Data` |
+| `External` | `SAMPLERTYPE_External` | `External` |
+| `VirtualColor` | `SAMPLERTYPE_VirtualColor` | `Virtual Color` |
+| `VirtualGrayscale` | `SAMPLERTYPE_VirtualGrayscale` | `Virtual Grayscale` |
+| `VirtualAlpha` | `SAMPLERTYPE_VirtualAlpha` | `Virtual Alpha` |
+| `VirtualNormal` | `SAMPLERTYPE_VirtualNormal` | `Virtual Normal` |
+| `VirtualMasks` | `SAMPLERTYPE_VirtualMasks` | **`Virtual Mask`** |
+| `VirtualLinearColor` | `SAMPLERTYPE_VirtualLinearColor` | `Virtual Linear Color` |
+| `VirtualLinearGrayscale` | `SAMPLERTYPE_VirtualLinearGrayscale` | `Virtual Linear Grayscale` |
+
+There is no virtual counterpart for `DistanceFieldFont` or `External`.
+
+### `SamplerSource` values
+
+| Value | Enum constant | `DisplayName` | Meaning |
+| :-- | :-- | :-- | :-- |
+| `FromTextureAsset` | `SSM_FromTextureAsset` | `From texture asset` | Take the sampler from the texture; consumes one of the shader's limited sampler slots |
+| `Wrap_WorldGroupSettings` | `SSM_Wrap_WorldGroupSettings` | `Shared: Wrap` | Shared sampler, wrap addressing, filter from the world texture group; consumes no slot |
+| `Clamp_WorldGroupSettings` | `SSM_Clamp_WorldGroupSettings` | `Shared: Clamp` | Shared sampler, clamp addressing; consumes no slot |
+
+`SSM_TerrainWeightmapGroupSettings` is tagged `UMETA(Hidden)` and is therefore **not selectable**.
+Because `Shared: Wrap` normalizes to `sharedwrap`, both `[SamplerSource="Shared: Wrap"]` and
+`[SamplerSource="SharedWrap"]` select the same value.
+
+## Application order
+
+| Step | What happens |
+| :-- | :-- |
+| 1 | The node is created and its texture asset assigned — from `= Path(…)`, from the engine fallback for the declared dimension, or by `SetDefaultTexture()` |
+| 2 | `AutoSetSampleType()` runs, deriving `SamplerType` from the asset's compression settings and sRGB flag |
+| 3 | The `[ … ]` block is applied |
+
+Because metadata is applied **last**, an explicit `[SamplerType=…]` always wins over the inferred
+value. Omitting the key means the value follows the asset — and changes if the asset is later
+recompressed. The [decompiler](/en/docs/tools/decompiler) therefore emits `SamplerType` and the
+texture-sample keys explicitly on every export, so a decompile → recompile round trip is stable.
+
+## Where else the block is accepted
+
+- On `Inputs` / `Outputs` / `Results` typed parameters of a material function, but there only
+  `Description` / `Desc` / `Tooltip` and `SortPriority` / `Sort` have any effect. `Group` is parsed
+  and retained but never applied — Unreal's function input/output nodes have no group field — and
+  every other key is ignored rather than reflected. An input's `SortPriority` defaults to its
+  declaration index.
+- **Not** on a `Shader`'s `Outputs` statements, nor on `Settings`, `Options` or `Layout` entries.
+- On a `const` declaration: `[Desc="…"]` on a `Constant` node works.
+
+## Diagnostics
+
+### Parse time
+
+<Diag>
+  <D msg="Metadata must follow a declaration." cause="The statement is only a [ … ] block." />
+  <D msg="Metadata entry '{Entry}' must use Key=Value syntax." cause="An entry with no top-level = that is not Slider(…)." />
+  <D msg="Invalid metadata entry '{Entry}'." cause="The key is empty after normalization." />
+  <D msg="Metadata key '{Key}' is declared more than once." cause="A duplicate key; the message quotes the spelling as typed." />
+  <D msg="Metadata 'Slider(min, max)' requires exactly two numeric bounds: '{Entry}'." cause="Wrong arity or a non-numeric bound." />
+  <D msg="Metadata SliderMin/SliderMax is declared more than once (entry '{Entry}')." cause="Slider(…) combined with an explicit SliderMin / SliderMax." />
+  <D msg="Metadata SortPriority value '{Value}' is not an integer." cause="A non-integer SortPriority / Sort." />
+</Diag>
+
+### Generation time
+
+<Diag>
+  <D msg="Metadata property '{Key}' is not a reflected property on '{Class}'." cause="No UPROPERTY matched, and the key is not one of the three organization fields." fix="Check the property name on the Unreal class the token generates." href="/en/docs/parameters/properties" />
+  <D msg="Metadata property '{Key}' on '{Class}': {Inner}" cause="The property was found but the value could not be converted." />
+  <D msg="'{Class}' does not expose the '{Field}' organization field; ignoring it for this parameter." cause="Warning — Group, SortPriority or Desc is missing from the class, as on DynamicParameter." />
+  <D msg="'{Class}' does not expose a ParameterName property." cause="ParameterName written on a class without that UPROPERTY." />
+  <D msg="'{Value}' is not a valid boolean value for '{Property}'." cause="Boolean UPROPERTY, non-boolean text." />
+  <D msg="'{Value}' is not a valid integer value for '{Property}'." cause="int32 UPROPERTY." />
+  <D msg="'{Value}' is not a valid unsigned integer value for '{Property}'." cause="uint32 UPROPERTY, or out of range." />
+  <D msg="'{Value}' is not a valid numeric value for '{Property}'." cause="float or double UPROPERTY." />
+  <D msg="'{Value}' is not a valid byte value for '{Property}'." cause="Plain uint8 UPROPERTY, or out of [0, 255]." />
+  <D msg="'{Value}' is not a valid enum value for '{Property}'." cause="No enumerator matched under any of the four spellings." />
+  <D msg="Object property '{Property}' expects Path(...) or an absolute Unreal object path." cause="An object UPROPERTY given text that is neither." href="/en/docs/parameters/path" />
+  <D msg="Asset '{Path}' is not compatible with '{Property}'. Expected '{Class}'." cause="The asset loaded but is the wrong class." />
+  <D msg="Failed to load asset '{Path}' for '{Property}'." cause="The asset could not be loaded — except the silent-null texture case above." />
+  <D msg="Property '{Property}' on '{Class}' is not a supported literal type yet." cause="A struct or container UPROPERTY whose import text was rejected." />
+  <D msg="property '{Name}': {Inner}" cause="Wrapper applied to every metadata failure, naming the declaration." />
+</Diag>
+
+## Example
+
+```c
+Shader(Name="Docs/M_Metadata")
+{
+    Properties = {
+        Group("11 - Specular") {
+            TextureSampleParameter2D MetallicMap = Path(Game, "Textures/T_White_Linear") [
+                SamplerType          = "LinearColor";
+                SamplerSource        = "FromTextureAsset";
+                MipValueMode         = "None";
+                AutomaticViewMipBias = true;
+                ConstCoordinate      = 0;
+                ConstMipValue        = -1;
+                Description          = "Packed metallic / roughness";
+            ];
+
+            ScalarParameter Metallic = 0.0 [Slider(0, 1); SortPriority = 51];
+        }
+
+        VectorParameter Tint = float4(1, 1, 1, 1) [
+            Category               = "Look",
+            Tooltip                = "Multiplied over base colour",
+            UseCustomPrimitiveData = false,
+            ParameterName          = "Base Tint"
+        ];
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "DefaultLit"; BlendMode = "Opaque"; }
+    Outputs  = { vec3 Color; float M; Base.BaseColor = Color; Base.Metallic = M; }
+
+    Graph = {
+        vec4 S = MetallicMap(Coordinates = UE.TexCoord(Index = 0));
+        Color = S.rgb * Tint.rgb;
+        M     = S.b * Metallic;
+    }
+}
+```
+
+Applied properties:
+
+```text
+MetallicMap  Group="11 - Specular"  SortPriority=0   Desc="Packed metallic / roughness"
+             SamplerType=SAMPLERTYPE_LinearColor     SamplerSource=SSM_FromTextureAsset
+             MipValueMode=TMVM_None  bAutomaticViewMipBias=true
+             ConstCoordinate=0       ConstMipValue=-1
+Metallic     Group="11 - Specular"  SortPriority=51  SliderMin=0  SliderMax=1
+Tint         Group="Look"           Desc="Multiplied over base colour"
+             bUseCustomPrimitiveData=false           ParameterName="Base Tint"
+```
+
+`Metallic` takes `SortPriority = 51` from its own entry, so it does not consume a counter slot;
+`MetallicMap` took slot 0.
+
+## Next
+
+- [Property Types](/en/docs/parameters/properties) — the tokens a metadata block can follow, and the class-specific keys each one exposes
+- [Asset References](/en/docs/parameters/path) — the grammar object-valued entries accept
+- [Material Settings](/en/docs/settings/material) — the same reflection idea, applied to `UMaterial`
+- [Decompiler](/en/docs/tools/decompiler) — which keys a round trip always emits

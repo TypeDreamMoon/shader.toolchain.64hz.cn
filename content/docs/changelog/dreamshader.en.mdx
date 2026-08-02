@@ -1,135 +1,556 @@
 ---
 title: DreamShader Plugin
-description: DreamShader plugin release notes.
+description: Release notes for the DreamShader Unreal plugin, newest first, taken from the plugin's own CHANGELOG.
 ---
 
-## Current Source - 2026-06-10
+Release notes for the Unreal plugin, newest first. Entries record what changes for you — the
+language surface, the generator, the editor tooling and engine compatibility.
 
-### Automation Baseline
+| | |
+| :-- | :-- |
+| Current release | **1.5.0** — 2026-08-02 |
+| Engines | Unreal Engine `5.3` through `5.8`, Win64 |
+| Source of record | the plugin's own `CHANGELOG.md`, shipped in the plugin folder |
 
-Added a DreamShader automation-test baseline for parser, generation, `.dsf` import,
-Substrate generation, source-hash skip, and commandlet single-source smoke coverage.
+## 1.5.0 - 2026-08-02
 
-The targeted automation path writes temporary sources under `DShader/Tests/Automation`,
-generates temporary assets under `/Game/DreamShaderTests/Automation/...`, and cleans them
-after each run. Automation runs can pass `-NoDreamShaderEditorBridge` to keep bridge
-startup scans out of test logs.
+The release that unifies compilation. The two old backends collapse into one **ThinCustom** path,
+generated materials become memory-only in the editor, and a new **Material Content Browser** tab is
+where you look at them. The language picks up optional section `=`, `Group()` scopes and
+`Slider()`.
+
+### Language (DreamShaderLang 1.5)
+
+- Section `=` is now **optional**: write `Properties { … }`, `Settings { … }` and `Graph { … }`
+  without the assignment. Both spellings stay valid — see
+  [Sections](/en/docs/language/sections).
+- `Properties Group("Name") { … }` scopes a group onto every parameter it contains. Groups nest and
+  compose, so `Group("Outer") { Group("Inner") { … } }` yields `Outer|Inner` — see
+  [Metadata and Groups](/en/docs/parameters/metadata).
+- `Slider(min, max)` shorthand sets a scalar parameter's UI range. It expands to the reflected
+  `SliderMin` / `SliderMax` properties and is the one metadata entry written without an `=`.
+- Asset paths can follow `=` directly, and bare quoted paths are accepted — see
+  [Asset References](/en/docs/parameters/path).
+- Single-output functions can be used as return values (`x = Fn(…)`), and `Graph` builtins now match
+  the `Function` path: `fract`, `mod` and `fmod` — see [Math Builtins](/en/docs/builtins/math).
+- Live preview streaming keeps the editor and language-server previews in sync while you type.
+- `true` / `false` are graph literals and materialize as `StaticBool` nodes, so an
+  `opt StaticBool X = false` input default generates the Preview-pin node Unreal requires — it
+  ignores `PreviewValue` for static-bool inputs.
+- `StaticBool` resolves as a one-component type at call sites.
+- Texture parameter types whose token carries no dimension — `TextureObjectParameter` — take their
+  dimension from the assigned default asset, so a `Texture2DArray`, `TextureCube` or `VolumeTexture`
+  default is accepted. Explicit tokens such as `Texture2D` and `Texture2DArray` still validate
+  strictly.
+
+### Backend — one unified compilation path
+
+- The `Graph` and the experimental `Instance` backends are collapsed into a single **ThinCustom**
+  path: DreamShaderLang compiles to a real node graph on a hidden base `UMaterial`, wrapped by a
+  thin `UDreamShaderMaterialInstance`. The engine compiles and enumerates the material natively, so
+  Substrate, static switches, virtual textures, MaterialAttributes and cook correctness all come
+  from the real graph. See [Backend](/en/docs/settings/backend).
+- Bit-identical SM6 render parity with the previous `Graph` backend, verified across Unlit,
+  textured, and DefaultLit MaterialAttributes cases.
+- The hidden base is a **subobject of the instance** — one asset, one package, invisible in the
+  Content Browser, with no separate `MB_DreamThinBase_*` sibling and no cross-package parent import
+  to lose at cook. See [In-memory Materials](/en/docs/generation/in-memory).
+- A single **Default Compiler Backend** project setting replaces the old In-Memory toggle. See
+  [Project Settings](/en/docs/settings/project).
+
+<Deprecated since="1.5.0" use="ThinCustom">
+`Backend = "Instance"` and `DefaultBackend = Instance` are retained as **aliases** for
+`ThinCustom`. The legacy graphless instance backend is retired; there is no runtime `Instance`
+backend left. The spelling is kept for one deprecation window so existing sources keep compiling,
+and it produces no diagnostic.
+</Deprecated>
+
+### Editor — Material Content Browser
+
+- New **DreamShader Material Content Browser** tab under *Tools ▸ DreamShader*, with two pages:
+  **Project** browses, filters and inspects every material and material instance under `/Game`,
+  including the full inheritance chain; **Dream Shader Gen** lists the sources with live preview,
+  search, filters, compile-all, and load-time error surfacing. See
+  [Editor Tools](/en/docs/tools/editor).
+- Create material instances from any material through a folder picker, and **materialize**
+  in-memory (preview-only) materials to disk on demand.
+- Content Browser context-menu actions, and a toggle to show or hide DreamShader's memory-only
+  materials.
+
+### Decompiler
+
+- Faithful round-trip for Substrate materials and renamed graph channels. The exporter derives
+  channel swizzles from the **write mask** rather than the channel name, so recompiled materials
+  match the source bit-for-bit. See [Decompiler](/en/docs/tools/decompiler).
+
+Decompiling a hand-authored material and generating it back could fail on graph shapes Unreal
+itself accepts. Found on LGUI's `LexUI_ImageAndFont`, `LexUI_RectBlock` and `MF_LexUI_SDF_Font`.
+
+- Switch-style nodes — `StaticSwitch`, `FeatureLevelSwitch`, `QualitySwitch`, `ShadingPathSwitch`,
+  `VertexInterpolator` and friends — report no output value type, so the "assume float4" fallback
+  oversized them and everything downstream. An `AppendVector` fed by a float3 material-function
+  output was emitted as `float5(...)`; appends are now clamped to a float4, with a warning when a
+  count still disagrees.
+- `VertexColor` is emitted as float4 so the alpha pin's swizzle is valid. It used to be typed from
+  the RGB pin and produce `.a` on a three-component value.
+- An input's own channel mask now **replaces** the connected pin's mask instead of stacking on it,
+  so `.rgb.a` no longer appears when a graph wires the RGB pin but masks alpha.
+- A `StaticBool` function input keeps the `StaticBool` type token. `bool` declares a scalar pin, so
+  the input used to come back as a float and reject every static-bool value passed to it.
+- Comment, `#Region` and description text carrying newlines or tabs is escaped, so a multi-line
+  comment no longer splits the directive across lines.
+- A Custom node's additional outputs are declared on **every** emission of that node, and reading
+  one no longer rewrites the node's own return type. Previously the emission that did not select the
+  extra output produced a node without it, and the code body assigning to it failed at
+  shader-compile time with `use of undeclared identifier` — long after generation reported success.
+
+### Fixed
+
+- Cook: assets are materialized on the cook **director** only, and a generation error now fails the
+  cook instead of shipping a stale asset.
+- Generation refuses to overwrite assets DreamShader did not generate, and pre-validates graph
+  syntax before clearing the target material.
+- Generated-include identity hashes the **project-relative** source path; stored source paths are
+  project-relative and no longer carry a generated-at timestamp.
+- Runtime builds: guarded the editor-only `UEnum::HasMetaData` call so non-editor and Shipping
+  (store) builds compile (#12).
+- Bridge: adopted `FCoreDelegates::GetOnPostEngineInit` for UE 5.8, and constrained *Clean Generated
+  Shaders* to `Intermediate` with per-file deletes.
+
+### Compatibility
+
+- Unreal Engine `5.3` through `5.8` (Win64).
+
+## Source snapshot - 2026-06-10
+
+Landed in the source tree between `1.4.0` and `1.5.0`.
+
+### Automation baseline
+
+- Added a DreamShader automation-test baseline covering minimal material parsing, minimal material
+  generation, `.dsf` plus `import` generation, Substrate material generation, source-hash skip, and
+  a commandlet single-source compile smoke test.
+- The tests write temporary `.dsm` / `.dsf` / `.dsh` files under `DShader/Tests/Automation`,
+  generate temporary assets under `/Game/DreamShaderTests/Automation/…`, and clean up after the run.
+- `source hash is unchanged` is the stable assertion text for an unchanged source file skipping a
+  duplicate generation.
+- Added the explicit bridge kill switch `-NoDreamShaderEditorBridge` for automation runs, so bridge
+  startup scans stay out of the test log.
 
 ## 1.4.0 - 2026-06-06
 
 ### Compatibility
 
-DreamShader is now documented as verified with single-plugin `RunUAT BuildPlugin` builds
-on Unreal Engine `5.3`, `5.4`, `5.5`, `5.6`, and `5.7` for Win64. UE `5.7` remains the
-active development target; UE `5.3` and `5.4` may require MSVC `14.38` on Windows.
+- Added Unreal Engine `5.3` through `5.7` compatibility coverage.
+- Verified single-plugin `RunUAT BuildPlugin` builds for UE `5.3`, `5.4`, `5.5`, `5.6` and `5.7` on
+  Win64.
+- UE `5.7` remains the active development target; UE `5.3` and `5.4` may need the MSVC `14.38`
+  toolchain on Windows.
 
 ### Substrate
 
-Added UE 5.7 Substrate generation support, including `Substrate` graph values,
-`Base.FrontMaterial` output binding, `Substrate.*` wrappers, and editor-exported
-Substrate builtin metadata.
+- Completed the Substrate generation path: `Substrate` graph values, the `Base.FrontMaterial`
+  output binding, and the `Substrate.*` wrappers. Substrate itself requires **UE 5.4 or newer** with
+  Substrate enabled in the project — see [Substrate Nodes](/en/docs/builtins/substrate).
+- The generator, the decompiler, type propagation and the editor manifest all recognize the
+  Substrate type and its wrappers.
 
 ### Material Preview
 
-Added editor-side material preview bridge support. The plugin can resolve a `.dsm` source,
-generate the material, write `Saved/DreamShader/Bridge/preview.json` and preview PNGs, and
-serve local WebSocket preview results on `127.0.0.1:17864`.
+- The editor bridge can resolve a `.dsm` source, generate a preview material, and write
+  `Saved/DreamShader/Bridge/preview.json` plus `Preview/*.png`.
+- Added a local WebSocket preview service, listening on `127.0.0.1:17864` by default, which feeds
+  results and continuous frames to the VSCode preview panel.
 
 ## 1.3.9 - 2026-05-29
 
 ### Maintenance
 
-| Area | Change |
-| --- | --- |
-| Documentation sync | Current docs were updated against plugin `1.3.9`, VSCode extension `1.4.9`, README content, and recent commits. |
-| Language coverage | `.dsf`, decompile export, Layout, Graph Region, Material Layer, GraphFunction, and dynamic MaterialExpression metadata are documented as current capabilities. |
+- Plugin version metadata updated to `1.3.9`.
+- README, release notes and documentation references synchronized with the current language
+  capabilities.
 
 ## 1.3.8 - 2026-05-25
 
 ### Texture Support
 
-Added `VolumeTexture` / `Texture3D` support across plugin and editor metadata.
+- Added `VolumeTexture` property parsing, code generation and default-texture handling.
+- Texture object subtypes are preserved during code generation, so `Texture2D`, `Texture2DArray`
+  and `VolumeTexture` inputs reach the generated HLSL with the correct Unreal texture type.
 
 ### Plugin Cleanup
 
-Improved plugin internals and generation behavior around reflected MaterialExpression data.
+- Removed built-in shader library path support from the project settings and the documentation.
 
 ## 1.3.7 - 2026-05-18
 
 ### Decompiler
 
-Added decompile export flow for existing Material and Material Function assets. Common
-nodes are emitted as Graph syntax, while unsupported nodes fall back to `UE.Expression(...)`.
+- Generic `UE.Expression(...)` decompilation exports reflected literal properties, so unsupported
+  `MaterialExpression` nodes retain more editable state.
+- `TextureSampleParameter2D` nodes with connected graph inputs — UV coordinates, for instance — are
+  exported as graph expressions instead of plain `Properties` declarations.
+- Fixed decompilation of `MaterialExpressionCustom` nodes with dynamic named inputs and custom
+  output-type metadata.
 
 ### Performance
 
-Improved generation and metadata handling for larger source sets.
+- Improved import performance for very large decompiled materials: less per-node package dirtying,
+  throttled progress-text updates, and automatic layout skipped on large generated graphs.
 
 ## 1.3.6 - 2026-05-12
 
 ### Build Fixes
 
-Fixed compatibility issues around Unreal project builds and plugin integration.
+- `DreamShaderSettings.h` includes `MaterialDomain.h` explicitly, so projects that include the
+  settings header directly resolve `EMaterialDomain` reliably.
 
 ## 1.3.5 - 2026-05-11
 
 ### ShaderFunction Calls
 
-Improved `ShaderFunction` call generation and preservation of material-function inputs and
-outputs.
+- `Graph` accepts statement-style multi-output `ShaderFunction` and `VirtualFunction` calls:
+  positional inputs first, output target variables after.
 
 ### Dream Shader Function Files
 
-Introduced `.dsf` files for reusable `ShaderFunction` assets.
+- Added `.dsf` Dream Shader Function files for reusable generated `ShaderFunction` assets.
+- `.dsm` and `.dsf` files can import `.dsf` files, so generated functions are reusable across
+  DreamShader sources.
+- Added `.dsf` source discovery, dependency tracking, and the VSCode workspace file association.
 
 ### Decompiler
 
-Expanded source export behavior for Material Function migration.
+- Added Content Browser export actions: `UMaterial` to `.dsm`, `UMaterialFunction` to `.dsf`.
+- Decompiled files are written under `DShader/Decompiled/Materials` or
+  `DShader/Decompiled/Functions` with unique file names.
+- Common constants, parameters, arithmetic nodes, swizzles, texture samples, Custom nodes and
+  MaterialFunction calls are exported as DreamShader graph text; less common reflected nodes fall
+  back to `UE.Expression(...)`.
 
 ## 1.3.4 - 2026-05-11
 
 ### Output Initializers
 
-Improved output initializer handling in generated material/function assets.
+- `Outputs` accepts initialized declarations such as `vec3 Color = Tint;`.
+- A `Shader` block can use initialized output declarations with an empty `Graph = {}` block.
 
 ## 1.3.3 - 2026-05-11
 
 ### Graph Swizzles
 
-Improved Graph swizzle support for vector expressions.
+- Fixed vector property component counts, so `vec2` / `vec3` properties bind through `RG` / `RGB`
+  instead of always using `RGBA`.
+- Fixed non-sequential swizzles such as `.gbr` by generating explicit `ComponentMask` and
+  `AppendVector` nodes.
 
 ## 1.3.2 - 2026-05-11
 
 ### Material Function Generation
 
-Improved generation stability for material-function assets.
+- Plugin version metadata updated to `1.3.2`.
+- Generated `ShaderFunction` input and output IDs are preserved across regeneration, so existing
+  `MaterialFunctionCall` nodes in ordinary Unreal materials keep their connections.
+- The Graph and Custom/HLSL generation paths skip unused generated property nodes.
+- Improved generated node placement, and avoided Unreal's full automatic layout pass on
+  DreamShader-generated material graphs.
+- Fixed a crash when regenerating an opened material function asset whose expressions were still
+  rooted by the editor.
 
 ## 1.3.1 - 2026-05-09
 
 ### Function Calls
 
-Improved helper-call behavior in Graph code.
+- Single-output `Function` and `GraphFunction` calls can be used as value expressions, for example
+  `Color = Texture::Sample2DRGB(BaseTex, UV0);` — see [Calls](/en/docs/graph/calls).
+- Multi-output `Function` and `GraphFunction` calls still require explicit out variables, for
+  example `Texture::Sample2D(BaseTex, UV0, Color, Alpha);`.
 
 ### Graph Functions
 
-Added or refined `GraphFunction` support for helpers that can use graph-node calls.
+- Added top-level and namespaced `GraphFunction` blocks for reusable HLSL Custom-node logic.
+- `GraphFunction` remains HLSL, but `UE.*` calls inside its body are converted into material nodes
+  and passed into the Custom node as generated inputs.
+- Added GraphFunction argument validation, recursive-call detection, and explicit out-variable
+  writeback.
 
 ## 1.3.0 - 2026-05-08
 
 ### Shader Layer Functions
 
-Added `ShaderLayer` and `ShaderLayerBlend` workflows for native Unreal Material Layer
-function assets.
+- Added top-level `ShaderLayer(Name="...", Root="...")` and `ShaderLayerBlend(Name="...", Root="...")`
+  blocks.
+- Generated layer assets use Unreal's native `UMaterialFunctionMaterialLayer` /
+  `UMaterialFunctionMaterialLayerBlend` classes.
+- `ShaderLayer` / `ShaderLayerBlend` reuse the existing `Properties`, `Inputs`, `Outputs`,
+  `Settings` and `Graph` sections.
+- Added validation that a Shader Layer block outputs exactly one `MaterialAttributes` value, and
+  that a Shader Layer Blend block declares at least two `MaterialAttributes` inputs.
+- Vector parameter properties keep their RGBA output available in `Graph`, so `.a` / `.w` reads
+  alpha and assignments to lower component counts use the leading channels automatically.
 
-## Earlier 1.2.x and 1.1.x
+<Deprecated since="1.3.0" use="ShaderLayer">
+`MaterialLayer` and `MaterialLayerBlend` remain compatibility aliases and emit warnings. New source
+should use `ShaderLayer` and `ShaderLayerBlend`.
+</Deprecated>
 
-Earlier releases added VirtualFunction support, project settings, editor entrypoints,
-parameter reflection, MaterialAttributes, ShaderFunction properties, root completion,
-asset generation improvements, package workflows, and the first public language/generator
-foundation.
+## 1.2.10 - 2026-05-08
+
+### VSCode MaterialExpression Manifest
+
+- Added editor-side export of reflected `UMaterialExpression` metadata to
+  `Saved/DreamShader/Bridge/material-expressions.json`.
+- The manifest is refreshed on editor bridge startup and when the DreamShader VSCode workspace is
+  opened.
+- Exported metadata covers expression class names, editable reflected properties, expression
+  inputs, output pins, and inferred DreamShader `OutputType` hints.
+- The release workflow downloads the latest `dreamshader-language-support` GitHub Release assets and
+  attaches them to DreamShader releases.
+
+## 1.2.8 - 2026-05-05
+
+### Project Settings and Editor Entry Points
+
+- Plugin version metadata updated to `1.2.8`.
+- The `DreamShader.uplugin` documentation link now points at `https://lang.64hz.cn/`, and the
+  support link at the GitHub home page.
+- The Unreal Project Settings category moved from `Plugins` to **`DreamPlugin`**, with the section
+  displayed as **Dream Shader** and described as `Dream Shader Settings` — see
+  [Project Settings](/en/docs/settings/project).
+- Added the `OpenInNewWindow` setting under the `Editor` category. On by default, opening the
+  DreamShader VSCode workspace from Unreal opens a new window; off, `--reuse-window` is appended and
+  an existing VSCode window is reused.
+
+## 1.2.7 - 2026-05-05
+
+### Unreal 5.7 Compatibility
+
+- Plugin version metadata updated to `1.2.7`.
+- The generator picks up the header dependencies for `UMaterialExpressionFunctionInput` /
+  `UMaterialExpressionFunctionOutput`, matching the newer Unreal material-function node build
+  environment.
+- The Moon Engine specific `MooaEncodedAttribute0` through `MooaEncodedAttribute4` outputs are now
+  wrapped in `MOON_ENGINE` conditional compilation, so ordinary engine builds no longer depend on
+  those custom material attributes.
+- This release does not change `.dsm` / `.dsh` syntax; it is output targets and engine
+  compatibility.
+
+## 1.2.6 - 2026-04-30
+
+### ShaderFunction Properties
+
+- Added a `Properties` section to `ShaderFunction`, declaring property and helper nodes local to
+  the generated material function.
+- Added `const` property declarations for scalar, vector and texture helper nodes that are not
+  externally adjustable parameters.
+- `ShaderFunction` `Inputs` preview defaults can reference the same function's `Properties`, for
+  example `opt Texture2D BaseColorTex = PreviewTex;`.
+
+## 1.2.5 - 2026-04-30
+
+### Material Attributes
+
+- Added `MaterialAttributes` as a graph value type for `Shader`, `ShaderFunction` and
+  `VirtualFunction` signatures.
+- Added struct-like member writes such as `Attrs.BaseColor = Color;` and
+  `Attrs.Roughness = Roughness;`.
+- Added `Base.MaterialAttributes = Attrs;` output binding, which enables *Use Material Attributes*
+  on the generated material automatically.
+- `MaterialAttributes` values can be returned from generated or virtual material functions and
+  passed through `Graph` assignments.
+
+## 1.2.4 - 2026-04-30
+
+### Parameter Reflection
+
+- The documented comma-style metadata suffix was replaced with a semicolon-separated trailing
+  reflection block on declarations.
+- Parameter reflection blocks can set any reflected `UMaterialExpression` property exposed by the
+  generated parameter node.
+- The basic `float`, vector and texture shorthand declarations use the same reflection path as
+  explicit parameter node declarations.
+- Texture sample parameters can configure reflected properties such as `SamplerType`,
+  `SamplerSource`, `MipValueMode`, `AutomaticViewMipBias`, `ConstCoordinate` and `ConstMipValue`.
+
+## 1.2.3 - 2026-04-29
+
+### Parameters
+
+- Added declaration metadata `[Group="...", SortPriority=32, Description="..."]` for material
+  `Properties` and for function input/output declarations.
+- Added explicit parameter node declarations: `ScalarParameter`, `VectorParameter`,
+  `TextureObjectParameter`, the texture sample parameter family, `StaticBoolParameter` and
+  `StaticSwitchParameter` — see [Property Types](/en/docs/parameters/properties).
+- Added `StaticSwitchParameter` graph calls, for example
+  `UseDetail(True=detailColor, False=baseColor)`.
+- Added `UE.CollectionParam(Collection=Path(...), Parameter="...")` for Material Parameter
+  Collection reads.
+
+### Function Defaults
+
+- Added `opt` inputs for `ShaderFunction` and `VirtualFunction`.
+- Added the `default` call argument for optional material function inputs, preserving Unreal
+  FunctionInput preview defaults.
+- Generated `ShaderFunction` assets write input and output descriptions and sort priorities to the
+  FunctionInput / FunctionOutput nodes.
+- VirtualFunction copy, create and sync emit optional inputs, preview defaults and pin metadata
+  when available.
+
+## 1.2.2 - 2026-04-29
+
+### VirtualFunction Workflow
+
+- `CreateVirtualFunction` reuses the existing declaration for the selected material function
+  instead of creating duplicate `.dsh` files.
+- When a matching declaration already exists, the material function `DreamShader` menu shows
+  `OpenVirtualFunction` and `Copy Virtual Function Reference` instead of the create and
+  copy-definition actions.
+- `OpenVirtualFunction` opens the existing declaration in VSCode and jumps to the declaration
+  location where possible.
+- Added startup validation and refresh for `VirtualFunction` declarations under `DShader`,
+  reporting missing source `UMaterialFunction` assets and updating changed signatures.
+
+### Import Compatibility
+
+- `import "File.dsh"` works with or without a trailing semicolon in the Unreal generator import
+  pass.
+
+## 1.2.1 - 2026-04-29
+
+### Editor Workflow
+
+- Replaced the single material function toolbar action with a `DreamShader` dropdown menu.
+- Added `CopyVirtualFunction`, `CreateVirtualFunction` and `CopyVirtualFunctionCall` to the material
+  function editor toolbar and the material function asset context menu.
+- `CreateVirtualFunction` writes a `.dsh` declaration under the configured
+  `DShader/VirtualFunctions` directory and opens it in the default external editor.
+- `CopyVirtualFunctionCall` copies a ready-to-paste `Graph` call using the generated input names and
+  the first output.
+- Added *Open Dream Shader Workspace (VSCode)* to the editor Tools menu and the DreamShader toolbar
+  section. It writes `DShader/DreamShader.code-workspace`, opens it in VSCode when available, and
+  falls back to the default editor or Notepad.
+
+### Release
+
+- Added a GitHub Actions release workflow that packages the plugin source and publishes a GitHub
+  Release from version tags or manual workflow dispatch.
+
+## 1.2.0 - 2026-04-28
+
+### VirtualFunction
+
+- Added `VirtualFunction(Name="...")` declarations for existing Unreal `UMaterialFunction` assets.
+- `VirtualFunction` calls work from `Graph` like `ShaderFunction` calls, without generating or
+  overwriting the referenced asset.
+- `Options.Asset` supports `Path(Game, "...")`, `Path(Engine, "...")`,
+  `Path(Plugin.PluginName, "...")` / `Path(Plugins.PluginName, "...")`, and full Unreal object
+  paths.
+- Added material function context-menu and Material Editor toolbar actions that copy a complete
+  `VirtualFunction` declaration with inputs, outputs and options.
+
+### Asset Roots
+
+- `Root="Plugin.PluginName"` maps to the project plugin content root, physically saving generated
+  assets under `[Project]/Plugins/PluginName/Content`.
+- `Plugins.PluginName` and `Plugins/PluginName` remain compatibility spellings.
+
+### Tooling
+
+- The VSCode extension picked up `VirtualFunction` highlighting, completion, hover, snippets,
+  signature help and diagnostics.
+- Project content plugin names are completed inside `Path(Plugins.)` as well.
+
+## 1.1.4 - 2026-04-28
+
+### Asset Generation
+
+- `Root="Plugins.PluginName"` / `Root="Plugins/PluginName"` are supported as compatibility
+  spellings, resolving identically to `Root="Plugin.PluginName"`.
+- This avoids `Plugins.MoonToon` being treated as an ordinary `/Game/Plugins_MoonToon`
+  subdirectory — see [Asset Paths](/en/docs/generation/asset-paths).
+
+## 1.1.3 - 2026-04-28
+
+### Asset Generation
+
+- Clarified that `Root="Plugin.PluginName"` targets an **enabled project content plugin** only.
+- `Plugin.MoonToon` resolves to the UE package root `/MoonToon`, physically saved under
+  `[Project]/Plugins/MoonToon/Content`.
+- The generator validates that the target plugin sits in the project `Plugins` directory, is
+  enabled, can contain content, and has a `Content` directory.
+
+## 1.1.2 - 2026-04-28
+
+### Language and Generation
+
+- Added the `Root` top-level attribute to `Shader` and `ShaderFunction`, selecting the generated
+  asset's root path.
+- `Root` defaults to `Game` and also accepts `Plugin.PluginName`, saving the generated `UMaterial`
+  or `UMaterialFunction` into an enabled project content plugin root.
+- When a `ShaderFunction` is called from `Graph`, the generated `UMaterialFunction` asset is
+  resolved and loaded through that function's own `Root`.
+
+### Documentation
+
+- Updated the asset generation notes in the plugin README, the language reference and the site.
+
+## 1.1.1 - 2026-04-26
+
+### Fixed
+
+- Fixed a `Function` call with several `out` parameters in `Graph`, where the Custom node's
+  trailing output pins received no value.
+- The first `out` of a multi-output `Function` still comes back through the Custom node's main
+  `return`; the second and later `out` parameters now generate explicit assignments writing the
+  `__ds_*_outN` temporaries back to the matching Additional Output, for example
+  `Output_ToonA = __ds_xxx_out1;`.
+
+### Compatibility
+
+- A patch release. No `.dsm` / `.dsh` changes are required.
+
+## 1.1.0 - 2026-04-22
+
+### Language and Graph
+
+- Renamed the `Code = { ... }` block in materials and material functions to `Graph = { ... }`,
+  separating the graph DSL from the HLSL helper layer.
+- Added basic `if` / `else` support to `Graph` — see [Control Flow](/en/docs/graph/control-flow).
+- Improved output expression handling: an output binding records source text rather than only a
+  variable name, allowing more flexible parsing of graph outputs.
+- Improved type conversion and generic `UE.*` MaterialExpression argument handling, reducing
+  friction when patching nodes in by hand.
+
+### Function and Generation
+
+- Added `Function SelfContained` and `Function Inline`, embedding helper dependencies in the Custom
+  node so generated materials can be handed to projects without the DreamShader plugin installed.
+- An ordinary `Function` still generates a `.ush` helper include, referenced from the Custom node.
+- Added a cleanup workflow for generated shader files, reducing leftover historical includes.
+
+### Packages and Workflow
+
+- Added the Package system, distributing and installing reusable `.dsh` shared libraries through
+  GitHub — see [Packages](/en/docs/tools/packages).
+- Added the import dependency graph: saving a shared `.dsh` finds the affected `.dsm` files and
+  refreshes them incrementally. Later versions extend this to `.dsf` dependencies.
+- Cached the config directory, cutting the cost of repeatedly parsing project settings.
+
+### Diagnostics and Compatibility
+
+- Diagnostics carry stage, platform and quality context, separating parse, generation and material
+  compile problems — see [Diagnostics](/en/docs/diagnostics).
+- Removed the default mapping for the Toon shading model, so generated results do not
+  unexpectedly depend on a project-custom shading model.
+- Updated the README, language reference and example documentation to match.
 
 ## 1.0.0 - 2026-04-21
 
 ### Initial Version
 
-Initial DreamShader plugin and DreamShaderLang generation workflow.
+- The `.dsm` / `.dsh` file model: Unreal materials and shared helpers described as text sources.
+- `Shader(Name="...")` generates a `UMaterial`; `ShaderFunction(Name="...")` generates a
+  `UMaterialFunction`.
+- `Properties`, `Settings`, `Outputs` and the early graph-building syntax.
+- HLSL-style `Function` helpers, generating Custom node code.
+- Baseline documentation and examples, as the first public DreamShaderLang release.

@@ -1,9 +1,28 @@
 ---
 title: 网站更新
-description: lang.64hz.cn 文档站更新记录。
+description: lang.64hz.cn 文档站的更新记录 —— 信息架构、部署和内容。
 ---
 
 这里记录 `lang.64hz.cn` 文档站本身的信息架构、部署和内容更新。
+
+## 2026-08-02
+
+### 文档重建 —— 插件 1.5.0
+
+- 整套文档重构成 **13 个栏目**：概览、快速开始、语言核心、Graph 语言、内置节点、参数、设置、生成与产物、
+  工具链、诊断、示例、HLSL / GLSL 背景、ChangeLog。
+- 所有页面按插件自带的参考手册重写。该手册由插件源码推导并对照源码校验过，现在是本站的事实来源；
+  页面写的是实际行为、诊断文本和穷尽表格，而不是对旧文档的转述。
+- `getting-started/`、`dreamshader/`、`syntax/`、`reference/`、`compiler/` 和 `workflows/`
+  栏目由新的目录树取代，内容全部并入新栏目。
+- 补齐 `1.5.0` 的能力面：统一的 [ThinCustom backend](/docs/settings/backend)、
+  [内存材质](/docs/generation/in-memory)、[Material Content Browser](/docs/tools/editor)，
+  以及可省略的 section `=`、`Group()` 作用域和 `Slider()`。
+- 修正旧页面长期存在的错误：`Substrate.*` 需要 **UE 5.4+**，不是 5.7；项目设置在
+  **DreamPlugin ▸ Dream Shader** 下，一共 **13** 项；`if (Mask)` 按 `!= 0` 接线，负值同样走 then 分支；
+  只有通用 `UE.Expression` / `Substrate.*` 调用和数学内置会复用节点；类名带 `U` 前缀永远解析不到；
+  `MaterialLayer` / `MaterialLayerBlend` 自 1.3.0 起已弃用。
+- 当前版本表同步到插件 `1.5.0`，引擎 Unreal Engine `5.3` 到 `5.8`。
 
 ## 2026-06-12
 
@@ -11,48 +30,67 @@ description: lang.64hz.cn 文档站更新记录。
 
 - 首页、插件概览和安装页同步到 DreamShader 插件 `1.4.0` 与 VSCode 扩展 `1.5.3`。
 - 补充 UE `5.3` 到 `5.7` 单插件 `RunUAT BuildPlugin` 验证说明，以及 UE `5.3` / `5.4` 的 MSVC `14.38` 注意事项。
-- 补充 UE 5.7 Substrate 生成链路、`Base.FrontMaterial` 输出绑定和 `Substrate.*` wrapper 的当前状态说明。
-- 新增 VSCode `.dsm` 材质预览文档，覆盖 `Show Material Preview`、WebSocket 直播帧、文件桥 fallback、mesh 选择和预览设置。
+- 补充 Substrate 生成链路、`Base.FrontMaterial` 输出绑定和 `Substrate.*` wrapper 的当前状态说明。
+- 新增 VSCode `.dsm` 材质预览文档，覆盖 `Show Material Preview`、WebSocket 直播帧、文件桥 fallback、
+  mesh 选择和预览设置。
 - 更新 DreamShader 插件 ChangeLog，记录 `1.4.0`、材质预览桥接和当前源码自动化测试基线。
-- 更新 VSCode 扩展 ChangeLog，记录 `1.5.1` 到 `1.5.3` 的 Template、Bridge、Package、callable Hover 和材质预览能力。
+- 更新 VSCode 扩展 ChangeLog，记录 `1.5.1` 到 `1.5.3` 的 Template、Bridge、Package、callable Hover
+  和材质预览能力。
+
+## 2026-05-31
+
+### 英文模式
+
+- 新增全站英文模式，提供 `/en` 与 `/en/docs/...` 路由、本地化首页文案、本地化 Fumadocs UI 文本、
+  语言切换和英文文档镜像。
 
 ## 2026-05-30
 
 ### 插件 1.3.9 / 扩展 1.4.9 文档
 
-- 首页改为教程站入口结构，增加左侧教程目录、版本速览、学习路线和最小示例，阅读方式参考教程类文档站组织。
 - DreamShader 插件当前版本表同步到 `1.3.9`，VSCode 扩展同步到 `1.4.9`。
 - 补充 `.dsf` 函数文件文档，覆盖文件模型、安装、工作流、资产生成和编辑器支持。
-- 新增 [布局与 Region](../syntax/layout.mdx) 页面，记录 `Layout = { Node(...); Comment(...); }` 与 Graph `#Region` / `#EndRegion`。
-- 补充反编译导出 `.dsm` / `.dsf`、`VolumeTexture` / `Texture3D`、Function 内置函数 metadata、MaterialExpression fallback manifest 的说明。
+- 新增 [Layout 与 #Region](/docs/language/layout) 页面，记录 `Layout = { Node(...); Comment(...); }`
+  与 Graph `#Region` / `#EndRegion`。
+- 补充反编译导出 `.dsm` / `.dsf`、`VolumeTexture` / `Texture3D`、Function 内置函数 metadata、
+  MaterialExpression fallback manifest 的说明。
 - 补充 README 中的 Rider 语言支持仓库和能力说明，编辑器支持页现在同时覆盖 VSCode 与 Rider。
+- 更新 DreamShader 插件与 VSCode 扩展 ChangeLog，记录插件 `1.3.3` 到 `1.3.9`、VSCode `1.4.1` 到 `1.4.9`
+  的主要变化。
+
+### 首页改版
+
+- 首页改为教程站入口结构，增加左侧教程目录、版本速览、学习路线和最小示例。
 - 首页增加轻量入场与卡片悬浮动画，并尊重 `prefers-reduced-motion`。
-- 更新 DreamShader 插件与 VSCode 扩展 ChangeLog，记录插件 `1.3.3` 到 `1.3.9`、VSCode `1.4.1` 到 `1.4.9` 的主要变化。
 
 ## 2026-05-11
 
 ### 插件 1.3.2 / 扩展 1.4.0 文档
 
 - DreamShader 插件当前版本表同步到 `1.3.2`，VSCode 扩展同步到 `1.4.0`。
-- 补充 `ShaderLayer` / `ShaderLayerBlend` 文档，说明 Unreal 原生 Material Layer / Layer Blend 函数资产生成、输出形状和旧关键字迁移。
+- 补充 `ShaderLayer` / `ShaderLayerBlend` 文档，说明 Unreal 原生 Material Layer / Layer Blend 函数资产生成、
+  输出形状和旧关键字迁移。
 - 补充 `GraphFunction` 文档，说明 helper 体内 `UE.*` 图节点转换、单输出值表达式和多输出显式 out 变量规则。
 - 更新 `Function` / `GraphFunction` 调用规则，单输出 helper 可作为 Graph 值表达式。
-- 补充 `Saved/DreamShader/Bridge/material-expressions.json` 动态 MaterialExpression manifest 和 VSCode 补全链路说明。
-- 更新 DreamShader 插件与 VSCode 扩展 ChangeLog，记录 `1.2.10`、`1.3.0`、`1.3.1`、`1.3.2`、VSCode `1.2.27`、`1.3.x` 和 `1.4.0` 的主要变化。
+- 补充 `Saved/DreamShader/Bridge/material-expressions.json` 动态 MaterialExpression manifest 和 VSCode
+  补全链路说明。
+- 更新 DreamShader 插件与 VSCode 扩展 ChangeLog，记录 `1.2.10`、`1.3.0`、`1.3.1`、`1.3.2`、VSCode `1.2.27`、
+  `1.3.x` 和 `1.4.0` 的主要变化。
 
 ## 2026-05-05
 
 ### 插件 1.2.8 文档
 
 - DreamShader 插件当前版本表同步到 `1.2.8`，VSCode 扩展保持 `1.2.26`。
-- 更新 Project Settings 路径为 `Project Settings > DreamPlugin > Dream Shader`。
+- 更新 Project Settings 路径为 *Project Settings ▸ DreamPlugin ▸ Dream Shader*。
 - 补充 `OpenInNewWindow` 编辑器设置，用于控制从 Unreal 打开 VSCode workspace 时新开窗口还是复用已有窗口。
 - 更新 DreamShader 插件 ChangeLog，记录插件文档链接、支持链接和设置 section 文案变化。
 
 ### 插件 1.2.7 / 扩展 1.2.26 文档
 
 - DreamShader 插件当前版本表同步到 `1.2.7`，VSCode 扩展同步到 `1.2.26`。
-- 更新输出绑定参考，补充 `Base.CustomizedUVs0..7` 别名、旧版 Color 输出、`SurfaceThickness`、`Displacement` 和 Moon Engine 专属 `MooaEncodedAttribute0..4`。
+- 更新输出绑定参考，补充 `Base.CustomizedUVs0..7` 别名、旧版 Color 输出、`SurfaceThickness`、
+  `Displacement` 和 Moon Engine 专属 `MooaEncodedAttribute0..4`。
 - 更新 VSCode 扩展 ChangeLog，记录输出诊断同步和 `UE.CollectionParam(Collection=Path(...))` 诊断修正。
 - 更新 DreamShader 插件 ChangeLog，记录 Unreal 5.7 材质函数输入输出节点依赖和 Moon Engine 条件编译兼容性。
 
@@ -67,7 +105,8 @@ description: lang.64hz.cn 文档站更新记录。
 ### 插件 1.2.5 文档
 
 - DreamShader 插件当前版本表同步到 `1.2.5`，VSCode 扩展同步到 `1.2.24`。
-- 补充 `MaterialAttributes` 类型、`Base.MaterialAttributes` 输出绑定和 `Attrs.BaseColor = ...` 成员写入说明。
+- 补充 `MaterialAttributes` 类型、`Base.MaterialAttributes` 输出绑定和 `Attrs.BaseColor = ...`
+  成员写入说明。
 - 更新 DreamShader 插件与 VSCode 扩展 ChangeLog。
 
 ### 插件 1.2.4 文档
@@ -80,9 +119,11 @@ description: lang.64hz.cn 文档站更新记录。
 ### 插件 1.2.3 文档
 
 - DreamShader 插件当前版本表同步到 `1.2.3`，VSCode 扩展同步到 `1.2.22`。
-- 补充 `Properties` 显式 Parameter 节点、声明元数据、`StaticSwitchParameter` 和 `UE.CollectionParam(...)` 的语法说明。
+- 补充 `Properties` 显式 Parameter 节点、声明元数据、`StaticSwitchParameter` 和 `UE.CollectionParam(...)`
+  的语法说明。
 - 补充 `ShaderFunction` / `VirtualFunction` 的 `opt` 输入和调用侧 `default` 参数说明。
-- 更新资产生成、Graph、当前限制、VSCode 工作流、插件概览、入门、配方、速查和诊断页，让新参数能力能从文档入口一路查到具体写法。
+- 更新资产生成、Graph、当前限制、VSCode 工作流、插件概览、入门、配方、速查和诊断页，让新参数能力能从文档入口
+  一路查到具体写法。
 - 更新 DreamShader 插件与 VSCode 扩展 ChangeLog。
 
 ## 2026-04-29
@@ -90,13 +131,15 @@ description: lang.64hz.cn 文档站更新记录。
 ### 插件 1.2.2 文档
 
 - DreamShader 插件当前版本表同步到 `1.2.2`。
-- 更新插件 ChangeLog，记录 `OpenVirtualFunction`、`Copy Virtual Function Reference`、唯一 `VirtualFunction` 定义文件和启动同步检查。
+- 更新插件 ChangeLog，记录 `OpenVirtualFunction`、`Copy Virtual Function Reference`、唯一
+  `VirtualFunction` 定义文件和启动同步检查。
 - 补充无分号 `import "File.dsh"` 在 Unreal 生成器中的兼容性说明。
 
 ### 插件 1.2.1 文档
 
 - DreamShader 插件当前版本表同步到 `1.2.1`。
-- 更新 Material Function 编辑器 `DreamShader` 下拉菜单说明，覆盖 `CopyVirtualFunction`、`CreateVirtualFunction` 和 `CopyVirtualFunctionCall`。
+- 更新 Material Function 编辑器 `DreamShader` 下拉菜单说明，覆盖 `CopyVirtualFunction`、
+  `CreateVirtualFunction` 和 `CopyVirtualFunctionCall`。
 
 ### ChangeLog 栏目
 
@@ -108,12 +151,14 @@ description: lang.64hz.cn 文档站更新记录。
 
 - 补全 `VirtualFunction` 在顶层声明、Section、Graph 调用、资产生成、类型和值、限制和示例页中的说明。
 - 当前版本表同步到 DreamShader 插件 `1.2.1` 和 VSCode 扩展 `1.2.18`。
-- 更新 `Path(Plugin.PluginName, "...")` / `Path(Plugins.PluginName, "...")` 在文档中的说明，明确插件内容根路径语义。
+- 更新 `Path(Plugin.PluginName, "...")` / `Path(Plugins.PluginName, "...")` 在文档中的说明，
+  明确插件内容根路径语义。
 
 ## 2026-04-28
 
 ### 自动部署
 
 - 新增 GitHub Actions 部署工作流，推送到 `main` / `master` 或手动触发时会执行 typecheck、build 和 SFTP 上传。
-- 部署脚本统一到 `upload.js`，通过 `SFTP_HOST`、`SFTP_USER`、`SFTP_PASSWORD` / `SFTP_PRIVATE_KEY`、`SFTP_REMOTE_DIR` 等环境变量或 secrets 配置。
+- 部署脚本统一到 `upload.js`，通过 `SFTP_HOST`、`SFTP_USER`、`SFTP_PASSWORD` / `SFTP_PRIVATE_KEY`、
+  `SFTP_REMOTE_DIR` 等环境变量或 secrets 配置。
 - 上传前会清理远端目录，同时保留 `.user.ini` 和 `.htaccess`。

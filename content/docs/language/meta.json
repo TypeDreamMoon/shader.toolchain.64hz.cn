@@ -1,0 +1,13 @@
+{
+  "title": "语言核心",
+  "pages": [
+    "file-model",
+    "lexical",
+    "blocks",
+    "sections",
+    "types-and-values",
+    "functions",
+    "imports",
+    "layout"
+  ]
+}

@@ -1,0 +1,284 @@
+---
+title: 数学内置
+description: Graph 块直接降级为算术材质节点的 19 个无前缀 HLSL 风格调用名。
+---
+
+有 19 个无前缀、按 HLSL 拼写的调用名会被直接降级为算术 `UMaterialExpression` 节点。它们覆盖 16 种
+运算 —— 其中三个名字是别名。
+
+```c
+float s     = sin(X);
+float sa    = saturate(X);
+vec3  mixed = lerp(A, B, sa);
+vec3  unit  = normalize(mixed);
+float d     = dot(unit, A);
+```
+
+它们是裸调用 —— 写 `saturate(x)`，不是 `UE.saturate(x)` —— 也是唯一一个参数为**位置参数**的内置调用面。
+可以写在 `Graph` 体内、`Outputs` 的绑定表达式中，或 `Outputs` 声明的初始化式中。
+
+所有名字都**不区分大小写**：`SATURATE(x)`、`Lerp(a, b, t)` 和 `Sin(x)` 都能解析。
+
+<Callout type="warn">
+**这 19 个名字是保留名，会静默遮蔽你自己的代码。** 命名为 `lerp`、`clamp`、`dot`、`min`、`max`、
+`pow`、`abs` 或目录中任何其他写法的 `Function`、`GraphFunction`、`ShaderFunction`、`VirtualFunction`
+或 property，在 `Graph` 块中都无法被调用到。名称解析时内置节点胜出，而且**不会产生任何诊断**。
+
+声明本身仍能编译、仍会生成对应资产；被改道的只是 `Graph` 调用点。要么给用户符号改名，要么从
+`Function` 体内调用它，而不是从 `Graph` 块调用。
+
+构造器名（`float3`、`vec4`、`int2`…）也是同样的保留方式，而且检测得更早。
+</Callout>
+
+## 语法概要
+
+<Grammar />
+
+<Synopsis>
+```c
+{ abs | ceil | cos | floor | frac | fract | normalize | saturate | sin | sqrt } ( <x> )
+{ dot | fmod | max | min | mod | pow } ( <x> , <y> )
+{ clamp | lerp | mix } ( <x> , <y> , <z> )
+```
+</Synopsis>
+
+## 目录
+
+每个可接受写法一行。*返回宽度*是生成器赋给结果的分量数；*权威*表示该宽度是否参与
+[运算符与转换](/docs/graph/expressions)中的加宽规则。
+
+<Wide>
+
+| 写法 | 参数个数 | 降级为 | 按序连接的输入 pin | 返回宽度 | 权威 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| `abs` | 1 | `UMaterialExpressionAbs` | `Input` | 参数的宽度 | 继承自参数 |
+| `ceil` | 1 | `UMaterialExpressionCeil` | `Input` | 参数的宽度 | 继承自参数 |
+| `clamp` | 3 | `UMaterialExpressionClamp` | `Input`、`Min`、`Max` | 参数 1 的宽度 | 取自参数 1 |
+| `cos` | 1 | `UMaterialExpressionCosine` | `Input` | 参数的宽度 | 继承自参数 |
+| `dot` | 2 | `UMaterialExpressionDotProduct` | `A`、`B` | **恒为 1** | 恒为权威 |
+| `floor` | 1 | `UMaterialExpressionFloor` | `Input` | 参数的宽度 | 继承自参数 |
+| `fmod` <Since v="1.5.0" /> | 2 | `UMaterialExpressionFmod` | `A` ← 被除数，`B` ← 除数 | 参数 1 的宽度 | 取自参数 1 |
+| `frac` | 1 | `UMaterialExpressionFrac` | `Input` | 参数的宽度 | 继承自参数 |
+| `fract` <Since v="1.5.0" /> | 1 | `UMaterialExpressionFrac` | `Input` | 参数的宽度 | 继承自参数 |
+| `lerp` | 3 | `UMaterialExpressionLinearInterpolate` | `A`、`B`、`Alpha` | 参数 1 和 2 的 `max` | 参数 1、2 中任一为权威时设置 |
+| `max` | 2 | `UMaterialExpressionMax` | `A`、`B` | 两个参数的 `max` | 任一参数为权威时设置 |
+| `min` | 2 | `UMaterialExpressionMin` | `A`、`B` | 两个参数的 `max` | 任一参数为权威时设置 |
+| `mix` | 3 | `UMaterialExpressionLinearInterpolate` | `A`、`B`、`Alpha` | 参数 1 和 2 的 `max` | 参数 1、2 中任一为权威时设置 |
+| `mod` <Since v="1.5.0" /> | 2 | `UMaterialExpressionFmod` | `A` ← 被除数，`B` ← 除数 | 参数 1 的宽度 | 取自参数 1 |
+| `normalize` | 1 | `UMaterialExpressionNormalize` | **`VectorInput`** | 参数的宽度 | 继承自参数 |
+| `pow` | 2 | `UMaterialExpressionPower` | `Base`、`Exponent` | 参数 1 的宽度 | 取自参数 1 |
+| `saturate` | 1 | `UMaterialExpressionSaturate` | `Input` | 参数的宽度 | 继承自参数 |
+| `sin` | 1 | `UMaterialExpressionSine` | `Input` | 参数的宽度 | 继承自参数 |
+| `sqrt` | 1 | `UMaterialExpressionSquareRoot` | `Input` | 参数的宽度 | 继承自参数 |
+
+</Wide>
+
+### 别名
+
+三对别名。每对中的两种写法可以互换，生成的节点完全相同 —— 都没有被弃用。
+
+| 别名对 | 节点 | 说明 |
+| :-- | :-- | :-- |
+| `lerp` / `mix` | `LinearInterpolate` | `mix` 是 GLSL 写法 |
+| `frac` / `fract` | `Frac` | `fract` 是 GLSL 写法 <Since v="1.5.0" /> |
+| `fmod` / `mod` | `Fmod` | `mod` 是 GLSL 写法 <Since v="1.5.0" /> |
+
+在 [`Function`](/docs/language/functions) 的 HLSL 体内部，标识符 `mod` 会被 GLSL 别名处理改写成
+`fmod`。在 `Graph` 块中两种写法都被直接接受，不做改写。
+
+## 参数规则
+
+下列规则对上面每个内置节点都完全一致。
+
+| # | 规则 | 违反时的后果 |
+| :-- | :-- | :-- |
+| 1 | 参数个数精确 —— 没有默认值、没有可选参数、没有变参 | `Math function '{Name}' expects exactly {N} argument(s).` |
+| 2 | 所有参数都是位置参数；不接受命名参数 | 报成*参数个数*错误，见下 |
+| 3 | 每个参数都作为完整 `Graph` 表达式求值，允许嵌套内置调用 | 内层错误被包装成 `Math function '{Name}' argument {Index}: {Error}` |
+| 4 | 拒绝纹理对象值 | `Math function '{Name}' only accepts numeric scalar/vector arguments.` |
+| 5 | 拒绝 `MaterialAttributes` 值 | 同上 |
+| 6 | 拒绝 `Substrate` 值 | 同上 |
+| 7 | **不**检查、不加宽、不广播参数的分量数 | 这里什么都不发生；不匹配会在之后表现为 Unreal 材质翻译错误 |
+
+<Callout type="warn">
+规则 7 是最需要留意的。`dot(vec3Value, floatValue)` 在 DreamShader 这里没有任何诊断就通过了，
+之后在 Unreal 自己的 shader 编译阶段失败。和算术运算符不同，这条路径没有标量/向量兼容性检查 ——
+对比[运算符与转换](/docs/graph/expressions)。
+</Callout>
+
+### 命名参数
+
+每个参数个数检查的判断都是「参数个数不对**或者**某个参数带名字」，两种情况都发出同一条个数错误消息。
+
+<Callout type="warn">
+给数学内置传命名参数报的是**参数个数**错误，而不是「不该带名字」。`saturate(Input = X)` ——
+一个参数，名字还和节点 pin 完全对得上 —— 会失败于
+`Math function 'saturate' expects exactly 1 argument.`
+
+解决办法是去掉名字：`saturate(X)`。命名参数是 `UE.*` / `Substrate.*` 的特性，不是数学内置的特性。
+</Callout>
+
+## 名称解析
+
+数学内置的名字在任何用户声明的名字**之前**解析。`Graph` 的调用分派器按下列顺序判断：
+
+| # | 候选 | 参考 |
+| :-- | :-- | :-- |
+| 1 | 向量/标量构造器名（`float3`、`vec4`、`int2`…） | [运算符与转换](/docs/graph/expressions) |
+| 2 | `UE.SceneTexture` | [`UE.*` 节点](/docs/builtins/ue-nodes) |
+| 3 | 任何以 `UE.` 开头的被调用者 | [`UE.*` 节点](/docs/builtins/ue-nodes) |
+| 4 | 任何以 `Substrate.` 开头的被调用者 | [Substrate](/docs/builtins/substrate) |
+| 5 | **数学内置 —— 本页** | — |
+| 6 | `SampleTexture2D` | [`UE.Expression`](/docs/builtins/ue-expression#sampletexture2d) |
+| 7 | 已声明的 property，按参数 pin 调用形式 | [Properties 类型](/docs/parameters/properties) |
+| 8 | `Function`、`GraphFunction`、`ShaderFunction`、`VirtualFunction` | [调用](/docs/graph/calls) |
+
+<Callout type="info">
+拼错的内置名不会被报成数学错误。`saturte(x)` 会穿过全部八步，由调用路径报成
+`Unknown Graph function 'saturte'.`
+</Callout>
+
+## 逐个内置节点的说明
+
+### clamp
+
+`clamp(Input, Min, Max)` 会连接全部三个参数，并把节点的 `ClampMode` 保持在默认值 `CMODE_Clamp`。
+要用 `CMODE_ClampMin` 或 `CMODE_ClampMax`，走通用形式：
+
+```c
+UE.Expression(Class = "Clamp", OutputType = "float1", Input = x, Min = a, ClampMode = "CMODE_ClampMin")
+```
+
+### dot
+
+唯一返回宽度固定的内置节点。无论参数宽度是多少，`dot` 总是产生 1 分量的权威结果，所以
+`float d = dot(A, B);` 不需要 swizzle。
+
+### fmod、mod
+
+参数 1 是被除数，参数 2 是除数，分别连到节点的 `A` 和 `B` pin。结果取被除数的宽度。
+
+<Callout type="info">
+[反编译器](/docs/tools/decompiler)没有处理 `UMaterialExpressionFmod` 的分支。已有的 `Fmod` 节点会被
+导出成通用的 `UE.Expression(Class="Fmod", …)` 调用，而不是 `fmod(…)`。导出的源码是等价的，
+只是无法回到内置写法。
+</Callout>
+
+### lerp、mix
+
+结果宽度是参数 1 和 2 的 `max` —— `Alpha` 参数不参与。用标量 `Alpha` 混合两个 `vec3` 得到 `vec3`。
+
+### min、max
+
+这两个名字共用一套实现，区别只在选择的节点类。两者都取两个参数宽度的 `max`。
+
+### normalize
+
+唯一一个输入 pin 不叫 `Input` 的内置节点。这条路径上的输入按反射属性名绑定，而
+`UMaterialExpressionNormalize` 把它的 pin 命名为 `VectorInput`。这个差异在调用点是看不见的 ——
+`normalize(N)` —— 但会出现在 `could not bind input` / `failed to access input` 这两条诊断里。
+
+### sin、cos
+
+两者都把节点的 `Period` 属性保持在默认值。要用非默认周期：
+
+```c
+UE.Expression(Class = "Sine", OutputType = "float1", Input = x, Period = 2.0)
+```
+
+## 节点复用
+
+结果会做**公共子表达式缓存**。两个文本相同、操作数值也相同的调用 —— 写了两次的 `sin(X)` ——
+只产生一个 `Sine` 节点，而不是两个。缓存键覆盖内置名、节点类和每个参数值。
+
+数学内置和通用的 [`UE.Expression`](/docs/builtins/ue-expression) 路径以及
+[`Substrate.*`](/docs/builtins/substrate) 包装节点共享这一行为。已注册的
+[`UE.*` 内置节点](/docs/builtins/ue-nodes)是例外：它们每次调用都新建节点。
+
+每个数学节点都创建在编辑器 X 坐标 `360` 上，Y 取自生成器的布局计数器。
+
+## 这里没有的东西
+
+这个调用面上没有矩阵、反三角、指数、对数、`step`、`smoothstep`、`reflect`、`refract`、`cross`
+或 `length` 内置节点。有两条出路：
+
+- 直接触达对应的 `UMaterialExpression`，例如
+  `UE.Expression(Class = "CrossProduct", OutputType = "float3", A = u, B = v)`；
+- 把运算写在 [`Function`](/docs/language/functions) 的 HLSL 体里，那里可以用完整的 HLSL 内建函数集。
+
+在 `Function` 的 HLSL 体内部，这些名字*根本不*由这个分派器处理 —— 函数体原样输出，
+适用的是 HLSL 自己的内建函数。
+
+<Callout type="info">
+[反编译器](/docs/tools/decompiler)导出已有材质时会输出这些写法：`LinearInterpolate` → `lerp`、
+`Clamp`（当 `ClampMode == CMODE_Clamp` 时）→ `clamp`、`Power` → `pow`、`DotProduct` → `dot`、
+`Normalize` → `normalize`、`Min`/`Max` → `min`/`max`、`Abs` → `abs`、`Saturate` → `saturate`、
+`Floor`/`Ceil`/`Frac`/`SquareRoot` → `floor`/`ceil`/`frac`/`sqrt`，以及 `Sine`/`Cosine`
+（当 `Period` 为 1.0 时）→ `sin`/`cos`。
+</Callout>
+
+## 诊断
+
+`{Name}` 是作者书写的写法，保留原始大小写。`{Index}` 从 1 开始。
+
+<Diag>
+  <D msg="Math function '{Name}' expects exactly 1 argument." cause="单参数内置节点的参数个数不对，或者任何一个参数带了名字。" fix="去掉参数名 —— 这个调用面只接受位置参数。" />
+  <D msg="Math function '{Name}' expects exactly 2 arguments." cause="同上，适用于 dot、pow、min、max、fmod 和 mod。" />
+  <D msg="Math function '{Name}' expects exactly 3 arguments." cause="同上，适用于 lerp、mix 和 clamp。" />
+  <D msg="Math function '{Name}' is missing argument {Index}." cause="内置节点要求的某个参数槽位不存在。" />
+  <D msg="Math function '{Name}' argument {Index}: {Error}" cause="参数表达式求值失败；{Error} 是内层诊断。" />
+  <D msg="Math function '{Name}' only accepts numeric scalar/vector arguments." cause="某个参数是纹理对象、MaterialAttributes 值或 Substrate 值。" fix="先采样纹理，或先拆开 attributes，再做运算。" />
+  <D msg="Failed to create math function '{Name}'." cause="材质节点创建失败。" />
+  <D msg="Math function '{Name}' could not bind input '{Input}'." cause="节点类没有暴露预期的输入属性。仅一元内置节点。" />
+  <D msg="Math function '{Name}' failed to access input '{Input}'." cause="输入属性存在但无法访问其存储。仅一元内置节点。" />
+  <D msg="Unknown Graph function '{Name}'." cause="该名字不是内置节点、构造器、property 或用户函数 —— 由调用路径而非本路径发出。拼错的内置名会落到这里。" href="/docs/graph/calls" />
+</Diag>
+
+完整清单见[错误速查](/docs/diagnostics)。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_MathBuiltins")
+{
+    Properties = {
+        float X = 0.5;
+        vec3  A = vec3(1.0, 0.0, 0.0);
+        vec3  B = vec3(0.0, 1.0, 0.0);
+    }
+    Settings = { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs  = { vec3 Color; Base.EmissiveColor = Color; }
+    Graph = {
+        float s     = sin(X);
+        float c     = cos(X);
+        float cl    = clamp(X, 0.0, 1.0);
+        float sa    = saturate(X);
+        vec3  mixed = lerp(A, B, sa);
+        vec3  unit  = normalize(mixed);
+        float d     = dot(unit, A);
+        Color = mixed * (s + c + cl) + unit * d;
+    }
+}
+```
+
+生成的节点：
+
+```text
+Sine(X)                       -> s
+Cosine(X)                     -> c
+Clamp(X, 0.0, 1.0)            -> cl
+Saturate(X)                   -> sa
+LinearInterpolate(A, B, sa)   -> mixed     (3 components: max(3, 3))
+Normalize(mixed)              -> unit      (3 components)
+DotProduct(unit, A)           -> d         (1 component, always)
+Add / Multiply chain          -> Color
+```
+
+## 接下来
+
+<Cards>
+  <Card title="运算符与转换" href="/docs/graph/expressions" description="运算符、优先级、加宽，以及数学内置跳过的操作数规则。" />
+  <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" description="触达这个调用面没有的运算。" />
+  <Card title="UE.* 节点" href="/docs/builtins/ue-nodes" description="已注册的材质节点内置。" />
+  <Card title="函数" href="/docs/language/functions" description="HLSL 函数体，那里可以用完整的内建函数集。" />
+</Cards>

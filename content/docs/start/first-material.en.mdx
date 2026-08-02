@@ -1,0 +1,192 @@
+---
+title: Your First Material
+description: Write a UI Unlit material from scratch, generate it, and find the result the editor deliberately hides.
+---
+
+This page builds a UI-domain, Unlit material with two parameters, then explains where the generated
+material actually is — which is the part that surprises everybody the first time.
+
+## Create the file
+
+```text
+<Project>/DShader/Materials/M_DreamPulse.dsm
+```
+
+```c
+Shader(Name="DreamMaterials/M_DreamPulse")
+{
+    Properties = {
+        vec3 Tint = vec3(0.2, 0.6, 1.0);
+        float Strength = 1.0;
+    }
+
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float t = UE.Time();
+        float pulse = UE.Expression(
+            Class="Sine",
+            OutputType="float1",
+            Input=t);
+
+        Color = Tint * (pulse * 0.5 + 0.5) * Strength;
+    }
+}
+```
+
+Save it. With *Auto Compile On Save* on, DreamShader parses the file after a short debounce and
+generates:
+
+```text
+/Game/DreamMaterials/M_DreamPulse
+```
+
+## What each part does
+
+| Area | Role |
+| --- | --- |
+| `Shader(Name="…")` | Declares the asset to generate. `Root` is optional and defaults to `Game`. |
+| `Properties` | Generates material parameter nodes — here a vector and a scalar. |
+| `Settings` | Sets properties on the generated material. |
+| `Outputs` | Declares graph output variables and binds one to `Base.EmissiveColor`. |
+| `Graph` | Creates material nodes and assigns the final value to `Color`. |
+
+`UE.Expression(Class="Sine", …)` is the generic reflected call: it creates any loaded, non-abstract
+`UMaterialExpression` subclass by name. `Class` defaults to the function name, so the shorter
+`UE.Sine(OutputType="float1", Input=t)` is the identical call. `OutputType` is required on this path.
+
+<Callout type="warn">
+  Class resolution compares against the **reflected** class name, which carries no `U` prefix.
+  `Sine`, `sine` and `MaterialExpressionSine` all resolve to `UMaterialExpressionSine`;
+  `Class="UMaterialExpressionSine"` never does. See
+  [UE.Expression](/en/docs/builtins/ue-expression).
+</Callout>
+
+## Finding the generated material
+
+Look in the Content Browser and you will not find it. This is not a failure.
+
+Under the default `ThinCustom` backend a compile produces live `UObject`s and **no `.uasset` on
+disk**:
+
+```text
+UDreamShaderMaterialInstance          "M_DreamPulse"                       <- the asset you reference
+  └─ UMaterial (subobject, hidden)    "MB_DreamThinBase_DreamMaterials_M_DreamPulse"
+       └─ the generated node graph
+```
+
+The node graph — every `Properties` node, every `Graph` statement, every `Outputs` binding — is built
+on the hidden base. The instance is a thin wrapper carrying the parameter values, the provenance
+metadata and the compiled shader map. While the material is memory-only its `IsAsset()` returns
+`false`, so it is hidden from the Content Browser, from asset pickers and from save pickers, and its
+package is marked non-dirty so *Save All* cannot persist it by accident.
+
+The design intent: the `.dsm` is the authoring surface, and a `.uasset` on disk would shadow it.
+
+There are three ways to reach the material.
+
+### 1. The Material Content Browser
+
+*Tools ▸ DreamShader ▸ Material Content Browser*, then the **Dream Shader Gen** page. It lists every
+source file under `DShader/` with its compile status and a thumbnail of the generated material:
+
+| Status | Meaning |
+| --- | --- |
+| `● up to date` | the asset exists and its stored source hash matches the current source |
+| `● stale` | the asset exists but the stored hash differs |
+| `○ not compiled` | nothing exists at the resolved object path |
+| `▲ compile error` | the compile failed, or `diagnostics.json` reports an error for this file |
+| `◆ function / header` | the item is a `.dsf` or `.dsh` |
+| `▲ unresolved` | the source could not be read or parsed, or declares no top-level `Shader` |
+
+Selecting an item gives you **Compile**, **Create instance**, **Open material**, **Materialize** and
+**Open source**. This is the normal way to work with generated materials.
+
+### 2. Make them visible
+
+*Tools ▸ DreamShader ▸ Show In-Memory Materials*, or the same setting at *Project Settings ▸
+DreamPlugin ▸ Dream Shader ▸ Compiler ▸ Show In-Memory Materials In Content Browser*. Toggling it
+immediately broadcasts asset-created or asset-deleted for every live memory-only instance, so tiles
+appear and disappear without a rescan.
+
+You need this when picking a generated material as a material instance parent, or referencing one
+from a details panel.
+
+<Callout type="warn">
+  While the toggle is on, a memory-only material is an ordinary-looking tile — and an explicit
+  **Save** on it writes a real `.uasset`. That saved asset then *shadows* in-memory regeneration for
+  that path, and the compiler starts logging `In-memory material mode: '…' already exists as a saved
+  asset, which shadows in-memory regeneration.` Use *Materialize*, not *Save*. To recover, run
+  *Tools ▸ DreamShader ▸ Clean Persisted Generated Assets*, which deletes only assets carrying
+  DreamShader provenance metadata.
+</Callout>
+
+### 3. Materialize it
+
+**Materialize** writes the material and its hidden base to disk as one `.uasset`: it re-runs
+generation for that source file with persistence on and forcing enabled, then reloads the object at
+its resolved path. It is available from the Gen page, the details panel, and the Content Browser
+context menu.
+
+```text
+on disk   <Project>/Content/DreamMaterials/M_DreamPulse.uasset
+  export  M_DreamPulse                        UDreamShaderMaterialInstance
+  export  MB_DreamThinBase_M_DreamPulse       UMaterial (hidden, same package)
+```
+
+Creating a child material instance of a memory-only material materializes the parent first, because
+a transient base cannot be a parent import. Cooking materializes everything automatically — the cook
+director generates every project source as a persistent asset before the commandlet's `Main` runs.
+
+Full detail: [In-memory Materials](/en/docs/generation/in-memory).
+
+## Controlling the parameter panel
+
+`float` and `vec3` are enough to get started. When you want groups, ordering and tooltips in the
+Unreal parameter panel, declare explicit parameter nodes and add a metadata block:
+
+```c
+Properties = {
+    VectorParameter Tint = float4(0.2, 0.6, 1.0, 1.0) [
+        Group="Color";
+        SortPriority=10;
+        Description="Main tint";
+    ];
+    ScalarParameter Strength = 1.0 [
+        Group="Color";
+        Slider(0, 4);
+    ];
+}
+```
+
+`Group`, `SortPriority` and `Description` (which writes the node's `Desc`) are recognized keys; any
+other key is written straight to a reflected UPROPERTY of the generated node's class.
+`Slider(min, max)` <Since v="1.5.0" /> expands to `SliderMin` / `SliderMax`. See
+[Metadata and Groups](/en/docs/parameters/metadata).
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Nothing appears in the Content Browser | Expected. The material is memory-only — use the Material Content Browser, the visibility toggle, or *Materialize*. |
+| No material generated at all | The file is under *Source Directory*, has a `.dsm` extension, declares a top-level `Shader`, and *Auto Compile On Save* is on. |
+| Saving a `.dsh` generates nothing | Correct — a header never generates directly. Compile the dependent `.dsm` / `.dsf`. |
+| The output is black | `Outputs` needs a `Base.* = …` binding; a declared output that is never assigned contributes nothing. |
+| `UE.Expression` fails to resolve | `Class` must name a **loaded**, non-abstract `UMaterialExpression` subclass, compared without the `U` prefix. `OutputType` is required. |
+| A material function's callers break | Renaming an input or output is a breaking change — pin identities are restored by name. |
+| Anything else | Output Log (`LogDreamShader`), or the error line on the Gen page. Look the message up in [Diagnostics](/en/docs/diagnostics). |
+
+## Next
+
+- [Project Layout](/en/docs/start/project-layout) — where files go as the project grows
+- [Daily Workflow](/en/docs/start/workflow) — what triggers a rebuild, and what does not
+- [The Graph Language](/en/docs/graph/overview) — what you can write inside `Graph = { … }`
+- [Property Types](/en/docs/parameters/properties) — the full `Properties` catalogue

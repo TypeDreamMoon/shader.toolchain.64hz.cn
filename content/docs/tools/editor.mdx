@@ -1,0 +1,639 @@
+---
+title: 编辑器工具
+description: DreamShader 注册的每一个菜单项、工具栏按钮和右键菜单操作，以及完整的 Material Content Browser 面板。
+---
+
+DreamShader 加进 Unreal 编辑器的所有东西都在一个 editor-only 模块里。本页是那张地图：什么出现在哪、每条命令实际做了什么，
+以及 Material Content Browser 面板怎么用。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 实现于 | `DreamShaderEditor` 模块，type `Editor`，加载阶段 `Default` |
+| 注册方式 | 模块启动时的 `UToolMenus::RegisterStartupCallback` |
+| ToolMenu owner | `DreamShaderEditor`（bridge 项）· `DreamShaderMaterialBrowser`（browser 项） |
+| 被禁用于 | `-NoDreamShaderEditorBridge` 开关，以及任何 commandlet 运行 |
+| 日志分类 | `LogDreamShader` |
+
+打包出来的游戏里这些一个都没有 —— 模块是 editor-only 的，运行时 `DreamShader` 模块完全不带 UI。菜单注册是幂等的，
+第二次注册什么都不加；编辑器正在关闭时则整个跳过。
+
+## 启动了什么，按什么顺序
+
+| # | 步骤 | 何时跳过 |
+| :-- | :-- | :-- |
+| 1 | 运行 commandlet 时：当 `-run=` 含 `Cook` 且没有 `-cookworker` 就装上 cook 钩子，然后停止 | — |
+| 2 | 直接整体退出 | 命令行上有 `-NoDreamShaderEditorBridge` |
+| 3 | 创建并启动 editor bridge | 同上 |
+| 4 | 注册 Material Content Browser nomad tab 及其菜单项 | 同上 |
+
+bridge 自己的启动流程随后会重置 `bridge.db`、导出三份 [manifest](#bridge-产物)、执行
+[VirtualFunction 同步](#启动同步服务)、排入一次全量扫描、在端口 `17864` 上打开预览 WebSocket 服务、注册源目录 watcher，
+并安装菜单。
+
+## Tools 菜单
+
+*Tools ▸ DreamShader*，扩展 `LevelEditor.MainMenu.Tools`，section `DreamShader`。
+
+<Wide>
+
+| 标签 | Tooltip | 图标 | 效果 |
+| :-- | :-- | :-- | :-- |
+| **Recompile DSM** | "Recompile all DreamShader .dsm and .dsf source files and refresh diagnostics." | `Icons.Refresh` | 重建依赖图并把每个项目 `.dsm` 和 `.dsf` 排入队列 —— [见下](#recompile-dsm) |
+| **Clean Generated Shaders** | "Delete Intermediate/DreamShader/GeneratedShaders and queue a full DreamShader recompile." | `Icons.Delete` | 删除全部生成的 `*.ush`，然后排入一次全量扫描 —— [见下](#clean-generated-shaders) |
+| **Clean Persisted Generated Assets** | "Delete DreamShader-generated material assets that are saved on disk (they shadow in-memory material mode). Shows a confirmation with the full list; source files are untouched and regenerate in memory." | `Icons.Delete` | 删除带 DreamShader 来源元数据的磁盘资产 —— [见下](#clean-persisted-generated-assets) |
+| **Show In-Memory Materials** | "Show memory-only DreamShader materials in the Content Browser and asset pickers — needed when picking one as a material instance Parent or referencing it from a detail panel. While shown, an explicit Save on one would persist it to disk (the shadow warning and Clean command cover recovery)." | *（无）* | 作用于 `bShowInMemoryMaterialsInContentBrowser` 的开关按钮 —— [见下](#show-in-memory-materials) |
+| **Open Dream Shader Workspace (VSCode)** <Since v="1.2.1" /> | "Open the configured DreamShader source workspace in VSCode, or Notepad if VSCode is unavailable." | `Icons.OpenInExternalEditor` | 重新导出三份 manifest、重写 workspace 文件、启动它 —— [VSCode 与 Rider](/docs/tools/vscode) |
+| **Material Content Browser** <Since v="1.5.0" /> | "Open the DreamShader Material Content Browser." | `ClassIcon.Material` | 唤起 `DreamShaderMaterialBrowser` nomad tab —— [见下](#material-content-browser) |
+
+</Wide>
+
+<Callout type="info">
+前五项和第六项由两个不同的启动回调注册进同一个 `DreamShader` section。它们在 section 内部的相对顺序取决于注册顺序，
+不保证在两次编辑器运行之间保持一致。
+</Callout>
+
+## 关卡编辑器工具栏
+
+扩展 `LevelEditor.LevelEditorToolBar.AssetsToolBar`，section `DreamShader`。两个按钮，都是 Tools 菜单项的复制。
+
+| 标签 | Tooltip | 图标 | 效果 |
+| :-- | :-- | :-- | :-- |
+| **DSM** | "Recompile all DreamShader .dsm and .dsf source files." | `Icons.Refresh` | 等同 *Recompile DSM* |
+| **Open Dream Shader Workspace (VSCode)** | "Open the configured DreamShader source workspace in VSCode, or Notepad if VSCode is unavailable." | `Icons.OpenInExternalEditor` | 等同 Tools 菜单里的同名项 |
+
+## Window 菜单
+
+Material Content Browser 注册的是一个 nomad tab，因此它同时出现在 *Window ▸ Tools* 下。
+
+| 项目 | 值 |
+| :-- | :-- |
+| Tab id | `DreamShaderMaterialBrowser` |
+| 显示名 | **Material Content Browser** |
+| Tooltip | "Browse, manage, and create instances of project and DreamShader-generated materials." |
+| 图标 | `ClassIcon.Material` |
+| Workspace group | Tools 分类 |
+| Tab role | `ETabRole::NomadTab` |
+
+## Content Browser 右键菜单
+
+所有条目都加进按类划分的资产右键菜单里那个标准的 `GetAssetActions` section。
+
+<Callout type="warn">
+**每一个 DreamShader 右键菜单项都要求恰好选中一个资产。** 选中两个或更多时该 section 是空的，而且没有任何提示说明原因。
+请右键单个资产。
+</Callout>
+
+| 被扩展的资产类 | 出现的内容 |
+| :-- | :-- |
+| `UMaterial` | 子菜单 **DreamShader** —— [Material 子菜单](#material-子菜单) |
+| `UMaterialFunction` | 子菜单 **DreamShader** —— [Material Function 子菜单](#material-function-子菜单) |
+| `UMaterialFunctionMaterialLayer` | 同一个 Material Function 子菜单 |
+| `UMaterialFunctionMaterialLayerBlend` | 同一个 Material Function 子菜单 |
+| `UMaterialInstanceConstant` | 平铺条目 **Create DreamShader instance** |
+| `UDreamShaderMaterialInstance` | 平铺条目 **Create DreamShader instance** |
+
+Unreal 里的菜单名是按精确类名索引的，所以实例那一项注册了两遍 —— 一遍给标准类，一遍给 DreamShader 子类。
+
+| 条目 | Tooltip | 图标 | 效果 |
+| :-- | :-- | :-- | :-- |
+| **Create DreamShader instance** <Since v="1.5.0" /> | "Create a material instance that shares this material's compiled shader map." | `ClassIcon.MaterialInstanceConstant` | 打开[创建材质实例](#创建材质实例)对话框。选中项必须能转换成 `UMaterialInterface` |
+
+### Material 子菜单
+
+标签 **DreamShader**，tooltip "DreamShader actions for this Material."，图标 `Icons.Settings`。
+只有当唯一选中的资产是 `UMaterial` 时才会构建。一个 section，**Decompiler**：
+
+| 条目 | Tooltip | 图标 | 效果 |
+| :-- | :-- | :-- | :-- |
+| **Export DSM** <Since v="1.3.5" /> | "Export this Material graph to a DreamShader .dsm source file." | `Icons.Save` | 反编译到 `DShader/Decompiled/Materials/…​.dsm` 并打开文件 —— [反编译导出](/docs/tools/decompiler) |
+
+### Material Function 子菜单
+
+标签 **DreamShader**，tooltip "DreamShader actions for this Material Function."，图标 `Icons.Settings`。两个 section。
+
+**Decompiler：**
+
+| 条目 | Tooltip | 图标 | 效果 |
+| :-- | :-- | :-- | :-- |
+| **Export DSF** <Since v="1.3.5" /> | "Export this Material Function graph to a DreamShader .dsf source file." | `Icons.Save` | 反编译到 `DShader/Decompiled/{Functions,Layers,LayerBlends}/…​.dsf` 并打开文件 |
+
+**VirtualFunction** <Since v="1.2.1" /> —— 内容取决于是否已经有一个 `VirtualFunction` 声明指向这个资产。
+见 [VirtualFunction 工具](#virtualfunction-工具)。
+
+## 材质编辑器工具栏
+
+`AssetEditor.MaterialEditor.ToolBar` 的 `DreamShader` section 中的一个动态条目 <Since v="1.2.1" />。
+
+| 步骤 | 行为 |
+| :-- | :-- |
+| 1 | 要求存在有效的 `UMaterialEditorMenuContext` 和活的 `IMaterialEditor` |
+| 2 | 扫描当前正在编辑的对象，停在**第一个** `UMaterial`，找不到则停在第一个 `UMaterialFunction` |
+| 3 | `UMaterial`：一个标签为 **DreamShader** 的组合按钮，内容是 [Material 子菜单](#material-子菜单) |
+| 4 | `UMaterialFunction`：一个标签为 **DreamShader** 的组合按钮，内容是 [Material Function 子菜单](#material-function-子菜单) |
+| 5 | 两者都没找到 ⇒ 工具栏上什么都不加 |
+
+## 各命令的行为
+
+引用消息里的运行期替换写作 `{Placeholder}`。
+
+### Recompile DSM
+
+重建材质依赖图，然后把每个项目 `.dsm` 和 `.dsf` 以当前时间戳打进待处理队列。`DShader/Packages` 下的 `.dsm` 被排除，
+那里的 `.dsf` **不会** —— 见 [Package](/docs/tools/packages)。排队的文件随后由防抖 ticker 编译，
+和你手动保存它们完全一样。
+
+日志：`DreamShader queued a full .dsm/.dsf recompile scan.`
+
+### Clean Generated Shaders
+
+删除生成的 `.ush` include，并排入一次全量扫描。
+
+| 行为 | 细节 |
+| :-- | :-- |
+| 安全护栏 | 当 *Generated Shader Directory* 不在项目 `Intermediate/` 目录内时拒绝执行 |
+| 删除范围 | 只删 `*.ush`，递归，逐个删除。目录本身永远不删 |
+| 标志 | 容忍文件缺失；只读文件照删 |
+
+| 消息 | 严重度 |
+| :-- | :-- |
+| `DreamShader refused to clean generated shaders: '{Directory}' is not inside the project Intermediate directory. Point DreamShaderSettings.GeneratedShaderDirectory back under Intermediate/ before cleaning.` | Warning |
+| `DreamShader deleted {Count} generated shader file(s) from '{Directory}'.` | Display |
+| `DreamShader cleaned generated shader includes and queued a full .dsm/.dsf recompile scan.` | Display |
+
+### Clean Persisted Generated Assets
+
+找出并删除磁盘上存在的 DreamShader 生成资产 —— 因为已保存的资产会遮蔽同一源文件生成的纯内存材质。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 搜索范围 | 资产注册表，package path `/Game`，递归路径，递归类 |
+| 类 | `UMaterial`、`UMaterialFunction`、`UDreamShaderMaterialInstance` |
+| 条件 1 | package 必须存在于磁盘 |
+| 条件 2 | package 必须带非空的 `DreamShader.SourceFile` 元数据 |
+| 删除方式 | 标准编辑器删除流程，带确认对话框和引用检查 |
+| 删除之后 | 每个源文件立刻在内存中重新生成，因此引用无需重启编辑器即可解析 |
+
+因为过滤依据是来源元数据，手写材质永远不会被碰 —— 而源文件已被删除或改名的孤儿资产仍然会被命中。
+
+| Toast | 原因 |
+| :-- | :-- |
+| `No persisted DreamShader-generated assets found.` | 没有匹配项 |
+| `Deleted {Deleted} of {Total} persisted generated asset(s).` | 删除流程结束后 |
+
+### Show In-Memory Materials
+
+翻转 `bShowInMemoryMaterialsInContentBrowser` 并直接写进项目的 `DefaultEngine.ini`。随后它会遍历每一个 package 仍是
+newly-created 的活 `UDreamShaderMaterialInstance` 并广播资产创建或移除，所以图块立刻出现或消失，
+而不是等到下一次重新枚举。
+
+| Toast | 条件 |
+| :-- | :-- |
+| `Showing {Count} in-memory material(s) in the Content Browser and asset pickers.` | 打开 |
+| `Hidden {Count} in-memory material(s) from the Content Browser and asset pickers.` | 关闭 |
+
+<Callout type="warn">
+纯内存材质被显示出来时，它们也会出现在**保存**选择器里，而一次显式 *Save* 就会把它写到磁盘。这份保存副本随后会
+遮蔽该路径上的内存材质。用 *Clean Persisted Generated Assets* 恢复；真的想要文件时请用
+[*Materialize*](#materialize)。
+</Callout>
+
+Material Content Browser 的 [Project 页](#project-页)上有一个复选框，驱动的是同一个**全局**设置。
+复选框在值没变时会提前返回、不弹 toast；菜单项则总会弹。菜单项的勾选状态实时读自设置对象，
+所以在 Project Settings 里改值会更新那个勾。
+
+### Open Dream Shader Workspace (VSCode)
+
+重新导出 `material-expressions.json`、`settings.json` 和 `substrate-builtins.json`，重写
+`DShader/DreamShader.code-workspace`，然后走三级回退链启动它 —— VSCode、系统默认编辑器、Notepad。
+探测顺序、文件的确切内容，以及"这个文件会被整体重写"的警告，都在 [VSCode 与 Rider](/docs/tools/vscode)。
+
+## Material Content Browser
+
+一个可停靠面板，两个页面：一个用来浏览项目材质并创建实例，一个用来看 DreamShader 源文件和它们生成的资产。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 类型 | nomad tab |
+| 页面 | **Project**（索引 0，默认激活）· **Dream Shader Gen**（索引 1） |
+| 起始版本 | <Since v="1.5.0" /> |
+
+### 怎么打开
+
+| 入口 | 路径 |
+| :-- | :-- |
+| Tools 菜单 | *Tools ▸ DreamShader ▸ Material Content Browser* |
+| Window 菜单 | *Window ▸ Tools ▸ Material Content Browser* |
+
+这个 tab 只在 editor bridge 启动时才注册，所以 [`-NoDreamShaderEditorBridge`](#关闭整套集成) 会同时去掉两个入口。
+
+根控件是两个 radio 风格复选框组成的标题栏加一个 widget switcher。只有*被勾选*的那次跳变会被处理，
+所以重复点击你已经在的那一页什么都不会发生。两页各自保留状态，切换不会刷新任何一页。
+
+### Project 页
+
+一个水平分割器：资产选择器占宽度的 `0.62`，详情面板占 `0.38`。
+
+#### 资产选择器
+
+| 项目 | 值 |
+| :-- | :-- |
+| 类 | `UMaterial`、`UMaterialInstanceConstant` |
+| 递归类 | 是 —— 这正是 `UDreamShaderMaterialInstance` 被包含进来的原因 |
+| Package path | `/Game`，递归 |
+| 初始视图 | Tile |
+| 选择模式 | 单选 |
+| 拖拽 | 允许 |
+| 类列 | 隐藏 |
+| 引擎内容 | 从不强制显示 |
+| 列视图中的路径 | 显示 |
+| 双击 | 用对应编辑器打开资产 |
+| 空态 | "No materials found under /Game." |
+
+#### 顶部控件
+
+| 控件 | 标签 | 效果 |
+| :-- | :-- | :-- |
+| 按钮 | **Create instance** | 为选中资产打开[创建材质实例](#创建材质实例)对话框。没有选中任何东西时弹 toast `Select a material to create an instance of.`，不开窗口 |
+| 状态文本 | *（动态）* | 有选中时显示 `Selected: {Asset}`，否则 `Select a material, then create an instance.` |
+| 复选框 | **Show in-memory materials** | 把 `bShowInMemoryMaterialsInContentBrowser` 写进 `DefaultEngine.ini`，并为每个 newly-created 的内存实例重新广播资产创建或移除 |
+
+#### 详情面板
+
+空态："Select a material to see its inheritance and settings." 缩略图 96×96，取自一个由 0.05 秒定时器刷新的 16 项池。
+
+| 按钮 | Tooltip | 何时可见 |
+| :-- | :-- | :-- |
+| **Create instance** | — | 始终 |
+| **Open** | — | 始终 |
+| **Materialize** | "Write this memory-only material (and its base) to disk." | 仅当选中材质是纯内存时；否则折叠 |
+
+| 信息行 | 值 |
+| :-- | :-- |
+| **Base** | 材质的 base 材质名，或 `-` |
+| **Domain** | base 材质的 material-domain 显示名 |
+| **Blend mode** | base 材质的 blend-mode 显示名 |
+| **Storage** | `memory-only (not saved)` 或 `on disk` |
+| **Source** | `UDreamShaderMaterialInstance` 上记录的 `.dsm` 路径，或 `-` |
+
+| 区块 | 内容 |
+| :-- | :-- |
+| **Inheritance** | 父链，root 在前，沿每个实例的 parent 向上走出来。每一行都是可点击链接，会把面板切到那个目标。行按层级每级缩进四个空格，前缀 `└ `；祖先画成蓝色，选中材质用默认前景色 |
+| **Child instances (N)** | parent 是选中材质的材质实例常量。空态："No loaded child instances." |
+
+<Callout type="warn">
+**Child instances 只扫描当前在编辑器里已加载的实例。** 磁盘上存在但尚未加载的实例不会出现，
+这个计数也不是引用计数。要看完整情况，请先加载资产，或者用 Content Browser 的 *Reference Viewer*。
+</Callout>
+
+### Dream Shader Gen 页
+
+一个水平分割器：源文件列表占宽度的 `0.6`，预览面板占 `0.4`。缩略图取自一个由 0.05 秒定时器刷新的 8 项池。
+
+#### 顶部控件与过滤
+
+| 控件 | 标签 / 提示 | 效果 |
+| :-- | :-- | :-- |
+| 按钮 | **Refresh** | 重跑整条[刷新流程](#刷新流程)。Tooltip："Rescan the source directory and recompute status." |
+| 按钮 | **Compile all** | "Force-recompile every .dsm/.dsf source (in memory)." —— 见[编译操作](#编译操作) |
+| 搜索框 | 提示 **Search sources** | 大小写不敏感的子串过滤，只匹配**显示名** —— 不匹配路径，也不匹配状态 |
+| 复选框 | **Errors only** | 只保留状态为 `compile error` 或 `unresolved` 的项 |
+| 复选框 | **Hide functions** | 去掉所有 `.dsf` 和 `.dsh` 项 |
+| 计数器 | `{Visible} / {Total}` | 状态栏右侧的弱化文本；计的是条目，所以一个 `.dsh` 头文件也算一行 |
+
+这一页列出源目录下递归找到的 **`.dsm`、`.dsh` 和 `.dsf`**。`DShader/Packages` 下的一切都被排除 ——
+包括 package 里的头文件和函数文件，所以它们从不出现在这里。
+
+#### 状态取值
+
+| 状态 | 字形 | 标签 | 含义 |
+| :-- | :-- | :-- | :-- |
+| `UpToDate` | `●` 绿 | **up to date** | 生成资产存在，且它记录的 source hash 与当前源一致 |
+| `Stale` | `●` 琥珀 | **stale** | 生成资产存在，但记录的 hash 与当前源不同 |
+| `NeverCompiled` | `○` 灰 | **not compiled** | 解析出的 object path 上没有对象。细节：`No generated asset at {ObjectPath}` |
+| `Error` | `▲` 红 | **compile error** | 通过这一页发起的编译失败了，或者 `diagnostics.json` 里这个文件有 error |
+| `Function` | `◆` 蓝 | **function / header** | 该项是 `.dsf` 或 `.dsh`。细节："Function library / header. Recompiles the materials that import it." |
+| `Unresolved` | `▲` 红 | **unresolved** | 源文件读不了、解析不了，或者没有声明顶层 `Shader` 块 |
+
+每一行先画状态字形 —— 它的 tooltip 就是状态细节 —— 然后是文件名，然后是一行弱化的副标签。
+`.dsf` 和 `.dsh` 的副标签是 `function · used by {N} material(s)`。
+
+#### 刷新流程
+
+| # | 步骤 |
+| :-- | :-- |
+| 1 | 枚举源目录下的 `.dsm`、`.dsh` 和 `.dsf`，排除 `DShader/Packages`，然后排序 |
+| 2 | 重建材质依赖图，填好每个头文件和函数文件的被依赖计数 |
+| 3 | 重算每一项的状态 |
+| 4 | 清空选择 —— 列表被重建了，之前选中的那一项已不存在 |
+| 5 | 叠加从 `diagnostics.json` 读到的错误 |
+| 6 | 重新应用搜索框和两个过滤复选框 |
+| 7 | 重建预览面板 |
+
+单项状态的计算：
+
+| # | 步骤 | 失败结果 |
+| :-- | :-- | :-- |
+| 1 | `.dsf` / `.dsh` 短路 | ⇒ `function / header` |
+| 2 | 从 `Name=` 和 `Root=` 解析生成资产的 object path | ⇒ `unresolved` |
+| 3 | **不加载**地查找该对象 | ⇒ `not compiled` |
+| 4 | 加载 `import` 已内联的预处理源 | ⇒ `unresolved` |
+| 5 | 对预处理源做哈希，和资产记录的源文件与哈希比较 | 不一致 ⇒ `stale` |
+
+步骤 2 会读文件并在解析前剥掉每一行 `import` —— import 行不带顶层块，会干扰块检测 ——
+然后按[资产路径](/docs/generation/asset-paths)描述的方式解析资产目标。
+
+| 消息 | 原因 |
+| :-- | :-- |
+| `Failed to read DreamShader source '{File}'.` | 文件读不了 |
+| `{File}: {ParserError}` | 文件解析失败 |
+| `{File}: this file does not define a top-level Shader block.` | 解析结果里没有 `Shader` |
+
+<Callout type="info">
+因为步骤 3 是不加载的查找，一个已经在磁盘上、但本次会话中还没被加载过的材质会一直显示 **not compiled**，
+直到有东西加载它为止。
+</Callout>
+
+#### 错误叠加
+
+这一页的错误直接读自 `<Project>/Saved/DreamShader/Bridge/diagnostics.json`，而不是 bridge 的内存存储 ——
+这一页是刻意和 bridge 内部解耦的。
+
+| 规则 | 细节 |
+| :-- | :-- |
+| 接受的严重度 | `severity` 为空，或者大小写不敏感地等于 `error` |
+| 格式 | 行号大于零时是 `L{Line}:{Column} {Message}`，否则只有消息本身 |
+| 每个文件 | **只保留第一条被接受的诊断** |
+| 效果 | 命中项的状态被覆写成 `compile error` |
+
+<Callout type="info">
+一个有五个错误的文件在这里只显示一个。Output Log 和编辑器扩展有完整列表；插件只发出一种严重度 —— `error` ——
+所以这一页上永远不会出现 warning 或 hint。
+</Callout>
+
+#### 编译操作
+
+两个操作都在**内存中**生成，并强制重建，忽略 source hash 缓存。
+
+| 操作 | 范围 | 进度 UI | Toast |
+| :-- | :-- | :-- | :-- |
+| **Compile all** | 除 `.dsh` 头文件外的每一个列出项 —— `.dsf` **包含在内** | 一个标题为 "Compiling all DreamShader sources..." 的模态慢任务，每个文件一帧 | `Compiled {Count} source(s), {Failed} failed` —— 只有 `{Failed}` 为 0 才算成功 |
+| **Compile**（预览面板） | 选中项 | 无 | `Compiled {File}` / `Failed to compile {File}` |
+
+*Compile all* 跳过头文件，因为它们的依赖方已经在目标集合里了。单个编译失败还会以 Error 级别记
+`Material Content Browser compile failed: {Message}`，并把消息钉在该项上，所以预览面板能显示原因。
+
+#### 预览面板
+
+空态："Select a source file to preview its material."
+
+<Callout type="warn">
+这个面板里的图是一张 **静态资产缩略图**，160×160，画的是已经生成好的材质。它不是流式渲染器，
+不会在你打字时更新，也没有网格或相机控制。实时预览是 [预览](#预览) 一节里描述的 WebSocket 通道，
+由编辑器扩展驱动，而不是这个面板。
+</Callout>
+
+占位图块对 `.dsf` / `.dsh` 显示 "function library"，其他情况显示 "not compiled yet"。
+材质通过加载 object path 解析，且只对非函数项这么做。
+
+| 按钮 | Tooltip | 何时显示 |
+| :-- | :-- | :-- |
+| **Compile** | "Force-recompile this source (in memory)." | 始终 |
+| **Create instance** | "Create a material instance of this material." | 该项不是函数或头文件 |
+| **Open material** | "Open the generated material asset." | 材质解析成功 |
+| **Materialize** | "Write this memory-only material (and its base) to disk." | 材质解析成功**且**它是纯内存的 |
+| **Open source** | "Open the .dsm/.dsf in your preferred editor." | 始终 |
+
+按钮下方依次是：大字号文件名、状态字形与标签、小字号绝对源路径、函数和头文件的 `used by {N} material(s)`，
+以及 —— 只对 `compile error` 和 `unresolved` —— 红色的错误细节。
+
+对从未编译过的项点 *Create instance*，会先强制编译再重新解析对象。如果它仍然缺失，toast 是 `Compile {File} first.`
+
+### 创建材质实例
+
+入口有四个：Project 页的按钮、详情面板、Gen 页的预览面板，以及 Content Browser 的 **Create DreamShader instance**。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 窗口标题 | **Create material instance** |
+| 尺寸 | 480×240，模态，不能通过最小化/最大化调整 |
+
+| 字段 | 类型 | 默认值 |
+| :-- | :-- | :-- |
+| **Parent** | 只读文本 | 父材质名 |
+| **Name** | 文本框 | `MI_<ParentName>`，与已有资产去重 |
+| **Folder** | 文本框 | 父级所在文件夹加上 *Material Instance Subfolder* 设置（默认 `Instances`）；子目录为空时实例建在父级旁边 |
+| **Browse...** | 按钮 | 打开标题为 "Choose a destination folder" 的文件夹选择器 |
+| **Open the instance after creating** | 复选框 | 勾选 |
+| **Cancel** / **Create** | 按钮 | — |
+
+| 守卫 | 错误 |
+| :-- | :-- |
+| 没有父材质 | `No parent material was provided.` |
+| 名字或目标文件夹为空 | `Provide a name and a destination folder.` |
+| 父级是纯内存的 | 转发 [Materialize](#materialize) 的错误 |
+| 目标路径上已有资产 | `An asset already exists at {PackageName}.` |
+| package 创建失败 | `Failed to create package {PackageName}.` |
+| 对象创建失败 | `Failed to create the material instance object.` |
+| package 保存失败 | `Generated DreamShader asset '{Path}' could not be saved.` |
+| 从打开窗口到确认之间父级失效 | `The parent material is no longer available.` —— 窗口关闭 |
+
+成功时 toast 是 `Created {Name}` —— **Name** 框里的资产名，不是 object path —— 窗口关闭。
+失败时错误被 toast 出来，而**窗口保持打开**，方便修正名字或文件夹。
+
+| 细节 | 行为 |
+| :-- | :-- |
+| 创建的类 | 普通 `UMaterialInstanceConstant`，不是 `UDreamShaderMaterialInstance` |
+| 对象标记 | `RF_Public \| RF_Standalone` |
+| Parent 赋值 | 以 editor-only 方式设置，随后触发 post-edit change 和资产创建广播 |
+| 保存失败回滚 | 半成品对象会被撤销广播、剥掉标记、无重定向器地改名进 transient package、标记为垃圾，并清掉 package 的脏标记 —— 因此它无法在 GC 后存活、无法出现在 Content Browser、无法被 *Save All* 落盘，也不会挡住同名重试 |
+
+给纯内存的父级创建实例时会先把父级落盘，因此子实例永远不会引用一个 transient 对象。
+
+### Materialize
+
+*Materialize* 把纯内存材质，以及它包着的隐藏 base，一起写到磁盘。
+
+| 规则 | 细节 |
+| :-- | :-- |
+| "纯内存"的判定 | 材质的 package 带着 newly-created package 标记 |
+| 已在磁盘上 | 原样返回 —— 该操作是空操作 |
+| 前提 | 材质必须是带有记录源文件路径的 `UDreamShaderMaterialInstance` |
+| 实现 | 以 force 打开、transient **关闭**重跑该源文件的生成，然后在同一 object path 上重新加载对象 |
+
+| 消息 | 原因 |
+| :-- | :-- |
+| `This material is memory-only and has no DreamShader source file to materialize from.` | 材质不是 DreamShader 实例，或者没有记录源路径 |
+| `Failed to materialize the material to disk: {Error}` | 生成失败 |
+| `Materialized the material but could not reload it at {ObjectPath}.` | 生成成功但对象没能重新加载 |
+| `Materialized {Name} to disk` | 成功 —— 详情面板切到那个已持久化的资产 |
+
+Gen 页的 *Materialize* 按钮刻意在点击时按 object path 重新解析材质，而不是握着构建面板时捕获的指针，
+这样构建到点击之间发生的删除或 GC 就不会导致崩溃。整套内存模型见[内存材质](/docs/generation/in-memory)。
+
+## 预览
+
+存在两套不同的渲染器，很容易混淆。
+
+| | Gen 页缩略图 | 单次预览 | 流式预览 |
+| :-- | :-- | :-- | :-- |
+| 是什么 | 一张普通的 160×160 引擎资产缩略图 | 渲染出的 PNG 加 `preview.json` | WebSocket 上的实时 PNG 流 |
+| 触发方式 | 在 Gen 页选中一项 | `previewMaterial` 请求文件，或 `stream` 为 false 的 WebSocket 消息 | `stream` 为 true（默认）的 `previewMaterial` WebSocket 消息 |
+| 等待 shader 编译 | 不适用 | 是 —— 所以它会短暂卡住编辑器 | 否 |
+| 相机控制 | 无 | 请求文件通道：无。WebSocket 通道：有 | 有，通过 `previewControl` |
+| 起始版本 | <Since v="1.5.0" /> | — | <Since v="1.5.0" /> |
+
+只有 `.dsm` 能被预览；`.dsf` 或 `.dsh` 会被拒绝，消息是
+`DreamShader preview only supports .dsm material files: '{File}'.` 材质总是以 transient 方式编译 ——
+预览永远不写资产。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 端点 | `ws://127.0.0.1:17864`，仅回环；非回环客户端会被拒绝 |
+| 尺寸 | `width` / `height` 默认 `512`，钳制到 `[64, 2048]` |
+| 帧率 | `frameRate` 默认 `2.0`，钳制到 `[0.25, 60.0]`；`<= 0` 关闭流式 |
+| 网格 | `plane`、`cube`、`cylinder`、`shaderball`，其他任何值静默回退到 `sphere` |
+| 轨道默认值 | yaw `-157.5`，pitch `-11.25` —— Unreal 自己的场景缩略图默认值 |
+| 输出 | `Saved/DreamShader/Bridge/Preview/` 下的 PNG，加 `preview.json` |
+
+<Callout type="warn">
+网格和两个轨道角度会被写到**材质资产自己的**场景缩略图信息上 —— 也就是原生材质编辑器的预览形状按钮和
+拖拽旋转视口写的那几个字段。所以一次预览渲染会改变该材质在 Content Browser 图块和材质编辑器视口里用的形状与相机。
+未知的网格名会被静默接受并渲染成球；看 `preview.json` 里回显的 `mesh` 才知道实际用了什么。
+</Callout>
+
+插件侧没有 pitch 钳制 —— 编辑器扩展在发送前会钳到约 ±89°，不这么做的客户端会把相机翻过去。
+运动模糊、抗锯齿和动态屏幕百分比都是关的，alpha 被强制成不透明，UI domain 材质总是画在平面上。
+这套协议的客户端一侧见 [VSCode 与 Rider](/docs/tools/vscode)。
+
+## VirtualFunction 工具
+
+为已有 `UMaterialFunction` 资产生成、打开和刷新 [`VirtualFunction`](/docs/language/blocks) 块的那组操作。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 挂在 | `UMaterialFunction`、`UMaterialFunctionMaterialLayer`、`UMaterialFunctionMaterialLayerBlend` |
+| 写入 | `<SourceDirectory>/VirtualFunctions/<Name>.dsh`，UTF-8 无 BOM |
+| 起始版本 | <Since v="1.2.0" /> 声明本身 · <Since v="1.2.1" /> 菜单 · <Since v="1.2.2" /> 复用、*OpenVirtualFunction* 和启动同步 |
+
+这个 section 每次右键都会重新构建。构建之前，编辑器会在所有项目源文件里搜索一个解析出的资产与当前选中项一致的
+`VirtualFunction` 声明 —— **你拿到的条目取决于这个答案**。
+
+| 已有声明？ | 条目 |
+| :-- | :-- |
+| 有 | **OpenVirtualFunction** —— 在声明的行列位置打开文件 · **Copy Virtual Function Reference** —— 复制一个用**声明名**（而非资产名）构建的调用 |
+| 没有 | **CopyVirtualFunction** —— 复制整段声明 · **CreateVirtualFunction** —— 写入一个新 `.dsh` 并打开 · **CopyVirtualFunctionCall** —— 复制一个调用示例 |
+
+<Callout type="warn">
+这个查找会在每次右键 Material Function 资产时，**从磁盘重新枚举并重新词法分析 `DShader/Packages` 之外的
+每一个 `.dsm`、`.dsh` 和 `.dsf`**。开销随项目源文件数量增长，而且是在菜单出现之前付掉的。没有缓存，
+也没有别的关掉办法 —— 除了 `-NoDreamShaderEditorBridge`，而它会把菜单整个去掉。
+</Callout>
+
+<Callout type="info">
+**对已经有声明的资产执行 CreateVirtualFunction 会静默改道去执行 OpenVirtualFunction。** 它绝不会写出重复文件，
+拿到的 toast 是 `Opened VirtualFunction definition: {File}`，而不是"已创建"。
+</Callout>
+
+文件名是 `<净化后的 MaterialFunction 名>.dsh`，冲突时是 `<净化后的名字>_<object path 的 crc32>.dsh`，
+CRC 用八位小写十六进制。写在这里的 `.dsh` 会像其他头文件一样被源目录 watcher 捡到，
+所以 import 它的材质会自动重编。生成的声明带
+`Options.Asset = Path(Game|Engine|Plugins.<Name>, "…")` —— 见 [Path 资产引用](/docs/parameters/path) ——
+每个函数输入一条 `Inputs`，每个输出一条 `Outputs`。复制出来的调用示例总是以 `OutputIndex=0` 结尾，
+哪怕函数只有一个输出。
+
+### 启动同步服务
+
+每个编辑器会话一次，在 bridge 启动时，DreamShader 会重读项目里每一段 `VirtualFunction` 声明，
+从活资产重建它，并在文本发生变化时把文件写回。
+
+<Callout type="warn">
+**这件事没有 watcher。** 改动 `UMaterialFunction` 的输入或输出不会刷新声明，保存 `.dsh` 也不会。
+声明只在下一次编辑器启动时被重新同步。
+</Callout>
+
+| 项目 | 行为 |
+| :-- | :-- |
+| 扫描的文件 | 源目录下每一个 `.dsm`、`.dsh` 和 `.dsf`，排除 `DShader/Packages` |
+| 关键字匹配 | 裸词 `VirtualFunction`，**大小写敏感**，带标识符边界检查 |
+| 跳过的区域 | 带 `\` 转义的字符串字面量、`//` 行注释和 `/* */` 块注释 |
+| 校验 | 每个抽出的块都会被重新解析，必须恰好产出**一个** `VirtualFunction`，且其 `Options.Asset` 能解析 |
+| 比较 | 在归一化文本上做 —— CRLF 和 CR 变 LF，然后整体 trim —— 所以行尾差异永远不会触发重写 |
+| 写回 | 整个文件，UTF-8 无 BOM |
+
+同步问题会以 stage `virtualFunctionSync`、code `virtual-function-sync`、severity `error` 发布成诊断；
+完整清单见[错误速查](/docs/diagnostics)。汇报日志：
+`DreamShader refreshed {Count} VirtualFunction definition(s) in '{File}'.` 和
+`DreamShader scanned {Scanned} VirtualFunction definition(s), refreshed {Refreshed}, reported {Issues} issue(s).`
+
+## Bridge 产物
+
+编辑器会在 `<Project>/Saved/DreamShader/Bridge/` 下写一组文件供外部工具读取。其中三份是目录清单，
+在 bridge 启动时导出，并在每次 *Open Dream Shader Workspace* 时重新导出；其余的随工作产生。
+
+| 产物 | 内容 |
+| :-- | :-- |
+| `material-expressions.json` | 反射得到的 `UMaterialExpression` 目录 —— schema `DreamShader.MaterialExpressions`，version 1，每个类一条，带 `className`、`pathName`、`defaultOutputType`、`properties[]`、`inputs[]` 和 `outputs[]`。这就是 [`UE.Expression`](/docs/builtins/ue-expression) 补全的数据源 <Since v="1.2.10" /> |
+| `substrate-builtins.json` | [`Substrate.*`](/docs/builtins/substrate) 目录 —— schema `DreamShader.SubstrateBuiltins`，version 1，带 `qualifiedName`、`className`、`outputType`、`isSubstrateOutput`、精选的 `parameters[]` 和 snippet。UE 5.4 以下写出的是空数组、`"supported": false` 和 `"unsupportedReason"` |
+| `settings.json` | `ShadingModel` / `BlendMode` / `MaterialDomain` 别名表 —— schema `DreamShader.Settings`，version 1。见[枚举取值](/docs/settings/enums) |
+| `diagnostics.json`、`diagnostics/` | 当前全部诊断，聚合版和按文件分片版 |
+| `bridge.db` | 诊断和三份 manifest 的 SQLite 镜像，启动和关闭时都会被删掉 |
+| `preview.json`、`Preview/*.png` | 单次预览结果 |
+| `Requests/*.json` | 入站请求目录，每 0.1 秒轮询一次，读完即删 |
+
+每份 manifest 都带一个 `generatedAt` ISO-8601 UTC 时间戳。插件唯一会读回来的是 `diagnostics.json` ——
+[Gen 页](#错误叠加)读它。这些 schema 和请求协议从消费端的角度记在 [VSCode 与 Rider](/docs/tools/vscode)。
+
+## 关闭整套集成
+
+```powershell
+UnrealEditor.exe "<Project>.uproject" -NoDreamShaderEditorBridge
+```
+
+这个开关按裸命令行参数解析，所以 `-NoDreamShaderEditorBridge` 是唯一被接受的写法。存在时，
+`StartupModule` 在创建任何东西之前就返回。
+
+| 被关掉 | 仍然有效 |
+| :-- | :-- |
+| editor bridge —— 文件 watcher 和保存即编译、防抖队列、诊断存储及三个 sink、`bridge.db`、请求文件轮询、VirtualFunction 启动同步、post-engine-init 的全量内存生成、设置 watcher | 运行时 `DreamShader` 模块 —— parser、generator、设置对象、`UDreamShaderMaterialInstance` |
+| 端口 `17864` 上的预览 WebSocket 服务，以及整个预览渲染器 | [命令行](/docs/tools/commandlet)，它从不使用 bridge |
+| 本页所有菜单、工具栏和右键菜单项 | 已经生成并保存在磁盘上的资产 |
+| Material Content Browser 的 tab 注册 —— 该面板完全打不开 | |
+| 三份导出的 manifest，以及 `DreamShader.code-workspace` 的重新生成 | |
+
+commandlet 运行会以另一条路径到达同样的状态：模块一旦检测到自己在 commandlet 进程里就提前返回，
+只安装 cook 期的落盘钩子，而且仅当 `-run=` 含 `Cook` 且没有 `-cookworker` 时。
+
+## 说明
+
+- 四个 VirtualFunction 条目标签是没有空格的驼峰 —— `OpenVirtualFunction`、`CopyVirtualFunction`、
+  `CreateVirtualFunction`、`CopyVirtualFunctionCall` —— 而第五个写作 **Copy Virtual Function Reference**。
+  这个不一致存在于出厂的标签里。
+- bridge 弹出的 toast 4 秒后消失；Dream Shader Gen 页弹出的 3.5 秒后消失。
+- 编辑器从不主动写出每材质的 `.uasset`。落盘发生在 cook、通过[命令行](/docs/tools/commandlet)，
+  或者显式的 *Materialize*。
+- 在 Project Settings 里改 *Default Compiler Backend* 会在内存中重新生成每个源文件，
+  并在已持久化资产会遮蔽结果时弹一条 toast。**没有其他设置属性会触发反应。**
+
+## 示例
+
+先关掉集成启动编辑器，再无头地做同样的事：
+
+```powershell
+# 没有菜单，没有 watcher，没有 bridge。
+& "$Engine\Binaries\Win64\UnrealEditor.exe" "I:\Project\Project.uproject" -NoDreamShaderEditorBridge
+
+# commandlet 不受这个开关影响。
+& "$Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "I:\Project\Project.uproject" `
+    -run=DreamShader compile -All -Force -unattended -nopause -nosplash -stdout -log
+```
+
+## 继续阅读
+
+<Cards>
+  <Card title="反编译导出" href="/docs/tools/decompiler" description="Export DSM / Export DSF 产出什么，又做不到什么。" />
+  <Card title="VSCode 与 Rider" href="/docs/tools/vscode" description="workspace 文件、两个扩展，以及它们消费的产物。" />
+  <Card title="命令行" href="/docs/tools/commandlet" description="无头入口，它写的是真资产。" />
+  <Card title="内存材质" href="/docs/generation/in-memory" description="为什么 Content Browser 是空的，以及 Materialize 做了什么。" />
+  <Card title="项目设置" href="/docs/settings/project" description="这些命令读写的十三项设置。" />
+  <Card title="错误速查" href="/docs/diagnostics" description="每条消息、原因和处理办法。" />
+</Cards>

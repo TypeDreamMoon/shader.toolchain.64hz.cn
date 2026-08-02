@@ -1,0 +1,183 @@
+---
+title: 第一个材质
+description: 从零写一个 UI Unlit 材质、生成它，并找到编辑器故意藏起来的那个结果。
+---
+
+本页写一个 UI 域、Unlit、带两个参数的材质，然后说明生成的材质到底在哪里 —— 这是每个人第一次都会被
+绊到的地方。
+
+## 创建文件
+
+```text
+<Project>/DShader/Materials/M_DreamPulse.dsm
+```
+
+```c
+Shader(Name="DreamMaterials/M_DreamPulse")
+{
+    Properties = {
+        vec3 Tint = vec3(0.2, 0.6, 1.0);
+        float Strength = 1.0;
+    }
+
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        float t = UE.Time();
+        float pulse = UE.Expression(
+            Class="Sine",
+            OutputType="float1",
+            Input=t);
+
+        Color = Tint * (pulse * 0.5 + 0.5) * Strength;
+    }
+}
+```
+
+保存。在 *Auto Compile On Save* 开启的情况下，DreamShader 会在短暂防抖后解析文件并生成：
+
+```text
+/Game/DreamMaterials/M_DreamPulse
+```
+
+## 每一部分做了什么
+
+| 区域 | 作用 |
+| --- | --- |
+| `Shader(Name="…")` | 声明要生成的资产。`Root` 可选，默认为 `Game`。 |
+| `Properties` | 生成材质参数节点 —— 这里是一个向量和一个标量。 |
+| `Settings` | 设置生成材质上的属性。 |
+| `Outputs` | 声明图输出变量，并把其中一个绑定到 `Base.EmissiveColor`。 |
+| `Graph` | 创建材质节点，并把最终值赋给 `Color`。 |
+
+`UE.Expression(Class="Sine", …)` 是通用反射调用：按名字创建任意已加载、非抽象的
+`UMaterialExpression` 子类。`Class` 默认取函数名，所以更短的
+`UE.Sine(OutputType="float1", Input=t)` 是完全相同的调用。这条路径上 `OutputType` 是必填的。
+
+<Callout type="warn">
+  类解析比较的是**反射**类名，它没有 `U` 前缀。`Sine`、`sine` 和 `MaterialExpressionSine` 都能解析到
+  `UMaterialExpressionSine`；`Class="UMaterialExpressionSine"` 永远解析不到。见
+  [UE.Expression](/docs/builtins/ue-expression)。
+</Callout>
+
+## 生成的材质在哪里
+
+去 Content Browser 里找是找不到的。这不是失败。
+
+在默认的 `ThinCustom` backend 下，一次编译产生的是活着的 `UObject`，**磁盘上没有 `.uasset`**：
+
+```text
+UDreamShaderMaterialInstance          "M_DreamPulse"                       <- 你引用的那个资产
+  └─ UMaterial（子对象，隐藏）         "MB_DreamThinBase_DreamMaterials_M_DreamPulse"
+       └─ 生成的节点图
+```
+
+节点图 —— 每个 `Properties` 节点、每条 `Graph` 语句、每个 `Outputs` 绑定 —— 都构建在那个隐藏的 base
+上。实例只是一层薄包装，负责携带参数值、来源元数据和编译好的 shader map。只要材质还只在内存里，它的
+`IsAsset()` 就返回 `false`，因此会从 Content Browser、资产选择器和保存列表里隐藏；它的 package 在生成
+结束时被标记为非 dirty，所以 *Save All* 也不会顺手把它写到磁盘。
+
+设计意图很明确：`.dsm` 才是你维护的东西，磁盘上的 `.uasset` 会遮蔽它。
+
+有三种方式可以拿到这个材质。
+
+### 1. Material Content Browser
+
+*Tools ▸ DreamShader ▸ Material Content Browser*，切到 **Dream Shader Gen** 页。它列出 `DShader/` 下
+的每个源文件，带编译状态和生成材质的缩略图：
+
+| 状态 | 含义 |
+| --- | --- |
+| `● up to date` | 资产存在，且其记录的源 hash 与当前源文件一致 |
+| `● stale` | 资产存在，但记录的 hash 不一致 |
+| `○ not compiled` | 解析出的对象路径上什么都没有 |
+| `▲ compile error` | 编译失败，或 `diagnostics.json` 中该文件有错误 |
+| `◆ function / header` | 该条目是 `.dsf` 或 `.dsh` |
+| `▲ unresolved` | 源文件读不出、解析不了，或没有顶层 `Shader` |
+
+选中一项后可以使用 **Compile**、**Create instance**、**Open material**、**Materialize** 和
+**Open source**。这是日常操作生成材质的正常入口。
+
+### 2. 让它们可见
+
+*Tools ▸ DreamShader ▸ Show In-Memory Materials*，或者 *Project Settings ▸ DreamPlugin ▸ Dream
+Shader ▸ Compiler ▸ Show In-Memory Materials In Content Browser* 里的同一个设置。切换时会立即为每个
+还活着的内存实例广播资产创建 / 删除事件，所以图块会立刻出现或消失，不需要重新扫描。
+
+当你要把生成的材质选作材质实例的 Parent，或者在细节面板里引用它时，就需要打开这个开关。
+
+<Callout type="warn">
+  开关打开时，内存材质看起来就是一个普通图块 —— 而对它执行显式 **Save** 会真的写出 `.uasset`。这个已
+  保存的资产随后会*遮蔽*该路径上的内存生成，编译器会开始输出
+  `In-memory material mode: '…' already exists as a saved asset, which shadows in-memory
+  regeneration.`。要落盘请用 *Materialize*，不要用 *Save*。补救方式是运行
+  *Tools ▸ DreamShader ▸ Clean Persisted Generated Assets*，它只删除带有 DreamShader 来源元数据的
+  资产。
+</Callout>
+
+### 3. Materialize
+
+**Materialize** 把材质和它隐藏的 base 作为一个 `.uasset` 写到磁盘：它以持久化模式加强制重建重新跑一次
+该源文件的生成流程，然后在解析出的路径上重新加载对象。Gen 页、细节面板和 Content Browser 右键菜单里
+都有这个按钮。
+
+```text
+磁盘上   <Project>/Content/DreamMaterials/M_DreamPulse.uasset
+  export  M_DreamPulse                        UDreamShaderMaterialInstance
+  export  MB_DreamThinBase_M_DreamPulse       UMaterial（隐藏，同一 package）
+```
+
+为一个内存材质创建子实例时，会先把父级 materialize，因为 transient 的 base 不能作为 parent import。
+Cook 会自动落盘 —— cook director 在 commandlet 的 `Main` 之前把每个项目源文件都生成为持久化资产。
+
+完整细节见[内存材质](/docs/generation/in-memory)。
+
+## 控制参数面板
+
+入门阶段写 `float` / `vec3` 就够了。当你想控制 Unreal 参数面板里的分组、排序和说明时，改成显式的参数
+节点并加上元数据块：
+
+```c
+Properties = {
+    VectorParameter Tint = float4(0.2, 0.6, 1.0, 1.0) [
+        Group="Color";
+        SortPriority=10;
+        Description="Main tint";
+    ];
+    ScalarParameter Strength = 1.0 [
+        Group="Color";
+        Slider(0, 4);
+    ];
+}
+```
+
+`Group`、`SortPriority` 和 `Description`（写入节点的 `Desc`）是被识别的键；其他任何键都会直接写到生成
+节点所属类的反射 UPROPERTY 上。`Slider(min, max)` <Since v="1.5.0" /> 展开成 `SliderMin` /
+`SliderMax`。见[元数据与分组](/docs/parameters/metadata)。
+
+## 排查
+
+| 现象 | 检查 |
+| --- | --- |
+| Content Browser 里什么都没有 | 正常。材质只在内存里 —— 用 Material Content Browser、可见性开关，或 *Materialize*。 |
+| 完全没有生成材质 | 确认文件在 *Source Directory* 下、扩展名是 `.dsm`、声明了顶层 `Shader`，且 *Auto Compile On Save* 已开启。 |
+| 保存 `.dsh` 什么都没生成 | 这是对的 —— header 从不直接生成资产。去编译依赖它的 `.dsm` / `.dsf`。 |
+| 输出是黑的 | `Outputs` 需要有 `Base.* = …` 绑定；声明了但从未赋值的输出不产生任何东西。 |
+| `UE.Expression` 解析不到类 | `Class` 必须命中**已加载**的非抽象 `UMaterialExpression` 子类，比较时不带 `U` 前缀。`OutputType` 必填。 |
+| 材质函数的调用方断线了 | 重命名输入或输出是破坏性改动 —— pin 身份是按名字恢复的。 |
+| 其他情况 | 看 Output Log（`LogDreamShader`），或 Gen 页上的错误行。到[诊断](/docs/diagnostics)里查这条消息。 |
+
+## 下一步
+
+- [项目结构](/docs/start/project-layout) —— 项目变大之后文件放哪里
+- [日常工作流](/docs/start/workflow) —— 什么会触发重建，什么不会
+- [Graph 语言](/docs/graph/overview) —— `Graph = { … }` 里能写什么
+- [Properties 类型](/docs/parameters/properties) —— 完整的 `Properties` 目录

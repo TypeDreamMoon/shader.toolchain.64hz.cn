@@ -1,0 +1,442 @@
+---
+title: 材质 Settings
+description: Shader 的 Settings 块 —— 六个特殊键、能触达任意 UMaterial 属性的反射解析器，以及重新生成时会被重置成什么。
+---
+
+`Settings` 把属性写到外层块生成的资产上。在 `Shader` 块里这个资产是 `UMaterial`，本页描述的就是你可以
+往里写什么。
+
+首先要知道最重要的一点：
+
+<Callout type="info">
+**`Settings` 不是一份固定的受支持键列表。** 只有六个键是手写处理的，其余任何键都通过 Unreal 反射解析到
+生成的 `UMaterial` 上 —— 包括嵌套结构体路径和定长数组索引。任何表格都无法穷尽这个面，因为那是引擎的
+属性集合，不是插件的。
+</Callout>
+
+```text
+Settings key
+   ├── one of  blendmode rendertype shadingmodel materialdomain domain backend
+   │             └── 手写处理：值经别名表解析
+   └── anything else
+                 └── 别名表  →  UMaterial / UMaterialInterface / UObject 属性查找
+                                        （名字、去掉 b 前缀的名字，或 DisplayName）
+                                     →  按属性的 C++ 类型解析值
+```
+
+## 块的形状
+
+<Synopsis>
+```c
+Settings [=] { <setting-statement> … }
+
+<setting-statement> := <key> = <value> ;
+<key>               := <segment> [ . <segment> ] …
+<segment>           := <identifier> [ [<integer>] ]
+<value>             := <bare-text> | "<text>"
+```
+</Synopsis>
+
+段名与 `{ … }` 之间的 `=` 是可选糖 <Since v="1.5.0" />。最后一条语句后的 `;` 可省略。
+`<segment>` 里的 `[<integer>]` 是**字面**标点；包在外面的 `[ … ]` 才是表示可选的元符号。
+
+一条语句是这样解析的：
+
+| # | 步骤 | 后果 |
+| --: | :-- | :-- |
+| 1 | 从整个块里剥掉 `//` 和 `/* … */` 注释 | 注释可以出现在任何位置，包括语句中间 |
+| 2 | 在括号深度 0 **且**方括号深度 0、且不在字符串内的位置按 `;` 拆分 | `Color = (R=1,G=0,B=0);` 是一条语句；空语句被丢弃 |
+| 3 | 每条语句按括号/方括号深度 0 且不在字符串内的**第一个** `=` 拆分 | `(R=1,G=0,B=0)` 内部的 `=` 不会拆分语句 |
+| 4 | 键做规范化 —— trim 并小写 | 键匹配不区分大小写 |
+| 5 | 值去引号 —— 若 trim 后的文本首尾都是 `"`，去掉引号并处理 `\` 转义；否则原样保留 | **所有 setting 的引号都是可选的** |
+| 6 | 键值对存入块的 map | 键重复时覆盖，后写的赢 |
+
+因为第 5 步，`TwoSided = true;` 和 `TwoSided = "true";` 完全相同，`Domain = Surface;` 与
+`Domain = "Surface";` 行为一致。一个块里可以有**多个** `Settings` 段；它们会合并成一个 map，
+同一个键写两次保留最后一个值。
+
+## 六个特殊键
+
+这六个键在 trim、小写**并且**删除空格、`_`、`-` 之后匹配，永远不会走到反射解析器：
+
+```text
+blendmode   rendertype   shadingmodel   materialdomain   domain   backend
+```
+
+| 规范键 | 同义键 | 取值语法 | 不写时的值 | 效果 |
+| :-- | :-- | :-- | :-- | :-- |
+| `BlendMode` | `RenderType` | [混合模式拼写](/docs/settings/enums#blendmode)之一 | `Opaque` | 设置 `UMaterial::BlendMode` |
+| `ShadingModel` | — | [ShadingModel 拼写](/docs/settings/enums#shadingmodel)之一 | `DefaultLit` | 调用 `SetShadingModel` |
+| `MaterialDomain` | `Domain` | [Domain 拼写](/docs/settings/enums#domain)之一 | `Surface` | 设置 `UMaterial::MaterialDomain` |
+| `Backend` | — | `Graph`、`ThinCustom`、`Instance` 或空字符串 | 项目的 *Default Compiler Backend* | 选择物化策略 —— 见 [Backend](/docs/settings/backend) |
+
+规范键与同义键同时出现时，**规范键**胜出：`BlendMode` 压过 `RenderType`，`MaterialDomain` 压过
+`Domain`。这个冲突没有任何诊断。
+
+<Callout type="warn">
+**只在空格、下划线或连字符上与特殊键不同的拼写会被静默丢弃。** `Blend_Mode = "Translucent";`
+并不会设置混合模式：直接探测 `BlendMode` 匹配不到存储的键 `blend_mode`，而反射循环又因为它去分隔符后的
+形式在特殊键名单上而跳过它。没有错误，没有警告，也没有效果。`Render_Type`、`Shading Model`、
+`Material-Domain`、中间带空格的 `Domain`、`Back_end` 同理。这六个名字请不带任何分隔符地写。
+</Callout>
+
+### 应用顺序
+
+1. 先校验**整个**块 —— 解析每个特殊值，并把每个通用值写到一份临时 `UMaterial` 上。只要有一个值不合法，
+   就在真正的材质被改动之前中止。
+2. 先 `BlendMode`，再 `ShadingModel`，再 `MaterialDomain`。
+3. 通用键，按解析出的 map 的迭代顺序。
+
+<Callout type="info">
+通用键那一遍迭代的是哈希表，因此**两个通用键之间没有任何顺序保证**。三个特殊键总是先写，
+所以像 `TranslucencyLightingMode` 这种与混合模式相关的属性看到的是最终的混合模式。
+</Callout>
+
+`Backend` 在任何材质对象存在之前就被消费 —— 无法识别的 `Backend` 值会**先于** `Settings` 的其余校验
+让编译失败，因此该文件不会再报其他设置诊断。
+
+### 与 `Base.FrontMaterial` 的关系
+
+只要有输出绑定了 `Base.FrontMaterial`，显式写一个不是 `Substrate` 或 `Strata` 的 `ShadingModel`
+就是硬错误；否则会在块应用完之后把 shading model 强制设为 Substrate。在同一个 `Shader` 上同时绑定
+`Base.FrontMaterial` 和 `Base.MaterialAttributes` 也是硬错误。`Substrate` 本身需要
+<Since v="5.4" ue />。
+
+## 反射解析器
+
+所有非特殊键都通过 Unreal 反射解析到生成的材质上。
+
+| # | 步骤 | 细节 |
+| --: | :-- | :-- |
+| 1 | 在方括号深度 0 处按 `.` 把键拆成段 | `Lightmass.DiffuseBoost` → `Lightmass`、`DiffuseBoost`。`[ … ]` 内的 `.` 不拆分。 |
+| 2 | 解析每段可选的末尾 `[<integer>]` | 索引必须是非负整数，且 `]` 必须是该段最后一个字符 |
+| 3 | 段名过一遍[别名表](#别名表) | **逐段**应用，在字段扫描之前 |
+| 4 | 在当前结构体上扫描 `TFieldIterator<FProperty>`，**包含父类** | 于是 `UMaterial`、`UMaterialInterface` 和 `UObject` 的属性都可达 |
+| 5 | 下钻 | 非末段必须是 `FStructProperty`，遍历继续进入该结构体 |
+| 6 | 写入值 | 按解析出的属性的 C++ 类型解析 |
+
+### 属性名匹配
+
+以下三者中任意一个在删除空格、`_`、`-` 并小写后与该段相等，就算匹配：
+
+| 规则 | 示例 |
+| :-- | :-- |
+| 原始 `FProperty` 名 | `TwoSided` ← `TwoSided`、`two_sided`、`TWO SIDED`、`two-sided` |
+| **去掉开头 `b` 后的**属性名，前提是名字是 `b` 加一个大写字母 | `bFullyRough` ← `FullyRough`；`bIsSky` ← `IsSky`；`bIsThinSurface` ← `IsThinSurface` |
+| 属性的 `DisplayName` 元数据 | 引擎为该属性声明的任何值 |
+
+去 `b` 规则是单向且宽松的：完整名字同样能匹配，所以 `bFullyRough = true;` 和 `FullyRough = true;`
+解析到同一个属性。名字以小写 `b` 开头但后面不是大写字母的属性（比如 `bias`）不会被去 `b`。
+
+### 嵌套路径与数组索引
+
+| 形式 | 含义 | 示例 |
+| :-- | :-- | :-- |
+| `A.B` | 结构体属性 `A` 里的 `B` | `Lightmass.DiffuseBoost = 1.5;` |
+| `A.B.C` | 任意深度，每个非末段都是 `FStructProperty` | `NaniteOverrideMaterial.bEnableOverride = true;` |
+| `A[N]` | 定长 C 数组（`ArrayDim > 1`）的第 `N` 个元素 | `PhysicalMaterialMap[2] = Path(Game, "Physics/PM_Metal");` |
+| `A[N].B` | 索引到的结构体元素的成员 | 索引与路径段可以自由组合 |
+
+对 `ArrayDim` 为 1 的属性写 `[N]` 是错误；对 `ArrayDim` 大于 1 的属性不写 `[N]` 同样是错误。
+`TArray`、`TMap`、`TSet` 属性**不能**用这种方式索引 —— 它们会落到[取值语法](#取值语法)里的
+`ImportText` 兜底分支。
+
+### 别名表
+
+字段扫描之前，会逐段应用十个固定的键别名。别名键按去分隔符、小写后的形式比较，所以 `Lighting_Mode`、
+`Lighting Mode` 和 `LIGHTINGMODE` 都命中第一行。
+
+| 别名 | 解析为 |
+| :-- | :-- |
+| `LightingMode` | `TranslucencyLightingMode` |
+| `TranslucentLightingMode` | `TranslucencyLightingMode` |
+| `RefractionMode` | `RefractionMethod` |
+| `PhysicalMaterial` | `PhysMaterial` |
+| `PhysicalMaterialMask` | `PhysMaterialMask` |
+| `Lightmass` | `LightmassSettings` |
+| `MobileSeparateTranslucency` | `bEnableMobileSeparateTranslucency` |
+| `AlwaysEvaluateWorldPositionOffset` | `bAlwaysEvaluateWorldPositionOffset` |
+| `ResponsiveAA` | `bEnableResponsiveAA` |
+| `ThinSurface` | `bIsThinSurface` |
+
+由于别名是逐段应用的，`Lightmass.DiffuseBoost` 解析为 `LightmassSettings` → `DiffuseBoost`。
+
+## 取值语法
+
+解析出的属性的 C++ 类型决定值文本怎么解析。值此时已经去过引号，所以 `true` 和 `"true"` 是同一个输入。
+
+| 属性类型 | 接受的字面量 | 失败信息 |
+| :-- | :-- | :-- |
+| `bool` | `true` / `false`，不区分大小写 | `'{Value}' is not a valid boolean value for '{Property}'.` |
+| `int32` | 有符号整数字面量 | `'{Value}' is not a valid integer value for '{Property}'.` |
+| `uint32` | `[0, 4294967295]` 内的整数 | `'{Value}' is not a valid unsigned integer value for '{Property}'.` |
+| `float` | 任意数值字面量；也接受 `true` → `1.0`、`false` → `0.0` | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `double` | 同 `float` | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FString` | 任意文本，trim 后写入 —— **从不失败** | — |
+| `FName` | 任意文本，trim 后写入 —— **从不失败** | — |
+| 对象引用 | `Path( … )` 或绝对对象路径 | `Object property '{Property}' expects Path(...) or an absolute Unreal object path.` 以及加载/类型错误 |
+| `enum class` | [枚举字面量](#枚举字面量) | `'{Value}' is not a valid enum value for '{Property}'.` |
+| 以枚举为底的 `uint8` | [枚举字面量](#枚举字面量) | `'{Value}' is not a valid enum value for '{Property}'.` |
+| 普通 `uint8` | `[0, 255]` 内的整数 | `'{Value}' is not a valid byte value for '{Property}'.` |
+| 其他 | Unreal 的结构体字面量文本，如 `(R=1.0,G=0.0,B=0.0,A=1.0)` | `Property '{Property}' on '{Object}' is not a supported literal type yet.` |
+
+无论命中哪条，都会被包装成
+`Invalid value '{Value}' for setting '{Key}'. {TypeMessage}`。
+
+### 枚举字面量
+
+枚举类型的值在 trim、小写并删除所有空格、`_`、`-`、`:`、`.`、`/` 之后匹配。带 `Hidden` 元数据的值会被
+跳过。候选可以是枚举短名（`TLM_Surface`）、全限定名（`ETranslucencyLightingMode::TLM_Surface`）、
+display name（`Surface`），或短名去掉第一个 `_` 及之前部分（`Surface`）。
+
+这套匹配与[枚举取值](/docs/settings/enums)里 `ShadingModel` / `BlendMode` / `Domain` 的别名表是
+**两回事** —— 那三个键根本走不到这段代码。
+
+### `Path( … )` 取值
+
+| 形式 | 含义 |
+| :-- | :-- |
+| `Path("/Game/Foo/Bar")` | 绝对对象路径，单实参 |
+| `Path(Game, "Foo/Bar")` | `/Game/Foo/Bar` |
+| `Path(Engine, "Foo/Bar")` | `/Engine/Foo/Bar` |
+| `Path(Plugin.PluginName, "Foo/Bar")` | 指定插件的内容根 |
+| `/Game/Foo/Bar` | 裸的绝对路径，不带 `Path( … )` |
+
+完整的 root 目录及其错误见 [Path 资产引用](/docs/parameters/path)。
+
+<Callout type="info">
+如果对象类型属性的类派生自 `UTexture`，**且**属性名恰好是 `Texture` 或 `TextureObject`，那么资产加载
+失败时会写入 `nullptr` 而不是报错。这是材质表达式的惯例，这里同样适用。
+</Callout>
+
+<Callout type="warn">
+当对象类型的值*看起来*像路径（以 `Path(` 或 `/` 开头）却解析失败时，类型相关的说明是空的，诊断会退化成
+`Invalid value '/Game/Nope' for setting 'physmaterial'. `，句号后面什么都没有。此时请检查资产是否存在、
+类是否与属性匹配。
+</Callout>
+
+## 校验
+
+在写入真正的材质之前，每个通用键值对都会先应用到一份临时探针 `UMaterial` 上。探针写入和真实写入用的是
+同一段代码，所以校验通过的值一定能应用成功。这一阶段独有的失败只有
+`Failed to create a transient material for Settings validation.`
+
+## 不写某个设置时会重置成什么
+
+生成的材质会在应用 `Settings` 之前被重置。因此没写的键**不是**“沿用上次生成的值”，而是取下表的值。
+
+| 属性 | 重置值 |
+| :-- | :-- |
+| `BlendMode` | `Opaque` |
+| `MaterialDomain` | `Surface` |
+| shading model | `DefaultLit` |
+| `TwoSided` | `false` |
+| `OpacityMaskClipValue` | `0.3333` |
+| `Wireframe` | `false` |
+| `DitheredLODTransition` | `false` |
+| `DitherOpacityMask` | `false` |
+| `bAllowNegativeEmissiveColor` | `false` |
+| `bCastDynamicShadowAsMasked` | `false` |
+| `bCastRayTracedShadows` | `true` |
+| `bEnableResponsiveAA` | `false` |
+| `bScreenSpaceReflections` | `false` |
+| `bContactShadows` | `false` |
+| `bDisableDepthTest` | `false` |
+| `bOutputTranslucentVelocity` | `false` |
+| `bWriteOnlyAlpha` | `false` |
+| `BlendableOutputAlpha` | `false` |
+| `TranslucencyLightingMode` | `TLM_VolumetricNonDirectional` |
+| `bTangentSpaceNormal` | `true` |
+| `bAlwaysEvaluateWorldPositionOffset` | `false` |
+| `bFullyRough` | `false` |
+| `bIsSky` | `false` |
+| `bIsThinSurface` | `false` |
+| `MaterialDecalResponse` | `MDR_ColorNormalRoughness` |
+| `bHasPixelAnimation` <Since v="5.4" ue /> | `false` |
+| `NumCustomizedUVs` | `0` |
+
+其余 `UMaterial` 属性保持新构造材质的样子。凡是必须在重新生成后仍然存在的设置，都要写在 `Settings` 里，
+而不是在生成的资产上手改。
+
+## 哪些设置能挺过反编译往返
+
+[反编译器](/docs/tools/decompiler)无条件写出 `Domain`、`ShadingModel` 和 `BlendMode`，另外只在与
+`UMaterial` 类默认值不同时写出下面这些。这就是 `UMaterial` → `.dsm` → `UMaterial` 往返能保证保留的集合；
+它是 `Settings` 可接受范围的子集，而不是上限。
+
+**布尔（39 个，按写出顺序）**
+
+```text
+TwoSided                    Wireframe                     DitheredLODTransition
+DitherOpacityMask           bAllowNegativeEmissiveColor   bCastDynamicShadowAsMasked
+bEnableResponsiveAA         bScreenSpaceReflections       bContactShadows
+bDisableDepthTest           bOutputTranslucentVelocity    bTangentSpaceNormal
+bFullyRough                 bIsSky                        bIsThinSurface
+bHasPixelAnimation          bUsedWithSkeletalMesh         bUsedWithMorphTargets
+bUsedWithClothing           bUsedWithNanite               bUsedWithEditorCompositing
+bUsedWithParticleSprites    bUsedWithBeamTrails           bUsedWithMeshParticles
+bUsedWithNiagaraSprites     bUsedWithNiagaraRibbons       bUsedWithNiagaraMeshParticles
+bUsedWithGeometryCache      bUsedWithStaticLighting       bUsedWithSplineMeshes
+bUsedWithInstancedStaticMeshes                            bUsedWithGeometryCollections
+bUsedWithHairStrands        bUsedWithWater                bUsedWithVirtualHeightfieldMesh
+bCastRayTracedShadows       bWriteOnlyAlpha               BlendableOutputAlpha
+bAlwaysEvaluateWorldPositionOffset
+```
+
+`bHasPixelAnimation` 只在 <Since v="5.4" ue /> 上写出。
+
+**枚举（1 个）** —— `MaterialDecalResponse`。
+
+可达但从不写出、因而在往返中丢失的：`OpacityMaskClipValue`、`NumCustomizedUVs`、
+`TranslucencyLightingMode`、`RefractionMethod`、`RefractionDepthBias`、`TranslucencyPass`、
+`ShadingRate`、`FloatPrecisionMode`、`BlendableLocation`、`BlendablePriority`、`bIsBlendable`、
+`UserSceneTexture`、`StencilCompare`、`StencilRefValue`、`bEnableStencilTest`、
+`MaxWorldPositionOffsetDisplacement`、`PhysMaterial`、`PhysMaterialMask`、`PhysicalMaterialMap[N]`、
+`Lightmass.*`、`DisplacementScaling.*`、`NaniteOverrideMaterial.*`，以及解析器能触达的其他所有引擎属性。
+
+## 材质函数的 Settings
+
+`ShaderFunction`、`ShaderLayer` 或 `ShaderLayerBlend` 上的 `Settings` 块与上面这一切**毫无关系**。
+那里只读四个键：
+
+| 键 | 设置 | 取值语法 | 不写时的值 |
+| :-- | :-- | :-- | :-- |
+| `Description` | `UMaterialFunction::Description` | 自由文本 | 清空为空字符串 |
+| `UserExposedCaption` | `UMaterialFunction::UserExposedCaption` | 自由文本 | 清空为空字符串 |
+| `ExposeToLibrary` | `UMaterialFunction::bExposeToLibrary` | `true` / `false` | `false` |
+| `LibraryCategories` | `UMaterialFunction::LibraryCategoriesText` | 逗号分隔列表，每项 trim，空项丢弃 | 清空分类列表 |
+
+```c
+Settings = {
+    Description        = "Multiplies a colour by a tint.";
+    UserExposedCaption = "Tint";
+    ExposeToLibrary    = true;
+    LibraryCategories  = "DreamShader, Color";
+}
+```
+
+这里的键只按 trim 和小写匹配 —— 空格、下划线、连字符**不会**被折叠，所以 `Expose_To_Library`
+不是 `ExposeToLibrary`。
+
+<Callout type="warn">
+**其他任何键都被静默忽略。** 材质函数的 `Settings` map 没有任何校验环节：只查这四个名字，其余全部丢弃，
+既不报错也不警告。`Backend`、`Domain`、`ShadingModel`、`BlendMode`、`TwoSided` 以及本页其他所有键在
+`ShaderFunction` 块里**什么都不做** —— 把这四个键拼错也一样。
+</Callout>
+
+<Callout type="warn">
+反编译器把 `UMaterialFunction` 导出成 `.dsf` 时不会写出 `Settings` 块。这四个值在那次往返中全部丢失，
+必须手工补回。
+</Callout>
+
+## 备注
+
+- 反射的面是**引擎的**，不是插件的。自定义或修改过的引擎会通过同一个解析器暴露它自己的属性和枚举值，
+  所以本页只描述原版 UE 5.3 – 5.8 的面。
+- 在 [ThinCustom 后端](/docs/settings/backend)下，所有设置都落在**隐藏的基础 `UMaterial`** 上，
+  而不是导出的实例上。从实例上读混合模式看到的是继承来的值。
+- 键在存储时被小写，因此诊断里引用的 `{Key}` 是**小写**拼写，不是源码里写的。每条信息还会带上源文件路径前缀。
+
+## 诊断
+
+<Diag>
+  <D msg="Unsupported material setting '{Key}'." cause="没有属性匹配某个路径段 —— 常见的未知键错误。" fix="到 UMaterial 上核对属性名，或确认该键是否需要别名。" />
+  <D msg="Unsupported BlendMode/RenderType '{Value}'." cause="值既不匹配项目映射也不匹配内置别名。" href="/docs/settings/enums" />
+  <D msg="Unsupported ShadingModel '{Value}'." cause="值既不匹配项目映射也不匹配内置别名。" href="/docs/settings/enums" />
+  <D msg="Unsupported MaterialDomain '{Value}'." cause="值既不匹配项目映射也不匹配内置别名。" href="/docs/settings/enums" />
+  <D msg='ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.' cause="在 UE 5.3 上值 trim 并折叠大小写后是 Substrate 或 Strata。" />
+  <D msg="Invalid value '{Value}' for setting '{Key}'. {TypeMessage}" cause="字面量写入失败。对于形似路径但解析失败的对象值，{TypeMessage} 是空的。" />
+  <D msg="Setting path segment cannot be empty." cause="用 . 分隔时出现空段，如 Foo..Bar。" />
+  <D msg="Invalid array setting segment '{Segment}'." cause="方括号写法有误 —— 缺 ]、] 在 [ 之前、] 不在末尾，或 [ 之前没有内容。" />
+  <D msg="Invalid array index '{Index}' in setting segment '{Segment}'." cause="索引不是整数，或为负数。" />
+  <D msg="Setting '{Segment}' is not an indexed array property." cause="对 ArrayDim 为 1 的属性用了 [N]。" />
+  <D msg="Array index {Index} is out of range for setting '{Segment}' (max {Max})." cause="索引达到或超过 ArrayDim。" />
+  <D msg="Setting '{Segment}' requires an explicit [index]." cause="定长数组属性没写 [N]。" />
+  <D msg="Setting path '{Key}' cannot continue through '{Segment}'." cause="非末段不是结构体属性。" />
+  <D msg="Invalid material setting path '{Key}'." cause="键没有产出任何路径段。" />
+  <D msg="Invalid material setting target." cause="解析器没有拿到对象。" />
+  <D msg="Failed to create a transient material for Settings validation." cause="探针材质无法分配。" />
+  <D msg="Invalid setting declaration '{Statement}'." cause="语句在括号/方括号深度 0 处没有 =。" />
+  <D msg="Invalid empty setting key in '{Statement}'." cause="= 之前的文本 trim 后为空。" />
+  <D msg='{File}: Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.' cause="有 Base.FrontMaterial 绑定，却显式写了非 Substrate 的 shading model。" />
+  <D msg="{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader." cause="同一个 Shader 上同时有这两个绑定。" />
+  <D msg="{Kind} '{Name}': ExposeToLibrary must be true or false." cause="材质函数的 ExposeToLibrary 值不是布尔字面量。" />
+</Diag>
+
+`Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` 由后端解析器更早抛出 ——
+见 [Backend](/docs/settings/backend)。
+
+## 示例
+
+```c
+Shader(Name="Docs/M_ShaderSettings", Root="Game")
+{
+    Properties {
+        VectorParameter BaseColor = float4(0.8, 0.8, 0.8, 1.0) [Group="Surface"];
+        ScalarParameter Roughness = 0.55                       [Group="Surface"; Slider(0, 1)];
+    }
+
+    Settings {
+        // 特殊键。
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Masked";
+
+        // 反射布尔；b 前缀可写可不写。
+        TwoSided   = true;
+        FullyRough = true;
+        bIsSky     = false;
+
+        // 反射的数值与枚举。
+        OpacityMaskClipValue  = 0.25;
+        MaterialDecalResponse = "ColorNormalRoughness";
+
+        // 别名 -> TranslucencyLightingMode，按 display name 匹配。
+        LightingMode = "Surface";
+
+        // 嵌套结构体路径。
+        Lightmass.DiffuseBoost = 1.5;
+
+        // 对象引用。
+        PhysicalMaterial = Path(Engine, "EngineMaterials/DefaultPhysicalMaterial");
+    }
+
+    Outputs {
+        vec3  Color;
+        float Rough;
+        float Mask;
+        Base.BaseColor   = Color;
+        Base.Roughness   = Rough;
+        Base.OpacityMask = Mask;
+    }
+
+    Graph {
+        Color = BaseColor.rgb;
+        Rough = Roughness;
+        Mask  = BaseColor.a;
+    }
+}
+```
+
+生成后的材质状态：
+
+```text
+BlendMode                = BLEND_Masked
+MaterialDomain           = MD_Surface
+ShadingModel             = MSM_DefaultLit
+TwoSided                 = true
+bFullyRough              = true
+bIsSky                   = false
+OpacityMaskClipValue     = 0.25
+MaterialDecalResponse    = MDR_ColorNormalRoughness
+TranslucencyLightingMode = TLM_Surface
+LightmassSettings.DiffuseBoost = 1.5
+PhysMaterial             = /Engine/EngineMaterials/DefaultPhysicalMaterial
+```
+
+## 下一步
+
+- [枚举取值](/docs/settings/enums) —— 全部可接受的 `ShadingModel`、`BlendMode`、`Domain` 拼写
+- [Backend](/docs/settings/backend) —— 第六个特殊键，以及每种后端产出什么
+- [项目设置](/docs/settings/project) —— 扩展枚举拼写的映射表
+- [重新生成](/docs/generation/regeneration) —— 一次重建会重置什么

@@ -1,0 +1,711 @@
+---
+title: Expressions and Conversions
+description: The four operators, their precedence, literals, constructors, swizzles, and the coercion rules that decide when a value silently changes width.
+---
+
+The value-producing half of the Graph language: literals, identifiers, calls, member access and four
+arithmetic operators, evaluated into `UMaterialExpression` nodes. Everything on this page also
+applies inside an `Outputs` binding expression and an `Outputs` declaration default, which are single
+expressions in the same grammar.
+
+## Synopsis
+
+<Synopsis>
+```c
+<expression>     := <additive>
+<additive>       := <multiplicative> [ { + | - } <multiplicative> ] …
+<multiplicative> := <unary> [ { * | / } <unary> ] …
+<unary>          := { + | - } <unary> | <postfix>
+<postfix>        := <primary> [ <postfix-op> ] …
+<postfix-op>     := . <identifier> | :: <identifier> | ( [ <argument> [ , <argument> ] … ] )
+<primary>        := <identifier> | <number-literal> | <string-literal> | ( <additive> )
+<argument>       := [ <identifier> = ] <additive>
+```
+</Synopsis>
+
+That is the whole grammar. `( ) , . :: = + - * /` are the only punctuation it knows.
+
+## Precedence and associativity
+
+Highest binding first. The parser implements exactly these four levels — there is no fifth.
+
+| Level | Operators | Arity | Associativity | Notes |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 | `f(…)` call, `.member`, `::name` | postfix | left | chains freely: `A::F(x).rgb.b` |
+| 2 | `+` `-` | unary, prefix | right | recursive, so `--x` parses and is legal |
+| 3 | `*` `/` | binary | left | `a / b / c` is `(a / b) / c` |
+| 4 | `+` `-` | binary | left | `a - b - c` is `(a - b) - c` |
+| — | `( … )` grouping | — | — | overrides the levels above; generates no node |
+
+### Operators that do not exist
+
+| Category | Spellings absent from the grammar |
+| :-- | :-- |
+| Modulo | `%` — use the `fmod` / `mod` builtin |
+| Comparison | `==` `!=` `<` `>` `<=` `>=` — legal **only** in an `if` condition |
+| Logical | `&&` `\|\|` `!` |
+| Bitwise / shift | `&` `\|` `^` `~` `<<` `>>` |
+| Conditional | `? :` |
+| Increment / decrement | `++` `--` |
+| Compound assignment | `+=` `-=` `*=` `/=` |
+| Assignment inside an expression | `=`, outside a named call argument |
+| Indexing | `[ ]` — use a [swizzle](#swizzles) |
+| Comma operator | `,`, outside a call argument list |
+| Matrix types and operators | none exist anywhere in the language |
+
+<Callout type="warn">
+**Unknown characters terminate an expression silently.** The tokenizer maps every character it does
+not recognise to the end-of-input token, and the parser accepts an expression followed by
+end-of-input. So `a % b` compiles as `a`, `a && b` as `a`, `v[0]` as `v` — with no diagnostic. Two
+positions do report it: a leading unknown character (`!x`) errors, and one inside parentheses
+(`(a % b)`) errors because the `)` is never found. Wrapping a suspect expression in parentheses is
+the reliable way to make truncation visible. The full catalogue is on
+[What Graph Is Not](/en/docs/graph/unsupported).
+</Callout>
+
+## Operand rules
+
+Both operands of `+ - * /` are tested in this order.
+
+| # | Test | Outcome when it fails |
+| --: | :-- | :-- |
+| 1 | Neither operand is a texture object | `Arithmetic operators cannot be applied to texture values.` |
+| 2 | Neither operand is a `MaterialAttributes` value | `Arithmetic operators cannot be applied to MaterialAttributes values.` |
+| 3 | Neither operand is a `Substrate` value | `Arithmetic operators cannot be applied to Substrate values.` |
+| 4 | Component counts are equal, **or** either operand is a scalar | one rescue attempt (rule 5), then rule 6 |
+| 5 | Rescue: if exactly one operand carries an authoritative component count, the other may be **widened** to it | rescue skipped |
+| 6 | Compatibility re-tested | `Operator '{Op}' requires matching vector sizes or a scalar/vector pair, got {Left} and {Right} component(s).` |
+
+Rule 5 in full: the widened operand must be the one *without* an authoritative count, the
+authoritative count must be greater than zero, and the other operand's count must be **less than or
+equal to** it. Narrowing is never attempted at an operator — dropping channels there is deliberately
+refused so the size error surfaces instead.
+
+There is no separate scalar-promotion step. A scalar operand is passed to the material node as-is and
+Unreal replicates it, so `A * K` with `A` a `vec3` and `K` a `float` produces a single `Multiply`
+node, not an `AppendVector` splat.
+
+### Result of a binary operator
+
+| Property | Value |
+| :-- | :-- |
+| Node | `Add` / `Subtract` / `Multiply` / `Divide` |
+| Component count | `max(left, right)` after rule 5 |
+| Authoritative component count | set when **either** operand had one |
+| Input channel mask | cleared — the result is a full-width value |
+| Integer marker | **not** propagated; the result of any operator is non-integer |
+
+## Unary operators
+
+| Form | Lowering | Node cost | Result |
+| :-- | :-- | :-- | :-- |
+| `+x` | identity | none | `x` unchanged, all flags preserved |
+| `-x` | `Multiply(x, Constant(-1))` | one `Multiply`, plus one `Constant` shared with every other unary minus in the asset | component count of `x` |
+
+`-2.0` is *not* folded into a negative literal by the expression evaluator: it becomes
+`Constant(2.0) * Constant(-1)`. Inside a **constructor argument** it is folded, because constant
+folding accepts a leading `+` or `-` on a literal — `vec3(-1.0, 0.0, 1.0)` emits a single
+`Constant3Vector`.
+
+## Integer division
+
+`/` is the only operator with an extra type rule:
+
+```text
+Integer division is not supported by the material graph; use float() or floor(a/b).
+```
+
+It fires when **both** operands carry the integer marker. That marker is set by exactly one thing: a
+direct call to an integer constructor (`int`, `int2..4`, `ivec2..4`, `uint`, `uint2..4`,
+`uvec2..4`). It is not set by literals, by variables, by suffixed literals such as `3u`, or by the
+result of any operator.
+
+| Expression | Result |
+| :-- | :-- |
+| `int(7) / int(2)` | error |
+| `int(7) / 2` | allowed — `2` is a literal and carries no marker |
+| `7 / 2` | allowed — a float `Divide` producing `3.5` |
+| `float(int(7)) / int(2)` | allowed — every constructor assigns the marker from its own name, so `float(…)` clears it |
+| `int a = int(7); int b = int(2); a / b` | error — the marker travels with the variable |
+| `int a = 7; int b = 2; a / b` | allowed — the `int` *declaration type* sets no marker; only an `int(…)` *call* does |
+
+<Callout type="info">
+The marker exists solely to reject this one case. `int`, `uint`, `bool` and `half` are otherwise
+indistinguishable from `float` in the generated graph — there is no integer arithmetic and no
+truncation.
+</Callout>
+
+## Literals
+
+### Numeric literals
+
+<Synopsis>
+```c
+<number-literal> := { <digit> | . } … [ { e | E } [ { + | - } ] <digit> … ] [ <suffix> ]
+<suffix>         := { f | F | h | H | u | U | l | L }
+```
+</Synopsis>
+
+Every numeric literal is a **1-component floating-point value**. There is no integer literal type.
+
+| Written | Value | Result |
+| :-- | :-- | :-- |
+| `1` | 1.0 | `Constant`, 1 component |
+| `1.0` | 1.0 | the **same** `Constant` node as `1` |
+| `.5` | 0.5 | `Constant` — a leading `.` is legal |
+| `1e-3` | 0.001 | `Constant` |
+| `2.5E+2` | 250.0 | `Constant` |
+| `0.55f` | 0.55 | `Constant` — the suffix is stripped |
+| `3u` | 3.0 | `Constant` — **not** an integer value |
+| `0.5.5` | 0.5 | `Constant` — the conversion keeps the longest valid prefix and **silently discards** the rest |
+| `0x10` | — | error: `Unexpected token 'x10' in Graph expression.` |
+| `1.0fx` | — | error: `Unexpected token 'fx' in Graph expression.` |
+| `3ul` | — | error: `Unexpected token 'ul' in Graph expression.` |
+
+Lexing details:
+
+- Digits and `.` are consumed greedily into one token. **Multiple `.` are accepted**, and the
+  numeric conversion is permissive: it takes the longest valid prefix and throws the remainder away
+  without a diagnostic, so `0.5.5` is `0.5` and `0..5` is `0`.
+- At most **one** exponent is consumed. A second `e` / `E` terminates the token and begins an
+  identifier.
+- There is **no** hexadecimal, binary or octal notation, and no digit separators.
+- A leading `-` is not part of the literal; it is the unary minus operator.
+
+The eight suffixes `f F h H u U l L` are consumed and excluded from the token text. They have no
+semantic effect at all — not on the type, not on the width, not on the integer marker. Exactly one
+suffix character is allowed, and it is consumed only when the next character is not alphanumeric and
+not `_`. That is what distinguishes `0.55f;` from `1.0fx`.
+
+### String literals
+
+A string literal is tokenized with escapes decoded and **never evaluates to a value**. It is legal
+only where an argument handler reads the literal *text* rather than evaluating it: a named `UE.*` or
+`Substrate.*` argument, an `Output=` / `OutputName=` selector, or a `Path(…)` asset reference.
+
+| Escape | Produces |
+| :-- | :-- |
+| `\n` | line feed |
+| `\r` | carriage return |
+| `\t` | tab |
+| `\"` | `"` |
+| `\\` | `\` |
+| `\` + any other character | that character, backslash dropped |
+
+```c
+vec4 Scene = UE.SceneTexture(Id = "PostProcessInput0");   // fine
+float x    = "0.5";   // String literals can only be used in named UE builtin arguments.
+```
+
+<Callout type="info">
+An **unterminated** string literal is not diagnosed. The lexer consumes to end of input and emits
+what it collected; the failure surfaces later as a missing `)` or a truncated statement.
+</Callout>
+
+### Boolean literals
+
+`true` and `false` *(unreleased)* lex as ordinary identifiers and resolve **late** — after Graph
+variables and after declared properties. They produce a `UMaterialExpressionStaticBool` node with one
+component, matched case-insensitively, and are the only way to feed a `StaticSwitch` input or a
+`StaticBool` function input from a `Graph` block.
+
+<Callout type="warn">
+Because they resolve after variables and properties, a Graph variable or a declared property named
+`True` or `False` shadows the literal, silently. Avoid those names.
+</Callout>
+
+## Identifier resolution
+
+A bare identifier is looked up on three surfaces, in order:
+
+| Order | Surface | Case | Result |
+| --: | :-- | :-- | :-- |
+| 1 | an existing Graph value — declared, assigned, or a parameter already materialized in this scope | insensitive | the stored value |
+| 2 | a declared property or parameter — function-local `Properties` first, then the enclosing block's | insensitive | the parameter node, created on first read and cached under the property's declared name |
+| 3 | `true` / `false` | insensitive | a `StaticBool` node |
+| 4 | no match | — | `Unknown Graph identifier '{Name}'.` |
+
+Step 1 compares the exact spelling first, then falls back to a case-insensitive scan. Step 2 is where
+a parameter becomes a node: it is created lazily on first read and inserted into the value map, so
+every later read is served by step 1.
+
+<Callout type="info">
+A `StaticSwitchParameter` property deliberately does **not** resolve as a bare identifier — it needs
+its two branches. Reading one by name fails with `Unknown Graph identifier '{Name}'.`; use the call
+form. See [Calls](/en/docs/graph/calls#staticswitchparameter).
+</Callout>
+
+Graph variable *lookup* is case-insensitive, but the value map is keyed by the spelling used at the
+assignment. `float3 Color = …;` followed by `color = …;` writes a **second** entry; later reads take
+whichever the exact-match test finds, and fall back to the first case-insensitive hit otherwise. Keep
+one spelling per variable.
+
+## Constructors
+
+<Synopsis>
+```c
+<constructor-call> := <constructor-name> ( <expression> [ , <expression> ] … )
+```
+</Synopsis>
+
+**34 names**, all matched case-insensitively. Component count is decided purely by the **last
+character** of the name: `2` → 2, `3` → 3, `4` → 4, anything else → 1.
+
+| Name | Components | Integer-marked | Family |
+| :-- | --: | :-- | :-- |
+| `float` | 1 | no | HLSL float |
+| `float1` | 1 | no | HLSL float |
+| `float2` | 2 | no | HLSL float |
+| `float3` | 3 | no | HLSL float |
+| `float4` | 4 | no | HLSL float |
+| `half` | 1 | no | HLSL half — identical behaviour to `float` |
+| `half1` | 1 | no | HLSL half |
+| `half2` | 2 | no | HLSL half |
+| `half3` | 3 | no | HLSL half |
+| `half4` | 4 | no | HLSL half |
+| `vec2` | 2 | no | GLSL float vector |
+| `vec3` | 3 | no | GLSL float vector |
+| `vec4` | 4 | no | GLSL float vector |
+| `int` | 1 | **yes** | HLSL signed integer |
+| `int2` | 2 | **yes** | HLSL signed integer |
+| `int3` | 3 | **yes** | HLSL signed integer |
+| `int4` | 4 | **yes** | HLSL signed integer |
+| `ivec2` | 2 | **yes** | GLSL signed integer vector |
+| `ivec3` | 3 | **yes** | GLSL signed integer vector |
+| `ivec4` | 4 | **yes** | GLSL signed integer vector |
+| `uint` | 1 | **yes** | HLSL unsigned integer |
+| `uint2` | 2 | **yes** | HLSL unsigned integer |
+| `uint3` | 3 | **yes** | HLSL unsigned integer |
+| `uint4` | 4 | **yes** | HLSL unsigned integer |
+| `uvec2` | 2 | **yes** | GLSL unsigned integer vector |
+| `uvec3` | 3 | **yes** | GLSL unsigned integer vector |
+| `uvec4` | 4 | **yes** | GLSL unsigned integer vector |
+| `bool` | 1 | no | HLSL boolean |
+| `bool2` | 2 | no | HLSL boolean |
+| `bool3` | 3 | no | HLSL boolean |
+| `bool4` | 4 | no | HLSL boolean |
+| `bvec2` | 2 | no | GLSL boolean vector |
+| `bvec3` | 3 | no | GLSL boolean vector |
+| `bvec4` | 4 | no | GLSL boolean vector |
+
+Names that look like they should exist and do not: `vec1`, `ivec1`, `uvec1`, `bvec1` (the GLSL
+families start at 2); `int1`, `uint1`, `bool1` (only `float1` and `half1` have a `1` spelling);
+`hvec2..4` (no GLSL half family); `double`, `dvec2..4`; `float2x2`, `float3x3`, `float4x4`, `mat2`,
+`mat3`, `mat4` (there are **no matrix types anywhere** in the language); and the removed aliases
+`Scalar`, `Vector`, `Color`. Each of those lexes as an ordinary identifier, falls through to the
+user-function lookup, and reports `Unknown Graph function '{Name}'.`
+
+<Callout type="warn">
+**Constructor names shadow everything.** The constructor test is the *first* step of call resolution,
+before `UE.*`, `Substrate.*`, math builtins, parameters and every user declaration. A `Function`,
+`GraphFunction`, `ShaderFunction` or `VirtualFunction` named `float3`, `int`, `bool4` or `vec2` can
+be declared without a diagnostic and can **never** be called — every call site builds a constructor
+instead. Rename it.
+</Callout>
+
+### Argument rules
+
+Arguments are evaluated left to right and screened before any arity check.
+
+| # | Condition | Behaviour |
+| --: | :-- | :-- |
+| 1 | any argument is named, as in `float3(x = 1.0)` | error: `Constructor '{Name}' does not accept named arguments.` |
+| 2 | any argument is a texture object | error: `Constructor '{Name}' cannot use Texture2D arguments.` |
+| 3 | any argument is a `MaterialAttributes` value | error: `Constructor '{Name}' cannot use MaterialAttributes arguments.` |
+| 4 | any argument is a `Substrate` value | error: `Constructor '{Name}' cannot use Substrate arguments.` |
+
+Then, with `N` the constructor's component count:
+
+| # | Case | Behaviour | Nodes |
+| --: | :-- | :-- | :-- |
+| 5 | `N == 1`, exactly one argument, that argument has 1 component | returned **unchanged**, then the integer marker is set from the name | none |
+| 6 | `N == 1`, anything else | error: `Constructor '{Name}' expects a single scalar input.` | — |
+| 7 | `N > 1`, exactly one scalar argument | **splat**: replicated `N` times | N−1 `AppendVector` |
+| 8 | `N > 1`, exactly one argument that already has `N` components | returned unchanged | none |
+| 9 | `N > 1`, otherwise | the arguments' component counts must sum to **exactly** `N` | N−1 `AppendVector` |
+| 10 | `N > 1`, sum ≠ `N` | error: `Constructor '{Name}' expects {N} total components but got {Total}.` | — |
+
+Rule 9 is a straight left-to-right concatenation of channels; mixed widths are fine as long as the
+total is exact.
+
+| Call | Total | Valid | Result |
+| :-- | :-- | :-- | :-- |
+| `float4(rgb, 1.0)` | 3 + 1 | yes | `float4` |
+| `float4(uv, uv)` | 2 + 2 | yes | `float4` |
+| `float3(x, yz)` | 1 + 2 | yes | `float3` |
+| `vec3(0.5)` | scalar splat | yes | `(0.5, 0.5, 0.5)` |
+| `float3(rgba)` | 4 | **no** | `Constructor 'float3' expects 3 total components but got 4.` |
+| `float3(uv)` | 2 | **no** | `Constructor 'float3' expects 3 total components but got 2.` |
+| `float(rgb)` | 3 | **no** | `Constructor 'float' expects a single scalar input.` |
+| `float3()` | 0 | **no** | `Constructor 'float3' expects 3 total components but got 0.` |
+
+<Callout type="info">
+A constructor **never narrows** and never zero-fills. `float3(rgba)` is an error, not a truncation —
+write `rgba.rgb`. `float3(uv)` is an error too — write `float3(uv, 0.0)`. Widening happens only from
+a scalar. Narrowing happens only at the coercion sites listed under
+[Conversions](#conversions).
+</Callout>
+
+### Constant folding
+
+When `N >= 2`, the name is not an integer constructor, and every argument is unnamed and a numeric
+literal (optionally with a leading unary `+` or `-`), the whole call collapses to one constant-vector
+node.
+
+| Written | Folded to |
+| :-- | :-- |
+| `vec2(0.5, 1.0)` | `Constant2Vector(0.5, 1.0)` |
+| `vec3(0.5)` | `Constant3Vector(0.5, 0.5, 0.5)` — the single literal is replicated first |
+| `float4(1.0, 2.0, 3.0, -1.0)` | `Constant4Vector(1, 2, 3, -1)` |
+| `int3(1, 2, 3)` | **not folded** — integer constructors are excluded so the marker survives |
+| `vec3(K, 0.0, 0.0)` | not folded — `K` is not a literal |
+
+The folded node is the **only** constructor result that carries an authoritative component count.
+Folded vectors dedupe by value, so `vec3(0.5)` written five times is one `Constant3Vector`.
+
+## Swizzles
+
+<Synopsis>
+```c
+<swizzle>  := <expression> . <channels>
+<channels> := <channel> [ <channel> ] [ <channel> ] [ <channel> ]
+<channel>  := { x | y | z | w | r | g | b | a }
+```
+</Synopsis>
+
+| Characters | Channel index |
+| :-- | --: |
+| `x`, `X`, `r`, `R` | 0 |
+| `y`, `Y`, `g`, `G` | 1 |
+| `z`, `Z`, `b`, `B` | 2 |
+| `w`, `W`, `a`, `A` | 3 |
+
+Exactly two sets exist: `xyzw` and `rgba`. There is no `stpq` set and no `uv` set — neither `u` nor
+`v` resolves, so `.uv` fails. Channel characters are case-insensitive, and **mixing the two sets in
+one swizzle is accepted**: `.xg` is channels 0 and 1, exactly like `.xy`.
+
+### Length and bounds
+
+| Rule | Violation |
+| :-- | :-- |
+| One to four channel characters | 5 or more: `Unsupported swizzle '{Channels}'.` |
+| Every character must resolve to a channel index | `Swizzle '{Channels}' is invalid for a value with {Count} components.` |
+| Every channel index must be **less than** the base value's component count | the same message |
+
+A swizzle can only narrow or rearrange; it can never read past the base width.
+
+| Base | Swizzle | Result |
+| :-- | :-- | :-- |
+| `float4` | `.rgb` | `float3` |
+| `float3` | `.a` | error — channel 3 is not less than 3 |
+| `float2` | `.xyz` | error |
+| `float` | `.x`, `.r` | the base value, unchanged |
+| `float` | `.xx`, `.rrr` | splat to `float2` / `float3` |
+| `float` | `.y`, `.z`, `.w`, `.g`, `.b`, `.a` | **error** |
+
+<Callout type="warn">
+**A scalar does not splat through an out-of-range channel.** `Roughness.yz` on a scalar parameter is
+a hard error, not a two-component broadcast:
+`Swizzle 'yz' is invalid for a value with 1 components.` To broadcast a scalar, repeat channel 0
+(`Roughness.xx`), use a constructor (`float2(Roughness)`), or rely on scalar widening at an
+assignment.
+</Callout>
+
+### Lowering
+
+Three strategies, tried in this order.
+
+| # | Applies when | Nodes created | Result |
+| --: | :-- | :-- | :-- |
+| 1 | the base has an expression node **and** the channel indices are strictly increasing with no repeats | **none** | the selection is recorded as a channel mask and applied when the value is connected to a pin |
+| 2 | base has 2–4 components and the mask is reordered or repeated | N−1 `AppendVector` | each channel becomes its own single-channel masked value, then the pieces are concatenated |
+| 3 | base has 1 component and every channel is in range | N−1 `AppendVector` | the scalar is replicated N times |
+
+| Swizzle | Channels | Strategy | Node cost |
+| :-- | :-- | :-- | --: |
+| `.r` / `.x` | 0 | 1 | 0 |
+| `.a` | 3 | 1 | 0 |
+| `.rg` / `.xy` | 0,1 | 1 | 0 |
+| `.rgb` / `.xyz` | 0,1,2 | 1 | 0 |
+| `.ga` | 1,3 | 1 — increasing, gaps allowed | 0 |
+| `.xg` | 0,1 | 1 — mixed sets are still increasing | 0 |
+| `.rgba` | 0,1,2,3 | 1 | 0 |
+| `.gr` | 1,0 | 2 | 1 |
+| `.bgr` | 2,1,0 | 2 <Since v="1.3.3" /> | 2 |
+| `.xxx` | 0,0,0 | 2 | 2 |
+| `.rrgg` | 0,0,1,1 | 2 | 3 |
+| `.rr` on a `float` | 0,0 | 3 | 1 |
+
+"Strictly increasing" is judged on the **source** channel of the underlying node, not on the letters
+written.
+
+### Composition
+
+A swizzle of an already-masked value re-maps through the existing mask, so the numbering is always
+relative to the value being swizzled, not to the original node.
+
+| Written | Meaning |
+| :-- | :-- |
+| `v.rgb.b` | channel 2 of `v` — `.rgb` selects 0,1,2, then `.b` picks entry 2 |
+| `v.ga.r` | channel 1 of `v` — `.ga` selects 1,3, then `.r` picks entry 0 |
+| `v.ga.g` | channel 3 of `v` |
+| `v.bgr.r` | channel 2 of `v` |
+
+Composition folds into a single mask wherever the result is still sequential, so `v.rgb.rg` costs no
+nodes at all. Selecting an entry that does not exist in the outer list is a bounds failure against
+the *masked* width: `v.ga.b` reports `Swizzle 'b' is invalid for a value with 2 components.`
+
+Because `.` is an ordinary postfix operator, any call result can be swizzled directly — no temporary
+is required:
+
+```c
+float u  = UE.TexCoord().x;
+vec3  c  = SampleTexture2D(Albedo, uv).rgb;
+vec2  yx = vec4(1.0, 2.0, 3.0, 4.0).yx;
+float m  = MyFunction(A, B).r;
+```
+
+### Non-swizzlable bases
+
+| Base value | Behaviour |
+| :-- | :-- |
+| `MaterialAttributes` | not a swizzle — the member name resolves as a material attribute and a `BreakMaterialAttributes` read is generated |
+| Texture object | error: `Texture values do not support swizzle/member access in Code.` |
+| `Substrate` | error: `Substrate values do not support swizzle/member access in Graph.` |
+
+<Callout type="info">
+The texture message says "in Code" while the `Substrate` one says "in Graph". Both come from the same
+builder; the wording predates the `Code` → `Graph` section rename.
+</Callout>
+
+## Conversions
+
+Coercion is never written by the author. It is applied automatically wherever a value meets an
+expected shape, and it is the mechanism behind most silent width changes in a generated material.
+
+### Where it applies
+
+| # | Site | Expected shape taken from |
+| --: | :-- | :-- |
+| 1 | declaration with an initializer — `float3 c = A;` | the declared type token, unless the authoritative escape hatch fires |
+| 2 | assignment to an existing Graph variable — `c = A;` | the existing value's shape |
+| 3 | assignment to a name matching an `Outputs` declaration — `Color = A;` | the output's declared type |
+| 4 | `MaterialAttributes` member write — `Attrs.BaseColor = A;` | the attribute's component count |
+| 5 | `Function` / `GraphFunction` / `ShaderFunction` / `VirtualFunction` input argument | the input's declared type |
+| 6 | `if` branch merge | the pre-branch value, else the `Outputs` declaration, else the two branches must already agree |
+| 7 | binary-operator rescue | the authoritative operand's count — **widening only** |
+| 8 | `Outputs` binding expression | the bound output's declared type |
+
+Assignment to a name that is neither an existing variable nor an `Outputs` declaration performs **no**
+conversion at all: the new variable takes the value's own shape.
+
+### Rule order
+
+| # | Condition | Behaviour | Message on failure |
+| --: | :-- | :-- | :-- |
+| 1 | expected is `MaterialAttributes` | input must be one; passes through unchanged | `Expected a MaterialAttributes value.` |
+| 2 | expected is `Substrate` | input must be one; passes through unchanged | `Expected a Substrate value.` |
+| 3 | expected is a texture | input must be a texture object | `Expected a texture object value.` |
+| 3a | both are textures | the **dimension** must be identical | `Expected a texture object value with a matching texture type.` |
+| 4 | input is `MaterialAttributes`, expected numeric | rejected | `MaterialAttributes values cannot be assigned to numeric outputs.` |
+| 5 | input is `Substrate`, expected numeric | rejected | `Substrate values cannot be assigned to numeric outputs.` |
+| 6 | input is a texture object, expected numeric | rejected | `Texture objects cannot be assigned to numeric outputs.` |
+| 7 | component counts are equal | passes through unchanged, every flag preserved | — |
+| 8 | **narrowing** — input count is greater than expected | a leading sequential swizzle (`r`, `rg`, `rgb`) is applied; **silent**, no node | — |
+| 9 | **widening from a scalar** — expected is greater than 1 and input is 1 | replicated through `AppendVector` | — |
+| 10 | anything else | rejected | `Expected {Expected} component(s) but got {Actual}.` |
+
+Input width down the side, expected width across the top:
+
+| input \ expected | 1 | 2 | 3 | 4 |
+| :-- | :-- | :-- | :-- | :-- |
+| **1** | unchanged | splat, 1 `AppendVector` | splat, 2 `AppendVector` | splat, 3 `AppendVector` |
+| **2** | `.r`, no node | unchanged | **error** | **error** |
+| **3** | `.r`, no node | `.rg`, no node | unchanged | **error** |
+| **4** | `.r`, no node | `.rg`, no node | `.rgb`, no node | unchanged |
+
+And across kinds:
+
+| expected \ input | numeric | MaterialAttributes | Substrate | texture object |
+| :-- | :-- | :-- | :-- | :-- |
+| **MaterialAttributes** | error | pass | error | error |
+| **Substrate** | error | error | pass | error |
+| **Texture(T)** | error | error | error | pass if the dimension is `T` |
+| **Numeric(N)** | the matrix above | error | error | error |
+
+The four texture dimensions are distinct expected shapes. `Texture2D` and `SamplerState` both mean
+`Texture2D`; `Texture3D` and `VolumeTexture` both mean `VolumeTexture`; `TextureCube` and
+`Texture2DArray` stand alone. A `TextureCube` never converts to a `Texture2D`.
+
+<Callout type="warn">
+**Narrowing is silent.** There is no warning and no node cost, because it is implemented as a leading
+sequential swizzle that lives on the connection.
+
+```c
+vec4   Src = vec4(0.1, 0.2, 0.3, 0.4);
+float3 Rgb = Src;      // silently becomes Src.rgb — channel A is dropped
+float  R   = Src;      // silently becomes Src.r
+```
+
+If a channel disappears from a generated material, check every assignment whose right-hand side is
+wider than its target. Writing the swizzle explicitly documents the intent and behaves identically.
+</Callout>
+
+Narrowing is deliberately **not** applied at binary-operator operands (the size-mismatch error fires
+instead), at constructor arguments, or at swizzle bounds.
+
+The only widening rule is scalar splat. There is no zero-fill and no partial widening:
+`float3 v = SomeFloat2;` is `Expected 3 component(s) but got 2.` Use a constructor to say what the
+extra channels contain.
+
+### Float, int and bool
+
+There are no numeric-representation conversions in the Graph language at all.
+
+| Token family | What it means for conversion |
+| :-- | :-- |
+| `float`, `float1..4`, `half`, `half1..4`, `vec2..4` | 1 / 2 / 3 / 4 components |
+| `int`, `int2..4`, `ivec2..4` | the same 1 / 2 / 3 / 4 components — no truncation, no rounding |
+| `uint`, `uint2..4`, `uvec2..4` | the same — no range clamping, no sign handling |
+| `bool`, `bool2..4`, `bvec2..4` | the same — no normalisation to 0 or 1 |
+| `StaticBool`, `StaticBoolParameter` | 1 component; carries no marker of its own |
+
+So `int x = 7.9;` stores 7.9 — use `floor(…)` if truncation is wanted — and `bool b = 0.5;` stores
+0.5. The only observable difference between an integer and a float value is the integer marker, and
+its only effect is the [integer-division](#integer-division) rejection.
+
+### Authoritative component counts
+
+A value carries an **authoritative component count** when its width is known from the engine rather
+than inferred from a declaration.
+
+| Source | Authoritative |
+| :-- | :-- |
+| a constant-folded constructor — `vec3(0.5)`, `float4(1,0,0,1)` | **yes** — the only path where a constructor originates the flag |
+| a `UE.*` builtin whose node class is in the known-width table below | **yes** |
+| the `dot` math builtin | **yes**, 1 component |
+| any other math builtin | inherits — `lerp`/`min`/`max` take the logical OR of their two value operands, the rest inherit from their first operand |
+| a bare numeric literal | no |
+| a declared `Properties` parameter of any width | no |
+| a non-folded constructor — `vec3(K)`, `float4(rgb, A)` | inherits, as the OR of its arguments |
+| a swizzle | inherits from the base |
+| the result of `+ - * /` | inherits, as the OR of the two operands |
+| a narrowed or widened value | inherits from the input |
+| a variable | whatever the value assigned to it carried |
+
+Known-width builtin node classes:
+
+| Components | Node classes |
+| --: | :-- |
+| 1 | `PixelDepth`, `TwoSidedSign`, `Arctangent2Fast`, `Length`, `MaterialXLuminance` |
+| 2 | `TextureCoordinate`, `Panner`, `ScreenPosition`, `Rotator`, `SceneTexelSize` |
+| 3 | `WorldPosition`, `ObjectPositionWS`, `CameraVectorWS`, `VertexNormalWS`, `VertexTangentWS`, `Transform`, `TransformPosition`, `SkyAtmosphereLightDirection`, `PixelNormalWS`, `CrossProduct` |
+
+Every other node's output width is unknown to the generator.
+
+The flag changes two things.
+
+**Effect 1 — the operator rescue.** When `+ - * /` receives two incompatible widths, one operand may
+be widened to the authoritative one, but only upward. This is why `UE.CameraVectorWS() * Tint` fails
+when `Tint` is a 4-component `VectorParameter`: the builtin is an authoritative 3, the parameter a
+non-authoritative 4, and 4 is greater than 3, so the rescue is blocked and the size error is raised.
+
+**Effect 2 — a declared width can be ignored.**
+
+<Callout type="warn">
+When a declaration's initializer carries an authoritative component count that **differs** from the
+declared type's width, the value is stored as-is, uncoerced, with no diagnostic. The declared width
+is effectively ignored.
+
+```c
+float2 dir = UE.CameraVectorWS();   // stored as 3 components; float2 is ignored, no error
+Color = dir * Tint;                 // fails HERE if Tint is 4 components
+```
+
+The mismatch is not lost — it resurfaces at the first place the value is used with a width that
+matters, where the message names the real widths rather than the declared one. Silently truncating an
+engine-known width is considered worse than reporting one step later. The escape hatch applies to
+**declarations only**; assignment to an existing variable or an output name always coerces, and so
+narrows silently even for an authoritative value.
+</Callout>
+
+**Effect 3 — branch merging.** The authoritative flag and the integer flag are *not* compared when
+deciding whether an `if` branch changed a value, so two values differing only in those flags are
+treated as identical and the name is not merged.
+
+## Node reuse
+
+Textually identical subexpressions over identical operand values collapse to one node. `A + B`
+written twice yields one `Add`; every occurrence of `0.5` in one asset maps to one `Constant`; the
+`Constant(-1)` behind unary minus is shared by every unary minus. The cache is keyed on a value
+identity token — node, output index, component count, all five mask fields, and the texture,
+attribute, `Substrate`, authoritative and integer flags — so `int(2)` and `float(2)` never collide,
+and re-assigning a variable between two textually identical calls correctly produces two nodes.
+
+`F_Tint(a, b)` and `F_Tint(b, a)` are different keys because positional arguments are keyed by index;
+`F_Tint(Color = a)` and `F_Tint(color = a)` are the same key because argument names are normalised.
+Which call kinds dedupe at all is covered on [Calls](/en/docs/graph/calls#which-calls-are-reused).
+
+## Diagnostics
+
+<Diag>
+  <D msg="Unexpected token '{Text}' in Graph expression." cause="A non-primary token in primary position (!x, = b), or a real token left over after a complete expression (a == b). Never emitted for an unknown character in trailing position." href="/en/docs/graph/unsupported" />
+  <D msg="Expected token type {Code} in Graph expression near '{Text}'." cause="A ) or , was required and not found — usually an unknown character inside parentheses or an argument list." />
+  <D msg="Expected member name after '.'." cause="A . not followed by an identifier." />
+  <D msg="Empty Graph expression." cause="The expression text is empty after trimming." />
+  <D msg="Operator '{Op}' requires matching vector sizes or a scalar/vector pair, got {Left} and {Right} component(s)." cause="Operand widths differ, neither is a scalar, and the authoritative rescue did not apply." fix="Swizzle the wider operand explicitly, or build the narrower one with a constructor." />
+  <D msg="Integer division is not supported by the material graph; use float() or floor(a/b)." cause="Both operands of / came from integer constructors." />
+  <D msg="Arithmetic operators cannot be applied to texture values." cause="A texture object used as an operand of + - * /." />
+  <D msg="Arithmetic operators cannot be applied to MaterialAttributes values." cause="A MaterialAttributes value used as an operand." />
+  <D msg="Arithmetic operators cannot be applied to Substrate values." cause="A Substrate value used as an operand." />
+  <D msg="Expected {Expected} component(s) but got {Actual}." cause="Widening a 2- or 3-component value to a wider target." fix="Use a constructor: float3(v, 0.0)." />
+  <D msg="Constructor '{Name}' expects {N} total components but got {Total}." cause="The argument widths do not sum to the constructor's width." />
+  <D msg="Constructor '{Name}' expects a single scalar input." cause="A 1-component constructor called with zero arguments, several arguments, or one wider than 1 component." />
+  <D msg="Constructor '{Name}' does not accept named arguments." cause="Any name = value argument in a constructor call." />
+  <D msg="Swizzle '{Channels}' is invalid for a value with {Count} components." cause="A channel character does not resolve, or its index is not less than the base width." />
+  <D msg="Unsupported swizzle '{Channels}'." cause="More than four channel characters." />
+  <D msg="Unknown Graph identifier '{Name}'." cause="A name that is neither a Graph variable, nor a declared property, nor true/false — including a StaticSwitchParameter read by name." href="/en/docs/graph/calls" />
+  <D msg="String literals can only be used in named UE builtin arguments." cause="A string literal evaluated as a value." />
+  <D msg="Invalid numeric literal '{Text}'." cause="A number token that converts to zero while containing a character no spelling of zero can contain — in practice an underflowing exponent such as 1e-9999." />
+</Diag>
+
+## Example
+
+```c
+Shader(Name="Docs/M_Expressions")
+{
+    Properties {
+        vec3 A = vec3(1.0, 0.5, 0.2);
+        vec3 B = vec3(0.1, 0.2, 0.3);
+        float K = 2.0;
+    }
+    Settings { Domain = "UI"; ShadingModel = "Unlit"; }
+    Outputs { vec3 Color; Base.EmissiveColor = Color; }
+    Graph {
+        vec3 Sum    = A + B;
+        vec3 Diff   = A - B;
+        vec3 Scaled = A * K;
+        vec3 Ratio  = A / K;
+        vec3 Neg    = -Scaled;
+        Color = (Sum + Diff - Scaled + Ratio) * 0.25 + Neg;
+    }
+}
+```
+
+```text
+VectorParameter A, VectorParameter B, ScalarParameter K   (property nodes)
+Add(A, B)                                        -> Sum
+Subtract(A, B)                                   -> Diff
+Multiply(A, K)                                   -> Scaled
+Divide(A, K)                                     -> Ratio
+Multiply(Scaled, Constant(-1))                   -> Neg
+Add / Subtract / Add chain, Multiply(..., 0.25), Add(..., Neg)
+```
+
+## See also
+
+- [Statements](/en/docs/graph/statements) — the statement forms an expression appears in
+- [Calls](/en/docs/graph/calls) — call syntax, named arguments, output selection
+- [Math Builtins](/en/docs/builtins/math) — `fmod`, `pow`, `min`, `max`, `lerp`, `saturate`
+- [UE.* Nodes](/en/docs/builtins/ue-nodes) — which builtins have a known output width
+- [What Graph Is Not](/en/docs/graph/unsupported) — every rejected and every silently-truncated construct

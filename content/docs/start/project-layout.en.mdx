@@ -1,0 +1,156 @@
+---
+title: Project Layout
+description: How DShader/ is organized, which directories the plugin owns, and the package rules that decide what gets compiled.
+---
+
+DreamShaderLang sources live in one directory under the project root — `DShader` by default, set by
+*Project Settings ▸ DreamPlugin ▸ Dream Shader ▸ Paths ▸ Source Directory*. A relative path resolves
+against the project directory.
+
+The plugin creates the source directory, its `Packages` subdirectory and the generated-shader
+directory at module startup, on the first editor launch, whether or not you have authored anything.
+
+## The tree
+
+<Files>
+  <Folder name="MyProject" defaultOpen>
+    <Folder name="DShader" defaultOpen>
+      <Folder name="Materials" defaultOpen>
+        <File name="M_Sample.dsm" />
+      </Folder>
+      <Folder name="Functions" defaultOpen>
+        <File name="F_Tint.dsf" />
+      </Folder>
+      <Folder name="Shared" defaultOpen>
+        <File name="Common.dsh" />
+        <File name="Color.dsh" />
+      </Folder>
+      <Folder name="VirtualFunctions">
+        <File name="Engine.dsh" />
+      </Folder>
+      <Folder name="Decompiled">
+        <Folder name="Materials" />
+        <Folder name="Functions" />
+      </Folder>
+      <Folder name="Packages" defaultOpen>
+        <Folder name="@typedreammoon" defaultOpen>
+          <Folder name="dream-noise" defaultOpen>
+            <File name="dreamshader.package.json" />
+            <Folder name="Library" defaultOpen>
+              <File name="Noise.dsh" />
+            </Folder>
+          </Folder>
+        </Folder>
+      </Folder>
+      <File name="DreamShader.code-workspace" />
+      <File name="dreamshader.lock.json" />
+    </Folder>
+    <Folder name="Intermediate">
+      <Folder name="DreamShader">
+        <Folder name="GeneratedShaders" />
+      </Folder>
+    </Folder>
+    <Folder name="Plugins" defaultOpen>
+      <Folder name="DreamShader" />
+    </Folder>
+  </Folder>
+</Files>
+
+## Directory roles
+
+| Directory | Owner | Contents |
+| --- | --- | --- |
+| `DShader/` | you | The source root. Any layout below it works; the ones here are conventions, not rules. |
+| `DShader/Materials/` | you | Material `.dsm` files, usually one `Shader` each. |
+| `DShader/Functions/` | you | Reusable `.dsf` function files. |
+| `DShader/Shared/` | you | Project-local `.dsh` headers. |
+| `DShader/VirtualFunctions/` | the editor | Where *Create Virtual Function* writes a declaration for an existing `UMaterialFunction`. |
+| `DShader/Decompiled/` | the editor | Where *Export DSM* / *Export DSF* write, under `Materials`, `Functions`, `Layers` and `LayerBlends`. |
+| `DShader/Packages/` | the extension | Installed shared libraries. Always the literal `Packages` subdirectory of the source root; not separately configurable. |
+| `DShader/DreamShader.code-workspace` | the plugin | Rewritten from scratch on every *Open Dream Shader Workspace*. |
+| `DShader/dreamshader.lock.json` | the extension | Records installed package revisions. Neither read nor written by the plugin. |
+| `Intermediate/DreamShader/GeneratedShaders/` | the plugin | The generated `.ush` helper includes, mounted at `/DreamShaderGenerated`. |
+
+<Callout type="warn">
+  `DreamShader.code-workspace` is serialized from a fixed object on every invocation — it is never
+  read, merged or preserved. Hand-added `launch`, `tasks`, `extensions` or extra `settings` entries
+  are destroyed. Keep per-user configuration in `DShader/.vscode/settings.json`, which the command
+  does not touch.
+</Callout>
+
+## Naming conventions
+
+| Kind | Convention |
+| --- | --- |
+| Material file | `M_*.dsm` |
+| Material function file | `F_*.dsf` |
+| Shared header | named by domain — `Texture.dsh`, `Color.dsh` |
+| Package entry | `Library/<Name>.dsh` |
+
+Extensions are compared case-insensitively, so `M_Water.DSM` is a material file. Identifiers are a
+different matter: non-ASCII characters in namespace and function names are replaced when the plugin
+sanitizes them into HLSL and asset identifiers, so keep those ASCII.
+
+## Imports
+
+Prefer a small number of stable entry imports per material:
+
+```c
+import "Shared/Common.dsh";
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
+```
+
+A specifier is tried against three roots in order: the importing file's own directory, the source
+root, then the packages root. The first candidate that exists **and stays inside its own root** wins
+— a file inside a package cannot climb out with `../`. A specifier with no extension gets `.dsh`
+appended, so `import "…/Noise"` can never resolve to a `.dsf`. Full rules:
+[Imports and Namespaces](/en/docs/language/imports).
+
+Keeping imports shallow also keeps rebuilds honest: the source hash covers the whole inlined import
+closure, so a header edit invalidates every file that pulls it in.
+
+## What is compiled, and what is not
+
+The plugin has two enumerators, and they exclude different things.
+
+| Enumerator | Extensions | Excludes | Used by |
+| --- | --- | --- | --- |
+| Full source enumeration | `.dsm`, `.dsh`, `.dsf` | **everything** under `DShader/Packages` | startup in-memory generation, the commandlet's `compile -All`, cook, the Gen page list, VirtualFunction sync |
+| Material source enumeration | `.dsm`, `.dsf` | only `.dsm` files under `DShader/Packages` | *Recompile DSM*, the auto-compile queue, the dependency graph |
+
+<Callout type="warn">
+  The `Packages` exclusion is complete for `.dsm` but only partial for `.dsf`. A `.dsf` shipped
+  inside a package **is** compiled in an interactive editor session — the file watcher and *Recompile
+  DSM* pick it up — and is **not** compiled by `compile -All`, by cook, or by the Gen page. A package
+  that ships `.dsf` function assets therefore works locally and silently produces nothing in a
+  headless build. Ship library code as `.dsh` headers, or copy the `.dsf` out of `Packages` into your
+  own source tree.
+</Callout>
+
+<Callout type="warn">
+  `Examples/**/*.dsm` inside a package is never compiled by any path and never appears in the Gen
+  page. To use an example, copy it out of `DShader/Packages` into `DShader/`.
+</Callout>
+
+Package `.dsh` headers are fully importable, but are never scanned for `VirtualFunction`
+declarations — a `VirtualFunction` shipped in a package is never validated against its asset.
+
+## Source control
+
+| Item | Commit? |
+| --- | --- |
+| `.dsm` / `.dsf` / `.dsh` | yes — this is the material logic |
+| `dreamshader.lock.json` | yes, if the team installs packages |
+| `Config/DefaultEngine.ini` | yes — the project settings live there and are shared |
+| `DShader/Packages/` | team's choice: vendored, or reinstalled from the lock file |
+| Generated `.uasset` files | usually **no** — with the default backend the editor writes none anyway |
+| `Intermediate/DreamShader/` | no |
+
+Standardize *Source Directory* across the team so imports resolve identically on every machine.
+
+## Next
+
+- [Source Files](/en/docs/language/file-model) — what each extension may contain
+- [Imports and Namespaces](/en/docs/language/imports) — specifier grammar and cycle handling
+- [Packages](/en/docs/tools/packages) — the install root and what the plugin does not implement
+- [Daily Workflow](/en/docs/start/workflow) — what a save actually triggers

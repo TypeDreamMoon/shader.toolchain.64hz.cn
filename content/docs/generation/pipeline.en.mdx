@@ -1,0 +1,219 @@
+---
+title: The Pipeline
+description: How one DreamShaderLang source file becomes Unreal assets — every stage, what triggers a build, and where each stage can fail.
+---
+
+DreamShaderLang does not compile to bytecode or to an executable. It compiles to **Unreal assets**:
+a `UMaterial` or a `UDreamShaderMaterialInstance`, any number of material-function assets, and one
+generated HLSL include. This page follows one source file all the way through.
+
+| Aspect | Value |
+| :-- | :-- |
+| Input | one `.dsm` or `.dsf` file, plus the transitive closure of its `import` directives |
+| Rejected input | `.dsh` — a header never generates assets directly |
+| Produces | `UMaterial` / `UDreamShaderMaterialInstance`, `UMaterialFunction`, `UMaterialFunctionMaterialLayer`, `UMaterialFunctionMaterialLayerBlend`, and one `.ush` helper include |
+| Runs in | the editor process only — the generator uses editor-only material APIs |
+
+There is no runtime path. Nothing builds a material from DreamShaderLang in a packaged game; by then
+the assets already exist.
+
+## Stages
+
+One compile of one file runs this sequence. **Every step is a gate**: the first failure aborts the
+compile, and its message is what comes back as the compile result.
+
+<Wide>
+
+| # | Stage | What it does | Fails with |
+| :-- | :-- | :-- | :-- |
+| 1 | Normalize path | full path, `NormalizeFilename`, `MakeStandardFilename` | — |
+| 2 | File-kind gate | `.dsh` never generates | `DreamShader header '{File}' does not generate assets directly. Recompile dependent .dsm or .dsf files instead.` |
+| 3 | Load prepared source | recursive `import` inlining into one text | `DreamShader import '{Import}' referenced from '{File}' could not be resolved.` · `DreamShader import cycle detected at '{File}'.` · `DreamShader could not read '{File}'.` |
+| 4 | Content gate | per-file substring scan, applied to each file's own text with its `import` lines blanked | `DreamShader header '{File}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports.` · `DreamShader function file '{File}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks.` |
+| 5 | Parse | the whole prepared text, as one parse unit | any parse diagnostic |
+| 6 | Hash | CRC32 of the **prepared** text — the source hash |  — |
+| 7 | `.dsf` gate | a `.dsf` may not declare a top-level `Shader` | `{File}: .dsf files cannot define top-level Shader blocks.` |
+| 8 | Write helper include | only when the unit declares at least one `Function` | `Failed to write generated helper include '{Path}'.` · `DreamShader Function '{Name}' is declared more than once.` |
+| 9 | Material-function assets | one asset per `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend`, in declaration order | `{Kind} '{Name}' must declare at least one output.` · `{Kind} '{Name}' must provide a Graph block.` · asset-creation errors |
+| 10 | Material asset | only when the unit declares a top-level `Shader` | `{File}: Outputs block is required.` · `Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` · asset-creation errors |
+| 11 | Compose result | the success text, plus a `Warnings:` block listing every parser warning when any were emitted | — |
+
+</Wide>
+
+Throughout this section, `{Placeholder}` marks a value the compiler substitutes at runtime.
+
+Two consequences are worth pulling out of that table:
+
+- **The parse unit is the import closure, not the file.** `import` directives are inlined *before*
+  parsing, so "one `Shader` per file" is really "one `Shader` per closure" — and the source hash in
+  step 6 covers every imported byte. See [Imports and Namespaces](/en/docs/language/imports).
+- **Material functions are generated before the material.** A `Shader` can therefore call a
+  `ShaderFunction` declared beside it in the same file.
+
+Import lines are replaced by blank lines, and each inlined file is bracketed by
+`// Begin DreamShader source: <path>` / `// End DreamShader source: <path>` markers, so reported line
+and column numbers still point into the file you actually edited.
+
+Steps 9 and 10 share the same graph builder. Requesting only the material — what the editor's
+*compile material* entry point does — runs steps 1–7 and 10, skipping 9.
+
+### Inside step 10 — the material
+
+| # | Sub-stage | Fails with |
+| :-- | :-- | :-- |
+| 1 | Reject `.dsh` and `.dsf` | `DreamShader source '{File}' cannot generate a material asset directly.` |
+| 2 | Require a top-level `Shader` | `{File}: This file does not define a top-level Shader block.` |
+| 3 | Require a non-empty `Outputs` | `{File}: Outputs block is required.` |
+| 4 | Validate `Settings`, then `Outputs` | see [Material Settings](/en/docs/settings/material) and [Output Bindings](/en/docs/generation/outputs) |
+| 5 | Detect `Base.FrontMaterial` / `Base.MaterialAttributes` | `{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader.` |
+| 6 | Write the helper include — both backends need it | as step 8 above |
+| 7 | Resolve the backend | `Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` |
+| 8 | Create or reuse the target asset | see [Asset Paths](/en/docs/generation/asset-paths) |
+| 9 | Source-hash short circuit | *(when it fires, the rest is skipped)* |
+| 10 | Build the graph, apply settings, lay out, recompile | see [Regeneration](/en/docs/generation/regeneration) |
+| 11 | Persist, or clear the dirty flag in memory-only mode | `Generated DreamShader asset '{Path}' could not be saved.` |
+
+<Callout type="info">
+The backend is resolved at sub-stage 7, *before* any material object exists and before the rest of
+`Settings` is validated. An unrecognized `Backend` value therefore fails first, and no other settings
+diagnostic is reported for that file. See [Backend](/en/docs/settings/backend).
+</Callout>
+
+### Inside the graph build
+
+Shared by both backends. Under `ThinCustom` it runs against the hidden base material, not the
+emitted instance.
+
+1. Clear the existing expressions, then reset every material property to its engine default.
+2. Apply `Settings`.
+3. Force `Substrate` shading when `Base.FrontMaterial` is bound.
+4. Reject duplicate `Properties` names — compared ignoring case.
+5. Seed one `MakeMaterialAttributes` node per uninitialized `MaterialAttributes` output declaration.
+6. Build the body — either the `Graph` block, or, when the unit has no `Graph` and no initialized
+   output, one whole-surface `Custom` node.
+7. Connect each `Outputs` binding.
+8. Lay the graph out. **Skipped in memory-only mode**, and skipped for graphs of 1200 or more
+   expressions unless a [`Layout`](/en/docs/language/layout) section is present.
+9. Recompile the material.
+
+Step 1 is why editing a generated asset by hand is futile — see
+[Regeneration](/en/docs/generation/regeneration).
+
+## What triggers a build
+
+| Trigger | Forced | Target | Result |
+| :-- | :-- | :-- | :-- |
+| Auto-compile on save — file watcher plus debounce | no | memory | hash-skip active; the common path |
+| *Generate all in-memory materials* — editor startup, and every change to **Default Compiler Backend** | yes | memory | every project source recompiled |
+| Material Content Browser *Compile* / thumbnail-refresh buttons | yes | memory | one source |
+| Live preview renderer | yes | memory | one source |
+| *Materialize*, and creating a child instance of a memory-only material | yes | **disk** | one source, persisted |
+| Commandlet `-run=DreamShader` | caller's choice — `-Force` | **disk** | persisted |
+| Cook, on the cook director process only | yes | **disk** | every project source persisted |
+
+Auto-compile is governed by two project settings: **Auto Compile On Save** (default on) and
+**Save Debounce Seconds** (default `0.25`, clamped to `[0.05, 10.0]`). Turning the first off makes
+the source-directory watcher ignore file changes entirely. See
+[Project Settings](/en/docs/settings/project).
+
+<Callout type="info">
+The interactive editor never writes a per-material `.uasset`. The source file is the authoring
+surface; generated assets live in memory until a cook, the commandlet, or an explicit *Materialize*
+puts them on disk. This surprises almost everyone the first time —
+[In-memory Materials](/en/docs/generation/in-memory) explains it in full.
+</Callout>
+
+## Outcomes that are not assets
+
+A source file can compile successfully and still produce nothing you can place in the Content
+Browser.
+
+| Result message | Outcome |
+| :-- | :-- |
+| `Generated DreamShader helper include '{Path}' from {File}.` | the unit declared only `Function` blocks — **success** |
+| `DreamShader file '{File}' contains VirtualFunction declarations only; no assets were generated.` | **success** |
+| `DreamShader file '{File}' contains GraphFunction declarations only; no assets were generated.` | **success** |
+| `DreamShader file '{File}' did not contain any material, ShaderFunction, ShaderLayer, or ShaderLayerBlend assets to generate.` | **failure** |
+
+The last row is the one to watch: a file that declares nothing generatable is an error, while a file
+that declares only helpers is fine.
+
+## Success messages
+
+| Message | Emitted for |
+| :-- | :-- |
+| `Generated {Kind} {AssetPath} from {File}.` | each `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` |
+| `Generated {AssetPath} from {File}.{Suffix}` | a `Graph`-backend material; `{Suffix}` is ` (virtual)` in memory-only mode |
+| `Generated DreamShader thin-custom material {AssetPath} from {File}.` | a `ThinCustom`-backend material |
+| `Skipped {AssetPath} from {File}; source hash is unchanged.` | the source-hash short circuit — see [Regeneration](/en/docs/generation/regeneration) |
+| `Generated DreamShader helper include '{Path}' from {File}.` | a unit with `Function` blocks and no assets |
+
+Parser warnings never fail a compile. They are appended to whichever message above applies, under a
+`Warnings:` header.
+
+## Progress reporting
+
+Generation reports through Unreal's slow-task system. Dialogs are delayed so a fast compile never
+flashes one, and are suppressed entirely under `IsRunningCommandlet()`.
+
+| Scope | Title | Frames | Dialog delay |
+| :-- | :-- | :-- | :-- |
+| whole file | `Compiling DreamShader source '{File}'...` | 6 | 0.35 s |
+| one material | `Generating DreamShader material from '{File}'...` | 11 | 0.25 s |
+| one material function | `Generating DreamShader function '{Name}'...` | 10 | 0.25 s |
+| ThinCustom emission | `Generating thin-custom material for '{Name}'...` | 8 | inherited |
+| graph build (nested) | `Building material graph for '{Name}'...` | 11 | inherited |
+| automatic layout | `Laying out DreamShader material graph...` | one per node | inherited |
+
+## Worked example
+
+```c
+// DShader/Materials/M_Emissive.dsm
+import "Common.dsh";
+
+ShaderFunction(Name="Functions/F_Tint")
+{
+    Inputs  { vec3 InColor; vec3 InTint; }
+    Outputs { vec3 OutColor; }
+    Graph   { OutColor = InColor * InTint; }
+}
+
+Shader(Name="Materials/M_Emissive")
+{
+    Properties { vec3 Tint = vec3(1.0, 0.4, 0.1); }
+    Settings   { ShadingModel = "Unlit"; }
+    Outputs    { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      { Color = F_Tint(vec3(1.0, 1.0, 1.0), Tint); }
+}
+```
+
+One compile of that file produces:
+
+```text
+Intermediate/DreamShader/GeneratedShaders/M_Emissive_9f2c41ab.ush   (only if Common.dsh declares Function blocks)
+/Game/Functions/F_Tint                                             UMaterialFunction
+/Game/Materials/M_Emissive                                         UDreamShaderMaterialInstance + hidden UMaterial base
+```
+
+and reports:
+
+```text
+Generated ShaderFunction /Game/Functions/F_Tint from I:/.../M_Emissive.dsm.
+Generated DreamShader thin-custom material /Game/Materials/M_Emissive from I:/.../M_Emissive.dsm.
+```
+
+The `.ush` include lives under the **Generated Shader Directory** project setting (default
+`Intermediate/DreamShader/GeneratedShaders`) and is mapped to the virtual shader path
+`/DreamShaderGenerated/`. Its file name embeds a hash of the *source path*, not of the source text,
+so editing a `Function` body rewrites the same file instead of accumulating variants.
+
+## Where next
+
+<Cards>
+  <Card title="Asset Paths" href="/en/docs/generation/asset-paths" />
+  <Card title="In-memory Materials" href="/en/docs/generation/in-memory" />
+  <Card title="Output Bindings" href="/en/docs/generation/outputs" />
+  <Card title="Regeneration" href="/en/docs/generation/regeneration" />
+  <Card title="Backend" href="/en/docs/settings/backend" />
+  <Card title="Commandlet" href="/en/docs/tools/commandlet" />
+</Cards>

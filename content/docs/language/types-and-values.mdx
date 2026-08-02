@@ -1,0 +1,335 @@
+---
+title: 类型与值
+description: 44 个类型 token、分上下文的有效性矩阵、GLSL 别名、字面量，以及已经不存在的那些 token。
+---
+
+类型 token 是语言里每一种声明形式的第一个元素。这个集合是封闭的 —— 一共 44 个 token，没有用户自定义
+类型 —— 而且在**所有上下文中都按大小写不敏感匹配**。
+
+<Synopsis>
+
+```c
+// Properties section
+[const] <type> <name> [ = <default> ] [ [ <metadata> ] ] ;
+
+// 材质函数的 Inputs / Outputs / Results
+[opt] <type> <name> [ = <default> ] [ [ <metadata> ] ] ;
+
+// Shader Outputs 变量声明
+<type> <name> [ = <expression> ] ;
+
+// Function / GraphFunction 签名
+Function [ <type> ] <name> ( [ { in | out } ] <type> <name> , … ) { … }
+
+// Graph 声明
+<type> <name> [ = { <expression> | { <brace-initializer> } } ] ;
+```
+
+</Synopsis>
+
+<Grammar />
+
+## Token 家族
+
+| 家族 | Token | 数量 |
+| :-- | :-- | --: |
+| 标量（1 分量） | `float` `float1` `half` `half1` `int` `uint` `bool` | 7 |
+| 向量（2 / 3 / 4 分量） | `float2..4` `half2..4` `vec2..4` `int2..4` `uint2..4` `bool2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 27 |
+| 纹理 | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` | 5 |
+| 不透明 / 其他 | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
+
+<Callout type="info">
+
+没有 `vec1`、`ivec1`、`uvec1`、`bvec1`，也没有 `half` 的 GLSL 向量拼法。单分量的 GLSL 风格写法根本
+不存在 —— 用 `float` 或 `float1`。
+
+</Callout>
+
+## 六个上下文
+
+各个声明位置**并不共用**同一个类型集合。下面矩阵的每一列对应一个位置。
+
+| 列 | 位置 |
+| :-- | :-- |
+| `Prop` | `Shader` / `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` 的 `Properties` |
+| `I/O` | 材质函数或 `VirtualFunction` 的 `Inputs` / `Outputs` / `Results`（以及 `VirtualFunction` 里作为 `Inputs` 别名的 `Properties`） |
+| `Fn in` | `Function` / `GraphFunction` 的 `in` 参数 |
+| `Fn out` | `Function` / `GraphFunction` 的 `out` 参数，或声明的返回类型 |
+| `Out decl` | `Shader` 的 `Outputs` section 里的变量声明 |
+| `Graph` | `Graph` 块里的声明语句 |
+
+<Callout type="warn">
+
+`Prop` 在**解析**阶段校验；其他每一列都在**生成**阶段、也就是这条声明第一次被使用时才校验。一个参数
+类型不被接受的 `Function` 能干净地解析通过，只有当有人调用它时才失败。
+
+</Callout>
+
+## 有效性矩阵
+
+`✔` 接受 · `✘` 拒绝。*分量*是图构建器看到的值宽度；`0` 表示不携带通道的不透明值。
+
+<Wide>
+
+| Token | 分量 | `Prop` | `I/O` | `Fn in` | `Fn out` | `Out decl` | `Graph` |
+| :-- | --: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `float` `float1` `half` `half1` `int` `uint` `bool` | 1 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `float2` `half2` `vec2` `int2` `uint2` `bool2` `ivec2` `uvec2` `bvec2` | 2 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `float3` `half3` `vec3` `int3` `uint3` `bool3` `ivec3` `uvec3` `bvec3` | 3 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `float4` `half4` `vec4` `int4` `uint4` `bool4` `ivec4` `uvec4` `bvec4` | 4 | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `Texture2D` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `TextureCube` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `Texture2DArray` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `Texture3D` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `VolumeTexture` | 0 | ✔ | ✔ | ✔ ⁽¹⁾ | ✘ | ✘ | ✔ ⁽²⁾ |
+| `SamplerState` | 0 | ✘ | ✔ ⁽³⁾ | ✔ ⁽³⁾⁽⁴⁾ | ✘ | ✘ | ✔ ⁽²⁾⁽³⁾ |
+| `MaterialAttributes` | 0 | ✘ | ✔ | ✔ ⁽⁵⁾ | ✔ | ✔ | ✔ |
+| `Substrate` | 0 | ✘ | ✔ ⁽⁶⁾ | ✘ ⁽⁷⁾ | ✘ ⁽⁷⁾ | ✔ ⁽⁶⁾ | ✔ ⁽²⁾⁽⁶⁾ |
+| `StaticBool` | 1 | ✘ | ✔ | ✔ | ✘ | ✘ | ✔ |
+| `StaticBoolParameter` | 1 | ✔ ⁽⁸⁾ | ✔ | ✔ | ✘ | ✘ | ✔ |
+
+</Wide>
+
+1. `Function` 的纹理类型 `in` 参数还会在生成的 HLSL 签名里紧随其后多出一个
+   `SamplerState <Name>Sampler` 参数，每个调用点也会在实参后插入 `<argument>Sampler`。见
+   [函数](/docs/language/functions)。
+2. `Graph` 块里的纹理、`SamplerState` 和 `Substrate` 声明**必须**带初始化式 —— 它们没有默认值。
+   错误：`Graph variable type '{Type}' requires an explicit initializer.`
+3. 在每一个接受它的上下文里，`SamplerState` 都是 **`Texture2D` 的别名**。它解析成一个 `Texture2D`
+   纹理对象，而不是独立的采样器值。
+4. `SamplerState` **不在**触发注 1 那个伴随采样器展开的集合里，所以 `SamplerState` 型 `in` 参数在生成的
+   HLSL 里就是 `SamplerState <Name>`，调用点收到的是一个纹理对象。
+5. `MaterialAttributes` 能作为 `Function` 输入类型解析，但这个 token 会原样写进生成的 HLSL 签名 ——
+   见 [生成的 HLSL 拼写](#生成的-hlsl-拼写)。
+6. `Substrate` 需要 <Since v="5.4" ue />。更老的引擎上这个 token 根本解析不了，会发出对应位置的
+   "requires Unreal Engine 5.4 or newer" 诊断。
+7. `Substrate` 能作为 `Function` / `GraphFunction` 的参数或结果类型解析，随后被专门的消息拒绝。
+8. 在 `Properties` 里，`StaticBoolParameter` 是**参数节点 token**，不是类型 token：它生成一个
+   `UMaterialExpressionStaticBoolParameter`，默认值只接受 `true` / `false`。见
+   [Properties 类型](/docs/parameters/properties)。
+
+## GLSL 别名
+
+`vec` / `ivec` / `uvec` / `bvec` 拼法在其 `float` / `int` / `uint` / `bool` 对应写法被接受的每个位置都是
+一等 token。它们在 `Properties`、`Inputs`、`Outputs`、`Graph` 声明和 `Graph` 构造器里**不会**被改写。
+
+| GLSL 拼法 | 等价于 |
+| :-- | :-- |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` |
+
+因为 `int`、`uint`、`bool` 和 `half` 最终都塌缩成同样的浮点分量数，在 `int3`、`ivec3`、`bool3` 和
+`float3` 之间选哪个**纯粹是文档意义**。唯一可观测的差别是 `Graph` 块里整数*构造器调用*设置的整数标记，
+它存在的唯一目的是拒绝整数除法。见 [运算符与转换](/docs/graph/expressions)。
+
+### `Function` 函数体内的改写
+
+`Function` / `GraphFunction` 的**签名**会把每个类型 token 过一遍规范化器，**函数体**则会把每个标识符过
+同一张映射表的超集。两者都按小写化的整个标识符匹配。
+
+| 被改写的标识符 | 变成 | 签名类型中 | 函数体文本中 |
+| :-- | :-- | :-: | :-: |
+| `vec2` `vec3` `vec4` | `float2` `float3` `float4` | ✔ | ✔ |
+| `ivec2` `ivec3` `ivec4` | `int2` `int3` `int4` | ✔ | ✔ |
+| `uvec2` `uvec3` `uvec4` | `uint2` `uint3` `uint4` | ✔ | ✔ |
+| `bvec2` `bvec3` `bvec4` | `bool2` `bool3` `bool4` | ✔ | ✔ |
+| `mat2` | `float2x2` | ✔ | ✔ |
+| `mat3` | `float3x3` | ✔ | ✔ |
+| `mat4` | `float4x4` | ✔ | ✔ |
+| `mix` | `lerp` | ✘ | ✔ |
+| `fract` | `frac` | ✘ | ✔ |
+| `mod` | `fmod` | ✘ | ✔ |
+
+签名 15 个别名，函数体 18 个。改写感知注释和字符串，而且**只**作用于 `Function` 和 `GraphFunction` 的
+函数体 —— `Graph` 块永远不会被规范化。在 `Graph` 块里，`fract` 和 `mod` 是真正的数学内置
+<Since v="1.5.0" />，`mix` 是 `lerp` 的真别名；见 [数学内置](/docs/builtins/math)。
+
+<Callout type="warn">
+
+函数体改写按整个标识符匹配且忽略大小写。`Function` 或 `GraphFunction` 函数体里名为 `Mix`、`Mod`、
+`Fract`、`Vec3`、`Mat4` 的 helper、局部变量或结构体成员，会被静默改名成 `lerp`、`fmod`、`frac`、
+`float3`、`float4x4`。没有任何诊断；失败表现为 HLSL 编译错误，或者悄悄算错。请改名。
+
+</Callout>
+
+## 矩阵
+
+**没有矩阵类型。** `mat2` / `mat3` / `mat4` 和 `float2x2` / `float3x3` / `float4x4` 被上面矩阵的每一列
+拒绝。
+
+不过 `mat2` / `mat3` / `mat4` 在 `Function` 签名里*词法上*是被接受的，因为规范化器在任何校验之前就把
+它们改写掉了。于是声明能解析通过，调用时才失败：
+
+```c
+Function float3 Rotate(in mat3 basis, in vec3 v) { return mul(basis, v); }
+// 能解析；调用时失败于：
+//   DreamShader Function 'Rotate' input 'basis' uses unsupported type 'float3x3'.
+```
+
+矩阵形状的运算只能通过 transform 内置完成 —— 见 [UE.* 节点](/docs/builtins/ue-nodes)。
+
+## 字面量
+
+### 标量
+
+```c
+float a = 1.0;
+float b = -0.5;
+float c = 1e-3;
+```
+
+在 `Graph` 块里，数字是真正的 token，可带指数和一个可选类型后缀（`f F h H u U l L`），后缀不进入值：
+`0.55f` 就是 `0.55`。在声明默认值里根本没有数字 token —— 原始文本被延后且宽容地转换，所以
+`float Strength = 1abc;` 会静默变成 `1.0`。见 [词法与大小写](/docs/language/lexical)。
+
+### 向量构造
+
+```c
+vec2   uv    = vec2(0.5, 0.5);
+vec3   color = vec3(1.0, 0.2, 0.1);
+float4 rgba  = float4(color, 1.0);
+```
+
+构造器的分量数取自**名字的最后一个字符**：`…2` → 2，`…3` → 3，`…4` → 4，其他 → 1。只要各部分加起来
+等于目标宽度，构造器接受标量和向量的任意组合。
+
+### Brace initializer
+
+```c
+vec3   color = {1.0, 0.2, 0.1};
+float4 rgba  = {color, 1.0};
+```
+
+适合把已有的标量或向量拼成目标类型，而不必重复写类型名。
+
+### 布尔与字符串
+
+`true` 和 `false` 在声明默认值里被接受，需要标量的地方会转成 `1.0` / `0.0`。字符串字面量用于 settings
+值、元数据、类名和 `UE.*` 的命名参数；它们**不是**表达式能参与运算的值。
+
+```c
+Settings = { Domain = "UI"; }
+
+float pulse = UE.Expression(Class="Sine", OutputType="float1", Input=UE.Time());
+```
+
+## 资产引用
+
+纹理和资产类声明写 `Path( … )` 引用，而不是字面量：
+
+```c
+Properties = {
+    Texture2D   MainTex     = Path(Game, "Textures/T_Main");
+    Texture2D   PluginTex   = Path(Plugins.MoonToon, "Textures/T_Plugin");
+    Texture2D   DefaultTex  = Path("/Engine/EngineResources/DefaultTexture");
+    TextureCube SkyTex      = Path(Engine, "EngineResources/DefaultTextureCube");
+}
+```
+
+每一种被接受的写法、两套解析器及其全部诊断见 [Path 资产引用](/docs/parameters/path)。
+
+## Token 内部的空白
+
+`Fn in`、`Fn out`、`Out decl` 和 `Graph` 使用的标量 / 向量解析器会先把 token 小写化，再去掉**每一个**
+空格才比较，`MaterialAttributes` / `Substrate` 判定也一样。纹理、`SamplerState` 和 `StaticBool` 的
+token 是逐字比较的（只忽略大小写），所以 `Texture 2D` **不能**解析。
+
+| 写法 | 解析为 |
+| :-- | :-- |
+| `float 3` | `float3` |
+| `Material Attributes` | `MaterialAttributes` |
+| `Sub strate` | `Substrate` |
+
+`Properties` 的分派器**不做**这件事，所以那里的 `float 3 X;` 会切成类型 `float` 和名字 `3 X`，失败方式
+也不一样。
+
+## 生成的 HLSL 拼写
+
+`Function` 被降级成生成的 `.ush` helper 时，每个声明 token 都会写进 HLSL 签名，只应用一条改写：
+
+| 声明的 token | 产出的 HLSL |
+| :-- | :-- |
+| `VolumeTexture` | `Texture3D` |
+| 其他一切 | 原样输出 |
+
+<Callout type="warn">
+
+因为 token 是原样输出的，那些能在 DreamShader 侧解析、却没有 HLSL 拼法的 token ——
+`MaterialAttributes`、`StaticBool`、`StaticBoolParameter` —— 会产出 Unreal 无法编译的 helper。
+DreamShader 侧的校验会通过，失败表现为一条指出未知类型名的 shader 编译错误。`MaterialAttributes` 和
+静态布尔的传递请改用 `ShaderFunction` 或 `GraphFunction`。
+
+</Callout>
+
+## 已移除的 token
+
+| Token | 状态 | 替代 |
+| :-- | :-- | :-- |
+| `Scalar` | **已移除** | `float` |
+| `Color` | **已移除** | `float4` / `vec4` |
+| `Vector` | **已移除** | `float2` … `float4` / `vec2` … `vec4` |
+
+它们没有在任何地方被特殊处理，会落进所处上下文的通用"不支持的类型"诊断 —— 在 `Properties` 里是
+`Unsupported property type 'Scalar'.`，在 `Graph` 块里是
+`Unsupported Graph variable type 'Color' for '{Name}'.`
+
+## 示例
+
+每个家族各取一个 token，各自放在接受它的上下文里：
+
+```c
+ShaderFunction(Name="Functions/F_Types")
+{
+    Properties = {
+        float     Strength = 1.0;              // 标量 token
+        vec3      Tint     = vec3(1, 1, 1);    // GLSL 向量拼法
+        Texture2D Noise    = Path(Game, "Textures/T_Noise");
+    }
+
+    Inputs = {
+        vec2                   UV;             // 数值
+        opt StaticBool         UseTint;        // 仅 Inputs 可用的 token
+        opt MaterialAttributes InAttrs;        // 仅 Inputs 可用的 token
+    }
+
+    Outputs = {
+        vec3 OutColor;
+    }
+
+    Graph = {
+        Texture2D Src = Noise;                 // 纹理声明必须带初始化式
+        vec4   Sampled = SampleTexture2D(Src, UV);
+        float3 Base    = Sampled.rgb * Strength;
+        OutColor       = Base * Tint;
+    }
+}
+```
+
+## 诊断
+
+<Diag>
+  <D msg="Unsupported property type '{Type}'." cause="Properties 不接受这个 token —— MaterialAttributes、Substrate、SamplerState、StaticBool 都在其中。" href="/docs/language/sections" />
+  <D msg="Unsupported Graph variable type '{Type}' for '{Name}'." cause="Graph 声明不接受这个 token。" href="/docs/graph/statements" />
+  <D msg="Graph variable type '{Type}' requires an explicit initializer." cause="Graph 块里的纹理、SamplerState 或 Substrate 声明没有写 =。" />
+  <D msg="Unsupported output type '{Type}' for '{Name}'." cause="Shader 的 Outputs 声明不接受这个 token。" />
+  <D msg="{Kind} '{Function}' input '{Name}' uses unsupported type '{Type}'." cause="Inputs section 不接受这个 token —— 常见原因是制表符混进了类型 token。" href="/docs/language/sections" />
+  <D msg="{Kind} '{Function}' output '{Name}' uses unsupported type '{Type}'." cause="Outputs / Results section 不接受这个 token。" />
+  <D msg="DreamShader Function '{Name}' input '{Input}' uses unsupported type '{Type}'." cause="Function 的 in 参数不接受这个 token —— 矩阵会走到这条。" href="/docs/language/functions" />
+  <D msg="DreamShader Function '{Name}' has unsupported result type '{Type}'." cause="结果类型不在标量 / 向量 / MaterialAttributes 集合内。" />
+  <D msg="Graph variable '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上写了 Substrate 声明。" href="/docs/builtins/substrate" />
+  <D msg="DreamShader Function '{Name}' input '{Input}' uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or ShaderFunction instead." cause="UE 5.4+ 上给 Function 写了 Substrate 参数。" />
+  <D msg="Expected a MaterialAttributes value." cause="在声明为 MaterialAttributes 的位置赋了一个数值。" />
+  <D msg="Expected a texture object value with a matching texture type." cause="赋了一个维度不匹配的纹理。" />
+  <D msg="Texture objects cannot be assigned to numeric outputs." cause="纹理对象被赋给了数值目标。" />
+</Diag>
+
+## 继续阅读
+
+<Cards>
+  <Card title="Section" href="/docs/language/sections" description="六个声明上下文分别在哪里。" />
+  <Card title="Properties 类型" href="/docs/parameters/properties" description="每个紧凑 token 生成哪种节点，以及 22 个显式参数节点。" />
+  <Card title="运算符与转换" href="/docs/graph/expressions" description="强转、扩宽与整数除法规则。" />
+  <Card title="Substrate 节点" href="/docs/builtins/substrate" description="Substrate token 背后的 UE 5.4+ 能力。" />
+</Cards>

@@ -1,0 +1,526 @@
+---
+title: Functions
+description: Function, GraphFunction and Namespace — parameters, return types, SelfContained embedding, UE.* hoisting, and how calls resolve.
+---
+
+`Function` and `GraphFunction` move reusable logic out of raw `Graph` statements. Both take a C-style
+signature and an HLSL body; the difference is what happens to that body.
+
+| | `Function` | `GraphFunction` |
+| :-- | :-- | :-- |
+| Body lands in | the generated `.ush` include, as `DreamShaderFn_<Name>` | inlined directly into the calling `Custom` node |
+| `UE.*` calls in the body | left as literal HLSL text | evaluated as material expressions and passed in as `Custom`-node inputs |
+| `Inline` / `SelfContained` | accepted | **not** a modifier here |
+| Requires an active `Graph` build | no | yes |
+| Reachable from other HLSL | yes | no — it has no generated symbol |
+
+`Namespace` groups either kind under an `Ns::` prefix.
+
+## Synopsis
+
+<Synopsis>
+
+```c
+Function      [ { Inline | SelfContained } ] [ <return-type> ] <name> ( [ <parameter-list> ] ) { <hlsl> }
+GraphFunction                                [ <return-type> ] <name> ( [ <parameter-list> ] ) { <hlsl> }
+
+<parameter-list> := <parameter> [ , <parameter> ] …
+<parameter>      := [ { in | out } ] <type-token> <parameter-name>
+```
+
+</Synopsis>
+
+<Grammar />
+
+There is no `(Key = Value)` header, no `Settings`, and no sections of any kind. The `{ … }` after the
+parameter list is raw HLSL, extracted by balanced-brace scanning that is aware of `//`, `/* */` and
+`"…"`.
+
+The keywords `Function` and `GraphFunction` are matched **case-sensitively**; the modifier, the
+`in` / `out` qualifiers and every type token are not.
+
+## Declaration order
+
+The parser reads identifiers left to right and disambiguates by one character of lookahead: after
+reading an identifier it skips whitespace and comments, and if the next character is not `(`, the
+identifier just read was the *return type*.
+
+| Form | Read as |
+| :-- | :-- |
+| `Function Name(…)` | name |
+| `Function Type Name(…)` | return type, then name |
+| `Function SelfContained Name(…)` | modifier, then name |
+| `Function SelfContained Type Name(…)` | modifier, return type, then name |
+| `Function Type SelfContained Name(…)` | return type `Type`, name `SelfContained`, then a stray `Name` — a parse error |
+
+The modifier is therefore fixed in **first** position, immediately after the keyword.
+
+<Callout type="warn">
+
+A function may not be **named** `Inline` or `SelfContained`. `Function SelfContained(in float a, out
+float b) { … }` takes the modifier branch, finds `(` where the name should be, and fails with
+`Function declaration is missing a valid function name after SelfContained.`
+
+</Callout>
+
+## Parameters
+
+Parameters are split on top-level `,` and each one is then split on **any run of whitespace**. Two or
+three tokens are accepted:
+
+| Tokens | Form | Qualifier |
+| :-- | :-- | :-- |
+| 2 | `<type> <name>` | defaults to `in` |
+| 3 | `<qualifier> <type> <name>` | as written |
+| fewer than 2, or more than 3 | — | `Function '{Name}' has an invalid parameter declaration '{Text}'.` |
+
+| Rule | Behaviour |
+| :-- | :-- |
+| Qualifiers | Only `in` and `out`, lower-cased before comparison, so `In`, `OUT`, `iN` all work. |
+| `inout` | **Does not exist.** `inout float x` is rejected: `Function '{Name}' parameter '{Text}' uses unsupported qualifier 'inout'. Supported qualifiers are in and out.` |
+| Whitespace | Any whitespace separates the tokens, tabs included — *unlike* the `Inputs` / `Outputs` sections, which need a literal space. |
+| Empty parameters | Silently skipped, so a trailing comma before `)` is tolerated. |
+| Order | `in` parameters become the inputs in declaration order, `out` parameters the results in declaration order. The two may be interleaved. |
+| Reserved name | A parameter named `__return` (ignoring case) is rejected — the name is reserved for return-type lowering. |
+| Not available | `opt`, default values and `[ … ]` metadata are **not** part of this grammar. They belong to the [`Inputs` / `Outputs` sections](/en/docs/language/sections). |
+
+### At least one output
+
+A function must produce something: after parsing, the result list must be non-empty. That means the
+declaration carries **either** at least one `out` parameter **or** a return type. Neither gives
+`Function '{Name}' must declare at least one out parameter.`
+
+## Return type
+
+| Form | Legal | Result |
+| :-- | :-- | :-- |
+| `Function Name(in T a, out U r)` | yes | one result, `r` |
+| `Function Name(in T a, out U r1, out V r2)` | yes | two results, `r1` then `r2` |
+| `Function U Name(in T a) { return expr; }` | yes | one synthetic result named `__return`, of type `U` |
+| `Function U Name(in T a, out V r)` | **no** | `Function '{Name}' has a return type and cannot also declare out parameters. Use out parameters without a return type for multiple outputs.` |
+| `Function Name(in T a)` | **no** | no output at all |
+| `Function U Name(…) { return; }` | **no** | bare `return;` under a return type |
+
+**A return type implies exactly one output and forbids every explicit `out`.** Multiple outputs
+require `out` parameters and no return type.
+
+### `return` lowering
+
+When a return type is declared, the body is rewritten before codegen: every `return` at **brace
+depth 0**, bounded by non-identifier characters, becomes the literal text `__return =`. The trailing
+expression and its `;` are preserved verbatim, and the scan skips comments, `"…"` and `'…'`, so
+`returnValue` and `my_return` are untouched.
+
+A bare `return;` at depth 0 is a hard error:
+`A function with a return type cannot use a bare 'return;'. Return a value, e.g. 'return expr;'.`
+
+<Callout type="info">
+
+Only depth-0 `return`s are lowered. A `return expr;` nested inside `if { … }` stays a real HLSL
+`return` in the emitted `DreamShaderFn_*` body. That is legal HLSL and returns the same type, but it
+bypasses the `__return` variable — and inside a `GraphFunction`, where the body is inlined into the
+`Custom` node, it returns from the node itself and skips the result write-back entirely.
+
+</Callout>
+
+## Accepted parameter types
+
+After the 15 GLSL aliases are normalised, the resolver accepts:
+
+| Token(s) | Valid as `in` | Valid as result / return |
+| :-- | :-- | :-- |
+| `float` `float1` `half` `half1` `int` `uint` `bool` | yes | yes |
+| `float2` `half2` `int2` `uint2` `bool2` | yes | yes |
+| `float3` `half3` `int3` `uint3` `bool3` | yes | yes |
+| `float4` `half4` `int4` `uint4` `bool4` | yes | yes |
+| `MaterialAttributes` | yes | yes |
+| `StaticBool`, `StaticBoolParameter` | yes | **no** |
+| `Texture2D`, `SamplerState` | yes | **no** |
+| `TextureCube` | yes | **no** |
+| `Texture2DArray` | yes | **no** |
+| `Texture3D`, `VolumeTexture` | yes | **no** |
+| `Substrate` | **no** | **no** |
+
+An unknown token is **not validated at parse time** — it is passed through and only fails when the
+function is called. Matrices reach that path:
+`DreamShader Function 'Rotate' input 'basis' uses unsupported type 'float3x3'.`
+
+<Callout type="warn">
+
+`Substrate` is never usable on a `Function` or a `GraphFunction`. On UE 5.4+ a `Function` reports
+`… uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or
+ShaderFunction instead.`; on UE 5.3, `… requires Unreal Engine 5.4 or newer.` Substrate values
+cannot cross a `Custom` node boundary at all — build them in a `ShaderFunction` or directly in the
+`Shader`'s `Graph`.
+
+</Callout>
+
+### Texture parameters and samplers
+
+Five tokens are treated as *texture function parameters*: `Texture2D`, `TextureCube`,
+`Texture2DArray`, `Texture3D`, `VolumeTexture`. For each one the generated HLSL signature gains an
+extra `SamplerState <ParamName>Sampler` parameter immediately after it, and every generated call site
+passes the matching `<argument>Sampler`. Use that name inside the body to sample the texture.
+
+`SamplerState` is **not** in that list: a parameter declared `SamplerState S` resolves as an ordinary
+`Texture2D` object and receives no companion parameter.
+
+```c
+Function SampleTinted(in Texture2D tex, in vec2 uv, in vec3 tint, out vec3 rgb, out float alpha)
+{
+    float4 texel = Texture2DSample(tex, texSampler, uv);
+    rgb   = texel.rgb * tint;
+    alpha = texel.a;
+}
+```
+
+## Body normalisation
+
+Every `Function` and `GraphFunction` body — and nothing else in the language — is passed through an
+identifier-level rewrite before it is stored. The scan is comment- and string-aware, and does two
+things: it substitutes the 18 aliases (15 GLSL type spellings plus `mix` → `lerp`, `fract` → `frac`,
+`mod` → `fmod`), and it flattens `A::B` into the sanitised identifier `A_B`.
+
+<Callout type="warn">
+
+Because the alias match is case-insensitive and applies to whole identifiers anywhere in the body, a
+helper or *variable* of your own called `Mix`, `Mod`, `Fract`, `Vec3` or `Mat4` is silently renamed
+in the emitted HLSL. There is no diagnostic. Rename it, or spell it so it does not collide
+(`MixColor`, `ModValue`).
+
+</Callout>
+
+## Generated HLSL
+
+Each `Function` is emitted into the generated include as:
+
+```hlsl
+<ResultType0> DreamShaderFn_<SanitizedName>(<params>)
+{
+	<ResultType0> <Result0Name> = (<ResultType0>)0;
+	<Result1Name> = (<ResultType1>)0;
+	<body, indented>
+	return <Result0Name>;
+}
+```
+
+| Element | Rule |
+| :-- | :-- |
+| Symbol name | `DreamShaderFn_` + the function's full name, sanitised. `Common::ApplyTint` → `DreamShaderFn_Common_ApplyTint`. |
+| Why the prefix | An unprefixed `Luminance(float3)` would redefine the engine intrinsic from `Common.ush` and fail shader compilation with `redefinition of 'Luminance'`. |
+| Return value | `Results[0]` is the HLSL return value, never a parameter. |
+| Parameters | every `in` parameter; a `SamplerState <Name>Sampler` after each texture-typed input; then every further result as `out <Type> <Name>`. |
+| Type rewriting | `VolumeTexture` → `Texture3D`; everything else verbatim. |
+
+Every `Function` in a parse unit goes into the include — including `SelfContained` ones.
+`GraphFunction` declarations never do. See [The Pipeline](/en/docs/generation/pipeline).
+
+## `Inline` / `SelfContained`
+
+`Inline` is an **exact synonym** of `SelfContained` — the same parser branch, the same flag, no
+behavioural difference whatsoever. Neither is accepted on `GraphFunction`.
+
+Without the modifier, a call site emits a `Custom` node whose code calls the include. With it, the
+function *and the transitive closure of the plain `Function`s it calls* are embedded into the calling
+node's own code, wrapped in a struct.
+
+| Aspect | Default | `Inline` / `SelfContained` |
+| :-- | :-- | :-- |
+| Where the body lives | the shared generated `.ush` | duplicated inside every calling `Custom` node |
+| `IncludeFilePaths` | always the generated include | only when some other direct callee was not embedded |
+| Struct wrapper | none | a `generated_wrapper_*` type plus an `__ds_wrapper_*` instance |
+| Members emitted | — | in dependency order, a callee before its caller |
+| Recursion | permitted by the include; HLSL will reject it | detected and reported before emission |
+| Still written to the include | yes | **yes** — the modifier adds embedding, it does not remove the include entry |
+
+<Callout type="info">
+
+Embedding is driven by the *call site*, not by the declaration alone. Only functions reached from an
+embedded root are pulled into the wrapper; a plain `Function` that the embedded closure calls is
+embedded with it.
+
+</Callout>
+
+## `GraphFunction` and `UE.*` hoisting
+
+Before the `Custom` node's code is assembled, the body is scanned and every `UE.*` call is replaced
+by the name of a generated input pin carrying the value that call evaluates to.
+
+A call is hoisted only when all of these hold, in order:
+
+| Step | Condition |
+| :-- | :-- |
+| 1 | The character before the `U` is an identifier boundary |
+| 2 | The next three characters are `U`, `E`, `.` — matched **case-insensitively**, so `ue.`, `Ue.` and `uE.` all trigger |
+| 3 | The character after the `.` starts an identifier |
+| 4 | After optional whitespace, the next character is `(` |
+| 5 | A matching `)` exists — the search is string-aware |
+
+If steps 1–4 fail, the text is copied through verbatim and silently. If step 5 fails, generation
+stops with `DreamShader GraphFunction '{Name}' contains an unterminated UE.* call.` The scan skips
+comments and string literals, so a `UE.Time()` inside a comment is not hoisted.
+
+The extracted text is re-parsed as a Graph expression and evaluated against a scope containing the
+enclosing `Graph` block's variables plus this call's arguments, so any
+[`UE.*` builtin](/en/docs/builtins/ue-nodes) — including
+[`UE.Expression`](/en/docs/builtins/ue-expression) — is available.
+
+### The generated pin name
+
+| Step | Rule |
+| :-- | :-- |
+| 1 | Base name is `__ds_<SanitizedFunctionName>_UE<N>`, `N` starting at **0 for each call site** |
+| 2 | The whole name is identifier-sanitised, which collapses the leading `__` to a single `_` |
+| 3 | An empty result becomes `__ds_input` |
+| 4 | While the name collides with an existing input name, `_1`, `_2`, … is appended |
+
+So a `GraphFunction WindPulse` whose body contains one `UE.Time()` call produces a pin literally
+named:
+
+```text
+_ds_WindPulse_UE0
+```
+
+and a namespaced `Common::Pulse` produces `_ds_Common_Pulse_UE0`. These names are user-visible on
+the generated node and in any shader-compiler error that mentions them.
+
+<Callout type="info">
+
+The hoist consumes exactly `UE.Name( … )` up to the matching `)` — nothing more. A trailing swizzle
+or member access stays behind as HLSL applied to the pin, so `UE.CameraVector().xy` becomes
+`_ds_<Fn>_UE0.xy` and is evaluated by the shader compiler. The pin therefore carries the builtin's
+full component count.
+
+</Callout>
+
+<Callout type="warn">
+
+**Only `UE.` is hoisted.** `Substrate.*` calls are not recognised by the scan and are copied into the
+`Custom` node's HLSL verbatim, where `Substrate.Slab(…)` is not valid HLSL and the shader compiler
+rejects it. Build Substrate graphs in a `ShaderFunction` or in the `Shader`'s `Graph`.
+
+</Callout>
+
+A hoisted expression must produce a plain numeric value. A texture object, a `MaterialAttributes`
+value or a Substrate material fails with
+`DreamShader GraphFunction '{Name}' UE input '{CallText}' cannot be passed into a Custom node input.`
+
+```c
+GraphFunction WindPulse(in float2 uv, out float pulse)
+{
+    float t = UE.Time();
+    pulse = sin(uv.x * 8.0 + t);
+}
+```
+
+generates, for one call:
+
+```text
+UMaterialExpressionTime                →  Custom pin "_ds_WindPulse_UE0"
+UMaterialExpressionTextureCoordinate   →  Custom pin "uv"
+UMaterialExpressionCustom  Description="WindPulse"  OutputType=CMOT_Float1
+```
+
+```hlsl
+float pulse = (float)0;
+float t = _ds_WindPulse_UE0;
+pulse = sin(uv.x * 8.0 + t);
+return pulse;
+```
+
+## `Namespace`
+
+A `Namespace` prefixes the names of the `Function` and `GraphFunction` declarations it contains. It
+is not an entity: no object is stored for it and it creates **no scope**. Its only effect is on the
+member's recorded name.
+
+```text
+Namespace(Name = "Common") { Function ApplyTint(…) }   →   name "Common::ApplyTint"
+```
+
+| Rule | Behaviour |
+| :-- | :-- |
+| `Name` | must be a valid identifier, validated character by character. `Namespace(Name="A::B")` is an error — there is **no multi-segment declaration form**. |
+| Body | `Function` and `GraphFunction` only. Nested namespaces, sections and asset blocks all fail with `Namespace '{Name}' may only contain Function or GraphFunction blocks.` |
+| Re-opening | allowed and unchecked. Two `Namespace(Name="Common")` blocks, in one file or across imports, both prefix `Common::`. |
+| Lookup | members are reachable **only** by their fully-qualified name. There is no `using`, no name import, and no unqualified fallback. |
+| Case | the comparison is case-insensitive over the whole qualified string, so `common::applytint(…)` resolves. |
+
+```c
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+
+    Function float Remap01(in float value) {
+        return saturate(value * 0.5 + 0.5);
+    }
+
+    GraphFunction Pulse(in float speed, out float value) {
+        value = sin(UE.Time() * speed);
+    }
+}
+```
+
+```c
+Graph = {
+    vec3 Tinted;
+    Common::ApplyTint(BaseColor, Tint, Tinted);   // statement call
+    float K = Common::Remap01(Tinted.r);          // value call
+}
+```
+
+<Callout type="warn">
+
+Because `::` and `_` sanitise to the same symbol, a `Namespace(Name="Common")` member `ApplyTint`
+and a top-level `Function Common_ApplyTint` produce the same `DreamShaderFn_Common_ApplyTint`. The
+include writer rejects the pair with `DreamShader Function '{Name}' collides with another generated
+helper symbol '{Symbol}'. Rename the Function or Namespace.`
+
+</Callout>
+
+<Callout type="warn">
+
+**A `Ns::Fn(…)` call written inside another `Function` or `GraphFunction` body does not resolve.**
+Body normalisation rewrites the qualified token `Common::ApplyTint` to `Common_ApplyTint` before
+codegen inspects it, and the rewrite table is keyed on `Common::ApplyTint` and on
+`DreamShaderFn_Common_ApplyTint` — never on `Common_ApplyTint`. The symptom is a shader-compile error
+naming an undefined `Common_ApplyTint`; there is no DreamShader diagnostic.
+
+Workarounds: call the namespaced function from the `Graph` block and pass its result in as a
+parameter; declare the helper at top level and call it unqualified; or write the mangled symbol
+`DreamShaderFn_Common_ApplyTint(…)` directly in the body, which the normaliser leaves alone. Calls
+from a `Graph` block are unaffected.
+
+</Callout>
+
+## Calling
+
+Both call forms live in a `Graph` block.
+
+| Form | Requirement |
+| :-- | :-- |
+| `x = Fn(a, b);` — **value call** <Since v="1.3.1" /> | exactly one declared output; the argument count must equal the input count |
+| `Fn(a, b, OutX, OutY);` — statement call | all inputs first, then one **plain variable name** per `out` result, in declaration order |
+
+<Callout type="info">
+
+Single-output `Function` and `GraphFunction` calls **are** value-callable, and have been since
+1.3.1. Single-output `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` and `VirtualFunction` calls
+are too <Since v="1.5.0" />. Only a *multi*-output helper needs the statement form.
+
+</Callout>
+
+Named arguments are **not** supported on `Function` or `GraphFunction` in either form — a `Key =
+Value` argument fails with `… currently uses positional arguments only.` Out targets must be bare
+names, non-empty, and distinct within one call. Because lookup also accepts the mangled spelling,
+`DreamShaderFn_Luma(c)` is a legal call.
+
+Full argument rules, `default`, output selectors and cross-kind ambiguity are on
+[Calls](/en/docs/graph/calls).
+
+## Notes
+
+- **No overload resolution.** Names are not scoped by arity or parameter type; the first declaration
+  whose name matches, ignoring case, wins.
+- **Case-insensitive collisions are real collisions.** `Luma` and `luma` are "declared more than
+  once", and so are `A::B` and `A_B`.
+- **The parse unit is the whole import closure**, so a name clash across imported headers is a
+  clash. See [Imports and Namespaces](/en/docs/language/imports).
+- A `.dsm` or `.dsf` containing only `Function` blocks compiles successfully and produces no asset:
+  `Generated DreamShader helper include '{Path}' from {File}.`
+- If a `Function` and a `GraphFunction` share a name, every call is ambiguous.
+- On UE 5.3 generated `Custom` nodes display their code in the material graph; from UE 5.4 onward
+  `ShowCode` is set to `false`.
+- The legacy section-style body `Function Name { Inputs = { … } Code = { … } }` is **not** a
+  supported form.
+
+## Example
+
+```c
+// DShader/Lib/Color.dsh
+
+Function float Luma(in vec3 color)
+{
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
+Function SelfContained Remap01(in float value, out float result)
+{
+    result = saturate(value * 0.5 + 0.5);
+}
+```
+
+```c
+import "Lib/Color.dsh";
+
+Shader(Name="Materials/M_Tinted")
+{
+    Properties = {
+        TextureSampleParameter2D BaseTex = Path(Game, "Textures/T_Base");
+        vec3                     Tint    = vec3(1.0, 0.6, 0.2);
+    }
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+    Graph = {
+        vec2 UV  = UE.TexCoord(Index = 0);
+        vec4 Tex = BaseTex(Coordinates = UV);
+
+        float Key;
+        Remap01(Luma(Tex.rgb), Key);      // statement call, nested value call
+
+        Color = Tex.rgb * Key;
+    }
+}
+```
+
+## Diagnostics
+
+<Diag>
+  <D msg="Function declaration is missing a valid function name." cause="The token after Function is not an identifier." />
+  <D msg="Function declaration is missing a valid function name after SelfContained." cause="Function SelfContained( or Function Inline( — the modifier branch found ( where the name should be." />
+  <D msg="Function declaration is missing a function name after the return type '{Token}'." cause="A return type not followed by an identifier — a { where the parameter list's ( should be reaches this." />
+  <D msg="Function '{Name}' has an invalid parameter declaration '{Text}'." cause="The parameter has fewer than 2 or more than 3 whitespace-separated tokens, or an empty type or name." />
+  <D msg="Function '{Name}' parameter '{Text}' uses unsupported qualifier '{Qualifier}'. Supported qualifiers are in and out." cause="A qualifier other than in / out — inout among them." fix="Split the parameter into an in and an out parameter." />
+  <D msg="Function '{Name}' parameter name '__return' is reserved for return-type lowering." cause="A parameter literally named __return." />
+  <D msg="Function '{Name}' has a return type and cannot also declare out parameters. Use out parameters without a return type for multiple outputs." cause="A return type combined with any out parameter — GraphFunction SelfContained Foo(… out …) reaches this too." />
+  <D msg="Function '{Name}' must declare at least one out parameter." cause="No out parameter and no return type." />
+  <D msg="A function with a return type cannot use a bare 'return;'. Return a value, e.g. 'return expr;'." cause="A depth-0 bare return in a return-typed body." />
+  <D msg="DreamShader Function '{Name}' is declared more than once." cause="Two declarations whose names are equal ignoring case, anywhere in the import closure." />
+  <D msg="DreamShader Function '{Name}' collides with another generated helper symbol '{Symbol}'. Rename the Function or Namespace." cause="Two names that sanitise to the same DreamShaderFn_* symbol — typically Ns::Fn against Ns_Fn." />
+  <D msg="SelfContained Function cycle detected: {Path}. HLSL Custom nodes cannot compile recursive DreamShader functions." cause="A cycle in the embedded closure." />
+  <D msg="GraphFunction cycle detected: {Path}." cause="Direct or indirect GraphFunction recursion; {Path} is the active call stack." />
+  <D msg="Unknown Graph function '{Name}'." cause="No callable with that name — often an unqualified call to a namespaced member." fix="Qualify the call as Ns::Fn(…)." />
+  <D msg="Graph call '{Name}' is ambiguous because multiple definitions use that name: {Kinds}." cause="Two callable kinds declare the same name." />
+  <D msg="DreamShader Function '{Name}' has {N} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB)." cause="Value-call form used on a multi-output function." />
+  <D msg="DreamShader Function '{Name}' currently uses positional arguments only." cause="A named argument passed to a Function or GraphFunction." />
+  <D msg="DreamShader Function '{Name}' out argument {N} must be a plain variable name." cause="An out target that is not a bare identifier. The index is 1-based." />
+  <D msg="DreamShader GraphFunction '{Name}' contains an unterminated UE.* call." cause="A UE.*( in the body with no matching )." />
+  <D msg="DreamShader GraphFunction '{Name}' UE input '{CallText}' cannot be passed into a Custom node input." cause="A hoisted call produced a texture object, a MaterialAttributes value or a Substrate value." />
+  <D msg="GraphFunction call requires an active Graph build context." cause="A GraphFunction called from outside a Graph block." />
+  <D msg="Namespace '{Name}' may only contain Function or GraphFunction blocks." cause="Any other token in a Namespace body, a nested Namespace included." />
+  <D msg="Expected function name after '::'." cause="A qualified call with nothing after the ::." />
+</Diag>
+
+## Choosing a form
+
+| Situation | Use |
+| :-- | :-- |
+| Reused pure math | `Function`, in a `.dsh` |
+| Reused logic that needs real material nodes | `GraphFunction` |
+| A reusable asset other materials can call | `ShaderFunction`, in a `.dsf` |
+| An `UMaterialFunction` that already exists | `VirtualFunction` |
+| `MaterialAttributes` or Substrate plumbing | `ShaderFunction` — never a `Function` |
+| A public library API | stable names inside a `Namespace`, shipped as a package |
+
+## Where to next
+
+<Cards>
+  <Card title="Calls" href="/en/docs/graph/calls" description="Every argument form, default, output selectors and ambiguity." />
+  <Card title="Imports and Namespaces" href="/en/docs/language/imports" description="Getting a helper header into the file that calls it." />
+  <Card title="UE.* Nodes" href="/en/docs/builtins/ue-nodes" description="Everything a GraphFunction body can hoist." />
+  <Card title="The Pipeline" href="/en/docs/generation/pipeline" description="Where the generated .ush include is written." />
+</Cards>

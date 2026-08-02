@@ -1,0 +1,203 @@
+---
+title: Backend
+description: Graph 与 ThinCustom 的区别 —— 谁承载图、谁是可寻址的资产，以及按文件的设置如何与项目默认值一起解析。
+---
+
+`Backend` 决定一个源文件如何被**物化**：变成可见的 `UMaterial` 节点图，还是变成隐藏基础材质之上的一个
+轻量材质实例。
+
+<Synopsis>
+```c
+Shader(Name = "<asset-path>")
+{
+    Settings [=] {
+        Backend = { "Graph" | "ThinCustom" | "Instance" };
+    }
+}
+```
+</Synopsis>
+
+值在 trim 并去引号后大小写不敏感匹配；引号可选。`Backend` 是
+[特殊键](/docs/settings/material#六个特殊键)，永远不会走到反射解析器。它当前的形态自
+<Since v="1.5.0" /> 起确立。
+
+## 可接受的取值
+
+| 值 | 解析为 | 产出 |
+| :-- | :-- | :-- |
+| `Graph` | `Graph` | 在解析出的资产路径上生成一个 `UMaterial`，节点图直接建在它上面 |
+| `ThinCustom` | `ThinCustom` | 在解析出的资产路径上生成一个 `UDreamShaderMaterialInstance`，其父级是名为 `MB_DreamThinBase_…` 的隐藏 `UMaterial` |
+| `Instance` | `ThinCustom` | 与 `ThinCustom` 完全相同 —— 1.5.0 起弃用 |
+| *（空字符串）* | `Graph` | 等同 `Graph` —— **不是**项目默认值 |
+| *（不写该键）* | 项目的 *Default Compiler Backend* | 见[优先级](#优先级) |
+| 其他任意值 | — | 硬错误，`Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` |
+
+<Deprecated since="1.5.0" use="ThinCustom">
+`Backend = "Instance"` 是 `ThinCustom` 的别名；旧的无图实例后端已经退役，运行时不再存在 `Instance`
+后端。这个拼写保留一个弃用窗口以便现有源码继续编译，并且**不会**产生任何诊断。请改写成
+`Backend = "ThinCustom";`，或者删掉这个键、让项目默认值生效。
+</Deprecated>
+
+<Callout type="info">
+`Backend = "";` 解析为 **`Graph`**，不是项目默认值。只有*不写*这个键才会回落到
+*Default Compiler Backend*。空值与笔误无法区分，所以更推荐把整条语句删掉。
+</Callout>
+
+## 优先级
+
+| `Settings = { Backend }` | 项目 *Default Compiler Backend* | 解析出的后端 |
+| :-- | :-- | :-- |
+| 不写 | `ThinCustom`（出厂默认） | `ThinCustom` |
+| 不写 | `Instance` | `ThinCustom` |
+| 不写 | `Graph` | `Graph` |
+| `"Graph"` | 任意 | `Graph` |
+| `"ThinCustom"` | 任意 | `ThinCustom` |
+| `"Instance"` | 任意 | `ThinCustom` |
+| `""` | 任意 | `Graph` |
+
+显式写的 `Backend` 永远压过项目设置；项目设置见[项目设置](/docs/settings/project)。
+
+`Backend` 在任何材质对象存在之前、也在 `Settings` 其余部分校验之前就被解析，所以无法识别的值会最先让
+编译失败，该文件不会再报其他设置诊断。
+
+## 每种后端产出什么
+
+### `Graph`
+
+| 方面 | 行为 |
+| :-- | :-- |
+| 写出的资产 | 由 `Name` 和 `Root` 推导出的包路径上的一个 `UMaterial` |
+| 图 | 直接建在材质上，随后布局并重新编译 |
+| 内存模式 | 包被标记为新建，之后清掉脏标记，所以 Save All 不会悄悄把它持久化 |
+| 持久化模式 | 包被标记为脏，写入源信息，然后保存包 |
+| 复用冲突 | `Asset '{ObjectPath}' already exists and is not a Material.` |
+
+### `ThinCustom` —— 默认
+
+<Since v="1.5.0" />
+
+| 方面 | 行为 |
+| :-- | :-- |
+| 写出的资产 | 解析出的资产路径上的一个 `UDreamShaderMaterialInstance`（`UMaterialInstanceConstant` 的子类）。**这个实例才是可寻址的资产。** |
+| 隐藏基础材质名（内存模式） | `MB_DreamThinBase_<sanitized Name>` —— 取整个 `Shader` 的 `Name`，把 `[A-Za-z0-9_]` 之外的字符换成 `_`。`Name="Docs/M_Tint"` 得到 `MB_DreamThinBase_Docs_M_Tint` |
+| 隐藏基础材质名（持久化模式） | `MB_DreamThinBase_<instance leaf name>` —— 实例自身的对象名，不含路径。`Name="Docs/M_Tint"` 得到 `MB_DreamThinBase_M_Tint` |
+| 基础材质归属（内存模式） | 归 transient 包所有，标记为 public、standalone、transient |
+| 基础材质归属（持久化模式） | 作为实例的**子对象**，两者共享一个包、一个 `.uasset` |
+| 图与设置 | 建在**基础材质**上；所有 `Settings` 键都落在那里，而不是实例上 |
+| 实例接线 | 父级指向基础材质，清空参数覆盖，写入源路径与哈希，更新静态排列 |
+| 复用冲突 | `Asset '{ObjectPath}' already exists and is not a DreamShader instance material. Delete it (or remove Backend="Instance") before switching backends.` |
+
+`UDreamShaderMaterialInstance` 覆盖了两个引擎行为：
+
+| 覆盖 | 规则 |
+| :-- | :-- |
+| `HasOverridenBaseProperties()` | 当父级是 `UMaterial` 时强制为 `true` —— 也就是隐藏基础材质之上的根实例。其他父级走原生实现，因此以 DreamShader 实例为父的子实例会**共享**根实例已编译的 shader map，而不是自己再编一份。 |
+| `IsAsset()` | 当包是新建的**且** *Show In-Memory Materials In Content Browser* 关闭时返回 `false`。纯内存材质因此从内容浏览器、资产注册表枚举和保存选择器中消失。该设置每次调用都实时读取。 |
+
+内存生成被已保存资产遮蔽时，两种后端都会记一条警告：
+
+```text
+In-memory material mode: '{Asset}' already exists as a saved asset, which shadows in-memory
+regeneration. Delete the saved asset to make it fully in-memory.
+```
+
+参见[内存材质](/docs/generation/in-memory)。
+
+## 修改项目默认值
+
+在编辑器运行时修改 *Default Compiler Backend* 会在内存中重新生成所有源文件，并记录
+`DreamShader default compiler backend changed; regenerating all source files in memory.`
+如果磁盘上还有持久化的生成资产，会弹出提示指向清理操作：
+
+```text
+{Count} previously generated asset(s) are still saved on disk and shadow the in-memory materials.
+Run Tools > DreamShader > Clean Persisted Generated Assets to remove them.
+```
+
+<Callout type="warn">
+单独给某个材质切换后端会把之前的资产留在原地，下一次编译就会撞上上面的复用冲突错误。
+先删掉旧资产，再重新生成。
+</Callout>
+
+## 备注
+
+- 后端不改变语言层面的能力。两者都会构建真实的节点图，接受完全相同的特性集合；区别只在于谁承载图、
+  谁是可寻址的对象。
+- 在 `ThinCustom` 下，从生成的实例上读 `BlendMode` 或 shading model 看到的是从隐藏基础材质**继承**
+  来的值 —— 设置是写在那里的。
+- 日常编辑器工作中两种后端都不会写 `.uasset`。资产落盘发生在 cook 时、通过
+  [命令行](/docs/tools/commandlet)，或通过显式的 *Materialize* 操作。
+- `Backend` 只在 `Shader` 块里生效。在 `ShaderFunction` 的 `Settings` 块里，它属于
+  [被静默忽略](/docs/settings/material#材质函数的-settings)的键之一。
+
+## 诊断
+
+<Diag>
+  <D msg="Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom." cause="值不是 Graph、ThinCustom、Instance，也不是空。" fix="改正拼写，或删掉该键以使用项目默认值。" />
+  <D msg="Asset '{ObjectPath}' already exists and is not a Material." cause="Graph 后端：目标路径上是另一个 UClass 的对象。" fix="删掉旧资产再重新生成。" />
+  <D msg={`Asset '{ObjectPath}' already exists and is not a DreamShader instance material. Delete it (or remove Backend="Instance") before switching backends.`} cause="ThinCustom 后端：目标路径上是非 DreamShader 对象。" />
+  <D msg="Failed to create ThinCustom base material for '{Name}'." cause="隐藏基础材质无法创建。" />
+  <D msg="Cannot create a persisted ThinCustom base without an instance for '{Name}'." cause="持久化模式下走到基础材质创建时没有实例。" />
+  <D msg="Failed to create ThinCustom base material for instance '{Name}'." cause="无法在实例下创建基础材质子对象。" />
+</Diag>
+
+日志里值得认识的提示信息：
+
+| 信息 | 含义 |
+| :-- | :-- |
+| `Generated {Asset} from {File}.{Virtual}` | `Graph` 后端成功；内存生成时 `{Virtual}` 是 ` (virtual)`，否则为空 |
+| `Generated DreamShader thin-custom material {Asset} from {File}.` | `ThinCustom` 后端成功 |
+| `Skipped {Asset} from {File}; source hash is unchanged.` | 源哈希缓存跳过了这次重建 |
+| `In-memory material mode: '{Asset}' already exists as a saved asset, …` | 已保存的资产遮蔽了纯内存的那一份 |
+
+## 示例
+
+```c
+Shader(Name="Docs/M_ThinCustom", Root="Game")
+{
+    Properties {
+        VectorParameter Tint = float4(0.2, 0.6, 1.0, 1.0) [Group="Look"];
+    }
+
+    Settings {
+        Backend      = "ThinCustom";
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+        TwoSided     = true;
+    }
+
+    Outputs {
+        vec3 Color;
+        Base.BaseColor = Color;
+    }
+
+    Graph {
+        Color = Tint.rgb;
+    }
+}
+```
+
+持久化模式下生成的资产：
+
+```text
+package     /Game/Docs/M_ThinCustom
+asset       /Game/Docs/M_ThinCustom.M_ThinCustom      UDreamShaderMaterialInstance
+subobject   MB_DreamThinBase_M_ThinCustom             UMaterial  (hidden base, same package)
+
+Settings applied to:  MB_DreamThinBase_M_ThinCustom
+  BlendMode    = BLEND_Opaque
+  ShadingModel = MSM_DefaultLit
+  TwoSided     = true
+```
+
+在编辑器日常的纯内存模式下，实例还是同一个对象，但基础材质是 transient 包里一个单独的对象，名为
+`MB_DreamThinBase_Docs_M_ThinCustom` —— 用的是净化后的 `Name`，不是叶子名。同一个文件把
+`Backend = "Graph";` 换上，则在 `/Game/Docs/M_ThinCustom` 生成单个 `UMaterial`，自己承载图和设置。
+
+## 下一步
+
+- [项目设置](/docs/settings/project) —— *Default Compiler Backend* 与内存材质可见性开关
+- [内存材质](/docs/generation/in-memory) —— 纯内存生成，以及如何落盘
+- [生成流程](/docs/generation/pipeline) —— 后端解析在流程中的位置
+- [资产路径](/docs/generation/asset-paths) —— `Name` 和 `Root` 如何变成包路径

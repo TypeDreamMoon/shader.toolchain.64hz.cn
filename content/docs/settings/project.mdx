@@ -1,0 +1,139 @@
+---
+title: 项目设置
+description: Project Settings ▸ DreamPlugin ▸ Dream Shader 下的全部 13 个属性、它们真实的配置标识符、默认值与作用。
+---
+
+DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13** 个属性。
+
+<Callout type="warn">
+面板位于 **Project Settings ▸ DreamPlugin ▸ Dream Shader** —— *不在* *Plugins* 下面。
+旧文档指错了位置，列出的属性也更少，而且用的名字并不存在。
+</Callout>
+
+| 方面 | 值 |
+| :-- | :-- |
+| 类 | `UDreamShaderSettings`，位于 `DreamShader` 运行时模块 |
+| Container | `Project` |
+| Category | `DreamPlugin` |
+| Section | `DreamShader`，标题为 **Dream Shader** |
+| 配置文件 | `<Project>/Config/DefaultEngine.ini`，节 `[/Script/DreamShader.DreamShaderSettings]` |
+
+该类是 `Config=Engine, DefaultConfig`，因此值保存在**项目的** `DefaultEngine.ini` 里，而不是
+每用户文件里。签出这个项目的所有人共享同一份配置。
+
+## 13 个设置
+
+<Wide>
+
+| 分类 | 面板名 | 配置属性 | 类型 | 默认值 | 作用 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| Mappings | Shading Model Mappings | `ShadingModelMappings` | `TMap<FString, EMaterialShadingModel>` | *空* | 为 `ShadingModel` 取值增加或覆盖拼写。先于内置表扫描。 |
+| Mappings | Blend Mode Mappings | `BlendModeMappings` | `TMap<FString, EBlendMode>` | *空* | 为 `BlendMode` / `RenderType` 增加或覆盖拼写。 |
+| Mappings | Material Domain Mappings | `MaterialDomainMappings` | `TMap<FString, EMaterialDomain>` | *空* | 为 `MaterialDomain` / `Domain` 增加或覆盖拼写。 |
+| Paths | Source Directory | `SourceDirectory` | `FDirectoryPath` | `DShader` | 扫描 `.dsm` / `.dsf` / `.dsh` 源文件的根目录。为空时回退到 `DShader`；相对路径相对项目目录解析。`<Source>/Packages` 由它推导。 |
+| Paths | Generated Shader Directory | `GeneratedShaderDirectory` | `FDirectoryPath` | `Intermediate/DreamShader/GeneratedShaders` | 生成的 `.ush` include 写到哪里，以及虚拟着色器目录映射到哪里。为空时回退到默认值。 |
+| Compiler | **Default Compiler Backend** | `DefaultBackend` | `EDreamShaderDefaultBackend` | `ThinCustom` | 源文件未写 `Settings = { Backend = … }` 时使用的后端。修改它会在内存中重新生成所有源文件。 |
+| Compiler | **Show In-Memory Materials In Content Browser** | `bShowInMemoryMaterialsInContentBrowser` | `bool` | `false` | 关闭时，纯内存的 DreamShader 实例把自己报告为非资产，从内容浏览器、资产注册表枚举和保存选择器中消失。每次查询都实时读取。 |
+| Compiler | Auto Compile On Save | `bAutoCompileOnSave` | `bool` | `true` | 关闭时，源目录监视器完全忽略文件变化。 |
+| Compiler | Save Debounce Seconds | `SaveDebounceSeconds` | `float` | `0.25` | 文件变化后等待多久再编译。钳制在 `[0.05, 10.0]`，滑条上限是 `2.0`。设置对象不可用时回退到 `0.25`。 |
+| Compiler | Verbose Logs | `bVerboseLogs` | `bool` | `false` | 为依赖文件编译队列增加 `Display` 级日志。 |
+| Decompiler | Export Decompiled Layout | `bExportDecompiledLayout` | `bool` | `true` | 开启时，反编译出的 `.dsm` 会带上还原节点位置的 `Layout = { … }` 段。 |
+| Editor | Open In New Window | `bOpenInNewWindow` | `bool` | `true` | 关闭时，VSCode 启动命令会加上 `--reuse-window`。 |
+| Editor | **Material Instance Subfolder** | `InstanceSubfolder` | `FString` | `Instances` | 相对父材质所在文件夹的子目录，材质内容浏览器在这里创建新实例。留空则与父材质同级创建。资产名为 `MI_<ParentName>`，并做唯一化处理。 |
+
+</Wide>
+
+**加粗**的行带有显式 `DisplayName`；其余显示的是 Unreal 从属性标识符推导出的名字，布尔属性会去掉开头的
+`b`。而 **ini 里的键是原始 C++ 标识符**，`b` 前缀照写 —— 是 `bAutoCompileOnSave`，不是
+`AutoCompileOnSave`。
+
+### `EDreamShaderDefaultBackend`
+
+| 枚举项 | 含义 |
+| :-- | :-- |
+| `Graph` | 每个材质构建一份可见的 `UMaterial` 节点图。 |
+| `Instance` | `ThinCustom` 的**弃用**别名 <Since v="1.5.0" /> |
+| `ThinCustom` | 把图建在每材质一份的隐藏基础材质上，并产出它的轻量材质实例。**默认值。** |
+
+按文件写的 `Backend` 如何覆盖它，见 [Backend](/docs/settings/backend#优先级)。
+
+## 三张映射表
+
+`Mappings` 下的三个条目用来扩展三个枚举设置可接受的取值拼写。它们**默认为空**：内置别名表是在解析时
+按需重建的，从不写进这三个 map，所以面板是空的并不代表“没有别名”。
+
+| 行为 | 细节 |
+| :-- | :-- |
+| 优先级 | 先扫描项目 map；第一个规范化键命中即立刻返回 |
+| 覆盖 | 键规范化后与某个内置别名相同的条目会替换它 |
+| 禁用 | 映射到 `MSM_MAX` / `BLEND_MAX` / `MD_MAX` 的条目会让该拼写解析失败，且不会回落到内置表 |
+| 键匹配 | trim、小写，并删除空格、`_` 和 `-` |
+| 歧义 | 两个规范化后相同的条目，解析顺序未定义 |
+
+完整的内置表见[枚举取值](/docs/settings/enums)。
+
+## 面板提示文本
+
+编辑器面板自身的原文，逐字照录。
+
+*Default Compiler Backend*：
+
+> How DreamShader materializes a source file that does not specify `Settings = { Backend = "..." }`.
+> ThinCustom (the default) builds the material graph on a hidden per-material base and emits a
+> lightweight, memory-only material instance of it -- full feature surface, no visible per-material
+> asset. Graph builds a visible UMaterial node graph. Instance is a deprecated alias for ThinCustom.
+
+*Show In-Memory Materials In Content Browser*：
+
+> When enabled, the memory-only DreamShader materials appear in the Content Browser like unsaved
+> assets. Disabled by default: the source files are the intended authoring surface, and hiding the
+> materials also prevents accidental Save actions from materializing them to disk.
+
+*Material Instance Subfolder*：
+
+> Subfolder, relative to the parent material's folder, where the Material Content Browser creates
+> new material instances. Leave empty to create them alongside the parent.
+
+## 还能在哪里改到这些设置
+
+| 设置 | 其他入口 |
+| :-- | :-- |
+| `bShowInMemoryMaterialsInContentBrowser` | *Tools ▸ DreamShader ▸ Show In-Memory Materials*，以及[材质内容浏览器](/docs/tools/editor)的 Project 页。两者都会写入 ini，并为每个纯内存实例重新广播资产的创建/移除。 |
+| `DefaultBackend` | 在面板里修改会立即触发所有源文件的内存重新生成；如果持久化的生成资产遮蔽了结果，还会弹出通知。 |
+| `SourceDirectory`、`GeneratedShaderDirectory` | 由模块的目录辅助函数消费 —— 见[项目结构](/docs/start/project-layout)和 [Package](/docs/tools/packages)。 |
+
+## 备注
+
+- **没有内存模式的开关。** 编辑器始终在内存中生成 —— 源文件才是创作面 —— 落盘发生在 cook 时、通过
+  [命令行](/docs/tools/commandlet)，或通过显式操作。*Default Compiler Backend* 在
+  <Since v="1.5.0" /> 取代了旧的 In-Memory 开关。
+- `GeneratedShaderDirectory` 只在虚拟着色器目录尚未映射时才被读取。如果本项目已经存在映射，
+  **已有映射优先于该设置**，直到编辑器重启。
+- 内置着色器库路径设置已在 **1.3.8 移除**，没有替代项。
+
+## 示例
+
+`<Project>/Config/DefaultEngine.ini`，列出所有标量属性的默认值：
+
+```ini
+[/Script/DreamShader.DreamShaderSettings]
+SourceDirectory=(Path="DShader")
+GeneratedShaderDirectory=(Path="Intermediate/DreamShader/GeneratedShaders")
+DefaultBackend=ThinCustom
+bShowInMemoryMaterialsInContentBrowser=False
+bAutoCompileOnSave=True
+SaveDebounceSeconds=0.250000
+bVerboseLogs=False
+bExportDecompiledLayout=True
+bOpenInNewWindow=True
+InstanceSubfolder=Instances
+```
+
+三张映射表是容器属性；请在 Project Settings 面板里编辑，让编辑器写回 ini。
+
+## 下一步
+
+- [Backend](/docs/settings/backend) —— 按文件如何覆盖 *Default Compiler Backend*
+- [枚举取值](/docs/settings/enums) —— 映射表所扩展的内置表
+- [内存材质](/docs/generation/in-memory) —— “纯内存”在实践中意味着什么
+- [编辑器工具](/docs/tools/editor) —— Tools 菜单项与材质内容浏览器

@@ -1,0 +1,277 @@
+---
+title: Layout 与 #Region
+description: 用 Layout = { Node(...); Comment(...); } 固定生成节点的位置，用 #Region 给图语句分组。
+---
+
+`Layout` 固定生成节点的位置并声明注释框，它会取代自动布局。`#Region` 给图语句分组，好让自动布局有东西
+可以圈。两者都不会改变着色器数学。
+
+它们写在不同的地方：`Layout` 是和 `Graph` 并列的 section；`#Region` 指令写在 `Graph` 函数体**内部**。
+
+## 语法概览
+
+<Synopsis>
+
+```c
+Layout [=]
+{
+    Node( Var = "<variable>", X = <int>, Y = <int> ) ;
+    Comment( Name = "<title>", X = <int>, Y = <int>, W = <int>, H = <int>
+             [, Color = float4( <r>, <g>, <b>, <a> )] ) ;
+    …
+}
+```
+
+</Synopsis>
+
+<Grammar />
+
+语句是以 `;` 分隔的调用。语句名和参数键都按大小写不敏感匹配，块前的 `=` 是可选的
+<Since v="1.5.0" />。`Layout` 在 `Shader`、`ShaderFunction`、`ShaderLayer` 和 `ShaderLayerBlend` 中被
+接受，在 `VirtualFunction` 中**不被**接受 —— 那个块不生成图。
+
+<Callout type="warn">
+
+每个参数都是 `Key = Value` 对。位置式写法 `Node("Tint", X=0, Y=0)` **不被**接受，会失败于
+`Layout argument '{Argument}' must use Key=Value syntax.` 名字参数在 `Node` 上叫 `Var`，在 `Comment`
+上叫 `Name`。
+
+</Callout>
+
+## `Node`
+
+把一个已经生成出来的表达式钉到确切位置上。
+
+| 参数 | 必需 | 类型 |
+| :-- | :-- | :-- |
+| `Var` | 是 | 文本 |
+| `X` | 是 | 整数 |
+| `Y` | 是 | 整数 |
+
+`Var` 指的是图构建过程中被记录下来的一个值。会被记录的名字有三类：
+
+| 名字类别 | 记录时机 |
+| :-- | :-- |
+| `Graph` 语句的目标变量 | 该语句产出了节点 —— 声明的局部变量和被赋值的输出变量都算 |
+| `Properties` 声明名 | 图**确实读取**了这个属性；属性节点是惰性创建的 |
+| `Inputs` / `Outputs` 声明名 | 仅限 `ShaderFunction`、`ShaderLayer` 和 `ShaderLayerBlend`，那里每一条都会变成 `FunctionInput` / `FunctionOutput` 节点 |
+
+`MaterialExpressionEditorX/Y` 和编辑器图节点的 `NodePosX/Y` 都会被写入，所以位置在重新打开材质后依然
+保留。
+
+<Callout type="info">
+
+匹配不到任何东西的 `Var` 会被**静默忽略** —— 无论是拼写错误，还是钉了一个图从没读过的属性，都没有诊断。
+
+</Callout>
+
+## `Comment`
+
+在确切矩形上创建一个注释框。
+
+| 参数 | 必需 | 类型 | 作用 |
+| :-- | :-- | :-- | :-- |
+| `Name` | 是 | 文本 | 框标题。实际产出为 `DreamShader: <Name>` —— 见[说明](#说明)。 |
+| `X` | 是 | 整数 | 左边缘。 |
+| `Y` | 是 | 整数 | 上边缘。 |
+| `W` | 是 | 整数 | 宽度，下限钳到 `120`。 |
+| `H` | 是 | 整数 | 高度，下限钳到 `80`。 |
+| `Color` | 否 | `float4` 字面量 | 框颜色，默认 `float4(0.10, 0.16, 0.22, 0.35)`。 |
+
+<Callout type="warn">
+
+`W` 和 `H` 虽然有结构体默认值，但仍然是**必填参数**。`Comment(Name="X", X=0, Y=0)` 会失败于
+`Layout argument 'W' must be an integer.` —— 整数参数缺失和格式错误报的是同一条消息。
+
+</Callout>
+
+`Color` 字面量遵循通用的向量字面量语法：`(` 之前的 token 被忽略，所以 `float4(…)`、`vec4(…)` 和 `(…)`
+都能解析。一个分量铺成 `(x, x, x, 1)`，两个给 `(x, y, 0, 0)`，三个给 `(x, y, z, 1)`，第四个之后的分量
+会被解析然后丢弃。
+
+生成的注释框始终使用 `FontSize = 24` 和分组模式，所以拖动框会带动它圈住的节点。
+
+## 参数解析
+
+| 规则 | 细节 |
+| :-- | :-- |
+| 语句形态 | `<Name>( <key> = <value> [, <key> = <value> ]… )` —— 闭合 `)` 之后再有文本就是错误 |
+| 语句名 | 必须是合法标识符，按大小写不敏感与 `Node`、`Comment` 比较 |
+| 键规范化 | 先去空白，再转小写 |
+| 值处理 | 剥掉一对外围 `"…"` 并反转义，然后去空白 |
+| 重复键 | **被拒绝**并报诊断 —— 不同于 `Settings`，那里是后写的键胜出 |
+| 空键或空值 | 拒绝 |
+| 注释 | 在切分语句之前从 section 体中剥离 |
+
+## 坐标系
+
+位置是 Unreal 材质图编辑器坐标：**X 向右增大，Y 向下增大**。负 X 是"上游"；材质根节点位于所有节点的
+右侧。
+
+自动布局使用的这些常量，在手工摆放节点时是有用的参照：
+
+| 位置 | X |
+| :-- | :-- |
+| 生成的 property / 参数节点 | `-800` |
+| `FunctionInput` 节点 | `-800` |
+| 内联字面常量 | `-1120` |
+| 自动布局的一列 | 宽 `420`，从输出列向左排布 |
+| 输出绑定的 reroute 使用点 | `720` |
+| `FunctionOutput` 节点 | `900` |
+| 自动布局的输出列 | `900` |
+| `Expression( … ).Pin[i]` 输出目标节点 | `1200` |
+
+纵向步距：属性节点和自动布局行是 `220`，函数输入输出是 `180`。
+
+## 显式布局与自动布局
+
+`Layout` 块不是在自动布局之上叠加 —— 它**替换**掉那套排序算法。
+
+| 条件 | 结果 |
+| :-- | :-- |
+| 至少一条 `Node` 匹配到了被记录的变量，**或者**至少声明了一条 `Comment` | 走显式布局 |
+| 有 `Layout` 块，但没有 `Node` 匹配上、也没有 `Comment` | 自动布局照常运行，就当这个块不存在 |
+| 没有 `Layout` 块 | 自动布局运行 |
+
+在显式路径上，块里没点名的表达式仍然会被摆放：位置从已经定位的邻居迭代传播 —— 位于已知消费者和已知
+依赖的中点、已知消费者左边 `360`、或已知依赖右边 `360` —— 重合槽位有扇出避让。仍然没被摆放的，会进入
+所有已定位节点左侧的兜底列。
+
+<Callout type="warn">
+
+**在瞬时（内存）模式下布局被完全跳过。** 保存时自动编译、Gen 页面按钮和实时预览都在内存中生成，所以
+`Layout` 块在那里没有任何可见效果 —— 节点保留构建阶段产生的位置。位置只在持久化资产里出现：cook 时、
+通过 commandlet，或者显式执行 *Materialize* 之后。见 [内存材质](/docs/generation/in-memory)。
+
+</Callout>
+
+<Callout type="info">
+
+第二个 `Layout` section 会**重置**第一个，而不是追加。一个函数体里只有最后一个 `Layout` 块有效。语言里
+其他每个 section 要么追加、要么合并。
+
+</Callout>
+
+## `#Region` / `#EndRegion`
+
+Region 指令住在 **`Graph` 函数体文本**里，不在 `Layout` 里。它们给一段图语句命名；布局阶段会把每个不同
+的 region 名变成一个注释框块。
+
+```c
+Graph = {
+    #Region "Surface"
+    Color = BaseColor.rgb;
+    Rough = Roughness;
+    #EndRegion
+
+    #Region "Emissive"
+    Glow = Tint * Intensity;
+    #EndRegion
+}
+```
+
+| 规则 | 细节 |
+| :-- | :-- |
+| 识别 | 去空白后的行必须以 `#Region` / `#EndRegion` 开头，大小写不敏感，后面跟行尾、空白或 `"` |
+| 名字 | 本行剩余部分，去引号并去空白；`#Region` 上是**必需**的 |
+| 嵌套 | region 可以嵌套 —— 解析器维护一个栈 |
+| 跨度 | `StartLine` 是 `#Region` 的**下一**行；`EndLine` 是 `#EndRegion` 的**上一**行，下限为 `StartLine` |
+| 行号 | 指令行被替换成等长的空格，所以诊断保留真实的行列 |
+
+region 内部的语句会给它产出的变量打上 region 名标签。在自动布局路径上，每个 region 变成一个注释框；在
+显式路径上，region 名参与决定跨块 reroute 插在哪里的块边界。
+
+<Callout type="info">
+
+`#Region` 名和 `Layout` 的 `Comment` 名互相独立。声明一个矩形恰好圈住某个 region 节点的 `Comment` 并不
+会把两者合并 —— 在显式路径上，是几何包含关系决定节点归属哪个注释块。
+
+</Callout>
+
+除此之外没有别的 `#` 指令。`#Region` **只**在 `Graph` 体内被识别；其他任何地方的 `#` 都不是指令。
+
+## 说明
+
+- **注释文本总是带 `DreamShader: ` 前缀。** `Comment(Name="Sampling", …)` 产出的框显示为
+  `DreamShader: Sampling`。这个前缀同时也是拆除标记：重新生成时，文本以 `DreamShader: ` 开头的注释框
+  会被删除重建，不带这个前缀的框则**得以保留**。手工创建的注释框是唯一能在重新生成中幸存的手工修改。
+  见 [重新生成](/docs/generation/regeneration)。
+- `Name` 去引号后为空或只有空白的 `Comment` 会在解析阶段被拒绝，所以永远不会为它创建框。
+- [反编译器](/docs/tools/decompiler) 输出的 `Layout` 块就是这个格式，所以材质可以导出、编辑、再生成而
+  保住位置。是否输出由 **Export Decompiled Layout** 项目设置控制，默认开启。
+- 自动布局会在超大图上放弃。表达式数量达到或超过 1200 时它会记录
+  `Skipping automatic layout for large DreamShader graph ({Count} nodes). Existing generated positions will be used.`
+  并保留构建阶段的位置。`Layout` 块正是控制这类图的手段。
+
+## 示例
+
+```c
+Shader(Name="Materials/M_Layout", Root="Game")
+{
+    Properties {
+        VectorParameter Tint      = float4(0.4, 0.8, 1.0, 1.0);
+        ScalarParameter Intensity = 2.0 [Slider(0, 10)];
+    }
+
+    Outputs {
+        float3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        #Region "Emissive"
+        float3 Boosted = Tint.rgb * Intensity;
+        Color = Boosted + vec3(0.05, 0.05, 0.05);
+        #EndRegion
+    }
+
+    Layout {
+        Comment(Name="Emissive", X=-1300, Y=-260, W=1100, H=520,
+                Color=float4(0.10, 0.22, 0.16, 0.35));
+        Node(Var="Tint",      X=-1200, Y=-160);
+        Node(Var="Intensity", X=-1200, Y=  60);
+        Node(Var="Boosted",   X= -800, Y=-160);
+        Node(Var="Color",     X= -400, Y= -60);
+    }
+}
+```
+
+生成的图：
+
+```text
+Comment      "DreamShader: Emissive"   at (-1300, -260)  size 1100 x 520
+Tint         VectorParameter           at (-1200, -160)
+Intensity    ScalarParameter           at (-1200,   60)
+Boosted      Multiply                  at ( -800, -160)
+Color        Add                       at ( -400,  -60)
+DS_Color_<n> NamedReroute              positioned by propagation
+```
+
+除非材质被持久化，否则什么都不会落盘 —— 见上面的瞬时模式警告。
+
+## 诊断
+
+<Diag>
+  <D msg="Invalid Layout statement '{Statement}'." cause="没有配平的 ( … )。" />
+  <D msg="Unexpected text after Layout statement '{Statement}'." cause="闭合 ) 之后还有文本。" />
+  <D msg="Invalid Layout statement name in '{Statement}'." cause="( 之前的文本不是标识符。" />
+  <D msg="Unknown Layout statement '{Name}'." cause="调用名不是 Node 也不是 Comment。" />
+  <D msg="Layout argument '{Argument}' must use Key=Value syntax." cause='使用了位置式参数 —— 老的 Node("Tint", …) 写法会走到这里。' fix='改写成 Node(Var="Tint", X=…, Y=…)。' />
+  <D msg="Invalid Layout argument '{Argument}'." cause="空键或空值。" />
+  <D msg="Layout argument '{Key}' is declared more than once." cause="重复的参数键。不同于 Settings，后写的不会胜出。" />
+  <D msg="Layout argument '{Name}' is required." cause="必需的文本参数缺失或为空 —— Node 上的 Var、Comment 上的 Name。" />
+  <D msg="Layout argument '{Name}' must be an integer." cause="必需的整数参数缺失或不是整数 —— Comment 的 W 和 H 最常触发。" />
+  <D msg="Layout Comment Color must be a float4 literal in '{Statement}'." cause="Color 不是向量字面量。" />
+  <D msg="Graph #Region on line {Line} must include a name." cause="#Region 后面什么都没写。" />
+  <D msg="Graph #EndRegion on line {Line} has no matching #Region." cause="不成对的 #EndRegion。" />
+  <D msg="Graph #Region '{Name}' is missing #EndRegion." cause="Graph 体结束时还有未闭合的 region。" />
+</Diag>
+
+## 继续阅读
+
+<Cards>
+  <Card title="Section" href="/docs/language/sections" description="为什么第二个 Layout 会重置第一个。" />
+  <Card title="内存材质" href="/docs/generation/in-memory" description="为什么默认情况下 Layout 在编辑器里看不出效果。" />
+  <Card title="重新生成" href="/docs/generation/regeneration" description="重建时什么能幸存，以及 DreamShader: 注释规则。" />
+  <Card title="反编译导出" href="/docs/tools/decompiler" description="把已有材质的 Layout 反向导出。" />
+</Cards>

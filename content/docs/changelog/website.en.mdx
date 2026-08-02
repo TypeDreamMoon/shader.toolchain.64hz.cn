@@ -1,71 +1,191 @@
 ---
 title: Website Updates
-description: lang.64hz.cn documentation site update history.
+description: Update history for the lang.64hz.cn documentation site — structure, deployment and content.
 ---
+
+Changes to the `lang.64hz.cn` documentation site itself: information architecture, deployment and
+content.
+
+## 2026-08-02
+
+### Documentation Rebuild — Plugin 1.5.0
+
+- The whole documentation set was restructured into **13 sections**: Overview, Getting Started,
+  Language, The Graph Language, Builtins, Parameters, Settings, Generation, Tooling, Diagnostics,
+  Examples, HLSL / GLSL Background, and ChangeLog.
+- Every page was rewritten against the plugin's own reference manual, which is derived from the
+  plugin source and verified against it. The manual is now the site's fact source; pages state
+  behaviour, diagnostics and exhaustive tables rather than paraphrasing older docs.
+- The `getting-started/`, `dreamshader/`, `syntax/`, `reference/`, `compiler/` and `workflows/`
+  sections were replaced by that tree; their content lives on under the new sections.
+- Documented the `1.5.0` surface: the unified [ThinCustom backend](/en/docs/settings/backend),
+  [in-memory materials](/en/docs/generation/in-memory) and the
+  [Material Content Browser](/en/docs/tools/editor), optional section `=`, `Group()` scopes and
+  `Slider()`.
+- Corrected long-standing errors carried by the old pages: `Substrate.*` requires **UE 5.4+**, not
+  5.7; the project settings live under **DreamPlugin ▸ Dream Shader** and there are **13** of them;
+  `if (Mask)` is wired as `!= 0`, so negative values take the then-branch; only the generic
+  `UE.Expression` / `Substrate.*` calls and the math builtins deduplicate nodes; a class name never
+  resolves with its `U` prefix; and `MaterialLayer` / `MaterialLayerBlend` have been deprecated
+  since 1.3.0.
+- The current-version tables now read plugin `1.5.0` on Unreal Engine `5.3` through `5.8`.
 
 ## 2026-06-12
 
 ### Plugin 1.4.0 / Extension 1.5.3 Docs
 
-Updated the homepage, plugin overview, installation, workflow, editor-support, and changelog
-pages against DreamShader plugin `1.4.0` and VSCode extension `1.5.3`.
-
-Documented UE `5.3` through `5.7` single-plugin `RunUAT BuildPlugin` verification,
-Substrate generation support, `.dsm` material preview over WebSocket with file-bridge
-fallback, preview settings, callable hover metadata, and the current source automation
-baseline.
+- Homepage, plugin overview and installation pages synchronized with DreamShader plugin `1.4.0` and
+  VSCode extension `1.5.3`.
+- Documented UE `5.3` through `5.7` single-plugin `RunUAT BuildPlugin` verification, plus the MSVC
+  `14.38` note for UE `5.3` / `5.4`.
+- Documented the state of Substrate generation, the `Base.FrontMaterial` output binding and the
+  `Substrate.*` wrappers.
+- Added VSCode `.dsm` material preview documentation covering `Show Material Preview`, live
+  WebSocket frames, the file-bridge fallback, mesh selection and the preview settings.
+- Updated the DreamShader plugin changelog for `1.4.0`, the material preview bridge and the
+  automation-test baseline in the current source.
+- Updated the VSCode extension changelog for the `1.5.1` to `1.5.3` Template, Bridge, Package,
+  callable hover and material preview work.
 
 ## 2026-05-31
 
 ### English Mode
 
-Added a site-wide English mode with `/en` and `/en/docs/...` routes, localized homepage
-copy, localized Fumadocs UI strings, language switching, and English documentation mirrors.
+- Added a site-wide English mode with `/en` and `/en/docs/...` routes, localized homepage copy,
+  localized Fumadocs UI strings, language switching, and English documentation mirrors.
 
 ## 2026-05-30
 
 ### Plugin 1.3.9 / Extension 1.4.9 Docs
 
-Updated docs against DreamShader plugin `1.3.9`, VSCode extension `1.4.9`, plugin README,
-extension README, and recent commits. Added Rider language-support repository references.
+- The current-version tables moved to plugin `1.3.9` and VSCode extension `1.4.9`.
+- Added `.dsf` function file documentation covering the file model, installation, workflow, asset
+  generation and editor support.
+- Added the [Layout and #Region](/en/docs/language/layout) page for
+  `Layout = { Node(...); Comment(...); }` and Graph `#Region` / `#EndRegion`.
+- Documented `.dsm` / `.dsf` decompile export, `VolumeTexture` / `Texture3D`, Function builtin
+  metadata, and the MaterialExpression fallback manifest.
+- Added the Rider language-support repository and its capabilities from the README; the editor
+  support page now covers VSCode and Rider.
+- Updated the plugin and extension changelogs for plugin `1.3.3` to `1.3.9` and VSCode `1.4.1` to
+  `1.4.9`.
 
 ### Homepage Refresh
 
-Reworked the homepage into a vertical slide experience with improved desktop and portrait
-layouts, centered text, fade/slide transitions, and mobile-friendly navigation.
+- Reworked the homepage into an entry point for a tutorial site, with a left-hand table of contents,
+  a version summary, a learning path and a minimal example.
+- Added light entrance and card hover animations that respect `prefers-reduced-motion`.
 
 ## 2026-05-11
 
 ### Plugin 1.3.2 / Extension 1.4.0 Docs
 
-Updated language service, parser-based editor behavior, ShaderFunction, and graph language
-documentation.
+- The current-version tables moved to plugin `1.3.2` and VSCode extension `1.4.0`.
+- Added `ShaderLayer` / `ShaderLayerBlend` documentation covering native Unreal Material Layer /
+  Layer Blend function asset generation, output shape and migration off the old keywords.
+- Added `GraphFunction` documentation: `UE.*` graph-node conversion inside a helper body,
+  single-output value expressions, and the multi-output explicit out-variable rule.
+- Updated the `Function` / `GraphFunction` call rules — a single-output helper is usable as a Graph
+  value expression.
+- Documented the `Saved/DreamShader/Bridge/material-expressions.json` dynamic MaterialExpression
+  manifest and the VSCode completion path.
+- Updated both changelogs for plugin `1.2.10`, `1.3.0`, `1.3.1`, `1.3.2` and VSCode `1.2.27`,
+  `1.3.x` and `1.4.0`.
 
 ## 2026-05-05
 
 ### Plugin 1.2.8 Docs
 
-Updated project settings, editor entrypoints, and Unreal compatibility notes.
+- The current-version table moved to plugin `1.2.8`, VSCode extension unchanged at `1.2.26`.
+- Updated the project settings path to *Project Settings ▸ DreamPlugin ▸ Dream Shader*.
+- Documented the `OpenInNewWindow` editor setting, controlling whether opening the VSCode workspace
+  from Unreal opens a new window or reuses an existing one.
+- Updated the plugin changelog for the documentation link, support link and settings section text.
 
 ### Plugin 1.2.7 / Extension 1.2.26 Docs
 
-Updated output diagnostics and Unreal 5.7 compatibility notes.
+- The current-version tables moved to plugin `1.2.7` and VSCode extension `1.2.26`.
+- Updated the output binding reference with the `Base.CustomizedUVs0..7` aliases, the legacy Color
+  outputs, `SurfaceThickness`, `Displacement` and the Moon Engine specific
+  `MooaEncodedAttribute0..4`.
+- Updated the extension changelog for the output diagnostics sync and the
+  `UE.CollectionParam(Collection=Path(...))` diagnostic fix.
+- Updated the plugin changelog for the Unreal 5.7 material function node dependencies and the Moon
+  Engine conditional compilation.
 
 ## 2026-04-30
 
-### Plugin 1.2.3 - 1.2.6 Docs
+### Plugin 1.2.6 Docs
 
-Updated ShaderFunction properties, MaterialAttributes, parameter reflection, and function
-default-parameter documentation.
+- The current-version tables moved to plugin `1.2.6` and VSCode extension `1.2.25`.
+- Documented `ShaderFunction.Properties`, `const` property helpers, and `Inputs` preview defaults
+  referencing `Properties`.
+- Updated both changelogs.
+
+### Plugin 1.2.5 Docs
+
+- The current-version tables moved to plugin `1.2.5` and VSCode extension `1.2.24`.
+- Documented the `MaterialAttributes` type, the `Base.MaterialAttributes` output binding, and
+  `Attrs.BaseColor = ...` member writes.
+- Updated both changelogs.
+
+### Plugin 1.2.4 Docs
+
+- The current-version tables moved to plugin `1.2.4` and VSCode extension `1.2.23`.
+- Moved the parameter metadata documentation to the semicolon-separated `[...]` reflection property
+  block.
+- Added Texture Sample Parameter examples for the sampler, mip, coordinate and view mip bias fields.
+- Updated both changelogs.
+
+### Plugin 1.2.3 Docs
+
+- The current-version tables moved to plugin `1.2.3` and VSCode extension `1.2.22`.
+- Documented explicit `Properties` parameter nodes, declaration metadata, `StaticSwitchParameter`
+  and `UE.CollectionParam(...)`.
+- Documented `opt` inputs on `ShaderFunction` / `VirtualFunction` and the call-side `default`
+  argument.
+- Updated the asset generation, Graph, limitations, VSCode workflow, plugin overview, getting
+  started, recipes, cheat sheet and diagnostics pages, so the new parameter capabilities are
+  reachable from the documentation entry points.
+- Updated both changelogs.
 
 ## 2026-04-29
 
+### Plugin 1.2.2 Docs
+
+- The current-version table moved to plugin `1.2.2`.
+- Updated the plugin changelog for `OpenVirtualFunction`, `Copy Virtual Function Reference`, unique
+  `VirtualFunction` definition files and the startup sync check.
+- Documented semicolon-less `import "File.dsh"` compatibility in the Unreal generator.
+
+### Plugin 1.2.1 Docs
+
+- The current-version table moved to plugin `1.2.1`.
+- Documented the material function editor's `DreamShader` dropdown menu, covering
+  `CopyVirtualFunction`, `CreateVirtualFunction` and `CopyVirtualFunctionCall`.
+
 ### ChangeLog Section
 
-Added the changelog section and filled VirtualFunction documentation.
+- Added the top-level `ChangeLog` section, collecting the plugin, VSCode extension and website
+  update records under one entry point.
+- Moved the existing changelog pages out of the `DreamShader Plugin` and `Ecosystem and Tooling`
+  sections, cutting a duplicated navigation level.
+- Added a `ChangeLog` entry to the homepage top navigation.
+
+### VirtualFunction Documentation
+
+- Completed the `VirtualFunction` coverage across the top-level declaration, section, Graph call,
+  asset generation, types and values, limitations and example pages.
+- The current-version tables moved to plugin `1.2.1` and VSCode extension `1.2.18`.
+- Clarified `Path(Plugin.PluginName, "...")` / `Path(Plugins.PluginName, "...")` plugin content root
+  semantics in the documentation.
 
 ## 2026-04-28
 
 ### Automatic Deployment
 
-Added deployment workflow for the documentation site.
+- Added a GitHub Actions deployment workflow that runs typecheck, build and SFTP upload on a push to
+  `main` / `master` or on manual dispatch.
+- Consolidated the deployment script into `upload.js`, configured through `SFTP_HOST`, `SFTP_USER`,
+  `SFTP_PASSWORD` / `SFTP_PRIVATE_KEY` and `SFTP_REMOTE_DIR` environment variables or secrets.
+- The remote directory is cleaned before upload, while `.user.ini` and `.htaccess` are preserved.

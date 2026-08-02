@@ -1,0 +1,235 @@
+---
+title: 内存材质
+description: 为什么编译好的 DreamShader 材质不出现在 Content Browser，隐藏 base 材质是什么，以及怎么把它写到磁盘。
+---
+
+你保存了一个 `.dsm`，日志说材质已生成，然后 Content Browser 里什么都没有。这不是坏了。本页解释真正发生了什么，
+建议在提 bug 之前先读一遍。
+
+| 项目 | 说明 |
+| :-- | :-- |
+| 适用于 | `ThinCustom` backend（项目默认）和 `Graph` backend 下的 `Shader` 块 |
+| 发出的类 | `UDreamShaderMaterialInstance`（ThinCustom）或 `UMaterial`（Graph） |
+| 标记 | 所在 package 仍带着 `PKG_NewlyCreated` |
+| 起始版本 | <Since v="1.5.0" /> —— ThinCustom backend 与 Content Browser 可见性开关 |
+
+## DreamShader 材质到底是什么
+
+在默认 backend 下，一个 `Shader` 块 **不会** 产出 `UMaterial` 资产。它产出两个对象：
+
+```text
+UDreamShaderMaterialInstance          "M_Emissive"            <- the asset you reference
+  └─ UMaterial (subobject, hidden)    "MB_DreamThinBase_M_Emissive"
+       └─ the generated node graph
+```
+
+节点图 —— 每个 `Properties` 节点、每条 `Graph` 语句、每条 `Outputs` 绑定 —— 都构建在这个 **隐藏 base** 上。实例只是个薄壳，
+携带参数值、来源元数据和编译好的 shader map。`Settings` 里的东西全部落在 base 上，这也是为什么从生成出来的实例上读
+`BlendMode` 看到的是 *继承来的* 值。
+
+| 成员 | 可见性 | 含义 |
+| :-- | :-- | :-- |
+| `SourceFilePath` | 详情面板中只读，分类 `DreamShader` | 生成这个实例的 `.dsm` |
+| `SourceHash` | 详情面板中只读，分类 `DreamShader` | source hash —— 见 [重新生成](/docs/generation/regeneration) |
+| `Parent` | 标准 | 隐藏的 base 材质 |
+
+两个 override 决定了这个类的行为，而且两个都很关键。
+
+| Override | 结果 | 后果 |
+| :-- | :-- | :-- |
+| `HasOverridenBaseProperties()` | 当且仅当父级是 `UMaterial` 时为 `true` | **根** 实例拥有自己的静态排列和 shader map；挂在它下面的子 `UMaterialInstanceConstant` 走回引擎默认行为，**共享** 这份 shader map，于是几十个颜色或参数变体只花一次编译 |
+| `IsAsset()` | 当 package 仍是 `PKG_NewlyCreated` **且** *Show In-Memory Materials In Content Browser* 关闭时为 `false` | 纯内存材质对 Content Browser、资产选择器和保存选择器隐身 |
+
+第二个 override 就是"我的材质去哪了"的全部答案。
+
+### 隐藏 base
+
+| 模式 | base 对象名 | Outer | 对象标记 |
+| :-- | :-- | :-- | :-- |
+| 纯内存 | `MB_DreamThinBase_<sanitized Name>` | transient package | `RF_Public`、`RF_Standalone`、`RF_Transient` |
+| 已持久化 | `MB_DreamThinBase_<instance leaf name>` | **实例对象自身** | `RF_Public`、`RF_Standalone` |
+
+`<sanitized Name>` 是块的完整逻辑 `Name`，其中 `[A-Za-z0-9_]` 之外的每个字符都换成 `_`，连续下划线折叠，所以
+`Shader(Name="Mat/Test")` 得到 `MB_DreamThinBase_Mat_Test`。这个净化不是为了好看：`FName` 里的 `/` 会被读成子对象分隔符，
+那样 base 就无法复用，每次重新生成都会泄漏一个新 base。
+
+持久化模式下 base 是实例的子对象，因此它作为普通 export 序列化 **进实例自己的 package**。一个资产、一个 `.uasset`、
+Content Browser 里没有 `MB_DreamThinBase_*` 兄弟资产，cook 时也不会丢跨 package 的父级 import。由于非 package 的 outer
+本身就让 `IsAsset()` 为 false，base 在两种模式下都不可见。
+
+<Callout type="info">
+由 1.5.0 之前的版本保存、父级位于独立 `MB_*` package 中的实例 **不会** 被复用。重新生成会创建一个新的子对象 base，
+把旧的兄弟 package 留成孤儿。这个孤儿无害，可以删掉。
+</Callout>
+
+## 为什么 Content Browser 里什么都没有
+
+交互式编译是刻意做成纯内存的。`.dsm` 文件才是创作面，而磁盘上躺着的生成 `.uasset` 会遮蔽它 —— 你会同时拥有两个事实来源，
+且分不清谁赢。除 cook、commandlet 和显式 *Materialize* 之外的所有触发方式都在内存里生成；见
+[什么会触发编译](/docs/generation/pipeline)。
+
+当材质处于纯内存状态时：
+
+- `IsAsset()` 返回 `false`，所以它不出现在任何 Content Browser 视图和资产选择器里。
+- 生成结束时它的 package 被标记为非脏，因此 *Save All* 和退出提示都无法悄悄把它落盘。
+- 但它是完全可用的 —— 通过 [Material Content Browser](/docs/tools/editor)、实时预览，以及任何持有它指针的东西。
+
+### 可见性开关
+
+| 项目 | 值 |
+| :-- | :-- |
+| 设置项 | **Show In-Memory Materials In Content Browser**，分类 `Compiler` |
+| 默认 | 关 |
+| 菜单 | *Tools ▸ DreamShader ▸ Show In-Memory Materials* |
+| 另一处 | DreamShader **Project** 页面上的复选框 |
+
+切换会写入项目配置，并立刻为每个 package 仍是 `PKG_NewlyCreated` 的活 `UDreamShaderMaterialInstance` 广播
+asset-created / asset-deleted 事件，所以图块会即时出现和消失，不需要重新扫描。确认消息是：
+
+```text
+Showing {Count} in-memory material(s) in the Content Browser and asset pickers.
+Hidden {Count} in-memory material(s) from the Content Browser and asset pickers.
+```
+
+<Callout type="warn">
+开关打开后，纯内存材质看上去就是一个普通图块 —— 对它执行显式 **Save** 会真的往磁盘写出一个 `.uasset`。这个已保存资产
+随后就会遮蔽该路径上的内存重新生成。真的想要文件时，请用 *Materialize*，不要用 *Save*。
+</Callout>
+
+## 落盘（Materialize）
+
+*Materialize* 会以"开启持久化 + 强制"重新执行该材质自己源文件的生成，然后在解析出的路径上重新加载对象。
+
+| 入口 | 操作 |
+| :-- | :-- |
+| Material Content Browser 的 Gen 页 | **Materialize** 按钮 —— *"Write this memory-only material (and its base) to disk."* |
+| Content Browser 右键菜单 | DreamShader materialize 操作 |
+| 隐式 | 为纯内存父材质创建子材质实例时，会先把父级落盘 |
+
+创建子实例 *必须* 先落盘，因为 transient 的 base 不能作为父级 import。子实例的默认目标是
+`<parent directory>/<Instance Subfolder>` —— 即 **Material Instance Subfolder** 项目设置，默认 `Instances`；
+留空则创建在父级旁边。子实例命名为 `MI_<parent leaf>`，并做唯一化处理。
+
+已经持久化的材质会原样返回。
+
+| 消息 | 原因 |
+| :-- | :-- |
+| `This material is memory-only and has no DreamShader source file to materialize from.` | 对象不是 `UDreamShaderMaterialInstance`，或它的 `SourceFilePath` 为空 |
+| `Failed to materialize the material to disk: {Message}` | 用于落盘的那次重新生成失败了 |
+| `Materialized the material but could not reload it at {ObjectPath}.` | 生成成功，但对象无法被重新加载回来 |
+
+<Accordions>
+<Accordion title="为什么 PKG_NewlyCreated 要最后才清">
+
+纯内存的 ThinCustom 材质持久化时，`PKG_NewlyCreated` 标记是在保存前的最后一步才清掉的。Unreal 的
+`IsEmptyPackage()` 只统计 `IsAsset()` 为 `true` 的对象，而标记还在时实例报告的是 `false` —— 所以带着标记去保存的 package
+会被当成空包跳过。保存失败时标记会被还原。首次持久化时会直接通知资产注册表，因此 Content Browser 不需要重新扫描就会更新。
+
+</Accordion>
+</Accordions>
+
+## 被已保存资产遮蔽
+
+如果一次纯内存编译的目标 package 路径在磁盘上已经存在，生成仍然成功，但会记一条警告：
+
+```text
+In-memory material mode: '{PackageName}' already exists as a saved asset, which shadows in-memory
+regeneration. Delete the saved asset to make it fully in-memory.
+```
+
+有两个命令处理这种情况：
+
+| 命令 | 效果 |
+| :-- | :-- |
+| *Tools ▸ DreamShader ▸ Clean Persisted Generated Assets* | 删除带 DreamShader 来源元数据的已保存资产，并弹出确认框逐个列出。手写资产绝不会被碰。空的情况：`No persisted DreamShader-generated assets found.` |
+| *Tools ▸ DreamShader ▸ Clean Generated Shaders* | 删除生成着色器目录下的每个 `*.ush`，并排入一次全量重编 |
+
+清理器会递归扫描 `/Game`，寻找 package 存在于磁盘、且元数据中 `DreamShader.SourceFile` 非空的 `UMaterial`、
+`UMaterialFunction` 和 `UDreamShaderMaterialInstance` 资产。
+
+修改 **Default Compiler Backend** 设置会在内存中重新生成全部内容，随后如果还有已保存的生成资产，会警告：
+
+```text
+{Count} previously generated asset(s) are still saved on disk and shadow the in-memory materials.
+Run Tools > DreamShader > Clean Persisted Generated Assets to remove them.
+```
+
+## Cook 行为
+
+cook 才是这些资产变成实体的时候。
+
+| 方面 | 行为 |
+| :-- | :-- |
+| 判定 | `-run=` 的值里含 `Cook` 就认为该进程是 cook |
+| 谁来生成 | **只有 cook director** —— 以 `-cookworker` 启动的进程跳过生成，直接加载 director 保存的结果 |
+| 何时 | post-engine-init，即引擎子系统就绪之后、commandlet 的 `Main` 之前 |
+| 生成什么 | 除 `.dsh` 外的所有项目 DreamShader 源文件，强制生成并持久化 |
+| 失败时 | **中止整个 cook** |
+
+cook 日志：
+
+```text
+DreamShader cook: generating {Count} source file(s) as persistent assets...
+  [Cook] {Message}
+  [Cook] Failed: {Message}
+DreamShader cook asset generation complete.
+```
+
+<Callout type="warn">
+只要有一个文件生成失败，cook 就会以一条 fatal 日志结束：
+`DreamShader cook generation failed for {Count} source file(s); aborting the cook. See the [Cook]
+Failed entries above.` 在 cook 之前，先在编辑器里把每个源文件干净地编译一遍，或者跑一次
+[commandlet](/docs/tools/commandlet)。
+</Callout>
+
+生成放在 post-engine-init 而不是模块启动时，是因为它依赖的材质编辑库需要编辑器子系统，而那些在模块加载期还不存在。
+限定只在 director 上跑，则避免了所有 worker 争抢保存同一批 package。
+
+## 说明
+
+- `IsMemoryOnly` 只由一件事决定：package 是否仍带着 `PKG_NewlyCreated`。除此之外没有任何东西区分内存材质和已持久化材质。
+- 纯内存材质保留构建阶段产生的节点位置 —— 纯内存模式下会跳过自动布局，所以内存里的图看起来比落盘后的乱。
+- 来源元数据在 **两种** 模式下都会打在 ThinCustom 实例上，持久化模式下还会额外打在 base 上。`Graph` backend 材质和材质函数
+  只在持久化时才打。
+- 生成出来的实例刻意 **不是** `RF_Transactional`：材质实例不支持撤销/重做，否则 shader map 会失步。
+- 这些都不影响 source hash 短路；纯内存编译在哈希未变时同样会跳过工作。
+
+## 完整示例
+
+```c
+Shader(Name="Materials/M_Emissive")
+{
+    Properties { ScalarParameter Intensity = 2.0 [Slider(0, 10)]; }
+    Settings   { Backend = "ThinCustom"; ShadingModel = "Unlit"; }
+    Outputs    { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      { Color = vec3(1.0, 0.4, 0.1) * Intensity; }
+}
+```
+
+在编辑器里保存这个文件，只在内存中产生：
+
+```text
+package        /Game/Materials/M_Emissive          (PKG_NewlyCreated, not dirty, not on disk)
+  object       M_Emissive                          UDreamShaderMaterialInstance
+    subobject  MB_DreamThinBase_Materials_M_Emissive   UMaterial, holds the node graph
+```
+
+执行 *Materialize* 之后：
+
+```text
+on disk        <Project>/Content/Materials/M_Emissive.uasset
+  export       M_Emissive                          UDreamShaderMaterialInstance
+  export       MB_DreamThinBase_M_Emissive         UMaterial (hidden, same package)
+```
+
+注意 base 的名字在两种模式下不同：内存里是净化后的完整 `Name`，磁盘上是实例的 leaf 名。
+
+## 继续阅读
+
+<Cards>
+  <Card title="Backend" href="/docs/settings/backend" />
+  <Card title="项目设置" href="/docs/settings/project" />
+  <Card title="重新生成" href="/docs/generation/regeneration" />
+  <Card title="编辑器工具" href="/docs/tools/editor" />
+  <Card title="命令行" href="/docs/tools/commandlet" />
+</Cards>

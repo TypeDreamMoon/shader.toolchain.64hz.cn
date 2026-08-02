@@ -1,0 +1,299 @@
+---
+title: Imports and Namespaces
+description: How import assembles several files into one translation unit — recognition, specifier normalisation, search roots, cycles, and line mapping.
+---
+
+`import` inlines another DreamShaderLang source file into the current translation unit. It belongs to
+**neither** grammar: the editor source loader strips it line by line, before the declaration parser
+is ever called, so the parser does not know it as a keyword.
+
+```text
+<file>.dsm
+  │
+  ├─ editor source loader   strip `import` lines, inline targets depth-first,
+  │                         enforce the .dsh / .dsf content rules
+  │
+  ├─ declaration parser     blocks, sections, statements  ->  definition tree
+  │
+  └─ material generator     Graph expression grammar  ->  material nodes  ->  asset
+```
+
+## Syntax
+
+<Synopsis>
+
+```c
+import "<specifier>" [;] [// <comment>]
+import '<specifier>' [;] [// <comment>]
+```
+
+</Synopsis>
+
+The directive must be the first thing on its line — leading whitespace is allowed, anything else is
+not. After the closing quote only an optional `;` <Since v="1.2.2" /> and an optional `//` comment
+may follow. `import` itself is matched case-insensitively.
+
+```c
+import "Shared/Common";                                   // -> DShader/Shared/Common.dsh
+import '@typedreammoon/dream-noise/Library/Noise.dsh';    // -> DShader/Packages/@typedreammoon/…
+import "../Functions/F_Tint.dsf"                          // -> DShader/Functions/F_Tint.dsf
+```
+
+### Recognition
+
+Each physical line is tested against these rules in order. A line failing any of them is not
+an `import` and is passed to the parser unchanged.
+
+| # | Rule |
+| :-- | :-- |
+| 1 | the trimmed line must not start with `//` |
+| 2 | the trimmed line must start with `import`, ignoring case |
+| 3 | the character after `import` must be whitespace, unless the line is exactly `import` — this is what rejects `importfoo` |
+| 4 | the remainder, trimmed, must start with `"` or `'` |
+| 5 | the closing quote must match the opening one; a `\` inside the quotes escapes the next character |
+| 6 | an unterminated quote makes the line an ordinary line, not an error |
+| 7 | after the closing quote, an optional `;` may follow |
+| 8 | after that, the rest of the line must be empty or start with `//` |
+| 9 | the extracted specifier must be non-empty after trimming |
+
+<Callout type="warn">
+
+Rule 1 only knows about `//`. An `import` line inside a `/* … */` block comment **is still
+honoured** — the loader has no notion of block comments. Commenting a block of imports out with
+`/* … */` silently keeps importing them. Use `//` on each line instead.
+
+</Callout>
+
+<Callout type="info">
+
+An `import` must be alone on its line. `Shader(Name="X") import "Common.dsh";` is not recognised, and
+the text reaches the parser as written — where the stray `import` fails with
+`Unexpected token near index {Index}.`
+
+</Callout>
+
+## Specifier normalisation
+
+| # | Step |
+| :-- | :-- |
+| 1 | trim leading and trailing whitespace |
+| 2 | replace every `\` with `/` |
+| 3 | strip **all** leading `./` sequences |
+| 4 | if the result has no extension at all, append `.dsh` |
+
+So `import "Shared/Common"` and `import "Shared/Common.dsh"` are the same directive. Importing a
+`.dsf` or a `.dsm` therefore **requires the explicit extension** (`.dsf` <Since v="1.3.5" />).
+
+<Callout type="info">
+
+Step 4 asks whether the path has an extension, not whether it has a *known* one, and it looks only at
+the last path segment. `Shared/Common.v2` counts as "already has an extension", so no `.dsh` is
+appended and the specifier resolves only if a file with exactly that name exists. A `.` in a
+*directory* component — `@scope/pkg.v2/Lib` — does not count, and `.dsh` is still appended.
+
+</Callout>
+
+## Resolution
+
+Three candidate paths are tried in order. Each is paired with a **containment root**; a candidate
+resolving outside its root is skipped rather than reported, and the first candidate that exists on
+disk wins.
+
+| # | Candidate | Containment root |
+| :-- | :-- | :-- |
+| 1 | `<directory of the importing file>/<specifier>` | the longer of the source and packages directories that contains the importing file; the file's own directory when it is under neither |
+| 2 | `<source directory>/<specifier>` | the source directory |
+| 3 | `<packages directory>/<specifier>` | the packages directory |
+
+| Directory | Default | Project setting |
+| :-- | :-- | :-- |
+| Source | `<Project>/DShader` | *Source Directory* |
+| Packages | `<Source>/Packages` | derived; not separately configurable |
+
+The containment comparison is case-insensitive on every platform; whether a candidate is then found
+still follows the file system's own case behaviour.
+
+Containment is what stops a specifier climbing out of the tree. `..` segments are resolved *before*
+the check, so:
+
+- from a file directly under `DShader`, `import "../Secret.dsh"` resolves above the source directory
+  and candidate 1 is skipped; candidates 2 and 3 collapse the same `..` and land outside their own
+  roots, so they are skipped too;
+- from a file under `DShader/Packages/@scope/pkg/`, `..` may traverse anywhere inside
+  `DShader/Packages`, because that is the containment root chosen for it;
+- for a source file under neither directory the containment root is its own directory, so no `..`
+  specifier can resolve at all.
+
+### Package-style paths
+
+`@scope/name/…` is **not** a distinct path syntax. `@` is an ordinary directory-name character, and a
+specifier such as `"@typedreammoon/dream-noise/Library/Noise.dsh"` resolves through candidate 3
+simply because `DShader/Packages/@typedreammoon/dream-noise/Library/Noise.dsh` exists on disk. There
+is no scope registry, no version resolution and no special-cased root.
+
+<Callout type="info">
+
+Candidates 1 and 2 are still tried first, so a file of that name next to the importing file, or under
+`DShader` itself, **shadows** the package copy.
+
+</Callout>
+
+See [Packages](/en/docs/tools/packages) for the layout this convention assumes.
+
+## Inlining, cycles and ordering
+
+The loader walks the import graph depth-first and produces one flat text for the parser.
+
+| Behaviour | Rule |
+| :-- | :-- |
+| order | an import is fully inlined **before** the rest of the importing file is emitted, so a dependency always precedes its dependent |
+| diamonds | a file already inlined anywhere in this translation unit is skipped silently — its text appears exactly once |
+| cycles | re-entering a file that is still being inlined fails with `DreamShader import cycle detected at '{Path}'.` |
+| unreadable files | `DreamShader could not read '{Path}'.` |
+| unresolved specifiers | `DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved.` |
+
+Each file's contribution is wrapped in marker comments, and every import line is replaced by an
+**empty line** so the lines below it keep their original numbers:
+
+```text
+// Begin DreamShader source: <Project>/DShader/Shared/Common.dsh
+Namespace(Name="Common")
+…
+// End DreamShader source: <Project>/DShader/Shared/Common.dsh
+
+// Begin DreamShader source: <Project>/DShader/Materials/M_Water.dsm
+                                     <- blank lines where the imports were
+Shader(Name="Materials/M_Water")
+…
+// End DreamShader source: <Project>/DShader/Materials/M_Water.dsm
+```
+
+<Callout type="warn">
+
+Because the whole closure becomes one parse unit, the "at most one `Shader` block" rule is
+**closure-wide**. Importing two files that each declare a `Shader` fails with
+`Only one top-level Shader block is currently supported.`, even though neither file breaks the rule
+on its own.
+
+</Callout>
+
+<Callout type="info">
+
+The `.dsh` / `.dsf` content rules are applied to each file's **own** text, not to the assembled
+closure. A `.dsh` may import a `.dsf` that declares `ShaderFunction` blocks, and those blocks are
+compiled as part of the translation unit. See [Source Files](/en/docs/language/file-model).
+
+</Callout>
+
+## Namespaces across files
+
+A `Namespace` is not a module and has nothing to do with `import`. Because the closure is one flat
+text, namespaces from imported headers are visible with no further declaration — and they collide
+across files exactly as they would within one.
+
+```c
+// DShader/Lib/Common.dsh
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```c
+import "Lib/Common.dsh";
+
+Graph = {
+    vec3 Tinted;
+    Common::ApplyTint(Base, Tint, Tinted);
+}
+```
+
+| Rule | Consequence |
+| :-- | :-- |
+| Re-opening is allowed and unchecked | Two `Namespace(Name="Common")` blocks in two imported headers both prefix `Common::`. |
+| Members are reachable only by their qualified name | There is no `using`, no name import, and no unqualified fallback. |
+| Writing `import` inside a `Namespace` body has no scoping effect | The directive is stripped line by line and its target inlined ahead of the whole file. Put imports at file scope. |
+| A duplicate qualified name is caught late | Not at import time — when the generated include is written. |
+
+The declaration rules, `::` resolution and the body-normalisation trap are on
+[Functions](/en/docs/language/functions).
+
+## Source-line mapping
+
+Diagnostics are mapped back from the assembled text to the file you actually wrote.
+
+- The mapper scans the error text for the literal `near index ` and reads the integer that follows.
+  **That is the only channel by which a parse error carries a position** — which is why so many
+  messages end in `near index {Index}.`
+- It then walks the assembled text, tracking the current `// Begin DreamShader source:` file and a
+  per-file line counter that resets at each marker. Marker lines do not advance the counter.
+- A located message is formatted `<file>(<line>,<column>): <message>`; when mapping fails the form is
+  `<file>: <message>`.
+- `Graph` errors are anchored separately: the parser records where each `Graph` body starts, and a
+  graph-relative line and column are offset onto that origin. The column offset applies only to the
+  body's first line.
+
+<Callout type="info">
+
+Three limits are worth knowing when a reported position looks wrong.
+
+1. Errors raised inside a section body carry an index relative to **that body**, but the mapper
+   treats every index as an offset into the assembled text. Positions for in-section errors are
+   therefore not reliable.
+2. An index landing exactly on a line's first character can be attributed to the previous line.
+3. Most statement-level messages carry no `near index` at all and are reported as
+   `<file>: <message>` with no line or column.
+
+</Callout>
+
+## Organising a project
+
+| Change | What gets recompiled |
+| :-- | :-- |
+| a `.dsm` changed | that material, plus every function asset the file declares |
+| a `.dsf` changed | the function assets it declares |
+| a `.dsh` changed | the `.dsm` / `.dsf` files that import it, directly or indirectly |
+| a package file changed | the sources that import it |
+
+A single stable entry header per project keeps that graph shallow:
+
+```c
+// DShader/Shared/Common.dsh
+import "Shared/Color.dsh";
+import "Shared/Texture.dsh";
+
+Namespace(Name="Project")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```c
+// every material imports one file
+import "Shared/Common.dsh";
+```
+
+## Diagnostics
+
+<Diag>
+  <D msg="DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved." cause="None of the three candidates existed, or every existing one was outside its containment root." fix="Check the extension: an unsuffixed specifier gets .dsh, so a .dsf or .dsm must be spelled out." />
+  <D msg="DreamShader import cycle detected at '{Path}'." cause="A file imported itself, directly or transitively." fix="Move the shared declarations into a third header both files import." />
+  <D msg="DreamShader could not read '{Path}'." cause="The resolved file could not be loaded." />
+  <D msg="Only one top-level Shader block is currently supported." cause="Two Shader blocks in the closure — often one imported by accident." href="/en/docs/language/file-model" />
+  <D msg="Unexpected token near index {Index}." cause="An import line reached the declaration parser, because it was not alone on its line." />
+  <D msg="DreamShader header '{Path}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports." cause="An imported .dsh breaks its own content rule." href="/en/docs/language/file-model" />
+  <D msg="DreamShader function file '{Path}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks." cause="An imported .dsf breaks its own content rule." href="/en/docs/language/file-model" />
+</Diag>
+
+## Where to next
+
+<Cards>
+  <Card title="Source Files" href="/en/docs/language/file-model" description="The content rule applied to each imported file." />
+  <Card title="Functions" href="/en/docs/language/functions" description="Namespace declaration rules and qualified calls." />
+  <Card title="Packages" href="/en/docs/tools/packages" description="DShader/Packages and the @scope/name layout." />
+  <Card title="Project Settings" href="/en/docs/settings/project" description="Source Directory, which moves every search root." />
+</Cards>

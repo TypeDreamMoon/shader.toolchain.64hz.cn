@@ -1,0 +1,288 @@
+---
+title: 不支持的写法
+description: 循环、return、三元、%、比较与下标——它们在 Graph 块里究竟会发生什么，包括那些静默失败的情况，以及应该改写成什么。
+---
+
+`Graph` 块是节点图构建器，不是着色器编译器。它只有十种语句形式、四个算术运算符，除 `if` 之外没有任何控制
+流。其余一切要么报出一条提到*变量类型*而不是提到该写法的错误——要么，在一大批重要的情况下，静默编译成比你
+写下来的更少的东西。
+
+如果你是从 HLSL 或 GLSL 过来的，这一页应该最先读。
+
+## 两个机制解释了下面的一切
+
+**1. 语句分类器把不认识的语法变成声明。** 这里没有关键字表，也没有"不支持的关键字"这种诊断。没有顶层 `=`
+的语句会在它**最后一个顶层空白**处被切成类型 token 和名字，而这个切分对几乎任何文本都能成功。于是
+`return Color`、`while (t) {}` 和 `struct S { float a; }` 全都变成了类型无法解析的声明。切分过程中会跟踪
+圆括号深度和字符串字面量——花括号深度**不会**。
+
+**2. 分词器把每个不认识的字符映射成输入结束。** 表达式解析器接受"一条表达式后面跟着输入结束"，所以第一个
+未知字符之后的一切都会被丢弃，且不产生任何诊断。
+
+## 静默截断的表达式
+
+<Callout type="warn">
+分词器只认识字母、数字、`_`、`.`、`"`、空白、标点 `( ) , + - * / =` 以及双字符的 `::`。
+**其他每一个字符都会变成输入结束记号**——`%`、`!`、`<`、`>`、`&`、`|`、`^`、`~`、`?`、`[`、`]`、`{`、`}`、
+`;`、`#`、`@`、`$`、`'`、反引号、单独的 `:`，以及任何其他字符。解析器随后接受它前面的表达式，把余下部分
+丢掉，**没有任何信息**。
+</Callout>
+
+| 写法 | 实际编译成 | 应改写为 |
+| :-- | :-- | :-- |
+| `a % b` | `a` | `fmod(a, b)` 或 `mod(a, b)` |
+| `a && b` | `a` | 嵌套 `if` 语句 |
+| `a \|\| b` | `a` | 嵌套 `if` 语句，或对 0/1 掩码用 `max` |
+| `a & b`、`a \| b`、`a ^ b` | `a` | 带 HLSL 函数体的 `Function` |
+| `a << 2`、`a >> 2` | `a` | `a * 4.0`、`a / 4.0`，或一个 `Function` |
+| `a < b`、`a > b`、`a <= b`、`a >= b`、`a != b` | `a` | [`if` 条件](/docs/graph/control-flow#条件) |
+| `a ? b : c` | `a` | `if` / `else`、`lerp(c, b, mask)`，或 `StaticSwitchParameter` 调用 |
+| `v[0]` | `v` | [swizzle](/docs/graph/expressions#swizzle)：`v.x` |
+| `~a`（*位于末尾*） | `a` | 带 HLSL 函数体的 `Function` |
+
+### 取模
+
+```c
+// 写法 —— 取模被丢弃，Wave 就只是 Time。
+float Wave = UE.Time() % 1.0;
+
+// 实际编译成：
+float Wave = UE.Time();
+
+// 正确写法：
+float Wave = fmod(UE.Time(), 1.0);
+```
+
+### 复合条件
+
+```c
+// 写法 —— 绿色通道那个判断被丢弃了。
+if (Color.r > 0.5 && Color.g > 0.5) { Out = One; } else { Out = Zero; }
+
+// 实际编译成：
+if (Color.r > 0.5) { Out = One; } else { Out = Zero; }
+
+// 正确写法：
+if (Color.r > 0.5) {
+    if (Color.g > 0.5) { Out = One; } else { Out = Zero; }
+} else {
+    Out = Zero;
+}
+```
+
+### 让截断暴露出来
+
+有两个位置*确实*会报告问题，都值得利用。
+
+| 位置 | 信息 |
+| :-- | :-- |
+| 开头——未知字符位于表达式起始，如 `!x` 或 `~x` | `Unexpected token '{Char}' in Graph expression.` |
+| 括号内或参数表内——找不到期望的 `)` 或 `,`，如 `(a % b)` 或 `f(a % b)` | `Expected token type {Code} in Graph expression near '{Text}'.` |
+
+<Callout type="info">
+把可疑表达式套上括号，是强制产生诊断的可靠办法：`float x = a % b;` 静默编译，`float x = (a % b);` 会报错。
+当生成材质看起来丢了一半逻辑时，把可疑行加上括号再重新构建。
+</Callout>
+
+## 复合赋值与自增自减
+
+`+= -= *= /= ++ --` 都不是运算符。会发生什么取决于**空白**，因为语句是在第一个顶层 `=` 处切分的，然后再对
+左侧做类型/名字切分测试。
+
+| 写法 | 结果 |
+| :-- | :-- |
+| `a += b;` | `Unsupported Graph variable type 'a' for '+'.` |
+| `a -= b;` | `Unsupported Graph variable type 'a' for '-'.` |
+| `a *= b;` | `Unsupported Graph variable type 'a' for '*'.` |
+| `a /= b;` | `Unsupported Graph variable type 'a' for '/'.` |
+| `a++;` | `Graph expression statements currently support only Function calls with explicit out arguments.` |
+| `a--;` | 同一条信息 |
+
+<Callout type="warn">
+**不带空格的写法能通过编译，没有任何诊断，也没有任何效果。** `a+=b;` 的 `=` 左侧没有空白，所以它不是声明
+——它是一条普通赋值，创建了一个名字字面为 `a+` 的全新 Graph 变量。`a` 没有改变，也没有任何警告。
+
+```c
+// 写法 —— 静默创建了一个叫 'a+' 的变量；'Sum' 从未改变。
+Sum+=Tint;
+
+// 正确写法：
+Sum = Sum + Tint;
+```
+
+`a-=b`、`a*=b` 和 `a/=b` 同理。
+</Callout>
+
+<Callout type="warn">
+**前缀 `++` 和 `--` 被解析成重复的一元运算符，什么也不做。** `++a` 是 `+(+a)`，恒等，不产生节点。`--a` 是
+`-(-a)`，产生两个乘 `-1` 的 `Multiply` 节点，数值上仍然是 `a`。两者都不会给任何东西加一。
+
+```c
+// 写法 —— Counter 没有改变，却生成了两个 Multiply 节点。
+float Next = --Counter;
+
+// 正确写法：
+float Next = Counter - 1.0;
+```
+
+而且这里本来就没有可以自增的存储——Graph 变量是绑定到某个节点和引脚上的名字，不是内存单元。
+</Callout>
+
+## 语句层面的写法
+
+它们都不是关键字。每一个都会被分类成声明，而报出来的"变量类型"就是最后一个顶层空白之前的那段文本。
+
+| 写法 | 信息 | 应改写为 |
+| :-- | :-- | :-- |
+| `return Color;` | `Failed to declare Graph variable 'Color'. Unsupported Graph variable type 'return'.` | 给声明的输出变量赋值：`Color = …;` |
+| `return;` | `Graph expression statements currently support only Function calls with explicit out arguments.` | 同上 |
+| `for (int i = 0; i < 3; i = i + 1) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'for (int i = 0; i < 3; i = i + 1)'.` | 手工展开，或把循环搬进函数体是真 HLSL 的 [`Function`](/docs/language/functions) |
+| `while (t) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'while (t)'.` | 同上 |
+| `do {} while (t);` | `Failed to declare Graph variable '(t)'. Unsupported Graph variable type 'do {} while'.` | 同上 |
+| `switch (Mode) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'switch (Mode)'.` | 嵌套 [`if`](/docs/graph/control-flow) 语句，或 [`StaticSwitchParameter` 调用](/docs/graph/calls#staticswitchparameter) |
+| `break;` | `Graph expression statements currently support only Function calls with explicit out arguments.` | — |
+| `continue;` | 同一条信息 | — |
+| `float Foo(float x) { return x; }` | `Failed to declare Graph variable '}'. Unsupported Graph variable type 'float Foo(float x) { return x;'.` | 在顶层声明成 `Function` 或 `GraphFunction` 再调用 |
+| `struct S { float a; }` | `Failed to declare Graph variable '}'. Unsupported Graph variable type 'struct S { float a;'.` | 用 `MaterialAttributes`，或把结构体放进 `Function` 函数体 |
+| `#define K 2` | `Failed to declare Graph variable '2'. Unsupported Graph variable type '#define K'.` | 用 `const` 属性，或把预处理指令放进 `Function` 函数体 |
+| `#include "X.ush"` | `Failed to declare Graph variable '"X.ush"'. Unsupported Graph variable type '#include'.` | 文件级 [`import`](/docs/language/imports)，或用一个使用生成 include 的 `Function` |
+
+<Callout type="warn">
+带花括号的写法内部没有顶层 `;`，所以语句切分器不会停在它的闭合 `}` 上——它会一直扫描到下一个顶层 `;`。
+因此循环后面跟着的代码会被吞进同一条语句，信息里引用的类型和名字也会包含无关文本。给定
+
+```c
+for (int i = 0; i < 3; i = i + 1) { Sum = Sum + 1.0; }
+Color = Sum;
+```
+
+整段其实是**一条**语句，在 `Color` 的 `=` 处切分，信息是
+`Unsupported Graph variable type 'for (int i = 0; i < 3; i = i + 1) { Sum = Sum + 1.0; }' for 'Color'.`
+上表里的信息都假定该写法是单独出现的。
+</Callout>
+
+## 大小写写错的关键字
+
+`if` 和 `else` 是 Graph 语言里仅有的两个关键字，而且都**区分大小写**。拼写大小写不对就不是关键字，会落入
+声明分类器。
+
+| 写法 | 结果 |
+| :-- | :-- |
+| `If (x) {}` | `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'If (x)'.` |
+| `IF (x) {}` | 同样的形态 |
+| `if (x) {} Else {}` | `if` 能解析；`Else {}` 变成另一条语句，报 `Failed to declare Graph variable '{}'. Unsupported Graph variable type 'Else'.` |
+| `if (x) {} ELSE {}` | 同样的形态 |
+
+本语言其余部分都不区分大小写——类型 token、构造器名、内置、`true`/`false`、swizzle 通道、参数名。另一个
+区分大小写的名字是 `SampleTexture2D`。
+
+## 确实会报错的表达式写法
+
+这些会大声失败，所以反而是容易处理的一类。
+
+| 写法 | 信息 |
+| :-- | :-- |
+| `!x` | `Unexpected token '!' in Graph expression.` |
+| `~x` | `Unexpected token '~' in Graph expression.` |
+| `x = a == b;` | `Unexpected token '=' in Graph expression.` —— `=` 是真实记号，所以 `==` *不会*被截断 |
+| `a == b;`（*作为语句*） | `In Graph statement 'a == b': Unexpected token '=' in Graph expression.` |
+| `x = a++;` | `Unexpected token '' in Graph expression.` —— 后一个 `+` 要求一个操作数，却遇到输入结束 |
+| `x = (float)a;` | `Unexpected token 'a' in Graph expression.` —— 没有 C 风格强制转换，请写 `float(a)` |
+| `x = 0x10;` | `Unexpected token 'x10' in Graph expression.` —— 没有十六进制、八进制或二进制字面量 |
+| `x = 1.0fx;` | `Unexpected token 'fx' in Graph expression.` —— 数值后缀只在标识符边界处才被消耗 |
+| `x = "text";` | `String literals can only be used in named UE builtin arguments.` |
+| `float4 v = {{1,2},{3,4}};` | `Invalid brace initializer for type 'float4'. Unexpected token '{' in Graph expression.` —— 花括号初始值不能嵌套 |
+| `f(a b)` | `Expected token type {Code} in Graph expression near '{Text}'.` —— 缺少 `,` |
+| `if (a) Color = X;` | `Graph if statement is missing a '{ ... }' body.` —— 花括号是必需的 |
+
+<Callout type="info">
+`Unexpected token '' in Graph expression.` 里的空引号不是排版失误。被报告的记号是输入结束记号，它的文本
+本来就是空的。
+</Callout>
+
+## 根本不存在的特性
+
+| 特性 | 状态 | 替代方案 |
+| :-- | :-- | :-- |
+| 矩阵类型（`float3x3`、`float4x4`、`mat2`、`mat3`、`mat4`） | 类型、构造器和函数签名集合里都没有；矩阵类型的 `Function` 参数或结果会在调用点被拒绝，报 `uses unsupported type '{Type}'` | `UE.TransformVector` / `UE.TransformPosition`，或把矩阵局部变量放在 `Function` 函数体**内部** |
+| 数组与下标 | 没有 | 通道用 [swizzle](/docs/graph/expressions#swizzle)；层用 `Texture2DArray` 采样 |
+| `inout` 参数 | 没有——只有 `in` 和 `out` | 传一个 `in` 加一个 `out` |
+| 在 `Graph` 内声明函数 | 没有 | 顶层的 [`Function` / `GraphFunction`](/docs/language/functions) |
+| 整数运算 | 没有——`int`、`uint`、`bool` 和 `half` 都塌缩为浮点宽度 | 整数标记存在的唯一目的就是拒绝 `int(a) / int(b)` |
+| 十六进制、八进制、二进制字面量 | 没有 | 十进制字面量 |
+| 字符串值 | 除了 `UE.*` 命名参数之外没有 | — |
+| 三元条件 | 没有 | `if` / `else`、`lerp`、`StaticSwitchParameter` |
+| 逗号运算符 | 没有 | 拆成多条语句 |
+| 表达式内赋值 | 没有 | 拆成多条语句 |
+| 嵌套花括号初始值 | 没有 | 用构造器调用：`float4(float2(1,2), float2(3,4))` |
+| 预处理指令 | 没有 | `import`、`const` 属性，`#Region` 仅用于布局 |
+| `Shader` 里的 `Code = { … }` | **已移除**——硬错误 `Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported.` | `Graph = { … }` |
+
+## 完整示例
+
+一段 GLSL 风格的尝试，以及它实际构建出来的东西：
+
+```c
+// 它做的事和看起来不一样。
+Graph {
+    vec2  uv    = UE.TexCoord(Index = 0);
+    float t     = UE.Time() % 4.0;                 // 静默地只剩 UE.Time()
+    float mask  = uv.x > 0.5 && uv.y > 0.5;        // 静默地只剩 uv.x
+    vec3  col   = mask ? Hot : Cold;               // 静默地只剩 mask
+    col        *= Gain;                            // 报错：type 'col' for '*'
+    Color = col;
+}
+```
+
+只有最后一行会报错。它上面三行都能编译，而材质是错的。
+
+```c
+// 正确写法。
+Graph {
+    vec2  uv = UE.TexCoord(Index = 0);
+    float t  = fmod(UE.Time(), 4.0);
+
+    vec3 col;
+    if (uv.x > 0.5) {
+        if (uv.y > 0.5) { col = Hot; } else { col = Cold; }
+    } else {
+        col = Cold;
+    }
+
+    Color = col * Gain;
+}
+```
+
+## 什么时候该用 `Function`
+
+任何真正命令式的东西——循环、位掩码、`switch`——都属于 `Function`，它的函数体是真 HLSL，会被编译进一个
+`Custom` 节点：
+
+```c
+Function SelfContained float Ring(in float2 uv, in float count)
+{
+    float acc = 0.0;
+    for (int i = 0; i < 4; ++i)
+    {
+        acc += sin(uv.x * count * (i + 1));
+    }
+    return acc * 0.25;
+}
+```
+
+```c
+Graph {
+    float r = Ring(uv, 8.0);
+}
+```
+
+如果这个辅助函数还需要读取图节点，请改声明成 `GraphFunction`——它的函数体仍然是 HLSL，但里面的 `UE.*`
+调用会被提升成 Custom 节点的输入引脚。见[函数](/docs/language/functions)。
+
+## 参见
+
+- [语句与声明](/docs/graph/statements) —— *确实*被支持的语句形式
+- [运算符与转换](/docs/graph/expressions) —— 存在的那四个运算符
+- [if / else](/docs/graph/control-flow) —— 唯一的控制流及其条件运算符
+- [数学内置](/docs/builtins/math) —— `fmod`、`mod`、`min`、`max`、`clamp`、`lerp`
+- [当前限制](/docs/diagnostics/limitations) —— 编译器整体上还做不到的事

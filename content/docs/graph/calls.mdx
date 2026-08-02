@@ -1,0 +1,435 @@
+---
+title: 调用
+description: 在 Graph 块里调用 Function、GraphFunction、ShaderFunction、VirtualFunction 和参数引脚——值形式、语句形式、参数与输出选择。
+---
+
+`Graph` 块体里凡是写成 `Name(...)` 的都是调用。可调用的有六种声明种类和两类参数，此外还有会被优先解析的
+内置和构造器。一个调用能用什么形式、能不能当作值使用、接不接受命名参数，全都取决于被调用的是什么。
+
+## 语法概要
+
+<Synopsis>
+```c
+// 值形式 —— 调用产生一个值
+<target> = <callee> ( [ <argument> [ , <argument> ] … ] ) ;
+
+// 语句形式 —— 调用写入具名的 out 变量
+<callee> ( [ <input-argument> , ] … <out-target> [ , <out-target> ] … ) ;
+
+<callee>     := <identifier> | <namespace> :: <identifier>
+<argument>   := <expression> | <identifier> = <expression> | default
+<out-target> := <identifier>
+```
+</Synopsis>
+
+## 可调用的种类
+
+<Wide>
+
+| 种类 | 值形式 | 语句形式 | 命名参数 | 产生的节点 |
+| :-- | :-- | :-- | :-- | :-- |
+| `Function` | 仅当恰好声明一个输出 | 支持 | **不支持** | `Custom` |
+| `GraphFunction` | 仅当恰好声明一个输出 | 支持 | **不支持** | `Custom` |
+| `ShaderFunction` | 支持，任意输出数 | 支持 | 支持，仅值形式 | `MaterialFunctionCall` |
+| `ShaderLayer` | 支持，任意输出数 | 支持 | 支持，仅值形式 | `MaterialFunctionCall` |
+| `ShaderLayerBlend` | 支持，任意输出数 | 支持 | 支持，仅值形式 | `MaterialFunctionCall` |
+| `VirtualFunction` | 支持，任意输出数 | 支持 | 支持，仅值形式 | `MaterialFunctionCall` |
+| `StaticSwitchParameter` 属性 | 支持 | 不支持 | 支持 | `StaticSwitchParameter` |
+| 带输入引脚的参数 | 支持 | 不支持 | **只能**用命名参数 | 该参数自身的节点，并完成配置 |
+
+</Wide>
+
+<Callout type="info">
+旧版站点曾说不支持返回值风格的调用。这并不成立：单输出的 `Function` 或 `GraphFunction` **可以**作为值调用
+<Since v="1.3.1" />，而 `ShaderFunction` 家族和 `VirtualFunction` 一直都可以。
+</Callout>
+
+`UE.*`、`Substrate.*`、数学内置、构造器和 `SampleTexture2D` 也使用调用语法，但它们会在上述任何种类*之前*
+被解析。见 [UE.* 节点](/docs/builtins/ue-nodes)和[数学内置](/docs/builtins/math)。
+
+## 分发顺序
+
+调用名严格按此顺序探测。第一个认领该名字的表面胜出，后面的表面根本不会被查询。
+
+| 顺序 | 表面 | 大小写 |
+| --: | :-- | :-- |
+| 1 | 向量/标量构造器名——那 34 个拼法 | 不敏感 |
+| 2 | `UE.SceneTexture` | 不敏感 |
+| 3 | 任何以 `UE.` 开头的名字 | 不敏感 |
+| 4 | 任何以 `Substrate.` 开头的名字 <Since v="5.4" ue /> | 不敏感 |
+| 5 | 数学内置——那 19 个拼法 | 不敏感 |
+| 6 | `SampleTexture2D` | **敏感** |
+| 7 | 节点类型为 `StaticSwitchParameter` 的已声明属性 | 不敏感 |
+| 8 | 节点类型带输入引脚的已声明属性 | 不敏感 |
+| 9 | `Function`、`GraphFunction`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`VirtualFunction` | 不敏感 |
+| 10 | 兜底再查一次 `Function`——否则 `Unknown Graph function '{Name}'.` | 不敏感 |
+
+步骤 5 有一个细节：数学内置处理器会区分"这不是数学内置"和"这**是**数学内置但调用写错了"。只有后者会中止，
+所以 `clamp(x)` 报的是 `Math function 'clamp' expects exactly 3 arguments.`，而不会落到用户函数上。
+
+在步骤 9，如果有多于一种声明种类匹配，调用失败并报
+`Graph call '{Name}' is ambiguous because multiple definitions use that name: {Kinds}.`
+恰好匹配一个时，分发优先级是 材质函数 → `VirtualFunction` → `GraphFunction`，而 `Function` 由步骤 10
+到达。
+
+<Callout type="warn">
+遮蔽是静默的，而且永远单向——靠前的表面遮蔽靠后的。一个叫 `lerp`、`dot`、`saturate`、`float3`、`vec2` 或
+任何其他内置、构造器拼法的 `Function` 能正常解析、能生成它的 HLSL 辅助函数，却**永远不会被调用**。请改名。
+`SampleTexture2D` 是这条阶梯上唯一区分大小写的比较，所以一个叫 `sampletexture2d` 的 `Function` *是*可以被
+调用的。
+</Callout>
+
+## 被调方的写法
+
+| 写法 | 解析到 |
+| :-- | :-- |
+| `Name` | 声明名匹配的 `Function` / `GraphFunction`，或声明名匹配的 `ShaderFunction` 家族 / `VirtualFunction` 块 |
+| `Namespace::Name` | 声明在 `Namespace(Name="Namespace")` 内部的 `Function` / `GraphFunction`。命名空间内的函数**只能**用全限定名访问——没有 `using`，也没有非限定回退。 |
+| `DreamShaderFn_Name` | 同一个 `Function`——它生成的 HLSL 符号名也被接受为别名 |
+| 路径末段 | 对声明为 `Name="Functions/F_Tint"` 的块，取最后一个 `/` 之后的一段——`F_Tint` |
+
+没有重载解析。名字不按参数个数或类型区分；第一个名字匹配的声明胜出。
+
+## 值形式
+
+```c
+float L = Luma(BaseColor);
+vec3  C = Common::ApplyTint(BaseColor, Tint);
+vec3  N = F_Normal(uv, Output="Normal");
+```
+
+| 种类 | 要求 |
+| :-- | :-- |
+| `Function` | 必须恰好声明一个输出，否则 `DreamShader Function '{Name}' has {Count} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB).` 参数个数必须与声明的输入数**完全相等**。 |
+| `GraphFunction` | 同样两条规则，另外需要一个活跃的 `Graph` 构建上下文。内部会把该调用改写成语句调用，其 out 目标是一个名为 `__ds_<函数名>_value<N>` 的生成临时变量。 |
+| `ShaderFunction` 家族、`VirtualFunction` | 任意输出数。恰好选中一个输出——只声明了一个时隐式选中，否则用 `Output=` / `OutputName=` / `OutputIndex=`。可选输入可以省略，或传 `default`。 |
+
+调用结果是普通的后缀表达式，所以可以直接 swizzle：`SampleTexture2D(Albedo, uv).rgb`。
+
+## 语句形式
+
+```c
+F_PulseTint(BaseColor, Tint, TintedColor, PulseAmount);
+```
+
+多输出 `ShaderFunction` / `VirtualFunction` 的语句调用自 <Since v="1.3.5" /> 起可用。
+
+参数是**先输入，再每个输出对应一个 out 目标**，按声明顺序排列。每个声明的输出都必须有目标——没有办法丢弃
+其中一个。
+
+| 种类 | 元数规则 |
+| :-- | :-- |
+| `Function`、`GraphFunction` | 精确：`输入数 + 输出数`。`DreamShader Function '{Name}' expects {Total} arguments ({Inputs} inputs, {Outputs} out targets) but got {Got}.` |
+| `ShaderFunction` 家族、`VirtualFunction` | 参数个数至少等于输出数；前面的 `参数数 − 输出数` 个是输入，且不能超过声明的输入数。没有被覆盖到的输入必须声明为 `opt`，否则 `{Kind} '{Name}' is missing required input '{Input}'.` |
+
+### out 目标规则
+
+| 规则 | 失败信息 |
+| :-- | :-- |
+| 每个 out 目标都必须是**普通变量名**——不能是表达式、成员路径或 swizzle | `DreamShader Function '{Name}' out argument {Index} must be a plain variable name.`（*从 1 开始计数*） |
+| 去空白后名字非空 | `DreamShader Function '{Name}' has an empty out target name.` |
+| 同一次调用内的名字必须互不相同，比较时**区分大小写** | `DreamShader Function '{Name}' cannot write multiple out results into '{Target}' in the same call.` |
+
+out 目标不需要事先存在，也不需要声明。每个目标会在当前作用域里被绑定到该调用的对应输出，并带上该输出的
+声明形状，**替换**掉这个名字原有的值，且不做类型检查。如果宽度有讲究，请先声明变量。
+
+<Callout type="info">
+out 目标的唯一性比较区分大小写，而 Graph 变量查找不区分大小写。所以 `F(a, Result, result)` 能通过唯一性
+检查，然后绑定出两个条目，之后的读取取到的是不区分大小写扫描先找到的那个。请只用一种拼写。
+</Callout>
+
+## 参数
+
+### 位置参数与命名参数
+
+| 被调方 | 位置参数 | 命名参数 | 混用 |
+| :-- | :-- | :-- | :-- |
+| `Function`，值形式或语句形式 | 必须 | 拒绝：`DreamShader Function '{Name}' currently uses positional arguments only.` | — |
+| `GraphFunction`，值形式或语句形式 | 必须 | 拒绝：`DreamShader GraphFunction '{Name}' currently uses positional arguments only.` | — |
+| `ShaderFunction` 家族 / `VirtualFunction`，**值**形式 | 允许 | 允许 | **禁止**——`{Kind} '{Name}' input arguments cannot mix positional and named forms.` |
+| `ShaderFunction` 家族 / `VirtualFunction`，**语句**形式 | 必须 | 拒绝：`{Kind} '{Name}' statement calls currently use positional arguments only.` | — |
+| 带输入引脚的参数 | 拒绝：`Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...)).` | 必须 | — |
+| `StaticSwitchParameter` | 允许——下标 0 是 true 分支，下标 1 是 false 分支 | 允许——`True`/`A`、`False`/`B` | 允许 |
+
+参数名在比较前会被规范化：先去首尾空白，再转小写。`Coordinates=`、`coordinates=` 和 ` COORDINATES =`
+是同一个参数。位置参数只在**无名**参数之中计数，所以位置下标会跳过它前面的所有命名参数。
+
+"不许混用"是按调用而不是按参数判定的：只要*有任何一个*参数是命名的，就*不允许*出现位置参数。匹配不到任何
+声明输入的命名参数报 `{Kind} '{Name}' does not have an input named '{Argument}'.`；位置参数过多报
+`{Kind} '{Name}' received {Got} positional input argument(s), but only {Declared} input(s) are declared.`
+
+每个输入参数都会被转换到该输入的声明类型，并伴随一贯的静默收窄——见
+[转换](/docs/graph/expressions#转换)。
+
+### `default`
+
+<Since v="1.2.3" /> `default` 是一个裸标识符，匹配不区分大小写，用来显式请求某个可选输入的声明默认值，
+而不是给它传一个值。
+
+| 情况 | 行为 |
+| :-- | :-- |
+| 对声明为 `opt` 的输入传 `default` | 该输入引脚保持未连接；函数自身的默认值生效 |
+| 对必填输入传 `default` | `{Kind} '{Name}' input '{Input}' is not optional and cannot use default.` |
+| 在 `Function` / `GraphFunction` 调用里用 `default` | 不被识别——按普通标识符求值并失败：`Unknown Graph identifier 'default'.` |
+
+完全省略末尾的可选输入，效果与传 `default` 相同。
+
+```c
+float3 tinted = F_Tint(BaseColor, default, Output="OutColor");
+```
+
+## 输出选择
+
+`Output`、`OutputName` 和 `OutputIndex` 是 `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` 和
+`VirtualFunction` **值形式**上的保留命名参数。它们会在绑定输入之前从输入参数表里移除。
+
+| 参数 | 接受 | 含义 |
+| :-- | :-- | :-- |
+| `Output` | 一个字面量 | 按声明名选择输出，不区分大小写 |
+| `OutputName` | 一个字面量 | `Output` 的完全同义词 |
+| `OutputIndex` | 一个整数字面量 | 按 `Outputs` 列表中从 0 起的下标选择 |
+
+```c
+float value = F_MultiOutput(Input=Mask, Output="Height");
+float other = F_MultiOutput(Input=Mask, OutputIndex=1);
+```
+
+| 规则 | 失败信息 |
+| :-- | :-- |
+| `Output`/`OutputName` 与 `OutputIndex` 互斥 | `{Kind} '{Name}' cannot use OutputName/Output together with OutputIndex.` |
+| 声明了多个输出却一个都没给 | `{Kind} '{Name}' exposes multiple outputs. Specify Output="Name" or OutputIndex=N.` |
+| `OutputIndex` 必须是范围内的整数字面量 | `{Kind} '{Name}' OutputIndex is out of range.` |
+| `Output` / `OutputName` 必须是字面量，不能是表达式 | `{Kind} '{Name}' OutputName must be a literal value.` |
+| 名字必须匹配某个声明输出 | `{Kind} '{Name}' does not expose an output named '{Output}'.` |
+| 选中的输出必须在已加载资产上存在——先按名字匹配，再按序号 | `{Kind} '{Name}' output '{Output}' does not exist on MaterialFunction asset '{Asset}'.` |
+
+<Callout type="warn">
+这三个名字在 `Function` 和 `GraphFunction` 调用上**不可用**，因为它们本来就拒绝命名参数——多输出的
+`Function` 必须用语句形式加显式 out 目标。出于同样的原因，它们在所有种类的语句形式里也不可用。
+</Callout>
+
+`UE.Expression(…)` 接受同样的三个选择器，规则相同；见
+[UE.Expression](/docs/builtins/ue-expression)。
+
+### `BreakOutFloatNComponents`
+
+声明名为 `BreakOutFloat2Components`、`BreakOutFloat3Components` 或 `BreakOutFloat4Components`
+（不区分大小写）的 `VirtualFunction` 调用会被**内联成 swizzle**，而不是生成 `MaterialFunctionCall` 节点，
+前提是它有一个可用的首个输入参数和一个输出选择器：
+
+| 输出名 | 通道 |
+| :-- | --: |
+| `x`、`r` | 0 |
+| `y`、`g` | 1 |
+| `z`、`b` | 2 |
+| `w`、`a` | 3 |
+
+`OutputIndex=` 按下标选中同样的通道。任一前提不满足——首个参数是 `default`、两个选择器都给了、一个选择器
+都没给——调用就退回普通的 `MaterialFunctionCall` 路径。
+
+## 调用参数
+
+### 输入引脚接线
+
+<Since v="1.4.1" /> 节点自带输入引脚的已声明参数可以被"调用"，以接好这些引脚。该调用会像裸引用一样物化
+参数节点，并把每个命名参数连到同名的输入引脚上。节点按参数名缓存，所以之后的裸引用会共享这个已配置好的
+节点。
+
+接受这种形式的参数节点类型完整清单：
+
+| | | |
+| :-- | :-- | :-- |
+| `ChannelMaskParameter` | `StaticComponentMaskParameter` | `TextureSampleParameter2D` |
+| `TextureSampleParameter2DArray` | `TextureSampleParameterCube` | `TextureSampleParameterCubeArray` |
+| `TextureSampleParameterVolume` | `TextureSampleParameterSubUV` | `RuntimeVirtualTextureSampleParameter` |
+| `SparseVolumeTextureSampleParameter` | | |
+
+引脚名使用与参数名相同的规范化规则。所有参数都必须是命名的，且值都必须是数值。
+
+<Callout type="warn">
+只有 `TextureSampleParameter*` 家族——以及上表中的其他节点类型——自带输入引脚。紧凑写法的 `Texture2D` 属性
+是纹理*对象*参数，它没有输入引脚，因此不能这样调用。
+
+资产槽位也不是调用参数。采样器参数指向的贴图、曲线或字体，是用 `[TextureSlot=Path(…)]` 这类声明元数据设置
+的。把它当调用参数传会失败并报
+`Parameter '{Name}' ({NodeType}) has no input pin named '{Argument}'. Asset slots (Texture/Curve/Font/...) are set via [{Argument}=Path(...)] metadata, not call arguments.`
+见 [Properties 类型](/docs/parameters/properties)和[元数据与分组](/docs/parameters/metadata)。
+</Callout>
+
+```c
+Properties = {
+    TextureSampleParameter2D Albedo = Path(Game, "Textures/T_Albedo");
+}
+
+Graph = {
+    vec2 UV  = UE.TexCoord(Index = 0);
+    vec4 Tex = Albedo(Coordinates = UV);
+}
+```
+
+### `StaticSwitchParameter`
+
+<Since v="1.2.3" /> `StaticSwitchParameter` 属性**不**作为裸标识符解析——它需要两个分支，所以只能通过调用
+形式读取。
+
+| 分支 | 参数名，按查找顺序 |
+| :-- | :-- |
+| true | 先 `True=`，再 `A=`，再位置下标 0 |
+| false | 先 `False=`，再 `B=`，再位置下标 1 |
+
+两个分支都必须存在，都不能是纹理对象或 `Substrate` 值，`MaterialAttributes` 标志必须一致，分量数必须相同。
+
+```c
+Properties = {
+    StaticSwitchParameter UseDetail = true [
+        Group="Switches";
+        SortPriority=30;
+    ];
+}
+
+Graph = {
+    vec3 Albedo = UseDetail(True = DetailColor, False = BaseColor);
+}
+```
+
+因为这个开关是在着色器变体阶段而不是每像素解析的，所以当"选哪个"是材质设置而不是计算结果时，它是 `if`
+的廉价替代品。
+
+## 递归与嵌套
+
+| 情况 | 行为 |
+| :-- | :-- |
+| `GraphFunction` 直接或间接调用自身 | 构建期检测：`GraphFunction cycle detected: {Path}.`，路径是用 ` -> ` 连接的当前调用栈；名字比较不区分大小写 |
+| 标记 `SelfContained` / `Inline` 的 `Function` 调用自身 | `SelfContained Function cycle detected: {Path}. HLSL Custom nodes cannot compile recursive DreamShader functions.` |
+| 一条表达式里嵌套调用 | 合法——参数就是普通表达式，所以 `F(G(x), 2.0)` 对任何可调用种类都成立 |
+| 把调用用作 `Outputs` 绑定表达式 | 合法——绑定就是完整表达式 |
+
+## 哪些调用会被复用
+
+| 调用种类 | 是否去重 |
+| :-- | :-- |
+| `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` / `VirtualFunction` | **会**，按参数表加资产路径建键，并对每个选中的输出再建一个键——所以只在读取哪个输出上不同的调用共享同一个节点 |
+| 通用反射式 `UE.*`（`UE.Expression`，以及任何不是已注册语法糖内置的 `UE.<Name>`）和所有 `Substrate.*` 调用 | **会** |
+| 数学内置 | **会** |
+| 已注册的 `UE.*` 语法糖内置和 `UE.CollectionParam` | **不会**——它们在任何键计算之前就被分发，所以每个调用点都拿到新节点 |
+| `Function` 和 `GraphFunction` | **不会**——生成的 `Custom` 节点按调用点各建一个 |
+| 解析出的类派生自 `UMaterialExpressionCustom` 的 `UE.Expression` | **不会**——显式豁免 |
+| `StaticSwitchParameter` 调用 | **不会** |
+
+因为位置参数按下标建键，`F_Tint(a, b)` 和 `F_Tint(b, a)` 是不同的键；因为参数名会被规范化，
+`F_Tint(Color = a)` 和 `F_Tint(color = a)` 是同一个键。只要有任何一个参数产生不出键令牌，整个调用就不进
+缓存，节点每次都会新建。
+
+## 诊断
+
+<Diag>
+  <D msg="Unknown Graph function '{Name}'." cause="调用名在所有表面上都没匹配到——常见于拼错的构造器，例如 vec1 或 mat3。" href="/docs/graph/expressions" />
+  <D msg="Graph calls must target a named function." cause="被调方不是标识符，也不是 :: / . 限定名。" />
+  <D msg="Graph call '{Name}' is ambiguous because multiple definitions use that name: {Kinds}." cause="两个或更多声明种类使用了同一个名字。" fix="给其中之一改名，或用 Namespace 限定该 Function。" />
+  <D msg="Graph expression statements currently support only Function calls with explicit out arguments." cause="该语句根本不是调用。" href="/docs/graph/unsupported" />
+  <D msg="Graph expression statement '{Name}' is unsupported. Only DreamShader Function, GraphFunction, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction calls may use statement syntax." cause="对内置、构造器或参数使用了语句调用。" fix="改成赋值：v = UE.Time();" />
+  <D msg="DreamShader Function '{Name}' has {Count} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB)." cause="对多输出 Function 使用了值形式。" fix="改用语句形式，每个输出给一个 out 目标。" />
+  <D msg="DreamShader Function '{Name}' returns one value and expects {Expected} input argument(s) when used as a value expression, but got {Got}." cause="值形式的参数个数不对。" />
+  <D msg="DreamShader Function '{Name}' currently uses positional arguments only." cause="在 Function 或 GraphFunction 调用里使用了命名参数。" />
+  <D msg="DreamShader Function '{Name}' out argument {Index} must be a plain variable name." cause="out 目标不是裸标识符。" />
+  <D msg="DreamShader Function '{Name}' cannot write multiple out results into '{Target}' in the same call." cause="同一个 out 目标用了两次。" />
+  <D msg="DreamShader Function '{Name}' input '{Input}': {Error}" cause="输入参数求值失败，或无法转换到声明类型。" href="/docs/graph/expressions" />
+  <D msg="GraphFunction cycle detected: {Path}." cause="GraphFunction 直接或间接递归。" />
+  <D msg="DreamShader GraphFunction '{Name}' contains an unterminated UE.* call." cause="函数体里的 UE. 调用没有闭合的 )。" />
+  <D msg="{Kind} '{Name}' input arguments cannot mix positional and named forms." cause="一次值调用里同时出现了两种参数形式。" />
+  <D msg="{Kind} '{Name}' is missing required input '{Input}'." cause="非 opt 的输入没有收到参数。" fix="传一个值，或把该输入声明为 opt。" />
+  <D msg="{Kind} '{Name}' exposes multiple outputs. Specify Output=&quot;Name&quot; or OutputIndex=N." cause="对多输出材质函数使用值形式却没给选择器。" />
+  <D msg="{Kind} '{Name}' does not expose an output named '{Output}'." cause="没有任何声明输出叫这个名字。" />
+  <D msg="{Kind} '{Name}' output '{Output}' does not exist on MaterialFunction asset '{Asset}'." cause="声明与已加载资产在输出上不一致。" fix="重新生成资产，或修正声明。" />
+  <D msg="{Kind} '{Name}' could not load MaterialFunction asset '{Asset}'." cause="生成的或被引用的资产不存在。" href="/docs/generation/asset-paths" />
+  <D msg="VirtualFunction '{Name}' asset reference is invalid: {Error}" cause="Options.Asset 没有解析到一个 UMaterialFunction。" href="/docs/parameters/path" />
+  <D msg="Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...))." cause="参数引脚调用里出现了位置参数。" />
+  <D msg="Parameter '{Name}' ({NodeType}) has no input pin named '{Argument}'. Asset slots (Texture/Curve/Font/...) are set via [{Argument}=Path(...)] metadata, not call arguments." cause="参数名匹配不到该节点上的任何输入引脚。" href="/docs/parameters/metadata" />
+  <D msg="StaticSwitchParameter '{Name}' requires True=... and False=... inputs." cause="缺少一个或两个分支。" />
+  <D msg="StaticSwitchParameter '{Name}' branches must have the same component count, got {Left} and {Right}." cause="两个分支宽度不同。" />
+</Diag>
+
+跨阶段的完整清单见[错误速查](/docs/diagnostics)。
+
+## 示例
+
+```c
+import "Helpers.dsh";
+
+Shader(Name="Docs/M_Calls")
+{
+    Properties {
+        vec3                     Tint    = vec3(1.0, 0.4, 0.1);
+        TextureSampleParameter2D Albedo  = Path(Game, "Textures/T_Albedo");
+        StaticSwitchParameter    UseTint = true;
+    }
+
+    Settings {
+        Domain       = "Surface";
+        ShadingModel = "Unlit";
+    }
+
+    Outputs {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        vec2 UV  = UE.TexCoord(Index = 0);
+
+        // 参数引脚调用：接好采样器的 Coordinates 引脚。
+        vec4 Tex = Albedo(Coordinates = UV);
+
+        // 值形式，Helpers.dsh 里声明的单输出 Function。
+        float L  = Luma(Tex.rgb);
+
+        // 值形式，带命名空间的 Function。
+        vec3 Lit = Common::ApplyTint(Tex.rgb, Tint);
+
+        // 语句形式：两个 out 目标，输入在前。目标不需要声明。
+        PulseTint(Lit, Tint, Pulsed, Amount);
+
+        // StaticSwitchParameter 调用在两者之间选择。
+        Color = UseTint(True = Pulsed, False = vec3(L, L, L));
+    }
+}
+```
+
+`Helpers.dsh`：
+
+```c
+Function float Luma(in vec3 color) { return dot(color, float3(0.299, 0.587, 0.114)); }
+
+Function PulseTint(in vec3 color, in vec3 tint, out vec3 result, out float amount) {
+    amount = 0.5 + 0.5 * sin(color.r * 6.28318);
+    result = color * tint * amount;
+}
+
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```text
+TextureCoordinate                      -> UV
+TextureSampleParameter2D  Albedo       -> Tex          (Coordinates pin wired to UV)
+Custom  "Luma"                         -> L
+Custom  "Common::ApplyTint"            -> Lit
+Custom  "PulseTint"                    -> Pulsed (output 0), Amount (output 1)
+StaticSwitchParameter  UseTint         -> Color
+```
+
+`PulseTint` 这个 Custom 节点上多出来的两个输出引脚，是按**调用方**的 out 变量命名的，而不是按声明的结果名
+命名的。
+
+## 参见
+
+- [函数](/docs/language/functions) —— 声明 `Function`、`GraphFunction` 与 `Namespace`
+- [import 与命名空间](/docs/language/imports) —— `::` 名字从哪里来
+- [Properties 类型](/docs/parameters/properties) —— 哪些参数自带输入引脚
+- [语句与声明](/docs/graph/statements) —— 作为语句的调用形式
+- [运算符与转换](/docs/graph/expressions) —— 调用在表达式文法里的位置
+- [UE.Expression](/docs/builtins/ue-expression) —— 通用节点内置及其输出选择器

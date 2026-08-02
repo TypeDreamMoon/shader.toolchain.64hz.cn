@@ -1,0 +1,564 @@
+---
+title: Property Types
+description: Every type token a Properties declaration accepts — 39 compact tokens, 22 parameter node tokens, their defaults and their call forms.
+---
+
+Every declaration inside a `Properties` section becomes **exactly one node** in the generated
+material. Which node you get is decided by the type token you write, and nothing else: the token
+picks the Unreal expression class, the default-value grammar and — for a handful of types — whether
+the declaration can be *called* from `Graph` to wire its input pins.
+
+There are two ways to name a type. A **compact token** (`float`, `vec3`, `Texture2D`) says what the
+value is and lets DreamShader choose the node. An **explicit `*Parameter` token**
+(`TextureSampleParameter2D`, `ChannelMaskParameter`) names the Unreal expression class directly.
+Reach for a compact token first; reach for an explicit one when you need a node the compact set
+cannot produce.
+
+## The shape of a declaration
+
+<Synopsis>
+```c
+[const] <type-token> <name> [ = <default-value> ] [ [ <metadata-entry> ; … ] ] ;
+```
+</Synopsis>
+
+<Grammar />
+
+The `[ … ]` around `<default-value>` and around the metadata block is the "optional" meta-bracket;
+the brackets of the metadata block itself are **literal punctuation**. A declaration with metadata is
+written `float A = 1.0 [Group="X"];`. The metadata grammar is on
+[Metadata and Groups](/en/docs/parameters/metadata); the enclosing section grammar is on
+[Sections](/en/docs/language/sections).
+
+Every type token is matched **case-insensitively**. `FLOAT3`, `Float3` and `float3` are one token; so
+are `texturesampleparameter2d` and `TextureSampleParameter2D`.
+
+## The four families
+
+| Family | Count | Example | Node generated |
+| :-- | :-- | :-- | :-- |
+| Compact scalar | 7 | `float Strength = 1.0;` | `UMaterialExpressionScalarParameter` |
+| Compact vector | 27 | `vec3 Tint = vec3(1, 1, 1);` | `UMaterialExpressionVectorParameter` |
+| Compact texture | 5 | `Texture2D Base = Path(Game, "T_X");` | `UMaterialExpressionTextureObjectParameter` |
+| Explicit `*Parameter` node | 22 | `TextureSampleParameter2D Tex;` | the named `UMaterialExpression` subclass |
+
+A fifth form, `UE.<Name>( … ) <name>;`, declares an engine input node (UVs, time, vertex colour, a
+parameter collection lookup) as a property. It is covered under
+[UE.\* Nodes](/en/docs/builtins/ue-nodes) and [UE.Expression](/en/docs/builtins/ue-expression).
+
+A token that matches none of these fails with `Unsupported property type '{Token}'.`
+
+## Compact scalar tokens
+
+Seven spellings, identical in every observable respect.
+
+| Token | Components | Node (parameter) | Node (`const`) |
+| :-- | :-- | :-- | :-- |
+| `float` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+| `float1` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+| `half` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+| `half1` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+| `int` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+| `uint` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+| `bool` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+
+<Callout type="info">
+`int`, `uint`, `bool` and `half` carry **no** integer, boolean or precision semantics at the node
+level. Every one generates a float `ScalarParameter`, and the material graph performs no truncation.
+Write them for readability, not for behaviour.
+</Callout>
+
+### Scalar defaults
+
+```c
+float A = 0.5;    float B = -2;    float C = 1e3;    float D = true;
+```
+
+The text is parsed as a `double`, with `true` → `1.0` and `false` → `0.0` accepted as
+case-insensitive aliases. Anything else fails with
+`Invalid scalar default value '{Text}' for property '{Name}'.`
+
+With no `= <default>` nothing is written and the node keeps the engine default `0.0`.
+
+## Compact vector tokens
+
+27 spellings. Every one produces a `UMaterialExpressionVectorParameter` whose `DefaultValue` is a
+full `FLinearColor`; only the **declared component count** differs, and that is what decides which
+node output a `Graph` read targets. The count comes from the token's last character — `2` is two
+components, `4` is four, anything else is three.
+
+| Token | Components | Node (`const`) |
+| :-- | :-- | :-- |
+| `float2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `float3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `float4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `half2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `half3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `half4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `vec2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `vec3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `vec4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `int2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `int3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `int4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `uint2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `uint3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `uint4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `bool2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `bool3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `bool4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `ivec2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `ivec3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `ivec4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `uvec2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `uvec3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `uvec4` | 4 | `UMaterialExpressionConstant4Vector` |
+| `bvec2` | 2 | `UMaterialExpressionConstant2Vector` |
+| `bvec3` | 3 | `UMaterialExpressionConstant3Vector` |
+| `bvec4` | 4 | `UMaterialExpressionConstant4Vector` |
+
+`vec*`, `ivec*`, `uvec*` and `bvec*` are GLSL-flavoured spellings of `float*`, `int*`, `uint*` and
+`bool*`. There is no compact token for a one-component *vector*: `float1` and `half1` are scalars.
+
+### Vector defaults
+
+<Synopsis>
+```c
+<anything> ( <part> [ , <part> ] … )
+```
+</Synopsis>
+
+| Rule | Behaviour |
+| :-- | :-- |
+| Text before `(` | **ignored** — `float4(…)`, `vec3(…)`, `(…)` and `banana(…)` all parse |
+| Delimiters | from the first `(` to the **last** `)` |
+| Parts | split on every `,`; empty parts are dropped; each part is a `double`, or `true` / `false` |
+| 1 part `a` | `(a, a, a, 1)` |
+| 2 parts `a, b` | `(a, b, 0, 0)` |
+| 3 parts `a, b, c` | `(a, b, c, 1)` |
+| 4 parts `a, b, c, d` | `(a, b, c, d)` |
+| More than 4 parts | parts 5 and beyond are **never read**, not even parsed |
+| Any part unparsable | `Invalid vector default value '{Text}' for property '{Name}'.` |
+
+With no `= <default>` the node keeps the engine default `(1, 1, 1, 1)`.
+
+<Callout type="warn">
+**The declared component count is never checked against the literal's arity.**
+`float2 P = float4(1, 2, 3, 4);` and `float4 P = vec2(1, 2);` both parse. The literal fills the
+`FLinearColor` by the table above and the declared count then decides which output is read — so
+`float4 P = vec2(1, 2)` yields `(1, 2, 0, 0)` read as RGBA. The token before `(` is not validated
+either, so a typo such as `flaot3(1, 0, 0)` is accepted silently. Write the literal with the same
+arity and spelling as the declared token.
+</Callout>
+
+## Compact texture tokens
+
+Five spellings, four distinct dimensions. Each generates a texture **object** parameter — the node
+carries an asset, it does not sample it.
+
+| Token | Texture type | Node (parameter) | Node (`const`) |
+| :-- | :-- | :-- | :-- |
+| `Texture2D` | `Texture2D` | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
+| `TextureCube` | `TextureCube` | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
+| `Texture2DArray` | `Texture2DArray` | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
+| `Texture3D` | `VolumeTexture` <Since v="1.3.8" /> | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
+| `VolumeTexture` | `VolumeTexture` <Since v="1.3.8" /> | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
+
+`Texture3D` and `VolumeTexture` are exact synonyms. To sample one of these, feed it to a
+`TextureSample` builtin from `Graph`, or declare a `TextureSampleParameter2D` instead.
+
+### Texture defaults
+
+```c
+Texture2D A = Path(Game, "Textures/T_X");
+Texture2D B = Path("/Game/Textures/T_X");
+Texture2D C = "/Game/Textures/T_X";            // bare quoted absolute path
+```
+
+The bare quoted form arrived in <Since v="1.5.0" />. Every root spelling and both error sets are on
+[Asset References](/en/docs/parameters/path); a failure is wrapped as
+`Invalid texture default value '{Text}' for property '{Name}'. {Inner}`.
+
+### Defaults when no asset is assigned
+
+| Declared texture type | Fallback asset loaded |
+| :-- | :-- |
+| `Texture2D` | `/Engine/EngineResources/DefaultTexture.DefaultTexture` |
+| `TextureCube` | `/Engine/EngineResources/DefaultTextureCube.DefaultTextureCube` |
+| `VolumeTexture` | `/Engine/EngineResources/DefaultVolumeTexture.DefaultVolumeTexture` |
+| `Texture2DArray` | **none exists** |
+
+<Callout type="warn">
+`Texture2DArray` has no engine fallback. Declared without `= Path(…)` it fails generation with
+`Texture property '{Name}' with type Texture2DArray requires an explicit default asset.` Assign an
+array asset explicitly.
+</Callout>
+
+### Dimension validation
+
+All five compact tokens declare an explicit dimension, so the assigned asset is checked against it —
+`Texture2D` here means "not a cube, not a 2D array, not a volume". A mismatch is reported as
+
+```text
+{Context} texture property '{Name}' expects {ExpectedType} but '{Path}' is a '{ActualClass}'.
+```
+
+with `{Context}` being `Texture` for a parameter and `Const` for a `const` declaration. After a
+successful load `AutoSetSampleType()` runs, so `SamplerType` follows the asset unless
+[metadata](/en/docs/parameters/metadata#texture-keys) overrides it.
+
+## `const` declarations
+
+<Since v="1.2.6" /> A `const` declaration emits a constant node instead of a parameter: no name in
+the material's parameter list, no instance override.
+
+```c
+const float Gamma = 2.2;                       // Constant
+const vec3  Sky   = vec3(0.2, 0.4, 0.9);       // Constant3Vector
+const Texture2D Lut = Path(Game, "T_Lut");     // TextureObject
+```
+
+`const` is legal **only** with the 39 compact tokens. Combined with any `*Parameter` token or any
+`UE.*` declaration it is rejected with
+`Const property '{Name}' must use a plain scalar, vector, or texture type instead of a parameter node or UE builtin declaration.`
+
+A `const` declaration still accepts a metadata block — `[Desc="…"]` on a `Constant` node works — and
+a `const` vector read from `Graph` always targets output 0, not the named `RG` / `RGB` / `RGBA`
+output a parameter read would use.
+
+## Parameter node tokens
+
+22 tokens that name an Unreal parameter expression class directly. `ScalarParameter`,
+`VectorParameter` and `TextureObjectParameter` take dedicated construction paths; every other token
+resolves its class by name, trying `<Token>`, `U<Token>`, `MaterialExpression<Token>` and
+`UMaterialExpression<Token>` in that order against every non-abstract `UMaterialExpression`
+subclass, case-insensitively. The set is closed — exactly these 22.
+
+<Wide>
+
+| # | Token | Type | Components | Generated class | `= default` accepts | `Graph` call form |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| 1 | `ScalarParameter` | Scalar | 1 | `UMaterialExpressionScalarParameter` | scalar literal | — |
+| 2 | `StaticBoolParameter` | Scalar | 1 | `UMaterialExpressionStaticBoolParameter` | `true` / `false` only | — |
+| 3 | `StaticSwitchParameter` | Scalar | 1 | `UMaterialExpressionStaticSwitchParameter` | `true` / `false` only | **required** — `N(True = …, False = …)` |
+| 4 | `VectorParameter` | Vector | 4 | `UMaterialExpressionVectorParameter` | vector literal | — |
+| 5 | `DoubleVectorParameter` | Vector | 4 | `UMaterialExpressionDoubleVectorParameter` | vector literal | — |
+| 6 | `ChannelMaskParameter` | Vector | **1** | `UMaterialExpressionChannelMaskParameter` | vector literal | `N(Input = …)` |
+| 7 | `StaticComponentMaskParameter` | Vector | 4 | `UMaterialExpressionStaticComponentMaskParameter` | vector literal | `N(Input = …)` |
+| 8 | `CurveAtlasRowParameter` | Vector | **3** | `UMaterialExpressionCurveAtlasRowParameter` | vector literal — only `.R` is written | — |
+| 9 | `DynamicParameter` | Vector | 4 | `UMaterialExpressionDynamicParameter` | vector literal | — |
+| 10 | `FontSampleParameter` | Vector | 4 | `UMaterialExpressionFontSampleParameter` | vector literal — **discarded** | — |
+| 11 | `SpriteTextureSampler` | Vector | 4 | `UMaterialExpressionSpriteTextureSampler` (Paper2D) | vector literal **only** | — |
+| 12 | `TextureObjectParameter` | Texture | 0 | `UMaterialExpressionTextureObjectParameter` | `Path(…)` / bare quoted path | — |
+| 13 | `TextureCollectionParameter` | Texture | 0 | `UMaterialExpressionTextureCollectionParameter` | `Path(…)` / bare quoted path | — |
+| 14 | `SparseVolumeTextureObjectParameter` | Texture | 0 | `UMaterialExpressionSparseVolumeTextureObjectParameter` | `Path(…)` / bare quoted path | — |
+| 15 | `TextureSampleParameter2D` | Vector | 4 | `UMaterialExpressionTextureSampleParameter2D` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 16 | `TextureSampleParameter2DArray` | Vector | 4 | `UMaterialExpressionTextureSampleParameter2DArray` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 17 | `TextureSampleParameterCube` | Vector | 4 | `UMaterialExpressionTextureSampleParameterCube` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 18 | `TextureSampleParameterCubeArray` | Vector | 4 | `UMaterialExpressionTextureSampleParameterCubeArray` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 19 | `TextureSampleParameterVolume` | Vector | 4 | `UMaterialExpressionTextureSampleParameterVolume` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 20 | `TextureSampleParameterSubUV` | Vector | 4 | `UMaterialExpressionTextureSampleParameterSubUV` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 21 | `RuntimeVirtualTextureSampleParameter` | Vector | 4 | `UMaterialExpressionRuntimeVirtualTextureSampleParameter` | `Path(…)` / bare quoted path | `N(Coordinates = …)` |
+| 22 | `SparseVolumeTextureSampleParameter` | Vector | 4 | `UMaterialExpressionSparseVolumeTextureSampleParameter` | `Path(…)` / bare quoted path | `N(Coordinates = …, TextureObject = …)` |
+
+</Wide>
+
+`Type` is the DreamShader property type, not the Unreal pin type. `Texture` means "asset-valued":
+the node carries an asset and produces no numeric output.
+
+<Callout type="info">
+`ChannelMaskParameter` reads as a **1-component** value and `CurveAtlasRowParameter` as a
+**3-component** value, even though both generate four-channel-looking nodes. Declare the receiving
+variable accordingly.
+</Callout>
+
+`SpriteTextureSampler` lives in the **Paper2D** plugin. With Paper2D disabled the class cannot be
+resolved and generation fails with
+`Could not resolve MaterialExpression class for parameter type 'SpriteTextureSampler'.`
+
+### Which default parser a token uses
+
+The `= <default>` branch is chosen by the **token family**, not by what the generated node can
+actually store.
+
+| Branch | Tokens | Accepts |
+| :-- | :-- | :-- |
+| Scalar | `ScalarParameter`, `StaticBoolParameter`, `StaticSwitchParameter` | a scalar literal; the two static tokens accept **only** `true` / `false` |
+| Vector | `VectorParameter`, `DoubleVectorParameter`, `ChannelMaskParameter`, `StaticComponentMaskParameter`, `DynamicParameter`, `FontSampleParameter`, `CurveAtlasRowParameter`, `SpriteTextureSampler` | a vector literal |
+| Texture object | `TextureObjectParameter`, `TextureCollectionParameter`, `SparseVolumeTextureObjectParameter` | a `Path(…)` asset reference |
+| Texture sample | tokens 15–22 | a `Path(…)` asset reference |
+
+<Callout type="warn">
+**`FontSampleParameter`, `CurveAtlasRowParameter` and `SpriteTextureSampler` cannot take
+`= Path(…)`.** They sit in the vector branch, so `SpriteTextureSampler S = Path(Game, "T_X");` fails
+with `Invalid vector default value 'Path(Game,"T_X")' for property 'S'.` Bind their assets through
+metadata instead — `[Texture=Path(…)]`, `[Font=Path(…)]`, `[Curve=Path(…); Atlas=Path(…)]`.
+</Callout>
+
+A default value is **optional for every one of the 22 tokens**. What happens to the value you do
+write:
+
+| Situation | Result |
+| :-- | :-- |
+| No `= <default>` | nothing is written; the node keeps its engine default |
+| Class has no `DefaultValue` UPROPERTY | the parsed default is **silently discarded** — this is `FontSampleParameter` |
+| Class has a scalar `DefaultValue` but the token is vector-classified | only `VectorDefaultValue.R` is written — this is `CurveAtlasRowParameter`, whose `DefaultValue` is a curve row position |
+| Token is `StaticBoolParameter` / `StaticSwitchParameter` | the literal string `true` or `false` is written |
+| Any other Scalar-typed token | written as a sanitized float string |
+| Vector-typed token | written as `(R=…,G=…,B=…,A=…)`, retried as `(X=…,Y=…,Z=…,W=…)` if the first form is rejected |
+| Texture-classified token, or any token with an asset path | the first present slot of `Texture` → `TextureObject` → `SparseVolumeTexture` → `VirtualTexture` → `TextureCollection` → `Font` is written |
+
+If none of those six asset slots exists on the class, generation fails with
+`'{Class}' does not expose a texture/asset property for property '{Name}'.`
+
+A sampler parameter with **no** texture still compiles: `SetDefaultTexture()` is called for
+`UMaterialExpressionTextureSampleParameter` subclasses, then `AutoSetSampleType()` runs. That rescue
+does not apply to the runtime-virtual-texture, sparse-volume, font or curve-atlas nodes — those
+still need their asset bound.
+
+### Dimension: inferred, and mostly unchecked
+
+The eight texture-sample tokens infer a dimension from their spelling by substring test, in order:
+`Cube` → `TextureCube`, then `Array` → `Texture2DArray`, then `Volume` → `VolumeTexture`, otherwise
+`Texture2D`. (`TextureSampleParameterCubeArray` contains both `Cube` and `Array`; `Cube` wins. It
+has no observable effect — the generated class is still the correct cube-array class.)
+
+The three texture-object tokens deliberately declare **no** dimension: it comes from the assigned
+asset at generation time.
+
+| Token family | Asset dimension checked against the declaration? |
+| :-- | :-- |
+| Compact `Texture2D` / `TextureCube` / `Texture2DArray` / `Texture3D` / `VolumeTexture` | **yes** |
+| `TextureObjectParameter` | yes, but the expected type is inferred from the asset, so it can never fail |
+| `TextureCollectionParameter`, `SparseVolumeTextureObjectParameter` | **no** |
+| All eight texture-sample tokens | **no** |
+
+<Callout type="warn">
+A `TextureSampleParameterCube` assigned a plain 2D texture generates without any DreamShader
+diagnostic — every "no" row above is built through the generic reflected path, which has no
+dimension check. The mismatch surfaces later as an Unreal shader-compile error. Use the compact
+token when you want the check.
+</Callout>
+
+## Reading a property in `Graph`
+
+A bare identifier reads the property's value. The **declared component count** picks which node
+output the read targets:
+
+| Property kind | Node output the read targets |
+| :-- | :-- |
+| Any scalar property | output 0 |
+| Vector, 1 component (`ChannelMaskParameter`) | output named `R`, else output 0 |
+| Vector, 2 components | output named `RG`, else output 0 |
+| Vector, 3 components | output named `RGB`, else output 0 |
+| Vector, 4 components | output named `RGBA`, else output 0 |
+| Any `const` property | output 0 — the named-output remap is skipped |
+| Any texture property | output 0; the value reports **0** components and is marked as a texture object |
+
+So `vec2 P` reads `RG` while `VectorParameter P` reads `RGBA`. Reads are lazy and cached: the node
+is created on first reference — declaration order does not constrain reads — and every later
+reference returns the same node. See [Calls](/en/docs/graph/calls) and
+[Expressions and Conversions](/en/docs/graph/expressions).
+
+## The pin call form
+
+<Since v="1.4.1" /> Some parameters can be *called* to wire their input pins:
+
+```c
+vec4 S = BaseTex(Coordinates = UV);
+vec4 M = Keep(Input = S);
+```
+
+The node is materialised exactly as a bare read would materialise it — same cache — and each named
+argument is matched against the node's input pins. Matching trims and lower-cases both sides.
+There is **no positional variant**: every argument must be named, and argument values must be
+numeric.
+
+Exactly ten tokens are routed to the pin-wiring evaluator:
+
+```text
+ChannelMaskParameter                  TextureSampleParameterCubeArray
+StaticComponentMaskParameter          TextureSampleParameterVolume
+TextureSampleParameter2D              TextureSampleParameterSubUV
+TextureSampleParameter2DArray         RuntimeVirtualTextureSampleParameter
+TextureSampleParameterCube            SparseVolumeTextureSampleParameter
+```
+
+Everything else — every compact token and the remaining eleven `*Parameter` tokens — is not routed
+there at all; a call on one of them falls through to the function-call dispatcher and fails as an
+unknown function.
+
+<Callout type="warn">
+**A compact `Texture2D` cannot be called.** Only the `TextureSampleParameter*` family owns sampling
+pins. A compact texture token is a texture *object* parameter: it has no input pins at all. Read it
+as a value and feed it to a sampler, or declare `TextureSampleParameter2D` in the first place.
+</Callout>
+
+### Which pins are reachable
+
+Pin names come from the engine node at generation time, so what is reachable depends on the node
+**and** on metadata applied before the call — metadata is applied when the node is created, which is
+before any pin is wired.
+
+| Parameter type | Always available | Only under metadata | Exposed by the engine but unreachable |
+| :-- | :-- | :-- | :-- |
+| `ChannelMaskParameter` | `Input` | — | — |
+| `StaticComponentMaskParameter` | `Input` | — | — |
+| `TextureSampleParameter2D` | `Coordinates` | `MipLevel` with `[MipValueMode="MipLevel"]`; `MipBias` with `[MipValueMode="MipBias"]` | the two derivative pins under `[MipValueMode="Derivative"]`, and the automatic-view-mip-bias pin |
+| `TextureSampleParameter2DArray` | `Coordinates` | as above | as above |
+| `TextureSampleParameterCube` | `Coordinates` | as above | as above |
+| `TextureSampleParameterCubeArray` | `Coordinates` | as above | as above |
+| `TextureSampleParameterVolume` | `Coordinates` | as above | as above |
+| `TextureSampleParameterSubUV` | `Coordinates` | as above | as above |
+| `RuntimeVirtualTextureSampleParameter` | `Coordinates` | — | the world-position pin and all four derivative / mip pins, which the engine renames according to the node's own settings |
+| `SparseVolumeTextureSampleParameter` | `Coordinates`, `TextureObject` | `MipLevel` with `[MipValueMode="MipLevel"]`; `MipBias` with `[MipValueMode="MipBias"]` | the two derivative pins under `[MipValueMode="Derivative"]` |
+
+<Callout type="warn">
+**Several engine pin names cannot be written as an argument.** An argument name is an identifier and
+matching only trims and lower-cases, so any pin whose engine name contains a space or parentheses is
+unreachable: `Apply View MipBias`, `DDX(UVs)`, `DDY(UVs)` on texture-sample nodes, and
+`World Position`, `Translated World Position`, `Mip Level`, `Mip Bias`, `DDX (UV)`, `DDX (World)`,
+`DDY (UV)`, `DDY (World)` on the runtime-virtual-texture node. Set the corresponding value with
+metadata (`[ConstCoordinate=…]`, `[ConstMipValue=…]`, `[AutomaticViewMipBias=…]`), or build the node
+explicitly with [UE.Expression](/en/docs/builtins/ue-expression).
+</Callout>
+
+<Callout type="warn">
+**`TextureObject` is not a pin on a texture-sample *parameter* node.** Unreal's constructor clears
+`bShowTextureInputPin`, so `Tex(TextureObject = SomeTexture)` fails with
+`Parameter 'Tex' (TextureSampleParameter2D) has no input pin named 'TextureObject'. Asset slots (Texture/Curve/Font/...) are set via [TextureObject=Path(...)] metadata, not call arguments.`
+`SparseVolumeTextureSampleParameter` is the one exception — it does expose that pin.
+</Callout>
+
+### `StaticSwitchParameter`
+
+A static switch has its own call form and **cannot be read as a value**:
+
+```c
+vec3 C = UseDetail(True = DetailColor, False = BaseColor);
+vec3 D = UseDetail(A = DetailColor, B = BaseColor);
+vec3 E = UseDetail(DetailColor, BaseColor);          // positional, in that order
+```
+
+The true branch is taken from `True=`, else `A=`, else the first positional argument; the false
+branch from `False=`, else `B=`, else the second. Both are required. Neither branch may be a texture
+object or a `Substrate` value, the two may not mix `MaterialAttributes` with numeric, and both must
+have the same component count. A bare `UseDetail` — or `UseDetail.r` — fails with
+`Unknown Graph identifier 'UseDetail'.`
+
+## Tokens that are not valid in `Properties`
+
+These are real DreamShaderLang type tokens elsewhere. In a `Properties` declaration each falls
+through to `Unsupported property type '{Token}'.`
+
+| Token | Valid where instead |
+| :-- | :-- |
+| `MaterialAttributes` | `Inputs` / `Outputs` / `Results` of a material function; `Shader` `Outputs` declarations; `Function` signatures |
+| `Substrate` | the same, and only on <Since v="5.4" ue /> |
+| `SamplerState` | `Inputs` / `Outputs` / function signatures, where it is an alias for `Texture2D` |
+| `StaticBool` | `Inputs` / `Outputs` of a material function — use `StaticBoolParameter` in `Properties` |
+| `mat2` | a `Function` signature or `Code` body only, normalized to `float2x2`; generation then rejects the matrix type |
+| `mat3` | the same, normalized to `float3x3` |
+| `mat4` | the same, normalized to `float4x4` |
+
+The full cross-context matrix is on [Types and Values](/en/docs/language/types-and-values).
+
+## Naming rules
+
+- A property name is only required to be **non-empty**. It is never validated as an identifier, so
+  `float 1Bad = 0;` parses — and is then unreachable from `Graph`, where names are looked up as
+  identifiers.
+- Property names must be unique **ignoring case** within a `Shader`. Inside a material function a
+  property may not collide with an input name either.
+- `[ParameterName="…"]` changes the name the material exposes to instances and Blueprints; the
+  declared identifier stays the name `Graph` uses.
+
+## Diagnostics
+
+<Diag>
+  <D msg="Unsupported property type '{Token}'." cause="The token is not one of the 39 compact tokens, not one of the 22 *Parameter tokens, and does not start with UE.." fix="Check the spelling against the tables above." />
+  <D msg="Invalid scalar default value '{Text}' for property '{Name}'." cause="A scalar default that is neither a number nor true / false." />
+  <D msg="Invalid vector default value '{Text}' for property '{Name}'." cause="No parenthesised part list, or a part that is neither a number nor true / false — including a Path(…) written on a vector-branch token." />
+  <D msg="Invalid texture default value '{Text}' for property '{Name}'. {Inner}" cause="A compact texture or TextureObjectParameter-family default failed to resolve." href="/en/docs/parameters/path" />
+  <D msg="Invalid texture sample default value '{Text}' for property '{Name}'. {Inner}" cause="A texture-sample token's Path(…) failed to resolve." href="/en/docs/parameters/path" />
+  <D msg="Invalid boolean default value '{Text}' for property '{Name}'." cause="A non-true/false default on StaticBoolParameter or StaticSwitchParameter." />
+  <D msg="Texture property '{Name}' with type Texture2DArray requires an explicit default asset." cause="A Texture2DArray declared with no = Path(…); the engine has no fallback array asset." fix="Assign an array asset." />
+  <D msg="Texture texture property '{Name}' expects {Expected} but '{Path}' is a '{Class}'." cause="The assigned asset's class does not match the declared dimension of a compact token." />
+  <D msg="Could not resolve MaterialExpression class for parameter type '{Token}'." cause="No UMaterialExpression subclass matched the token under any of the four name spellings — a disabled Paper2D does this to SpriteTextureSampler." />
+  <D msg="'{Class}' does not expose a texture/asset property for property '{Name}'." cause="An asset default was given but none of the six asset slots exists on the class." />
+  <D msg="Const property '{Name}' must use a plain scalar, vector, or texture type instead of a parameter node or UE builtin declaration." cause="const applied to a *Parameter token or a UE.* declaration." />
+  <D msg="Parameter '{Name}' ({Token}) has no input pin named '{Arg}'. Asset slots (Texture/Curve/Font/...) are set via [{Arg}=Path(...)] metadata, not call arguments." cause="The argument name matched no pin on the node as currently configured." fix="Check the reachable-pin table above, or set the value with metadata." />
+  <D msg="Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...))." cause="A positional argument in the pin call form." />
+  <D msg="Unknown Graph identifier '{Name}'." cause="Includes any bare read of a StaticSwitchParameter, which must be called." href="/en/docs/graph/calls" />
+</Diag>
+
+The complete list, by stage, is in [Diagnostics](/en/docs/diagnostics).
+
+## Example
+
+```c
+Shader(Name="Docs/M_ParameterNodes")
+{
+    Properties = {
+        const float Gamma = 2.2;                       // Constant
+
+        Group("Surface") {
+            TextureSampleParameter2D BaseTex = Path(Game, "Textures/T_White") [
+                SamplerType   = "LinearColor";
+                SamplerSource = "FromTextureAsset";
+                MipValueMode  = "None";
+            ];
+            ScalarParameter Roughness = 0.55 [Slider(0, 1)];
+            VectorParameter Tint      = float4(1.0, 0.8, 0.6, 1.0);
+        }
+
+        Group("Masks") {
+            ChannelMaskParameter         Pick = float4(1, 0, 0, 0) [MaskChannel = "Red"];
+            StaticComponentMaskParameter Keep = float4(1, 1, 0, 0);
+        }
+
+        StaticSwitchParameter UseDetail = true [Group="Switches"];
+
+        UE.TexCoord(Index = 0) UV;
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "DefaultLit"; BlendMode = "Opaque"; }
+
+    Outputs = {
+        vec3  Color;
+        float Rough;
+
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
+    }
+
+    Graph = {
+        vec4  Sample = BaseTex(Coordinates = UV);
+        vec4  Masked = Keep(Input = Sample);
+        float Chan   = Pick(Input = Sample);
+
+        Color = UseDetail(True = Masked.rgb, False = Tint.rgb) * Gamma;
+        Rough = Roughness * Chan;
+    }
+}
+```
+
+Generated nodes:
+
+```text
+Constant(2.2)                 Gamma
+TextureSampleParameter2D      BaseTex    Group="Surface" SortPriority=0  SamplerType=LinearColor
+ScalarParameter               Roughness  Group="Surface" SortPriority=10 SliderMin=0 SliderMax=1
+VectorParameter               Tint       Group="Surface" SortPriority=20
+ChannelMaskParameter          Pick       Group="Masks"   SortPriority=30 MaskChannel=Red
+StaticComponentMaskParameter  Keep       Group="Masks"   SortPriority=40
+StaticSwitchParameter         UseDetail  Group="Switches"
+TextureCoordinate             UV         CoordinateIndex=0
+```
+
+## Next
+
+- [Metadata and Groups](/en/docs/parameters/metadata) — the `[ … ]` block, `Slider(…)`, groups and sort order
+- [Asset References](/en/docs/parameters/path) — every `Path(…)` root spelling and its errors
+- [UE.\* Nodes](/en/docs/builtins/ue-nodes) — declaring an engine input node as a property
+- [Calls](/en/docs/graph/calls) — the general call grammar these forms belong to

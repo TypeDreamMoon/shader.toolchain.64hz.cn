@@ -1,0 +1,254 @@
+---
+title: 文件模型
+description: 三种 DreamShaderLang 源文件、各自允许声明的顶层块，以及 import 如何把它们合并成一个翻译单元。
+---
+
+DreamShaderLang 的源文件分三类。它们共用同一套解析器和同一套语法，扩展名只决定两件事：这个文件允许
+声明什么，以及编译它会不会产出资产。
+
+| 扩展名 | 名称 | 作用 |
+| :-- | :-- | :-- |
+| `.dsm` | Dream Shader Material | 材质入口。翻译单元里唯一的 `Shader` 块写在这里。 |
+| `.dsf` | Dream Shader Function <Since v="1.3.5" /> | 材质函数与材质层的资产入口。 |
+| `.dsh` | Dream Shader Header | 只放共享声明。自身不产出任何资产，通过 `import` 被使用。 |
+
+扩展名按大小写不敏感比较，所以 `M_Water.DSM` 也是材质文件。
+
+## 语法概览
+
+<Synopsis>
+
+```c
+// <name>.dsm — Dream Shader Material
+[ import "<specifier>" ; ]…
+[ Shader( Name = "…" [, Root = "…"] ) { … } ]          // 每个翻译单元最多一个
+[ <any function, layer, virtual-function or namespace block> ]…
+```
+
+</Synopsis>
+
+<Synopsis>
+
+```c
+// <name>.dsf — Dream Shader Function
+[ import "<specifier>" ; ]…
+[ { ShaderFunction | ShaderLayer | ShaderLayerBlend }( Name = "…" [, Root = "…"] ) { … } ]…
+[ { VirtualFunction | Namespace | Function | GraphFunction } … ]…
+```
+
+</Synopsis>
+
+<Synopsis>
+
+```c
+// <name>.dsh — Dream Shader Header
+[ import "<specifier>" ; ]…
+[ { VirtualFunction | Namespace | Function | GraphFunction } … ]…
+```
+
+</Synopsis>
+
+<Grammar />
+
+## 各类文件允许包含什么
+
+| 顶层块 | `.dsm` | `.dsf` | `.dsh` |
+| :-- | :-: | :-: | :-: |
+| `Shader` | 允许 | 不允许 | 不允许 |
+| `ShaderFunction` | 允许 | 允许 | 不允许 |
+| `ShaderLayer` | 允许 | 允许 | 不允许 |
+| `ShaderLayerBlend` | 允许 | 允许 | 不允许 |
+| `MaterialLayer`（已弃用） | 允许 | 允许 | 不允许 |
+| `MaterialLayerBlend`（已弃用） | 允许 | 允许 | 不允许 |
+| `VirtualFunction` | 允许 | 允许 | 允许 |
+| `Namespace` | 允许 | 允许 | 允许 |
+| `Function` | 允许 | 允许 | 允许 |
+| `GraphFunction` | 允许 | 允许 | 允许 |
+| `import` | 允许 | 允许 | 允许 |
+
+`.dsm` 其实没有任何限制，它那一列写的只是语法本身接受的内容。每个块具体声明什么见
+[顶层块](/docs/language/blocks)。
+
+## 这条限制是怎么执行的
+
+它**不是**解析的一部分。文件里的 `import` 行被剥离之后、声明解析器运行之前，加载器会在剩下的文本里
+搜索几个字面子串，比较时忽略大小写。
+
+| 文件类型 | 文本中出现以下内容即拒绝 |
+| :-- | :-- |
+| `.dsh` | `Shader(` **或** `ShaderFunction(` **或** `ShaderLayer(` **或** `ShaderLayerBlend(` **或** `MaterialLayer(` **或** `MaterialLayerBlend(` |
+| `.dsf` | `Shader(` |
+| `.dsm` | — |
+
+`.dsf` 只需要一个关键词，是因为 `ShaderFunction(` 里并不包含子串 `Shader(`；`.dsh` 需要全部六个也是
+同样的道理，另外 `MaterialLayerBlend(` 也不包含 `MaterialLayer(`。
+
+<Callout type="warn">
+
+因为这是纯粹的子串扫描，被禁止的文本**出现在哪里都会被拒绝** —— 行注释里、块注释里、字符串字面量里
+都算。一个 `.dsh` 只要写了注释 `// see Shader(Name="…")` 就会被拒绝。
+
+反过来也成立。`Shader (` 在括号前多一个空格，就不含任何被禁止的子串，能通过扫描；随后解析器也会接受
+它，因为关键字和 `(` 是两个独立的 token。你自己起的块名如果以同样的字符结尾 —— 比如 `MyShader(` ——
+会触发 `.dsf` 的规则。
+
+</Callout>
+
+<Callout type="info">
+
+扫描只针对每个文件**自己**的文本。A 导入 B 时，B 按 B 的扩展名规则检查，A 按 A 的规则检查。所以一个
+`.dsh` 导入了满是 `ShaderFunction(` 的 `.dsf` 是合法的，那些块也会作为翻译单元的一部分被编译。文件
+类型规则约束的是你在这个文件里写什么，而不是它的 import 闭包最终包含什么。
+
+</Callout>
+
+## 一个翻译单元
+
+翻译单元 = 一个源文件 + 它递归导入的全部内容。`import` 指令会在解析**之前**被内联成一段文本，这带来
+一条值得记住的后果：
+
+<Callout type="warn">
+
+**每个翻译单元最多一个 `Shader` 块**，不是每个文件最多一个。导入两个各自声明了 `Shader` 的文件会失败
+于 `Only one top-level Shader block is currently supported.`，尽管这两个文件单独看都没违规。
+
+</Callout>
+
+其他规则同理，都是闭包范围的：`Function` 名字冲突、`Namespace` 重复打开、`VirtualFunction` 可见性
+都是如此。见 [import 与命名空间](/docs/language/imports)。
+
+## 各类文件产出什么
+
+| 类型 | 编译身份 | 产出 |
+| :-- | :-- | :-- |
+| `.dsm` | 材质入口 | 其 `Shader` 块对应的 `UMaterial`（或 thin instance），外加它声明的每个函数资产 |
+| `.dsf` | 资产入口 | 它声明的函数资产 |
+| `.dsh` | 不是入口 | 没有产出 —— header 只能通过 `import` 进入编译 |
+
+没有 `Shader` 块的 `.dsm` 仍然可以编译，它会产出自己声明的那些函数资产。
+
+## 文件是怎么被找到的
+
+文件通过对源目录的递归扫描发现。
+
+| 扫描 | 扩展名 | 排除 | 用途 |
+| :-- | :-- | :-- | :-- |
+| 全部源文件 | `.dsm`、`.dsf`、`.dsh` | packages 目录下的一切 | 依赖图、workspace 生成、编辑器文件列表 |
+| 可生成文件 | `.dsm`、`.dsf` | packages 目录下的 `.dsm` 文件 | 批量编译 / 全部生成 |
+
+<Callout type="info">
+
+这两条排除规则并不对称。全量扫描会丢掉 packages 目录下的**每一个**文件；可生成扫描只丢掉 package 里的
+**`.dsm`**。所以放在 `DShader/Packages` 里的 `.dsf` 仍然会被当作可生成文件，全部生成时会产出函数资产。
+
+</Callout>
+
+| 目录 | 默认值 | 项目设置 |
+| :-- | :-- | :-- |
+| 源目录 | `<Project>/DShader` | *Source Directory* |
+| Packages | `<Source>/Packages` | 由 *Source Directory* 推导，不能单独配置 |
+| 生成的 shader | `<Project>/Intermediate/DreamShader/GeneratedShaders` | *Generated Shader Directory* |
+
+配置成相对路径时以项目目录为基准解析，这三个目录都会在模块启动时创建。见
+[项目设置](/docs/settings/project) 和 [Package](/docs/tools/packages)。
+
+## 示例
+
+```text
+<Project>/DShader/
+├── Materials/
+│   └── M_Water.dsm
+├── Functions/
+│   └── F_Tint.dsf
+├── Shared/
+│   └── Common.dsh
+└── Packages/
+    └── @typedreammoon/
+        └── dream-noise/
+            └── Library/
+                └── Noise.dsh
+```
+
+```c
+// DShader/Shared/Common.dsh — header：只放 helper
+Namespace(Name="Common")
+{
+    Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
+        result = color * tint;
+    }
+}
+```
+
+```c
+// DShader/Functions/F_Tint.dsf — 函数文件：可以声明 ShaderFunction
+import "Shared/Common.dsh";
+
+ShaderFunction(Name="Functions/F_Tint")
+{
+    Inputs = {
+        vec3 InColor;
+        opt float Strength = 1.0;
+    }
+
+    Outputs = {
+        vec3 OutColor;
+    }
+
+    Graph = {
+        OutColor = InColor * Strength;
+    }
+}
+```
+
+```c
+// DShader/Materials/M_Water.dsm — 材质文件：可以声明 Shader
+import "Functions/F_Tint.dsf";
+
+Shader(Name="Materials/M_Water")
+{
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Color = vec3(0.1, 0.3, 0.6);
+    }
+}
+```
+
+编译 `M_Water.dsm` 会产出两个资产：
+
+```text
+/Game/Materials/M_Water        UMaterial
+/Game/Functions/F_Tint         UMaterialFunction
+```
+
+## 说明
+
+- `.dsh` 是放 `VirtualFunction` 声明的自然位置。编辑器的 *Create Virtual Function* 动作就会在
+  `DShader/VirtualFunctions` 下写一个。
+- 没有任何规则阻止 `.dsf` 或 `.dsh` 被其他类型的文件导入。扩展名只决定无后缀 import specifier 的默认
+  扩展名，以及应用到这个文件自己身上的内容规则。
+- 内容检查位于编辑器源加载器中。运行时解析器入口与扩展名无关。
+
+## 诊断
+
+<Diag>
+  <D msg="DreamShader header '{Path}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports." cause="一个 .dsh 的文本里出现了六个被禁止的子串之一，注释和字符串里的也算。" fix="把这个块移到 .dsf 或 .dsm，或者改写那条注释。" />
+  <D msg="DreamShader function file '{Path}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks." cause="一个 .dsf 的文本里出现了 Shader(。" fix="把 Shader 块移到 .dsm。" />
+  <D msg="Only one top-level Shader block is currently supported." cause="import 闭包里出现了第二个 Shader 块。" fix="把这些材质拆到不同的翻译单元。" href="/docs/language/imports" />
+  <D msg="A top-level Shader, Function, GraphFunction, Namespace, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction block was not found." cause="翻译单元里一个顶层块都没有。空的 Namespace 不算。" fix="至少声明一个块。" href="/docs/language/blocks" />
+  <D msg="DreamShader could not read '{Path}'." cause="文件在依赖图里，但读取失败。" />
+  <D msg="DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved." cause="没有任何候选路径落在它的包含根内。" href="/docs/language/imports" />
+  <D msg="DreamShader import cycle detected at '{Path}'." cause="文件直接或间接导入了自己。" href="/docs/language/imports" />
+</Diag>
+
+## 继续阅读
+
+<Cards>
+  <Card title="词法与大小写" href="/docs/language/lexical" description="Token、大小写敏感性矩阵、字面量、语句切分。" />
+  <Card title="顶层块" href="/docs/language/blocks" description="源文件可以声明的七种块，以及各自产出什么。" />
+  <Card title="import 与命名空间" href="/docs/language/imports" description="多个文件如何合并成一个翻译单元。" />
+  <Card title="Package" href="/docs/tools/packages" description="DShader/Packages 布局与 @scope/name 约定。" />
+</Cards>

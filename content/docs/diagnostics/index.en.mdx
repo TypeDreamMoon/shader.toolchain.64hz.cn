@@ -1,0 +1,487 @@
+---
+title: Diagnostics
+description: Where DreamShader reports errors, how to read a message, and a lookup table of the ones you will actually hit — grouped by pipeline stage.
+---
+
+Every compile failure surfaces as a **diagnostic**: one message, owned by one source file, usually
+carrying a line and column. This page explains where those messages appear, how to read them, and
+then lists the ones a working project actually runs into, grouped by the stage that produced them.
+
+| Item | Value |
+| :-- | :-- |
+| Produced by | `DreamShader` (parser, runtime module) and `DreamShaderEditor` (generator, bridge, tools) |
+| Log category | `LogDreamShader` |
+| Severity | every stored diagnostic is `error` — the store has no warning, info or hint level |
+| Bridge artifacts | `<Project>/Saved/DreamShader/Bridge/diagnostics.json`, `.../Bridge/diagnostics/`, `.../Bridge/bridge.db` |
+
+## Where diagnostics appear
+
+| Surface | What it shows |
+| :-- | :-- |
+| **Output Log** | the raw compile message, at `Error` on failure and `Display` on success, under `LogDreamShader` |
+| **Material Content Browser ▸ Dream Shader Gen page** | the per-source-file diagnostic list, read back from `diagnostics.json` |
+| **`Bridge/diagnostics.json`** | `{ version, updatedAtUtc, files[] }`, one entry per source file |
+| **`Bridge/diagnostics/`** | one `<md5-of-normalized-path>.json` shard per file plus `index.json`; stale shards are deleted on every write |
+| **`Bridge/bridge.db`** | SQLite table `diagnostics(path, json, updated_at_utc)`, replaced wholesale in one transaction |
+| **VSCode / Rider squiggles** | rendered by the extension from the three bridge artifacts above |
+
+The three bridge sinks are written together on every update, so they never disagree. The Output Log
+is a separate path and is the only surface that also shows *success* messages.
+
+Diagnostics are owned by the source file that produced them. Recompiling `A.dsm` clears exactly the
+records `A.dsm` produced — including records attributed to an imported `.dsh` — without disturbing
+another material's diagnostics for the same header.
+
+<Callout type="warn">
+The bridge never runs inside a commandlet. `-run=DreamShader`, `-run=Cook` and any other commandlet
+process write no `diagnostics.json`, no shards and no `bridge.db` rows; the messages exist only in
+the log. The bridge is also suppressed by `-NoDreamShaderEditorBridge`. See
+[Commandlet](/en/docs/tools/commandlet).
+</Callout>
+
+## One severity
+
+`Severity` defaults to `"error"` and is never assigned any other value anywhere in the plugin. Three
+consequences are worth knowing:
+
+- Parse **warnings** — deprecated spellings, the missing-`Outputs` warning — never enter the store.
+  They are appended to the compile result message and surface in the Output Log only.
+- Log-only warnings likewise never enter the store.
+- An extension that colours by severity paints every DreamShader entry as an error.
+
+The Gen page tolerates a missing or non-`error` severity by filtering rather than failing, so a
+future severity level would not break it.
+
+## Reading a message
+
+When a diagnostic carries a position it is formatted MSVC-style:
+
+```text
+I:/Project/DShader/Materials/M_Sample.dsm(37,9): Unknown Graph identifier 'Tin'.
+```
+
+| Stage | How the location is obtained |
+| :-- | :-- |
+| Top-level parse | the message ends in `near index {Index}`; the index is mapped back through the prepared (import-inlined) source to a real file, line and column |
+| `Graph` block | the block's recorded start offset plus the statement's block-relative line and column; the column is offset only on the block's first line |
+| Material compile | the engine's own `<path>(<line>,<col>): ` prefix, re-parsed and re-attributed |
+| Everything else | no position — the message falls back to `<file>: <message>` at line 1, column 1 |
+
+<Callout type="warn">
+**Line and column numbers reported for parse errors inside a section body are wrong.** Section-body
+scanners are constructed over the *section body substring*, so a `near index {Index}` raised inside a
+`Properties`, `Settings`, `Outputs` or `Layout` body is body-local while the mapper treats it as a
+global index into the prepared source. The file is correct; the position is not. Locate the statement
+by the text quoted in the message instead.
+</Callout>
+
+### The `{Placeholder}` convention
+
+Runtime substitutions are written as `{Placeholder}` in every table below. A brace run followed by
+`...` — as in `Graph = { ... }` — is literal message text, not a placeholder.
+
+| Placeholder | Substituted with |
+| :-- | :-- |
+| `{File}` | the normalized absolute path of the `.dsm` / `.dsf` / `.dsh` being compiled |
+| `{Name}` | the identifier the author wrote, with its original casing |
+| `{Kind}` | `ShaderFunction`, `ShaderLayer` or `ShaderLayerBlend` — the deprecated `MaterialLayer` / `MaterialLayerBlend` spellings never appear in a diagnostic |
+| `{Detail}` | an inner diagnostic; look it up in its own stage table |
+| `{Index}`, `{Count}`, `{Line}` | numbers; argument indices are 1-based |
+
+Messages are quoted **verbatim** below, inconsistent punctuation included. One message really does
+end without a full stop, and it is marked where it appears.
+
+<Callout type="info">
+This page carries the messages you are likely to meet. The exhaustive list — every message the
+parser, generator, commandlet and VirtualFunction sync can emit, roughly four times as many rows —
+lives in the plugin's own manual at `Plugins/DreamShader/Docs/diagnostics/index.md`.
+</Callout>
+
+## Parse
+
+Lexical scanning, top-level block headers, and the import inliner. These run before any section body
+is examined; a failure here aborts the whole file.
+
+<Diag>
+  <D msg="Unexpected token near index {Index}." cause="No top-level keyword matched at this position. An import line handed straight to the parser also lands here." fix="Check keyword spelling and case — top-level keywords are the only case-sensitive tokens in the language." href="/en/docs/language/lexical" />
+  <D msg="Expected '{' near index {Index}." cause="A block body was expected." fix="Add the { … } body." href="/en/docs/language/file-model" />
+  <D msg="Expected identifier near index {Index}." cause="An identifier was expected — an attribute key, a section name or a block name." fix="Identifiers are [A-Za-z_][A-Za-z0-9_]*." href="/en/docs/language/lexical" />
+  <D msg="Expected ',' or ')' near index {Index}." cause="A malformed header attribute list." fix="Separate attributes with a comma; a trailing comma before ) is allowed." href="/en/docs/language/blocks" />
+  <D msg="Unterminated block." cause="End of file reached before a } closed the block." fix="Balance the braces." href="/en/docs/language/lexical" />
+  <D msg="Unterminated string literal." cause="End of file reached inside a quoted attribute value." href="/en/docs/language/lexical" />
+  <D msg="A top-level Shader, Function, GraphFunction, Namespace, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction block was not found." cause="The parse unit declared no recognized top-level block. An empty Namespace body also lands here." fix="Add a top-level block, and check that the keyword's case is exact." href="/en/docs/language/blocks" />
+  <D msg={`Shader(Name="...") is required.`} cause="The Shader header has no Name attribute." fix={`Add Name="…".`} href="/en/docs/language/blocks" />
+  <D msg="Only one top-level Shader block is currently supported." cause="A second Shader keyword in the parse unit — enforced across the whole transitive import closure, not per file." fix="Split into separate .dsm files." href="/en/docs/language/blocks" />
+  <D msg="Shader must provide a Graph block." cause="A Shader with an empty Code section and no initialized output declaration." fix="Add Graph = { … }, or initialize an output declaration." href="/en/docs/language/blocks" />
+  <D msg="DreamShader import '{Specifier}' referenced from '{File}' could not be resolved." cause="None of the three candidate roots contained the specifier, or a candidate escaped its containment root." fix="Check the extension — a specifier with no extension implies .dsh — and that the target is under DShader or DShader/Packages." href="/en/docs/language/imports" />
+  <D msg="DreamShader import cycle detected at '{File}'." cause="A file re-enters its own import stack." fix="Break the cycle; diamond imports are fine, cycles are not." href="/en/docs/language/imports" />
+  <D msg="DreamShader header '{File}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports." cause="A .dsh whose text contains Shader(, ShaderFunction(, ShaderLayer(, ShaderLayerBlend(, MaterialLayer( or MaterialLayerBlend( anywhere — comments and string literals included." fix="Move the block to a .dsf or .dsm, or reword the comment." href="/en/docs/language/file-model" />
+  <D msg="DreamShader function file '{File}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks." cause="A .dsf whose text contains the substring Shader( anywhere." fix="Move the Shader block to a .dsm, or reword the comment." href="/en/docs/language/file-model" />
+  <D msg="Function '{Name}' has an invalid parameter declaration '{Parameter}'." cause="The parameter did not split into two or three whitespace-separated tokens, or its type or name was empty." fix="Write [in|out] <Type> <Name>." href="/en/docs/language/functions" />
+  <D msg="Function '{Name}' must declare at least one out parameter." cause="No out parameter and no return type." fix="Add an out parameter, or a return type." href="/en/docs/language/functions" />
+  <D msg="Function '{Name}' has a return type and cannot also declare out parameters. Use out parameters without a return type for multiple outputs." cause="A return-typed Function also declared out." fix="Pick one form." href="/en/docs/language/functions" />
+  <D msg="Function '{Name}' parameter '{Parameter}' uses unsupported qualifier '{Qualifier}'. Supported qualifiers are in and out." cause="A qualifier other than in / out — inout included." href="/en/docs/language/functions" />
+</Diag>
+
+## Sections and declarations
+
+Section dispatch, the `Outputs` grammar, `Layout`, `#Region`, `Group(…)` scopes, and the post-parse
+validation of output declarations and bindings.
+
+<Diag>
+  <D msg="Unknown shader section '{Section}'." cause="A section other than Properties / Settings / Outputs / Graph / Layout / Code." fix="Check the spelling; Inputs, Results and Options are not accepted in a Shader." href="/en/docs/language/sections" />
+  <D msg="Unknown material function section '{Section}'." cause="A section other than Properties / Inputs / Outputs / Results / Settings / Graph / Layout / Code." fix="Check the spelling; Options is not accepted here." href="/en/docs/language/sections" />
+  <D msg="Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported." cause="A Code section inside a Shader block." fix="Rename it to Graph." href="/en/docs/language/sections" />
+  <D msg="Invalid typed declaration '{Statement}'." cause="The left side does not split into <Type> <Name>, or the name is not an identifier. A tab between the type and the name fails here — this splitter looks for a literal space." fix="Replace the tab with a space." href="/en/docs/language/sections" />
+  <D msg="Unsupported output type '{Type}' for '{Name}'." cause="An Outputs declaration whose type token does not resolve." href="/en/docs/language/types-and-values" />
+  <D msg="Unsupported material output '{Name}'." cause="The name after Base. is not a recognized material property." fix="Consult the Base.* target catalogue." href="/en/docs/generation/outputs" />
+  <D msg="Output binding target '{Target}' must start with Base. for material outputs or Expression(...) for output nodes." cause="A binding target that is neither form." href="/en/docs/generation/outputs" />
+  <D msg="Output variable '{Name}' is declared as '{Type}' but bound material property '{Property}' expects a different type." cause="The declared type and the target's type disagree." fix="Change the declaration to match the target." href="/en/docs/generation/outputs" />
+  <D msg="Output variable '{Name}' must declare an explicit type before binding to expression target '{Target}'." cause="A variable bound to Expression( … ).Pin[i] with no declaration." fix="Declare the variable in Outputs first." href="/en/docs/generation/outputs" />
+  <D msg="Outputs declarations cannot use the reserved name 'return'." cause="An Outputs declaration named return, ignoring case." href="/en/docs/generation/outputs" />
+  <D msg="The reserved output name 'return' can only bind to Base material properties." cause="return bound to an Expression( … ).Pin[i] target." fix="Bind a named variable instead." href="/en/docs/generation/outputs" />
+  <D msg="Base.FrontMaterial requires Unreal Engine 5.4 or newer." cause="Base.FrontMaterial bound on UE 5.3." href="/en/docs/builtins/substrate" />
+  <D msg="Output '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="A Substrate-typed output declaration on UE 5.3." href="/en/docs/builtins/substrate" />
+  <D msg={`Unexpected '{' in Properties near '{Text}'. Only Group("Name") { ... } may open a brace here.`} cause={`A brace inside Properties that is not a Group("Name") head.`} href="/en/docs/parameters/metadata" />
+  <D msg={`Unterminated Group("{Name}") { ... } block.`} cause="A Group scope left unclosed." href="/en/docs/parameters/metadata" />
+  <D msg="Graph #Region '{Name}' is missing #EndRegion." cause="A region left open at the end of the Graph body; the innermost open region is reported." href="/en/docs/language/layout" />
+  <D msg="Invalid Layout Node statement '{Statement}'. {Detail}" cause="A Node( … ) call failed argument validation." fix="Supply Var, X and Y." href="/en/docs/language/layout" />
+  <D msg={`Parameter node type '{Type}' is recognized but not supported as a plain Properties declaration yet. Use UE.{Type}(OutputType="float4", ...) for reflected node creation.`} cause="A known expression-class token that has no Properties declaration form." fix="Declare it as a UE.* builtin property instead." href="/en/docs/parameters/properties" />
+</Diag>
+
+## Graph statements and expressions
+
+The statement and expression language inside `Graph = { … }`, plus constructors, swizzles and
+coercion. Parse-stage messages here are usually wrapped in the statement-level prefix
+`In Graph statement '{Statement}': {Detail}`.
+
+<Diag>
+  <D msg="Unknown Graph identifier '{Name}'." cause="The name is not a variable, a property, an output, or true / false. A bare read of a StaticSwitchParameter also lands here — it must be called." fix="Check the spelling; Graph variable lookup is case-insensitive, but a typo is still a typo." href="/en/docs/graph/expressions" />
+  <D msg="In Graph statement '{Statement}': {Detail}" cause="The statement-level wrapper. {Detail} is the real diagnostic." href="/en/docs/graph/statements" />
+  <D msg="Failed to declare Graph variable '{Name}'. {Detail}" cause="A declaration with no initializer whose type token could not be resolved — the wrapper around most unsupported-construct failures." href="/en/docs/graph/unsupported" />
+  <D msg="Unsupported Graph variable type '{Type}'." cause="A bare declaration whose type token does not resolve. return x;, for (…) { }, while (…) { }, do { } and switch (…) { } all surface here, because they parse as declarations." href="/en/docs/graph/unsupported" />
+  <D msg="Unsupported Graph variable type '{Type}' for '{Name}'." cause="The same, for a declaration that has an initializer. a += b — written with spaces — surfaces here." fix="Compound assignment is not supported; write a = a + b." href="/en/docs/graph/unsupported" />
+  <D msg="Graph expression statements currently support only Function calls with explicit out arguments." cause="A bare expression statement that is not a call: break;, continue;, return;, a++;, a lone identifier." href="/en/docs/graph/unsupported" />
+  <D msg="Graph variable '{Name}' is declared more than once." cause="A redeclaration. The lookup is case-insensitive, so Tint and tint collide." href="/en/docs/graph/statements" />
+  <D msg="Graph variable '{Name}' is declared as '{Type}' but assigned an incompatible value. {Detail}" cause="The initializer does not coerce to the declared type." href="/en/docs/graph/expressions" />
+  <D msg="Graph variable '{Name}' was previously assigned an incompatible value. {Detail}" cause="A reassignment whose shape differs from the variable's first value." href="/en/docs/graph/expressions" />
+  <D msg="Graph variable type '{Type}' requires an explicit initializer." cause="A bare declaration of a texture or Substrate type — only scalars and vectors default-initialize." href="/en/docs/graph/statements" />
+  <D msg="Graph output variable '{Name}' was assigned an incompatible value. {Detail}" cause="An assignment to an Outputs name that does not coerce to its declared type." href="/en/docs/graph/expressions" />
+  <D msg="Unexpected token '{Token}' in Graph expression." cause="A non-primary token in primary position, or a real token left over after a complete expression." fix="Characters the lexer does not know never reach this message — they truncate the expression silently instead." href="/en/docs/graph/unsupported" />
+  <D msg="Expected token type {Type} in Graph expression near '{Text}'." cause="A ) or , was required and not found — the usual symptom of an unknown character inside parentheses." href="/en/docs/graph/unsupported" />
+  <D msg="Operator '{Op}' requires matching vector sizes or a scalar/vector pair, got {A} and {B} component(s)." cause="Mismatched operand widths." fix="Swizzle or splat one operand." href="/en/docs/graph/expressions" />
+  <D msg="Integer division is not supported by the material graph; use float() or floor(a/b)." cause="int(a) / int(b)." href="/en/docs/graph/expressions" />
+  <D msg="Arithmetic operators cannot be applied to texture values." cause="+ - * / applied to a texture object." fix="Sample the texture first." href="/en/docs/graph/expressions" />
+  <D msg="Arithmetic operators cannot be applied to MaterialAttributes values." cause="+ - * / applied to a MaterialAttributes value." fix="Read a member first." href="/en/docs/graph/statements" />
+  <D msg="Swizzle '{Swizzle}' is invalid for a value with {Count} components." cause="The swizzle names a channel the value does not have." fix="Widen the value, or shorten the swizzle." href="/en/docs/graph/expressions" />
+  <D msg="Unsupported swizzle '{Swizzle}'." cause="Characters outside xyzw / rgba, or more than four of them." fix="Use up to four channels from one set." href="/en/docs/graph/expressions" />
+  <D msg="Texture values do not support swizzle/member access in Code." cause=".rgb applied to a texture object." fix="Sample the texture first." href="/en/docs/graph/expressions" />
+  <D msg="Constructor '{Name}' expects {Expected} total components but got {Actual}." cause="The argument widths do not add up." href="/en/docs/graph/expressions" />
+  <D msg="Expected {Expected} component(s) but got {Actual}." cause="A numeric coercion of the wrong width." fix="Widen, narrow or splat explicitly." href="/en/docs/graph/expressions" />
+  <D msg="String literals can only be used in named UE builtin arguments." cause="A quoted string used as a value." href="/en/docs/graph/expressions" />
+  <D msg="Graph if statement is missing a '{ ... }' body." cause="No brace after the condition — single-statement bodies are not accepted." href="/en/docs/graph/control-flow" />
+  <D msg="Graph if condition left side must evaluate to a scalar value." cause="A vector on the left of the comparison." fix="Use a scalar, or a swizzle." href="/en/docs/graph/control-flow" />
+  <D msg="Unsupported Graph if comparison operator '{Op}'." cause="An operator outside > < >= <= == !=." href="/en/docs/graph/control-flow" />
+  <D msg="Graph if statement could not resolve both branch values for '{Name}'." cause="A name assigned in only one branch — branch-local declarations leak into the merge." fix="Assign the name in both branches, or declare it before the if." href="/en/docs/graph/control-flow" />
+  <D msg="Graph if branches assign variable '{Name}' with inconsistent types" cause="The two branch values differ in kind or width. This message has no trailing full stop." href="/en/docs/graph/control-flow" />
+  <D msg="Unknown MaterialAttributes variable '{Name}'." cause="A member write to an undeclared name." href="/en/docs/graph/statements" />
+  <D msg="MaterialAttributes values cannot be assigned to numeric outputs." cause="An attributes value assigned to a numeric target." fix="Read a member first." href="/en/docs/graph/statements" />
+  <D msg="Texture objects cannot be assigned to numeric outputs." cause="A texture object assigned to a numeric target." fix="Sample it first." href="/en/docs/graph/expressions" />
+</Diag>
+
+## Builtins
+
+The `UE.*` and `Substrate.*` call surfaces in `Graph`, the `UE.*` declaration form in `Properties`,
+the math builtins, and the shared reflected-value writer. `{Namespace}` is `UE` or `Substrate`.
+
+<Diag>
+  <D msg={`Unsupported UE builtin call '{Name}' in Graph. For generic MaterialExpression calls, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture/Substrate".`} cause="An unregistered UE.* name with no OutputType / ResultType." fix={`Add OutputType="…". The hint string is incomplete — MaterialAttributes, SamplerState, StaticBool and the half* / vec* / ivec* / uvec* / bvec* / int* / uint* / bool* families are also accepted.`} href="/en/docs/builtins/ue-expression" />
+  <D msg={`Unsupported UE builtin function '{Name}'. Use OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture" for generic MaterialExpression calls.`} cause="The same, for the Properties declaration form." fix={`Add OutputType="…"; note that MaterialAttributes is not accepted by the declaration form.`} href="/en/docs/parameters/properties" />
+  <D msg={`UE.Expression requires Class="MaterialExpressionName".`} cause="UE.Expression( … ) with no Class." fix="Add Class, or call UE.<ClassName>( … ) and let Class default to the function name." href="/en/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} could not resolve MaterialExpression class '{Class}'." cause="No loaded, non-abstract UMaterialExpression subclass matched any candidate spelling." fix="Resolution compares the reflected class name, which carries no U prefix. Write Sine, MaterialExpressionSine or /Script/Engine.MaterialExpressionSine — a U-prefixed spelling never resolves." href="/en/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} OutputType '{Type}' is not supported." cause="The token does not resolve to a declared type." href="/en/docs/builtins/ue-expression" />
+  <D msg="UE.{Name}: '{Argument}' is not a property on '{Class}'." cause="An argument that matched neither an input pin nor a reflected property, on a non-Custom node." fix="Check the name against the node's pins and UPROPERTYs." href="/en/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} input '{Input}': {Detail}" cause="An argument sub-expression failed to evaluate." href="/en/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} output '{Output}' was not found on '{Class}'." cause="Output= / OutputName= matched no output. Unnamed outputs also accept the mask pseudo-names R, G, B, A, RG, RGB and RGBA." href="/en/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} OutputIndex is out of range for '{Class}'." cause="OutputIndex is negative, or beyond the node's output count." href="/en/docs/builtins/ue-expression" />
+  <D msg="Generic {Namespace}.{Name} calls require named arguments." cause="A positional argument on the generic UE.* / Substrate.* path." fix="Use Key=Value for every argument." href="/en/docs/builtins/ue-expression" />
+  <D msg="'{Value}' is not a valid enum value for '{Property}'." cause="None of the four accepted enum spellings matched." fix="Try the short name, the full name, the display name, or the short name with its prefix removed." href="/en/docs/builtins/ue-expression" />
+  <D msg="'{Value}' is not a valid boolean value for '{Property}'." cause="A reflected bool property was written with a non-boolean." fix="Use true or false." href="/en/docs/builtins/ue-expression" />
+  <D msg={`Property '{Property}' on '{Class}' is not a supported literal type yet.`} cause="A struct or array property whose text failed Unreal's own import." fix="Use Unreal's literal syntax, for example (R=1,G=0,B=0,A=1)." href="/en/docs/parameters/metadata" />
+  <D msg="UE builtin property '{Name}' does not support inline defaults. Put arguments inside UE.{Function}(...)." cause="A declaration of the form UE.X Name = value;." fix="Move the value into the argument list." href="/en/docs/parameters/properties" />
+  <D msg={`UE.SceneTexture expects exactly Id="..." (e.g. Id="PostProcessInput0").`} cause="UE.SceneTexture called with anything other than a single Id= argument." href="/en/docs/builtins/ue-nodes" />
+  <D msg={`This builtin is not implemented by the material generator yet. For generic MaterialExpression support, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture".`} cause="A property-form UE.* name the parser accepts but the generator has no implementation for — UE.VertexNormalWS and UE.VertexTangentWS are the two live cases." fix={`Add OutputType="…" to route through the generic path, e.g. UE.VertexNormalWS(OutputType="float3").`} href="/en/docs/builtins/ue-nodes" />
+  <D msg="SampleTexture2D expects exactly two positional arguments: (textureObject, uv)." cause="Wrong argument count. The name is matched case-sensitively." fix="Write SampleTexture2D(Tex, UV)." href="/en/docs/builtins/ue-expression" />
+  <D msg="Math function '{Name}' expects exactly 1 argument." cause="Wrong arity for a unary builtin — or a named argument, which reports as an arity error." fix="Pass exactly one positional argument. The 2- and 3-argument variants read identically." href="/en/docs/builtins/math" />
+  <D msg="Math function '{Name}' only accepts numeric scalar/vector arguments." cause="A texture, MaterialAttributes or Substrate argument." href="/en/docs/builtins/math" />
+  <D msg="Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer." cause="Any Substrate.* call on UE 5.3." href="/en/docs/builtins/substrate" />
+  <D msg="Unsupported Substrate builtin call '{Name}' in Graph." cause="The name is not in the Substrate.* table." href="/en/docs/builtins/substrate" />
+  <D msg="{Namespace}.{Name} input '{Input}' does not accept MaterialAttributes values." cause="An attributes value fed to a numeric pin." fix="Read a member first." href="/en/docs/graph/statements" />
+</Diag>
+
+## Functions and calls
+
+Calling `Function`, `GraphFunction`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` and
+`VirtualFunction` from `Graph`, and the generated HLSL helper include. `{Kind}` is the call kind.
+
+<Diag>
+  <D msg="Unknown Graph function '{Name}'." cause="The callee is not a declared Function. A misspelled builtin also lands here, after falling through every other resolution step." fix="Check the spelling and the import." href="/en/docs/graph/calls" />
+  <D msg="Graph call '{Name}' is ambiguous because multiple definitions use that name: {Names}." cause="One name declared by more than one callable." fix="Rename, or qualify with a namespace." href="/en/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' expects {Total} arguments ({Inputs} inputs, {Outs} out targets) but got {Actual}." cause="Wrong argument count in statement form." fix="Pass every input, followed by every out target." href="/en/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' has {Count} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB)." cause="A multi-output Function used as a value expression." fix="Use statement form with out targets. Only single-output functions are value-callable." href="/en/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' returns one value and expects {Expected} input argument(s) when used as a value expression, but got {Actual}." cause="Wrong argument count in value form." href="/en/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' currently uses positional arguments only." cause="A named argument in a Function call." href="/en/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' input '{Input}' uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or ShaderFunction instead." cause="A Substrate input on an HLSL Function." href="/en/docs/builtins/substrate" />
+  <D msg="SelfContained Function cycle detected: {Chain}. HLSL Custom nodes cannot compile recursive DreamShader functions." cause="Recursion among SelfContained / Inline functions." href="/en/docs/language/functions" />
+  <D msg="GraphFunction cycle detected: {Chain}." cause="A GraphFunction calls itself, directly or transitively." href="/en/docs/language/functions" />
+  <D msg="DreamShader GraphFunction '{Name}' result '{Result}' was never assigned." cause="The body never wrote the result." href="/en/docs/language/functions" />
+  <D msg="{Kind} '{Name}' is missing required input '{Input}'." cause="A non-opt input was not supplied." fix="Supply it, or mark the input opt." href="/en/docs/language/sections" />
+  <D msg="{Kind} '{Name}' does not have an input named '{Input}'." cause="A named argument matched no declared input." href="/en/docs/graph/calls" />
+  <D msg="{Kind} '{Name}' input arguments cannot mix positional and named forms." cause="Some arguments named, some positional." fix="Pick one form." href="/en/docs/graph/calls" />
+  <D msg={`{Kind} '{Name}' exposes multiple outputs. Specify Output="Name" or OutputIndex=N.`} cause="A value-form call to a multi-output asset." href="/en/docs/graph/calls" />
+  <D msg="{Kind} '{Name}' could not load MaterialFunction asset '{Path}'." cause="The referenced asset is missing." href="/en/docs/graph/calls" />
+</Diag>
+
+## Properties and parameters
+
+`Properties` declarations, the `[ … ]` metadata block, parameter-node construction, `Path( … )` asset
+references, and parameter reads from `Graph`.
+
+<Diag>
+  <D msg="Unsupported property type '{Type}'." cause="The type token matched no compact type, no parameter-node token and no UE. prefix." fix="Check the token against the type catalogue." href="/en/docs/parameters/properties" />
+  <D msg="Invalid property declaration '{Statement}'." cause="No top-level whitespace separating the type from the name." href="/en/docs/parameters/properties" />
+  <D msg="{File}: Property '{Name}' is declared more than once. Property names must be unique." cause="Two Properties entries whose names are equal ignoring case." href="/en/docs/parameters/properties" />
+  <D msg="Invalid scalar default value '{Value}' for property '{Name}'." cause="The default did not parse as a number, true or false." href="/en/docs/parameters/properties" />
+  <D msg="Invalid vector default value '{Value}' for property '{Name}'." cause="The default did not parse as a 1–4 component literal." fix="Use float3(…), vec3(…) or ( … )." href="/en/docs/parameters/properties" />
+  <D msg="Texture property '{Name}' could not load asset '{Path}'." cause="The explicit default failed to load." href="/en/docs/parameters/path" />
+  <D msg="Texture property '{Name}' with type Texture2DArray requires an explicit default asset." cause="No engine default exists for Texture2DArray." fix="Supply = Path( … )." href="/en/docs/parameters/properties" />
+  <D msg="{Context} texture property '{Name}' expects {Expected} but '{Path}' is a '{Class}'." cause="The assigned texture's dimension does not match the declared type. {Context} is Const or Texture." fix="Assign a texture of the right dimension, or use TextureObjectParameter, which takes its dimension from the asset." href="/en/docs/parameters/properties" />
+  <D msg={`Texture defaults must use Path(Game|Engine|Plugin.PluginName, "/Folder/Asset"), Path("/Game/Folder/Asset"), or a bare "/Game/Folder/Asset".`} cause="The default is not one of the three accepted forms." href="/en/docs/parameters/path" />
+  <D msg="Asset Path(...) expects either 1 argument (/Game/... path) or 2 arguments (Game|Engine|Plugin.PluginName, asset path)." cause="Wrong argument count in Path( … )." href="/en/docs/parameters/path" />
+  <D msg="Unsupported asset Path root '{Root}'. Use Game, Engine, or Plugin.PluginName." cause="An unrecognized root in a metadata or collection reference." href="/en/docs/parameters/path" />
+  <D msg="Metadata entry '{Entry}' must use Key=Value syntax." cause="A metadata entry with no top-level =, other than Slider( … )." href="/en/docs/parameters/metadata" />
+  <D msg="Metadata key '{Key}' is declared more than once." cause="A duplicate key after normalization; the message echoes the original spelling." href="/en/docs/parameters/metadata" />
+  <D msg="Metadata property '{Property}' is not a reflected property on '{Class}'." cause="An unrecognized metadata key that is not one of the three soft-failing organization fields." fix="Remove it, or use a real UPROPERTY name." href="/en/docs/parameters/metadata" />
+  <D msg="Metadata 'Slider(min, max)' requires exactly two numeric bounds: '{Entry}'." cause="Wrong arity, or non-numeric bounds." fix="Write Slider(0, 1)." href="/en/docs/parameters/metadata" />
+  <D msg="Parameter '{Name}' ({Type}) has no input pin named '{Pin}'. Asset slots (Texture/Curve/Font/...) are set via [{Pin}=Path(...)] metadata, not call arguments." cause="A call-form argument that matches no engine pin. TextureObject on a texture-sample parameter is the common case." fix="Set asset slots through metadata; use a real pin name for wiring." href="/en/docs/parameters/properties" />
+  <D msg="Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...))." cause="A positional argument in the parameter call form." href="/en/docs/parameters/properties" />
+  <D msg="StaticSwitchParameter '{Name}' requires True=... and False=... inputs." cause="One or both branches missing. A= / B= and positional 0 / 1 are accepted aliases." href="/en/docs/parameters/properties" />
+</Diag>
+
+## Settings
+
+The `Settings` section of a `Shader` — the special keys plus the reflected `UMaterial` property path
+— and the four keys a material-function `Settings` honours. `{Key}` echoes the **lower-cased** stored
+key, not the spelling that was typed.
+
+<Diag>
+  <D msg="Unsupported material setting '{Key}'." cause="No FProperty on UMaterial matched the key by alias, normalized name, b-prefix strip, or DisplayName." fix="Check the property name in the material's details panel." href="/en/docs/settings/material" />
+  <D msg="Invalid setting declaration '{Statement}'." cause="The statement has no top-level =." fix="Write Key = Value;." href="/en/docs/settings/material" />
+  <D msg="Invalid value '{Value}' for setting '{Key}'. {Detail}" cause="The reflected write failed; {Detail} is the value-writer message from the Builtins table." href="/en/docs/settings/material" />
+  <D msg="Invalid boolean value '{Value}' for {Key}." cause="A setting the generator reads as a boolean was given text that is neither true nor false, matched case-insensitively." href="/en/docs/settings/material" />
+  <D msg="Unsupported ShadingModel '{Value}'." cause="The value matched no EMaterialShadingModel name, alias or project mapping." href="/en/docs/settings/enums" />
+  <D msg="Unsupported BlendMode/RenderType '{Value}'." cause="The value matched no EBlendMode name, alias or project mapping." href="/en/docs/settings/enums" />
+  <D msg="Unsupported MaterialDomain '{Value}'." cause="The value matched no EMaterialDomain name, alias or project mapping." href="/en/docs/settings/enums" />
+  <D msg="Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom." cause="An unrecognized Backend value." fix="Use Graph or ThinCustom; Instance is a deprecated alias for ThinCustom." href="/en/docs/settings/backend" />
+  <D msg={`ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.`} cause="Substrate or Strata on UE 5.3." href="/en/docs/settings/enums" />
+  <D msg="{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader." cause="Both bindings present." href="/en/docs/generation/outputs" />
+  <D msg="{Kind} '{Name}': ExposeToLibrary must be true or false." cause="A non-boolean ExposeToLibrary in a material-function Settings block." href="/en/docs/settings/material" />
+</Diag>
+
+## Asset generation and saving
+
+Pipeline gates, asset naming and root resolution, node-graph population, the ownership guard, and
+package saving.
+
+<Diag>
+  <D msg="{File}: Outputs block is required." cause="The Shader declared no output bindings." fix="Add at least one Base.<Property> = …; binding." href="/en/docs/generation/outputs" />
+  <D msg="{File}: This file does not define a top-level Shader block." cause="Material generation was requested for a file with no Shader." href="/en/docs/language/blocks" />
+  <D msg="Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your shader or move/delete the existing asset before regenerating." cause="The ownership guard: the saved material carries no DreamShader.SourceFile metadata." fix="Rename the Shader, or delete the asset." href="/en/docs/generation/regeneration" />
+  <D msg="Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your function or move/delete the existing asset before regenerating." cause="The same guard, for a function asset." href="/en/docs/generation/regeneration" />
+  <D msg="Asset '{ObjectPath}' already exists and is not a Material." cause="Graph backend; the target path holds another UClass." href="/en/docs/generation/asset-paths" />
+  <D msg={`Asset '{ObjectPath}' already exists and is not a DreamShader instance material. Delete it (or remove Backend="Instance") before switching backends.`} cause="ThinCustom backend; the target path holds another UClass." href="/en/docs/settings/backend" />
+  <D msg="Asset '{ObjectPath}' already exists as '{Actual}', but {Kind} generation requires '{Expected}'. Delete or move the existing asset and regenerate it." cause="The block kind changed — ShaderFunction to ShaderLayer, for example." fix="Delete the old asset and regenerate." href="/en/docs/generation/asset-paths" />
+  <D msg="DreamShader Root '{Root}' must reference a project plugin under '{Dir}'." cause="The plugin is an engine or marketplace plugin, not a project plugin." href="/en/docs/generation/asset-paths" />
+  <D msg="Generated DreamShader asset '{ObjectPath}' could not be saved." cause="Saving failed for a single asset." fix="Check source control and file permissions." href="/en/docs/generation/pipeline" />
+  <D msg="DreamShader header '{File}' does not generate assets directly. Recompile dependent .dsm or .dsf files instead." cause="Asset generation was requested for a .dsh." href="/en/docs/language/file-model" />
+  <D msg="{File}: Graph output '{Name}' does not match its declared type." cause="The value assigned in Graph has the wrong shape." href="/en/docs/graph/expressions" />
+  <D msg="{Kind} '{Name}' output '{Output}' was never assigned an expression." cause="The Graph body never assigned the output." href="/en/docs/language/blocks" />
+  <D msg="ShaderLayer '{Name}' must declare at most one input, and it must be MaterialAttributes. Use Properties for layer controls." cause="A layer with extra or wrongly typed inputs." href="/en/docs/language/blocks" />
+  <D msg="ShaderLayerBlend '{Name}' must declare exactly two inputs, both MaterialAttributes. Use Properties for blend controls." cause="A blend with the wrong input shape." href="/en/docs/language/blocks" />
+  <D msg="{Kind} '{Name}' must declare exactly one MaterialAttributes output." cause="A ShaderLayer / ShaderLayerBlend with the wrong output shape." href="/en/docs/language/blocks" />
+  <D msg="{File}: Material output '{Name}' expects a MaterialAttributes value." cause="A numeric value bound to Base.MaterialAttributes." href="/en/docs/graph/statements" />
+  <D msg="{File}: Material output '{Name}' expects a Substrate value and cannot be driven by a material Custom node. Use a Graph block and Substrate.* nodes." cause="The ThinCustom / HLSL path cannot produce a Substrate value." fix={`Set Backend = "Graph".`} href="/en/docs/settings/backend" />
+</Diag>
+
+## Commandlet
+
+`-run=DreamShader` and the cook-time generation hook. None of these reach the diagnostics store — the
+bridge does not run in a commandlet process.
+
+<Diag>
+  <D msg="DreamShader compile requires a .dsm or .dsf file: {File}" cause="The file is not a DreamShader source, or is a .dsh header. The run continues but is marked failed." href="/en/docs/tools/commandlet" />
+  <D msg="Unknown DreamShader command '{Command}'." cause="The first bare token is not compile, generate, decompile or export. A stray bare token in first position is consumed as the command name. The usage banner follows." href="/en/docs/tools/commandlet" />
+  <D msg="DreamShader could not load asset '{Path}'." cause="Loading failed for both the normalized and the raw path." fix="Check the object path; /Game/Path/Asset is auto-expanded to /Game/Path/Asset.Asset." href="/en/docs/tools/commandlet" />
+  <D msg="DreamShader decompile supports Material and MaterialFunction assets only: {Path}" cause="The asset is neither a UMaterial nor a UMaterialFunction family asset." href="/en/docs/tools/decompiler" />
+  <D msg="DreamShader cook generation failed for {Count} source file(s); aborting the cook. See the [Cook] Failed entries above." cause="One or more sources failed during cook-time generation. Logged at Fatal, which aborts the cook." fix="Compile every source cleanly in the editor, or run the commandlet, before cooking." href="/en/docs/generation/in-memory" />
+</Diag>
+
+## VirtualFunction sync
+
+The startup service that re-reads every `VirtualFunction` declaration and refreshes it from its
+`UMaterialFunction` asset. These reach the store with `stage = virtualFunctionSync`.
+
+<Diag>
+  <D msg="VirtualFunction '{Name}' references missing MaterialFunction '{Path}'." cause="The asset failed to load." fix="Restore the asset, or update Options.Asset." href="/en/docs/language/blocks" />
+  <D msg="VirtualFunction '{Name}' could not be refreshed from MaterialFunction '{Path}': {Detail}" cause="The declaration builder failed." href="/en/docs/tools/editor" />
+  <D msg="DreamShader could not read VirtualFunction source file '{File}'." cause="The source file is unreadable; reported at line 1, column 1." fix="Check file locks and permissions." href="/en/docs/tools/editor" />
+  <D msg="{Kind} '{Name}' input '{Input}' does not exist on MaterialFunction asset '{Path}'." cause="The declared input is absent from the asset — usually because the asset changed after the declaration was written." fix="Re-sync the declaration." href="/en/docs/tools/editor" />
+</Diag>
+
+## Warnings
+
+Warnings never fail a compile and never enter the diagnostics store. They are appended to the compile
+result message, or logged under `LogDreamShader`.
+
+| Message | Deprecated construct | Replacement | Deprecated in |
+| :-- | :-- | :-- | :-- |
+| `MaterialLayer is deprecated; use ShaderLayer instead.` | `MaterialLayer( … ) { … }` | `ShaderLayer( … ) { … }` | 1.3.0 |
+| `MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.` | `MaterialLayerBlend( … ) { … }` | `ShaderLayerBlend( … ) { … }` | 1.3.0 |
+
+<Callout type="warn">
+These are the **only** two deprecations that warn. Every other deprecated or aliased spelling is
+accepted in silence: `Backend = "Instance"`, the project-level `Default Compiler Backend = Instance`,
+`Results = { … }` in place of `Outputs`, and `Properties` / `Settings` in place of `Inputs` /
+`Options` inside a `VirtualFunction`. Nothing tells you they are legacy.
+</Callout>
+
+Other warnings worth recognizing:
+
+| Message | Meaning |
+| :-- | :-- |
+| `No Outputs block was provided. Generation requires explicit material property bindings.` | the parse succeeds; generation then fails with `{File}: Outputs block is required.` |
+| `'{Class}' does not expose the '{Field}' organization field; ignoring it for this parameter.` | `Group`, `SortPriority` or `Desc` metadata written to a node class that has no such property. Only these three fields soft-fail — any other missing key is an error |
+| `In-memory material mode: '{ObjectPath}' already exists as a saved asset, which shadows in-memory regeneration. Delete the saved asset to make it fully in-memory.` | a saved `.uasset` at the target path takes precedence over the in-memory material |
+| `Skipping automatic layout for large DreamShader graph ({Count} nodes). Existing generated positions will be used.` | logged at `Display`; auto-layout was skipped |
+| `Failed to open DreamShader bridge database for diagnostics: {Detail}` | `bridge.db` could not be opened; the JSON sinks are still written |
+| `DreamShader commandlet found no source files to compile.` | `compile -All` resolved an empty list. The commandlet still exits **0** |
+
+## When nothing is reported
+
+Some mistakes produce no message at all. The largest class by far is **expression truncation**: the
+`Graph` tokenizer turns every character it does not know — `%`, `&`, `|`, `^`, `<`, `>`, `?`, `[`,
+`!` and the rest — into an end-of-expression token, and the parser accepts the expression that
+precedes it. `a % b` compiles as `a`, and `if (x > 0 && y > 0)` compiles as `if (x > 0)`.
+
+[What Graph Is Not](/en/docs/graph/unsupported) covers that page-length. A shorter list of the other
+silent cases lives on [Limitations](/en/docs/diagnostics/limitations).
+
+## Success messages
+
+The same pipeline returns these on success — useful when scripting a compile and matching on output.
+
+| Message | Meaning |
+| :-- | :-- |
+| `Generated {ObjectPath} from {File}.{Suffix}` | Graph backend succeeded; `{Suffix}` is ` (virtual)` for an in-memory material |
+| `Generated DreamShader thin-custom material {ObjectPath} from {File}.` | ThinCustom backend succeeded |
+| `Generated {Kind} {ObjectPath} from {File}.` | a material function succeeded |
+| `Generated DreamShader helper include '{Path}' from {File}.` | the generated `.ush` was written |
+| `Skipped {ObjectPath} from {File}; source hash is unchanged.` | the source-hash cache short-circuited; pass `-Force` to override |
+| `DreamShader file '{File}' contains GraphFunction declarations only; no assets were generated.` | success; only a helper include was produced |
+| `DreamShader file '{File}' contains VirtualFunction declarations only; no assets were generated.` | success; the file only declares existing assets |
+
+## One error, four surfaces
+
+```c
+// DShader/Materials/M_Sample.dsm
+Shader(Name="Materials/M_Sample")
+{
+    Properties = { vec3 Tint = vec3(1.0, 0.4, 0.1); }
+    Outputs    = { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      = {
+        vec2 UV = UE.TexCoord(Index = 0);
+        Color   = Tin * UV.x;          // typo: Tin, not Tint
+    }
+}
+```
+
+Output Log:
+
+```text
+LogDreamShader: Error: I:/Project/DShader/Materials/M_Sample.dsm(8,19): Unknown Graph identifier 'Tin'.
+```
+
+`Saved/DreamShader/Bridge/diagnostics.json`:
+
+```json
+{
+  "version": 1,
+  "updatedAtUtc": "2026-07-29T11:04:22Z",
+  "files": [
+    {
+      "path": "I:/Project/DShader/Materials/M_Sample.dsm",
+      "diagnostics": [
+        {
+          "message": "Unknown Graph identifier 'Tin'.",
+          "detail": "I:/Project/DShader/Materials/M_Sample.dsm(8,19): Unknown Graph identifier 'Tin'.",
+          "stage": "generate",
+          "code": "generate-error",
+          "line": 8,
+          "column": 19,
+          "severity": "error",
+          "source": "DreamShader Generate"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The same record goes to `Bridge/diagnostics/<md5>.json` and to the `diagnostics` table of
+`Bridge/bridge.db`, and shows up in the Dream Shader Gen page's source list — which is what the
+VSCode and Rider extensions read to draw the squiggle.
+
+## Fixing in order
+
+When a file produces a wall of messages, work top-down. Later stages run on the output of earlier
+ones, so a single parse error can invent a dozen downstream complaints.
+
+<Steps>
+
+<Step>
+**Parse first.** Balance braces, quotes and parentheses, and check keyword casing. Nothing after this
+stage runs until the file parses.
+</Step>
+
+<Step>
+**Then imports and unknown names.** `could not be resolved`, `Unknown Graph identifier` and
+`Unknown Graph function` are usually one missing `import` or one typo.
+</Step>
+
+<Step>
+**Then types and signatures.** Component-count mismatches, `Expected {Expected} component(s)`, and the
+call-arity messages.
+</Step>
+
+<Step>
+**Then generation.** Ownership guards, asset paths and save failures — these mean the source is valid
+and the target is not.
+</Step>
+
+<Step>
+**Last, Unreal's own material compile.** Those messages carry the engine's `<path>(<line>,<col>)`
+prefix and are re-attributed to your source file. They are the only ones DreamShader did not produce.
+</Step>
+
+</Steps>
+
+## Where to next
+
+<Cards>
+  <Card title="Limitations" href="/en/docs/diagnostics/limitations" description="What DreamShaderLang does not do yet, including the silent-failure classes." />
+  <Card title="What Graph Is Not" href="/en/docs/graph/unsupported" description="Truncation, compound assignment, loops — the constructs with no message." />
+  <Card title="The Pipeline" href="/en/docs/generation/pipeline" description="The stages these tables are grouped by." />
+  <Card title="Editor Tools" href="/en/docs/tools/editor" description="The Material Content Browser tab that renders the source list." />
+  <Card title="Commandlet" href="/en/docs/tools/commandlet" description="Headless compiles, and why they write no bridge artifacts." />
+  <Card title="Lexical Elements" href="/en/docs/language/lexical" description="The case-sensitivity rules behind several not-found errors." />
+</Cards>

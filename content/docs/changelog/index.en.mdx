@@ -1,21 +1,31 @@
 ---
 title: ChangeLog
-description: Entry point for DreamShaderLang plugin, VSCode extension, and docs site updates.
+description: Where to track changes across the DreamShaderLang ecosystem — the Unreal plugin, the VSCode extension and this site.
 ---
 
-Use these pages to track changes across the DreamShaderLang ecosystem.
+Three projects, three release cadences, three pages. Each records what changed for you, newest
+first.
 
-| Page | Scope |
-| --- | --- |
-| [DreamShader Plugin](./dreamshader.mdx) | Unreal plugin and generator changes. |
-| [VSCode Extension](./vscode-extension.mdx) | VSCode language-support extension changes. |
-| [Website](./website.mdx) | Documentation-site changes. |
+| Project | Current version | Page |
+| :-- | :-- | :-- |
+| DreamShader plugin | **`1.5.0`** — Unreal Engine `5.3` – `5.8` | [DreamShader Plugin](/en/docs/changelog/dreamshader) |
+| VSCode extension | `1.5.3` | [VSCode Extension](/en/docs/changelog/vscode-extension) |
+| Rider language support | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) | — |
+| Documentation site | `lang.64hz.cn` | [Website Updates](/en/docs/changelog/website) |
 
-## Current Documented Versions
+<Callout type="info">
+The plugin page is generated from the plugin's own `CHANGELOG.md`, which ships inside the plugin
+folder — that file is the record of authority when this page and your installed copy disagree.
+</Callout>
 
-| Project | Version |
-| --- | --- |
-| DreamShader plugin | `1.4.0` |
-| VSCode extension | `1.5.3` |
-| Rider plugin | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) |
-| Docs site | `lang.64hz.cn` |
+Worth checking all three at release time:
+
+- The plugin version lands in `DreamShader.uplugin`.
+- The extension version lands in `package.json` and in the install script.
+- The site updates its current-version tables, the affected feature pages, and the record here.
+
+<Cards>
+  <Card title="DreamShader Plugin" href="/en/docs/changelog/dreamshader" description="Language, generator, editor tooling and engine compatibility." />
+  <Card title="VSCode Extension" href="/en/docs/changelog/vscode-extension" description="The language service, bridge, previews and packages." />
+  <Card title="Website Updates" href="/en/docs/changelog/website" description="Structure, deployment and content of this site." />
+</Cards>

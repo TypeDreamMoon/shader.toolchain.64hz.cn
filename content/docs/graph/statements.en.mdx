@@ -1,0 +1,494 @@
+---
+title: Statements
+description: Every statement form a Graph body can contain — declarations, assignments, member writes, calls — plus splitting, classification and scope.
+---
+
+A `Graph` body is a flat list of statements. There are ten forms, they are separated by `;`, and the
+parser decides which form a piece of text is by a fixed sequence of textual tests — not by keywords.
+Understanding that classification order explains most of the surprising diagnostics in the language.
+
+## Synopsis
+
+<Synopsis>
+```c
+graph-statement :=
+      [ <type> ] <name> [ = <expression> ] ;                      // declaration / assignment
+    | <type> <name> [ = <init> ] , <name> [ = <init> ] … ;        // comma declarators
+    | <name> = { <expression> , … } ;                             // brace initializer
+    | <name> . <member> = { <expression> | { <expression> , … } } ;
+    | <call-expression> ;                                         // statement-form call
+    | if ( <condition> ) { <graph-statement> … }
+      [ else { <graph-statement> … } | else if ( … ) { … } … ]
+```
+</Synopsis>
+
+<Grammar />
+
+## The ten forms
+
+| # | Form | Example | Terminator |
+| --: | :-- | :-- | :-- |
+| 1 | Declaration, no initializer | `float3 c;` | `;` |
+| 2 | Declaration + expression initializer | `float3 c = A * K;` | `;` |
+| 3 | Declaration + brace initializer | `vec4 v = {rgb, 1.0};` | `;` |
+| 4 | Assignment to an existing or output variable | `Color = Tint;` | `;` |
+| 5 | Assignment + brace initializer | `Color = {r, g, b};` | `;` |
+| 6 | `MaterialAttributes` member write | `Attrs.BaseColor = Tint;` | `;` |
+| 7 | Member write + brace initializer | `Attrs.BaseColor = {1, 0, 0};` | `;` |
+| 8 | Comma-separated declarators | `float a = 1, b, c = 3;` | `;` |
+| 9 | Statement-form call | `F_Split(Src, OutA, OutB);` | `;` |
+| 10 | `if` / `else` / `else if` | `if (m > .5) { … } else { … }` | none — brace matched |
+
+Form 8 expands to one statement per declarator. All of them share the type token of the **first**
+declarator, and all of them report the **same** source line and column.
+
+## How a body is split
+
+| Rule | Behaviour |
+| :-- | :-- |
+| Separator | `;` at top level only. Parenthesis, brace, bracket depth and string state are tracked, so a `;` inside `( )`, `{ }`, `[ ]` or `"…"` does not split. |
+| Repeated `;` | runs of `;` collapse; empty statements are dropped without a diagnostic |
+| Trailing `;` | the **final** statement of a body may omit its `;` |
+| `if` statements | detected *before* the `;` scan and delimited by brace matching, so an `if` needs no `;` and a `;` inside its body does not split it |
+| Leading whitespace | skipped; every statement records a 1-based line and column relative to the block |
+| Nested bodies | `if` / `else` bodies go through the same splitter, so every form above is legal inside a branch, including a nested `if` |
+
+```c
+Graph = {
+    float a = 1.0;;;             // the empty statements between ; are dropped
+    if (a > 0.5) { a = 0.0; }    // no ; needed; the inner ; does not split the if
+    float b = a * 2.0            // final statement, ; omitted
+}
+```
+
+## Classification order
+
+Given one statement's text, the parser tests these rules in order. The first that matches wins.
+
+| Order | Test | Result |
+| --: | :-- | :-- |
+| 1 | starts with the keyword `if` (case-sensitive, identifier-bounded) | form 10 |
+| 2 | splitting on top-level `,` yields more than one segment **and** the first segment, minus its `= …`, splits into a type and a name | form 8 |
+| 3 | no top-level `=`, and the text splits into a type and a name | form 1 |
+| 4 | no top-level `=`, and it does not | form 9 |
+| 5 | has a top-level `=`, and the left side splits into a type and a name | form 2, or form 3 when the right side is `{ … }` |
+| 6 | has a top-level `=`, and the left side does not | form 4/5, or form 6/7 when the target contains a `.` |
+
+"Splits into a type and a name" means: split at the **last** top-level whitespace character, tracking
+`( )` depth and string state; both halves must be non-empty. That is why
+`UE.Panner(Speed = 0.1) P;` is a declaration — the space inside the argument list is not at top
+level.
+
+<Callout type="warn">
+The keyword probe in rule 1 is case-sensitive and is the **only** case-sensitive construct in the
+statement grammar. `If (x) { … }` is not an `if` statement: it falls through to rule 3, splits into
+type `If (x)` and name `{ … }`, and fails with `Unsupported Graph variable type 'If (x)'.` — a
+message that never mentions `if`. This is also why almost every unsupported construct is reported as
+an unresolvable *variable type*; see [What Graph Is Not](/en/docs/graph/unsupported).
+</Callout>
+
+<Callout type="info">
+The name half of rules 3 and 5 is only required to be non-empty — it is not validated as an
+identifier. `float3 A.B = x;` therefore declares a variable literally named `A.B`; it is **not** a
+member write. Member writes are reachable only through rule 6, which requires the left side *not* to
+split into a type and a name. Declarators after the first in form 8 **are** identifier-checked.
+</Callout>
+
+## Declarations
+
+<Synopsis>
+```c
+<type> <name> [ = { <expression> | <brace-initializer> } ]
+     [ , <name> [ = { <expression> | <brace-initializer> } ] ] … ;
+
+brace-initializer := { [ <expression> [ , <expression> ] … ] }
+```
+</Synopsis>
+
+### Accepted type tokens
+
+| Token(s) | Components | Notes |
+| :-- | --: | :-- |
+| `float` `float1` `half` `half1` `int` `uint` `bool` | 1 | |
+| `float2` `half2` `vec2` `int2` `uint2` `bool2` `ivec2` `uvec2` `bvec2` | 2 | |
+| `float3` `half3` `vec3` `int3` `uint3` `bool3` `ivec3` `uvec3` `bvec3` | 3 | |
+| `float4` `half4` `vec4` `int4` `uint4` `bool4` `ivec4` `uvec4` `bvec4` | 4 | |
+| `MaterialAttributes` | 0 | see [below](#materialattributes-member-writes) |
+| `Substrate` | 0 | <Since v="5.4" ue /> requires an initializer |
+| `StaticBool` `StaticBoolParameter` | 1 | *unreleased* |
+| `Texture2D` `SamplerState` | 0 | texture object of dimension `Texture2D`; requires an initializer |
+| `TextureCube` | 0 | requires an initializer |
+| `Texture2DArray` | 0 | requires an initializer |
+| `Texture3D` `VolumeTexture` | 0 | dimension `VolumeTexture`; requires an initializer |
+
+Comparison is case-insensitive. For the numeric rows, `MaterialAttributes` and `Substrate`, all
+internal spaces are removed before matching, so `float 3` resolves as `float3` and
+`Material Attributes` as `MaterialAttributes`. The texture rows and `StaticBool` are matched on the
+token as written, so `Texture 2D` does **not** resolve.
+
+`int`, `uint`, `bool` and `half` are alternative spellings of the same float widths — the token fixes
+the component count and nothing else. The full per-context catalogue is on
+[Types and Values](/en/docs/language/types-and-values).
+
+### Declarations without an initializer
+
+| Declared type | Result |
+| :-- | :-- |
+| scalar (1 component) | one `Constant` node with `R = 0` |
+| vector (2–4 components) | the **same** zero `Constant` appended N times through `AppendVector` — 1 constant node and N−1 append nodes |
+| `MaterialAttributes` | a `MakeMaterialAttributes` node, component count 0 |
+| `Substrate` | error — `Graph variable type '{Type}' requires an explicit initializer.` |
+| any texture type, `SamplerState` | the same error |
+| unresolvable token | error — `Unsupported Graph variable type '{Type}'.` |
+
+```c
+float3 c;              // Constant(0) -> AppendVector -> AppendVector
+MaterialAttributes A;  // MakeMaterialAttributes, ready for member writes
+Texture2D T;           // error: requires an explicit initializer
+```
+
+### Declarations with an initializer
+
+The initializer is evaluated first, then the declaration is typed:
+
+| Order | Step |
+| --: | :-- |
+| 1 | the type token must resolve, else `Unsupported Graph variable type '{Type}' for '{Name}'.` |
+| 2 | if the value carries an **authoritative** component count, both sides are plain numeric, and the counts differ — the value is stored as-is, unchanged, with no diagnostic |
+| 3 | otherwise the value is coerced to the declared type; failure gives `Graph variable '{Name}' is declared as '{Type}' but assigned an incompatible value. {Detail}` |
+
+<Callout type="warn">
+Step 2 means a declared width can be **ignored**. `float2 dir = UE.CameraVectorWS();` stores a
+3-component value and reports nothing; the mismatch resurfaces at the first operator or binding that
+cannot reconcile it. Add an explicit swizzle (`UE.CameraVectorWS().xy`) when a narrower value is
+actually wanted. The full rule, and the list of values that are authoritative, is on
+[Expressions and Conversions](/en/docs/graph/expressions#authoritative-component-counts).
+</Callout>
+
+Coercion at step 3 silently narrows a wider value by prefixing an `r` / `rg` / `rgb` mask, and splats
+a scalar up to the declared width. It never widens 2 components to 3.
+
+### Comma declarators
+
+```c
+float a = 1, b, c = 3;
+```
+
+| Rule | Behaviour |
+| :-- | :-- |
+| Recognition | applies only when splitting on top-level `,` yields more than one segment **and** the first segment, minus its `= …`, splits into a type and a name |
+| Shared type | every declarator uses the type token of the **first** declarator; a type token on a later declarator is not accepted |
+| Declarator names | must be bare identifiers — `[A-Za-z_][A-Za-z0-9_]*` |
+| Initializers | each declarator may carry its own `= <expression>` or `= { … }`, or none |
+| Source location | all resulting statements report the same line and column as the whole list |
+
+The example declares three 1-component values: `a` initialized to `1`, `b` defaulted to `0`, `c`
+initialized to `3`. A declarator that is not a bare identifier fails with
+`In Graph statement '{Text}': '{Declarator}' is not a valid declarator in a comma-separated declaration.`
+
+### Brace initializers
+
+A right-hand side whose trimmed text is at least two characters long, starts with `{` and ends with
+`}` is a brace initializer. It is re-serialised as `<TargetType>( <inner> )` and evaluated as an
+ordinary constructor call, so it inherits **every** constructor rule: positional arguments only, a
+single scalar splats to all channels, multiple arguments must sum to exactly the target width. See
+[Constructors](/en/docs/graph/expressions#constructors).
+
+`{}` is special-cased: it produces the target type's default value, exactly as if the declaration had
+no initializer.
+
+Target-type resolution, in order:
+
+| Order | Situation | Target type |
+| --: | :-- | :-- |
+| 1 | the statement is a declaration | the declared type token |
+| 2 | the target is a `MaterialAttributes` member | the attribute's own type |
+| 3 | the target is an existing variable | derived from its component count: 0 → `MaterialAttributes`, 1 → `float`, 2 → `float2`, 3 → `float3`, 4 → `float4` |
+| 4 | the target matches an `Outputs` declaration | the same component-count mapping |
+| 5 | none of the above | error — `Brace initializer assignment for '{Name}' requires a declared scalar or vector target type.` |
+
+Texture and `Substrate` targets are rejected at steps 3 and 4.
+
+<Callout type="warn">
+Brace initializers do not nest. `float4 m = {{1,2},{3,4}};` re-serialises to `float4({1,2},{3,4})`,
+and `{` is not a token the expression lexer knows, so it fails with
+`Invalid brace initializer for type 'float4'. Unexpected token '{' in Graph expression.` Write
+`float4(float2(1,2), float2(3,4))` instead.
+</Callout>
+
+```c
+Graph = {
+    float r = 1.0;
+    float g = 0.5;
+    float b = 0.2;
+    vec3 rgb  = {r, g, b};      // -> vec3(r, g, b)
+    vec4 rgba = {rgb, 1.0};     // -> vec4(rgb, 1.0), mixed-width packing
+    Color = rgba.rgb;
+}
+```
+
+### Redeclaration
+
+A declaration whose name is already bound fails with
+`Graph variable '{Name}' is declared more than once.` The lookup tries the exact spelling first, then
+falls back to a case-insensitive scan, so `float a = 1; float A = 2;` is a redeclaration error —
+while `A` and `a` refer to the same value everywhere else. To rebind an existing name, omit the type
+token and write an assignment.
+
+## Assignment
+
+Forms 4 and 5. The target is the left side of the top-level `=`, taken verbatim after trimming.
+
+<Synopsis>
+```c
+<target> = <expression> ;
+<target> = { <expression> , … } ;
+```
+</Synopsis>
+
+The target is resolved in this order:
+
+| Order | Target | Behaviour |
+| --: | :-- | :-- |
+| 1 | a name containing a `.` that splits into two non-empty halves | `MaterialAttributes` member write |
+| 2 | an existing `Graph` value | the value is coerced to the **existing** binding's shape: component count, texture flag, texture type, `Substrate` flag |
+| 3 | an `Outputs` declaration of the enclosing block | the value is coerced to the **declared** type |
+| 4 | nothing yet | a new variable is created carrying the value's own shape — no type token needed |
+
+Lookup in rules 2 and 3 is case-insensitive.
+
+Rule 4 means an undeclared name on the left of `=` is not an error:
+
+```c
+Graph = {
+    vec3 Base = Tint * 2.0;
+    Scratch   = Base.rgb;    // legal: creates 'Scratch' as a 3-component value
+    Color     = Scratch;     // 'Color' is an Outputs declaration -> coerced to its type
+}
+```
+
+<Callout type="warn">
+Coercion at rules 2 and 3 **silently narrows**. Assigning a `float4` to a `float3` target drops the
+alpha channel with no warning and no node cost. If a channel disappears from a generated material,
+check every assignment whose right-hand side is wider than its target. See
+[Conversions](/en/docs/graph/expressions#conversions).
+</Callout>
+
+## Expression statements
+
+Form 9. A statement that is neither a declaration nor an assignment is evaluated as an expression and
+accepted only when it is a **call**:
+
+| Requirement | Diagnostic when unmet |
+| :-- | :-- |
+| the expression is a call | `Graph expression statements currently support only Function calls with explicit out arguments.` |
+| the callee flattens to a name | `Graph expression statements must call a named Function.` |
+| the name resolves to exactly one `Function`, `GraphFunction`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` or `VirtualFunction` | `Graph expression statement '{Text}' is unsupported. Only DreamShader Function, GraphFunction, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction calls may use statement syntax.` |
+| exactly one, not several | `Graph expression statement '{Text}' is ambiguous because multiple callable definitions exist.` |
+
+In statement form the arguments are the declared inputs followed by **one plain variable name per
+output**, in declaration order. Statement calls are positional-only for every callee kind. Full
+argument rules are on [Calls](/en/docs/graph/calls).
+
+## `MaterialAttributes` member writes
+
+Forms 6 and 7 write one attribute of a `MaterialAttributes` value. The type is a struct-like Graph
+value with component count `0` <Since v="1.2.5" />; it carries a whole material's attribute set as
+one connection.
+
+```c
+Outputs = { MaterialAttributes Attrs; Base.MaterialAttributes = Attrs; }
+Graph   = {
+    MaterialAttributes Attrs;      // the Outputs declaration does NOT create it
+    Attrs.BaseColor = Tint;
+    Attrs.Roughness = {0.35};
+    float Rough = Attrs.Roughness; // a read: BreakMaterialAttributes
+}
+```
+
+<Callout type="warn">
+An `Outputs` declaration does not create the Graph variable. Only output declarations that carry an
+initializer become synthesized statements. Writing a member of a name that exists only as
+`Outputs { MaterialAttributes Attrs; }` fails with `Unknown MaterialAttributes variable 'Attrs'.`
+Declare it in the `Graph` block as well — the two declarations do not collide, because the
+redeclaration guard only looks at Graph variables.
+</Callout>
+
+Each member write chains a **new** `SetMaterialAttributes` node onto the variable's current value and
+rebinds the variable to it; *N* writes produce *N* nodes. Each member read creates a **new**
+`BreakMaterialAttributes` node — reads are not deduplicated.
+
+### Members
+
+Member names are matched case-insensitively on both the read and the write side. Aliases are exact
+synonyms.
+
+| Member | Aliases | Components | Legacy Break index |
+| :-- | :-- | --: | --: |
+| `BaseColor` | — | 3 | 0 |
+| `Metallic` | — | 1 | 1 |
+| `Specular` | — | 1 | 2 |
+| `Roughness` | — | 1 | 3 |
+| `Anisotropy` | — | 1 | 4 |
+| `EmissiveColor` | `Emissive` | 3 | 5 |
+| `Opacity` | — | 1 | 6 |
+| `OpacityMask` | — | 1 | 7 |
+| `Normal` | — | 3 | 8 |
+| `Tangent` | — | 3 | 9 |
+| `WorldPositionOffset` | `WPO` | 3 | 10 |
+| `SubsurfaceColor` | — | 3 | 11 |
+| `CustomData0` | `ClearCoat` | 1 | 12 |
+| `CustomData1` | `ClearCoatRoughness` | 1 | 13 |
+| `AmbientOcclusion` | `AO` | 1 | 14 |
+| `Refraction` | — | 3 | 15 |
+| `CustomizedUV0` | `CustomizedUVs0` | 2 | 16 |
+| `CustomizedUV1` | `CustomizedUVs1` | 2 | 17 |
+| `CustomizedUV2` | `CustomizedUVs2` | 2 | 18 |
+| `CustomizedUV3` | `CustomizedUVs3` | 2 | 19 |
+| `CustomizedUV4` | `CustomizedUVs4` | 2 | 20 |
+| `CustomizedUV5` | `CustomizedUVs5` | 2 | 21 |
+| `CustomizedUV6` | `CustomizedUVs6` | 2 | 22 |
+| `CustomizedUV7` | `CustomizedUVs7` | 2 | 23 |
+| `PixelDepthOffset` | `PDO` | 1 | 24 |
+| `Displacement` | — | 1 | 26 |
+| `DiffuseColor` | — | 3 | none |
+| `SpecularColor` | — | 3 | none |
+| `SurfaceThickness` | — | 1 | none |
+| `FrontMaterial` <Since v="5.4" ue /> | — | 1 | none |
+
+`MaterialAttributes` and its alias `Attributes` resolve as material properties but are explicitly
+rejected as members. Any unrecognised name fails with
+`Unsupported MaterialAttributes member '{Member}'.`
+
+A read picks the Break output **by name** first — the attribute's display name is compared
+case-insensitively against every output on the node — and falls back to the legacy index only when
+no name matches.
+
+<Callout type="warn">
+The last four members have no legacy index, so they are readable only when the engine build's
+`BreakMaterialAttributes` node exposes a matching output name. Otherwise the read fails with
+`BreakMaterialAttributes does not expose member '{Member}'.` `SurfaceThickness` in particular is not
+exposed on every build. Writes are unaffected — only reads go through `BreakMaterialAttributes`.
+</Callout>
+
+### Member write rules
+
+| Rule | Failure |
+| :-- | :-- |
+| The target splits on its **first** `.`; both halves must be non-empty | `Invalid MaterialAttributes member assignment target '{Target}'.` |
+| The base name must already be a Graph variable | `Unknown MaterialAttributes variable '{Base}'.` |
+| The base variable must hold a `MaterialAttributes` value | `Graph variable '{Base}' is not a MaterialAttributes value.` |
+| The member must resolve and must not be `MaterialAttributes` | `Unsupported MaterialAttributes member '{Member}'.` |
+| The value must coerce to the member's component count | `MaterialAttributes member '{Member}' expects {Count} component(s). {Detail}` |
+| The statement must have a right-hand side | `MaterialAttributes member assignment '{Target}' requires a value.` |
+
+<Callout type="info">
+Because the split is on the **first** `.`, `Attrs.BaseColor.r = 1.0;` is read as base `Attrs`,
+member `BaseColor.r` and fails with `Unsupported MaterialAttributes member 'BaseColor.r'.` There is
+no per-channel attribute write — build the full value first. Attribute values also reject
+arithmetic, constructors and swizzles; `.member` on one is always an attribute read, never a channel
+mask.
+</Callout>
+
+## Scope
+
+**There is no block scope.** One value map exists per builder — one per `Shader`, one per generated
+material function — and every declaration writes into it.
+
+Branches are executed against **copies** of the enclosing map, and the copies are then merged:
+
+| Case | Outcome |
+| :-- | :-- |
+| the name is declared in **both** branches with the same shape | merged through a `UMaterialExpressionIf` and written into the enclosing map — visible after the `if` |
+| the name is declared in **both** branches with different shapes | error — `Graph if branches assign variable '{Name}' with inconsistent types` |
+| the name is declared in **only one** branch | error — `Graph if statement could not resolve both branch values for '{Name}'.` |
+| the name is a texture or `Substrate` value | error — `Graph if statement cannot select texture value '{Name}'.` / `… cannot select Substrate value '{Name}'.` |
+
+<Callout type="warn">
+A branch-local temporary is not local. Declaring a helper in one branch only is an error, not a
+discarded name. Declare it above the `if`, or declare it in both branches with the same width. And
+because a merged name becomes an ordinary entry of the enclosing map, declaring that same name again
+*after* the `if` is a redeclaration error. The full merge algorithm is on
+[Control Flow](/en/docs/graph/control-flow#the-merge).
+</Callout>
+
+## Synthesized statements
+
+Every `Outputs` declaration of the enclosing block that carries a default value is turned into a
+declaration statement and **prepended** before the first statement of the `Graph` body. These
+statements have no source location, so their diagnostics carry no usable line number.
+
+| Message | Cause |
+| :-- | :-- |
+| `Output declaration initializer requires a type and name.` | the synthesized declaration had a blank type or name |
+| `Output declaration '{Name}' has an empty initializer.` | the `Outputs` default value text was empty |
+
+This is also what makes `Graph = { }` legal for a `Shader`: the initialized output declaration *is*
+the body. See [Output Bindings](/en/docs/generation/outputs).
+
+## Diagnostics
+
+<Diag>
+  <D msg="In Graph statement '{Text}': {Detail}" cause="Any parse failure inside a statement; {Detail} is the inner message." />
+  <D msg="In Graph statement '{Text}': '{Declarator}' is not a valid declarator in a comma-separated declaration." cause="A declarator after the first is not a bare identifier." fix="Use one type token and bare names: float a = 1, b, c;" />
+  <D msg="Encountered an invalid empty Graph statement." cause="A statement with no expression, no declaration and no brace initializer." />
+  <D msg="Encountered a Graph assignment without a target variable." cause="The left side of = was empty, e.g. = 5;" />
+  <D msg="Failed to evaluate Graph assignment for '{Name}'. {Detail}" cause="The right-hand side failed to evaluate." />
+  <D msg="Failed to assign Graph member '{Name}'. {Detail}" cause="A MaterialAttributes member write failed." href="/en/docs/graph/statements" />
+  <D msg="Graph variable '{Name}' is declared more than once." cause="Redeclaration; the check is case-insensitive." fix="Drop the type token to reassign instead of redeclaring." />
+  <D msg="Graph variable '{Name}' was previously assigned an incompatible value. {Detail}" cause="Assignment to an existing variable could not be coerced to its shape." href="/en/docs/graph/expressions" />
+  <D msg="Graph output variable '{Name}' was assigned an incompatible value. {Detail}" cause="Assignment to an Outputs name could not be coerced to its declared type." href="/en/docs/generation/outputs" />
+  <D msg="Unsupported Graph variable type '{Type}'." cause="An uninitialized declaration whose type token does not resolve — also what almost every unsupported construct reports." href="/en/docs/graph/unsupported" />
+  <D msg="Unsupported Graph variable type '{Type}' for '{Name}'." cause="An initialized declaration whose type token does not resolve." href="/en/docs/graph/unsupported" />
+  <D msg="Graph variable type '{Type}' requires an explicit initializer." cause="A texture, SamplerState or Substrate declaration with no =." />
+  <D msg="Graph variable '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="Substrate declared on UE 5.3." href="/en/docs/builtins/substrate" />
+  <D msg="Graph builder is not initialized." cause="Internal guard; the builder ran without a target material." />
+</Diag>
+
+While the statements run, the progress text reads
+`Building DreamShader graph nodes ({N} statements)...` and
+`Evaluating DreamShader graph statement {I} of {N}...`. For bodies with more than 512 statements,
+only every 64th statement updates the text.
+
+The complete cross-stage list is in the [diagnostics index](/en/docs/diagnostics).
+
+## Example
+
+Every statement form in one body:
+
+```c
+ShaderFunction(Name="Functions/F_AllForms")
+{
+    Properties = { vec3 Tint = vec3(1.0, 0.4, 0.1); float K = 2.0; }
+    Inputs     = { vec2 UV; }
+    Outputs    = { MaterialAttributes Attrs; vec3 Debug; }
+
+    Graph = {
+        MaterialAttributes Attrs;              //    the Outputs declaration does not create it
+        float3 c;                              // 1  declaration, no initializer
+        float3 scaled = Tint * K;              // 2  declaration + expression
+        vec4   packed = {scaled, 1.0};         // 3  declaration + brace initializer
+        c = packed.rgb;                        // 4  assignment
+        Debug = {0.0, 0.0, 0.0};               // 5  assignment + brace initializer
+        Attrs.BaseColor = c;                   // 6  member write
+        Attrs.Roughness = {0.35};              // 7  member write + brace initializer
+        float a = 1, b, d = 3;                 // 8  comma declarators
+
+        if (K > 1.0) {                         // 10 if / else
+            Debug = c * a;
+        } else {
+            Debug = c * b;
+        }
+    }
+}
+```
+
+Form 9, the statement-form call, is the one shape missing here; it needs a callee, and it has its own
+page.
+
+## See also
+
+- [Expressions and Conversions](/en/docs/graph/expressions) — what may appear on the right of `=`
+- [Control Flow](/en/docs/graph/control-flow) — form 10 in full, and the merge
+- [Calls](/en/docs/graph/calls) — form 9, out targets and argument rules
+- [What Graph Is Not](/en/docs/graph/unsupported) — why `return`, `for` and `+=` report variable-type errors

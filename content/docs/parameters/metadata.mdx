@@ -1,0 +1,404 @@
+---
+title: 元数据与分组
+description: 结尾的 [ … ] 块 —— 所有可识别键与别名、Slider(min,max)、Group 作用域与 SortPriority 计数器，以及反射属性透传。
+---
+
+声明后面可以跟一个 `[ … ]` 块：一串 `Key = Value` 条目，用来设置生成节点的组织字段；对于解析器不认识的
+键，则直接写入该节点类的**反射 UPROPERTY**。
+
+最后这一点才是这个块真正好用的地方。只有五种条目形式是特殊处理的，其余全部通过反射在 Unreal 类上查找 ——
+也就是说，你生成的那个节点上引擎暴露的任何属性，都可以从源码里设置。
+
+## 写一个块
+
+<Synopsis>
+```c
+<declaration> [ <entry> ; <entry> ; … ] ;
+<declaration> [ <entry> , <entry> , … ] ;
+
+<entry> := <key> = <value>
+         | Slider( <min> , <max> )
+```
+</Synopsis>
+
+上面的每个 `[`、`]`、`;`、`,`、`=` 和 `( )` 都是**字面标点**。同一个块里 `;` 和 `,` 可以混用，
+`]` 之前多写一个分隔符也会被接受。`Slider(…)` 是唯一不带 `=` 的条目形式。
+
+```c
+ScalarParameter Roughness = 0.5 [Group="Surface"; Slider(0, 1); Desc="Micro-surface roughness"];
+```
+
+| 规则 | 行为 |
+| :-- | :-- |
+| 块必须是语句里的**最后**一部分 | 不以 `]` 结尾的语句根本没有元数据 —— `[ … ]` 会留在声明文本里并在别处报错 |
+| 起始 `[` 在括号深度 0 且方括号深度 0 处查找 | `( … )` 内和字符串字面量内的方括号是安全的 |
+| 块之前的文本必须非空 | 否则报 `Metadata must follow a declaration.` |
+| 条目在顶层按 `;` **或** `,` 拆分 | 同一个块内混用两者是允许的 |
+| `]` 之前多余的 `;` 或 `,` | 接受；空条目被丢弃 |
+| 键在比较前先 trim 并小写 | `[ Group = "X" ]`、`[group="X"]`、`[GROUP="X"]` 是同一个条目 |
+| 值先去引号，再 trim | `"  X  "` 变成 `X`；不带引号的值按原样 trim |
+| 重复键（小写化之后） | `Metadata key '{Key}' is declared more than once.` |
+
+分号分隔形式自 <Since v="1.2.4" /> 起可用，元数据块本身自 <Since v="1.2.3" /> 起可用。
+
+## 可识别的键
+
+| 键 | 别名 | 值 | 效果 |
+| :-- | :-- | :-- | :-- |
+| `Group` | `Category` | 字符串 | 节点的参数分组；同时写入 `Group` UPROPERTY（`FName`） |
+| `Description` | `Desc`、`Tooltip` | 字符串 | 写入节点的 **`Desc`** UPROPERTY |
+| `SortPriority` | `Sort` | 整数 | 节点的 `SortPriority`；非整数会报错 |
+| `ParameterName` | — | 字符串 | 覆盖材质参数名；不写时使用声明的标识符 |
+| `Slider(min, max)` | — | 两个数字，无 `=` | 展开为反射属性 `SliderMin` 和 `SliderMax` |
+| *其他任意键* | — | 见[反射属性透传](#反射属性透传) | 写入生成节点类上同名的反射 UPROPERTY |
+
+所有键比较都不区分大小写。每个条目 —— 包括可识别的那些 —— **同时**以小写键存入并推给反射属性写入器，
+所以可识别的键只是**额外**带有类型化效果，并不是另一套命名空间。
+
+无人设置时 `SortPriority` 默认为 **32**，与 Unreal 自身的节点默认值一致。
+
+### `Slider(min, max)`
+
+<Since v="1.5.0" />
+
+```c
+ScalarParameter Roughness = 0.5 [Slider(0, 1)];
+```
+
+大小写不敏感匹配，必须以 `)` 结尾，且内部文本按顶层 `,` 拆分后必须**恰好**是两个数值。两者都作为反射属性
+`SliderMin` / `SliderMax` 写入，因此与 `[SliderMin = 0; SliderMax = 1]` 完全等价 —— 两种写法混用算重复。
+
+| 写法 | 结果 |
+| :-- | :-- |
+| `[Slider(0, 1)]` | `SliderMin = 0`，`SliderMax = 1` |
+| `[SliderMin = 0; SliderMax = 1]` | 完全相同 |
+| `[Slider(0, 1); SliderMin = 0]` | `Metadata SliderMin/SliderMax is declared more than once (entry '{Entry}').` |
+| `[Slider(0)]` / `[Slider(0, 1, 2)]` / `[Slider(a, b)]` | `Metadata 'Slider(min, max)' requires exactly two numeric bounds: '{Entry}'.` |
+
+`SliderMin` / `SliderMax` 存在于 `UMaterialExpressionScalarParameter` 上。在没有这两个属性的类上，
+该条目会以“非反射属性”失败。
+
+### `ParameterName`
+
+```c
+ScalarParameter Rough [ParameterName = "Surface Roughness"];
+```
+
+声明的标识符仍然是 `Graph` 使用的名字；`ParameterName` 只改变材质暴露给实例和蓝图的名字。
+值为空时回退到声明的名字。
+
+<Callout type="info">
+`ParameterName` **同时**保留在反射属性列表里，所以会被写两次 —— 一次作为节点的参数名，一次通过反射。
+在 `UMaterialExpressionParameter` 子类上这无害。但在**没有** `ParameterName` UPROPERTY 的类上 ——
+token 集合里就是 `DynamicParameter` —— `[ParameterName="…"]` 是**硬错误**，不是警告。
+</Callout>
+
+## 别名重写与自动注入
+
+在写入任何内容之前，条目列表会先被补全，键也会被重写：
+
+| 步骤 | 行为 |
+| :-- | :-- |
+| 1 | 除非字面写了 `Group` **或** `Category`，否则以键 `group` 注入 `Group` |
+| 2 | 除非字面写了 `SortPriority` **或** `Sort`，否则注入 `SortPriority` |
+| 3 | 除非字面写了 `Description`、`Desc` **或** `Tooltip`，否则以键 `desc` 注入 `Description` |
+| 4 | 键被重写为真实的 UPROPERTY 名 |
+
+| 写法 | 反射 UPROPERTY |
+| :-- | :-- |
+| `Description` | `Desc` |
+| `Tooltip` | `Desc` |
+| `Category` | `Group` |
+| `Sort` | `SortPriority` |
+| 其他任意键 | 以小写形式原样透传 |
+
+第 1–3 步的注入，正是把来自本块之外的值应用上去的机制 —— 最常见的来源就是外层的
+[`Group("Name") { … }` 作用域](#group-作用域与-sortpriority-计数器)。
+
+## 反射属性透传
+
+除 `Slider(…)` 之外的任何键，都会被解析成生成节点类上的一个 `FProperty`：
+
+1. 键先 trim、小写，再与每个 UPROPERTY 名做大小写不敏感比较；
+2. 若失败，第二轮会**去掉每个 `FBoolProperty` 名开头的 `b`** 再比较一次。
+
+于是 `[FractionalPart = true]` 绑定到 `bFractionalPart`，`[UseCustomPrimitiveData = true]` 绑定到
+`bUseCustomPrimitiveData`。显式写出 `b` 同样有效。
+
+### 按属性类型的取值语法
+
+| 属性类型 | 接受的文本 | 失败时的错误 |
+| :-- | :-- | :-- |
+| `bool` | `true` / `false`，不区分大小写 | `'{Value}' is not a valid boolean value for '{Property}'.` |
+| `int32` | 有符号 32 位整数 | `'{Value}' is not a valid integer value for '{Property}'.` |
+| `uint32` | `[0, 4294967295]` 内的整数 | `'{Value}' is not a valid unsigned integer value for '{Property}'.` |
+| `float` | 数字，或 `true` / `false`（`1.0` / `0.0`） | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `double` | 同 `float` | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FString` | 任意文本，trim 后原样保留 | — |
+| `FName` | 任意文本，转成 `FName` | — |
+| 对象引用 | `Path(…)`、以 `/` 开头的绝对路径，或裸路径 | 见[对象属性](#对象属性) |
+| `enum` | 枚举字面量，四种拼写 | `'{Value}' is not a valid enum value for '{Property}'.` |
+| 以枚举为底的 `uint8` | 枚举字面量 | `'{Value}' is not a valid enum value for '{Property}'.` |
+| 普通 `uint8` | `[0, 255]` 内的整数 | `'{Value}' is not a valid byte value for '{Property}'.` |
+| 其他（结构体、容器等） | Unreal 自己的 import 文本，如 `(R=1,G=0,B=0,A=1)` | `Property '{Property}' on '{Class}' is not a supported literal type yet.` |
+
+### 枚举字面量
+
+枚举值先 trim、小写，再删除所有空格、`_`、`-`、`:`、`.` 和 `/`。每个**未**标记 `UMETA(Hidden)`
+的枚举项会按四种拼写逐一尝试：
+
+| # | 拼写 | 以 `SAMPLERTYPE_LinearColor` 为例 |
+| :-- | :-- | :-- |
+| 1 | 短名 | `SAMPLERTYPE_LinearColor` |
+| 2 | 全限定名 | `EMaterialSamplerType::SAMPLERTYPE_LinearColor` |
+| 3 | `DisplayName` 元数据 | `Linear Color` |
+| 4 | 短名去掉第一个 `_` 及之前的部分 | `LinearColor` |
+
+由于这套规范化，`"LinearColor"`、`"linear color"`、`"linear-color"`、`"SAMPLERTYPE_LinearColor"`
+和 `"linear.color"` 都选中同一个值。
+
+<Callout type="info">
+引擎枚举的 `_MAX` 哨兵值通常不带 `Hidden` 元数据，所以 `"SAMPLERTYPE_MAX"` 这类值能解析成功而不报错 ——
+写进去的却不是一个真实值。不要使用它们。
+</Callout>
+
+### 对象属性
+
+对象类型的 UPROPERTY 接受资产引用，由 [Path 资产引用](/docs/parameters/path) 里描述的元数据解析器处理。
+
+| 情况 | 结果 |
+| :-- | :-- |
+| 值以 `Path(` 或 `/` 开头但解析失败 | 报告解析器自身的信息 |
+| 值两者都不是且无法解析 | `Object property '{Property}' expects Path(...) or an absolute Unreal object path.` |
+| 资产能加载但类不对 | `Asset '{Path}' is not compatible with '{Property}'. Expected '{Class}'.` |
+| 资产加载失败 | `Failed to load asset '{Path}' for '{Property}'.` |
+
+<Callout type="warn">
+**加载失败的纹理会被静默接受。** 当属性是 `UTexture` 子类**且**名字恰好为 `Texture` 或 `TextureObject`
+时，加载失败会写入 `nullptr`，并把这次写入报告为成功。于是 `[Texture = Path(Game, "Typo")]`
+不会产生任何诊断就生成完毕，留下一个未绑定的采样器，稍后在着色器编译时才炸。采样器出来是空的，
+先检查资产路径。
+</Callout>
+
+## 不走反射的组织字段
+
+`Group`、`SortPriority` 和 `Desc` 存在于 `UMaterialExpressionParameter` 子类上 —— 但并非每个参数节点
+都是它的子类，`UMaterialExpressionDynamicParameter` 就不是。当类上缺少这三个字段之一时，会**跳过并
+警告**，而不是报错：
+
+```text
+'{Class}' does not expose the '{Field}' organization field; ignoring it for this parameter.
+```
+
+而**其他**无法解析的键都是硬错误：
+
+```text
+Metadata property '{Key}' is not a reflected property on '{Class}'.
+```
+
+<Callout type="info">
+实际后果是：`DynamicParameter Dyn = float4(0,0,0,0) [Group="S"; SortPriority=10];` 能编译通过，
+记两条警告，节点最终不属于任何分组。它的默认值**确实**会应用，参数名则写入 `ParamNames[0]`。
+</Callout>
+
+## `Group(…)` 作用域与 SortPriority 计数器
+
+<Since v="1.5.0" /> `Properties` 段里的 `Group("Name") { … }` 作用域会给成员打标记。它与显式条目的
+交互如下：
+
+| 情况 | 结果 |
+| :-- | :-- |
+| 成员既没写 `Group` 也没写 `Category` | 注入外层分组 |
+| 成员写了 `Group` 或 `Category` | 写的值优先；该成员忽略作用域 |
+| 嵌套作用域 | 用 `\|` 组合 —— `Group("Outer") { Group("Inner") { … } }` 得到 `Outer\|Inner` |
+| 字面写成 `Group("Manual\|Literal")` | 原样透传 |
+| 成员既没写 `SortPriority` 也没写 `Sort` | 从自动计数器取下一个值 |
+| 成员写了 `SortPriority` 或 `Sort` | 写的值优先，**且不消耗计数器槽位** |
+| 作用域之外的声明 | 不做处理 —— 无分组，也无自动排序值 |
+
+计数器从 **0** 开始，步长 **10**，并且在整个块内的**所有作用域间共享**，不会按分组重置：
+
+```c
+Properties {
+    Group("Surface") {
+        ScalarParameter A = 0.5;                   // SortPriority = 0
+        VectorParameter B = float4(1, 1, 1, 1);    // SortPriority = 10
+    }
+    Group("Detail") {
+        ScalarParameter C = 1.0 [SortPriority=99]; // 99 —— 不消耗槽位
+        ScalarParameter D = 2.0;                   // SortPriority = 20
+    }
+    ScalarParameter Loose = 3.0;                   // 无分组，无自动排序
+}
+```
+
+## 纹理相关键
+
+写得最多的其实是纹理节点上的反射键。它们没有专门的代码路径 —— `SamplerType` 就是一个普通反射键，
+只是恰好落在 `TEnumAsByte<EMaterialSamplerType>` UPROPERTY 上 —— 但值得逐个记住。
+
+| 键 | 类型 | 默认值 |
+| :-- | :-- | :-- |
+| `SamplerType` | `EMaterialSamplerType` | 由资产推导 |
+| `SamplerSource` | `ESamplerSourceMode` | `FromTextureAsset` |
+| `MipValueMode` | `ETextureMipValueMode` | `None` |
+| `GatherMode` <Since v="5.6" ue /> | 枚举 | `None` |
+| `AutomaticViewMipBias` | bool | `true` |
+| `ConstCoordinate` | `uint8` | `0` |
+| `ConstMipValue` | `int32` | `-1` |
+| `IsDefaultMeshpaintTexture` | bool | `false` |
+
+`MipValueMode` 是唯一会改变节点**引脚**集合的键，因而也决定了
+[引脚调用形式](/docs/parameters/properties)能连哪些引脚。
+
+### `SamplerType` 取值
+
+17 个枚举项。同一行的四种拼写都能选中它，比较时忽略大小写并删除 ` `、`_`、`-`、`:`、`.`、`/`。
+
+| 值 | 枚举常量 | `DisplayName` 拼写 |
+| :-- | :-- | :-- |
+| `Color` | `SAMPLERTYPE_Color` | `Color` |
+| `Grayscale` | `SAMPLERTYPE_Grayscale` | `Grayscale` |
+| `Alpha` | `SAMPLERTYPE_Alpha` | `Alpha` |
+| `Normal` | `SAMPLERTYPE_Normal` | `Normal` |
+| `Masks` | `SAMPLERTYPE_Masks` | `Masks` |
+| `DistanceFieldFont` | `SAMPLERTYPE_DistanceFieldFont` | `Distance Field Font` |
+| `LinearColor` | `SAMPLERTYPE_LinearColor` | `Linear Color` |
+| `LinearGrayscale` | `SAMPLERTYPE_LinearGrayscale` | `Linear Grayscale` |
+| `Data` | `SAMPLERTYPE_Data` | `Data` |
+| `External` | `SAMPLERTYPE_External` | `External` |
+| `VirtualColor` | `SAMPLERTYPE_VirtualColor` | `Virtual Color` |
+| `VirtualGrayscale` | `SAMPLERTYPE_VirtualGrayscale` | `Virtual Grayscale` |
+| `VirtualAlpha` | `SAMPLERTYPE_VirtualAlpha` | `Virtual Alpha` |
+| `VirtualNormal` | `SAMPLERTYPE_VirtualNormal` | `Virtual Normal` |
+| `VirtualMasks` | `SAMPLERTYPE_VirtualMasks` | **`Virtual Mask`** |
+| `VirtualLinearColor` | `SAMPLERTYPE_VirtualLinearColor` | `Virtual Linear Color` |
+| `VirtualLinearGrayscale` | `SAMPLERTYPE_VirtualLinearGrayscale` | `Virtual Linear Grayscale` |
+
+`DistanceFieldFont` 和 `External` 没有 virtual 版本。
+
+### `SamplerSource` 取值
+
+| 值 | 枚举常量 | `DisplayName` | 含义 |
+| :-- | :-- | :-- | :-- |
+| `FromTextureAsset` | `SSM_FromTextureAsset` | `From texture asset` | 采样器取自纹理；会占用着色器有限的采样器槽位之一 |
+| `Wrap_WorldGroupSettings` | `SSM_Wrap_WorldGroupSettings` | `Shared: Wrap` | 共享采样器，wrap 寻址，过滤来自 world 纹理组；不占槽位 |
+| `Clamp_WorldGroupSettings` | `SSM_Clamp_WorldGroupSettings` | `Shared: Clamp` | 共享采样器，clamp 寻址；不占槽位 |
+
+`SSM_TerrainWeightmapGroupSettings` 带 `UMETA(Hidden)`，因此**不可选**。由于 `Shared: Wrap`
+规范化后是 `sharedwrap`，`[SamplerSource="Shared: Wrap"]` 和 `[SamplerSource="SharedWrap"]`
+选中的是同一个值。
+
+## 应用顺序
+
+| 步骤 | 发生了什么 |
+| :-- | :-- |
+| 1 | 创建节点并指定纹理资产 —— 来自 `= Path(…)`、来自声明维度对应的引擎回退资产，或由 `SetDefaultTexture()` 提供 |
+| 2 | 执行 `AutoSetSampleType()`，根据资产的压缩设置和 sRGB 标记推导 `SamplerType` |
+| 3 | 应用 `[ … ]` 块 |
+
+因为元数据**最后**应用，显式 `[SamplerType=…]` 永远压过推导值。不写这个键则意味着值跟随资产 ——
+资产以后换了压缩设置，值也会变。因此[反编译器](/docs/tools/decompiler)在每次导出时都会显式写出
+`SamplerType` 和纹理采样相关键，让反编译 → 重新编译的往返保持稳定。
+
+## 这个块还能用在哪
+
+- 材质函数 `Inputs` / `Outputs` / `Results` 的类型化参数上，但那里只有 `Description` / `Desc` /
+  `Tooltip` 和 `SortPriority` / `Sort` 有效。`Group` 会被解析并保留但从不应用 —— Unreal 的函数
+  输入/输出节点没有分组字段 —— 其他键则被忽略而不是走反射。输入的 `SortPriority` 默认取声明序号。
+- **不能**用在 `Shader` 的 `Outputs` 语句上，也不能用在 `Settings`、`Options` 或 `Layout` 条目上。
+- 可以用在 `const` 声明上：`Constant` 节点上的 `[Desc="…"]` 有效。
+
+## 诊断
+
+### 解析期
+
+<Diag>
+  <D msg="Metadata must follow a declaration." cause="语句里只有一个 [ … ] 块。" />
+  <D msg="Metadata entry '{Entry}' must use Key=Value syntax." cause="条目在顶层没有 =，且不是 Slider(…)。" />
+  <D msg="Invalid metadata entry '{Entry}'." cause="规范化之后键为空。" />
+  <D msg="Metadata key '{Key}' is declared more than once." cause="键重复；信息里引用的是源码里写的拼写。" />
+  <D msg="Metadata 'Slider(min, max)' requires exactly two numeric bounds: '{Entry}'." cause="参数个数不对，或某个边界不是数字。" />
+  <D msg="Metadata SliderMin/SliderMax is declared more than once (entry '{Entry}')." cause="Slider(…) 与显式 SliderMin / SliderMax 同时出现。" />
+  <D msg="Metadata SortPriority value '{Value}' is not an integer." cause="SortPriority / Sort 不是整数。" />
+</Diag>
+
+### 生成期
+
+<Diag>
+  <D msg="Metadata property '{Key}' is not a reflected property on '{Class}'." cause="没有 UPROPERTY 匹配，且该键不属于三个组织字段。" fix="到该 token 生成的 Unreal 类上核对属性名。" href="/docs/parameters/properties" />
+  <D msg="Metadata property '{Key}' on '{Class}': {Inner}" cause="找到了属性，但值无法转换。" />
+  <D msg="'{Class}' does not expose the '{Field}' organization field; ignoring it for this parameter." cause="警告 —— 类上缺少 Group、SortPriority 或 Desc，例如 DynamicParameter。" />
+  <D msg="'{Class}' does not expose a ParameterName property." cause="在没有该 UPROPERTY 的类上写了 ParameterName。" />
+  <D msg="'{Value}' is not a valid boolean value for '{Property}'." cause="布尔 UPROPERTY 收到了非布尔文本。" />
+  <D msg="'{Value}' is not a valid integer value for '{Property}'." cause="int32 UPROPERTY。" />
+  <D msg="'{Value}' is not a valid unsigned integer value for '{Property}'." cause="uint32 UPROPERTY，或超出范围。" />
+  <D msg="'{Value}' is not a valid numeric value for '{Property}'." cause="float 或 double UPROPERTY。" />
+  <D msg="'{Value}' is not a valid byte value for '{Property}'." cause="普通 uint8 UPROPERTY，或超出 [0, 255]。" />
+  <D msg="'{Value}' is not a valid enum value for '{Property}'." cause="四种拼写都没匹配到枚举项。" />
+  <D msg="Object property '{Property}' expects Path(...) or an absolute Unreal object path." cause="对象 UPROPERTY 收到的文本两种形式都不是。" href="/docs/parameters/path" />
+  <D msg="Asset '{Path}' is not compatible with '{Property}'. Expected '{Class}'." cause="资产加载成功但类不对。" />
+  <D msg="Failed to load asset '{Path}' for '{Property}'." cause="资产无法加载 —— 上面那种静默写 null 的纹理情况除外。" />
+  <D msg="Property '{Property}' on '{Class}' is not a supported literal type yet." cause="结构体或容器 UPROPERTY 的 import 文本被拒绝。" />
+  <D msg="property '{Name}': {Inner}" cause="包装所有元数据失败信息，标明是哪条声明。" />
+</Diag>
+
+## 示例
+
+```c
+Shader(Name="Docs/M_Metadata")
+{
+    Properties = {
+        Group("11 - Specular") {
+            TextureSampleParameter2D MetallicMap = Path(Game, "Textures/T_White_Linear") [
+                SamplerType          = "LinearColor";
+                SamplerSource        = "FromTextureAsset";
+                MipValueMode         = "None";
+                AutomaticViewMipBias = true;
+                ConstCoordinate      = 0;
+                ConstMipValue        = -1;
+                Description          = "Packed metallic / roughness";
+            ];
+
+            ScalarParameter Metallic = 0.0 [Slider(0, 1); SortPriority = 51];
+        }
+
+        VectorParameter Tint = float4(1, 1, 1, 1) [
+            Category               = "Look",
+            Tooltip                = "Multiplied over base colour",
+            UseCustomPrimitiveData = false,
+            ParameterName          = "Base Tint"
+        ];
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "DefaultLit"; BlendMode = "Opaque"; }
+    Outputs  = { vec3 Color; float M; Base.BaseColor = Color; Base.Metallic = M; }
+
+    Graph = {
+        vec4 S = MetallicMap(Coordinates = UE.TexCoord(Index = 0));
+        Color = S.rgb * Tint.rgb;
+        M     = S.b * Metallic;
+    }
+}
+```
+
+实际应用到节点上的属性：
+
+```text
+MetallicMap  Group="11 - Specular"  SortPriority=0   Desc="Packed metallic / roughness"
+             SamplerType=SAMPLERTYPE_LinearColor     SamplerSource=SSM_FromTextureAsset
+             MipValueMode=TMVM_None  bAutomaticViewMipBias=true
+             ConstCoordinate=0       ConstMipValue=-1
+Metallic     Group="11 - Specular"  SortPriority=51  SliderMin=0  SliderMax=1
+Tint         Group="Look"           Desc="Multiplied over base colour"
+             bUseCustomPrimitiveData=false           ParameterName="Base Tint"
+```
+
+`Metallic` 用了自己条目里的 `SortPriority = 51`，因此不消耗计数器槽位；槽位 0 被 `MetallicMap` 取走。
+
+## 下一步
+
+- [Properties 类型](/docs/parameters/properties) —— 元数据块能跟在哪些 token 后面，以及每个 token 暴露的专属键
+- [Path 资产引用](/docs/parameters/path) —— 对象类型条目接受的语法
+- [材质 Settings](/docs/settings/material) —— 同一套反射思路，作用在 `UMaterial` 上
+- [反编译导出](/docs/tools/decompiler) —— 往返时一定会写出哪些键

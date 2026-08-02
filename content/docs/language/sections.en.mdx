@@ -1,0 +1,417 @@
+---
+title: Sections
+description: Properties, Inputs, Outputs, Results, Settings, Options, Graph and Layout — which block accepts which, how repeats behave, and Group scopes.
+---
+
+The body of an attribute-taking block is a list of sections. A section is a name, an optional `=`,
+and a braced list of `;`-separated statements.
+
+<Synopsis>
+
+```c
+<section> := <section-name> [=] { <statement>… } [;]
+```
+
+</Synopsis>
+
+<Grammar />
+
+Section names are matched **case-insensitively**, may appear in any order, and may be repeated. The
+`=` is optional sugar <Since v="1.5.0" />, and so is the `;` after the closing `}`. All four of
+these are the same section:
+
+```c
+Properties = { float A = 1.0; }
+Properties   { float A = 1.0; }
+properties = { float A = 1.0; };
+PROPERTIES   { float A = 1.0 }
+```
+
+## Support matrix
+
+| Section | `Shader` | `ShaderFunction` | `ShaderLayer` / `Blend` | `VirtualFunction` |
+| :-- | :-- | :-- | :-- | :-- |
+| `Properties` | parameter nodes | parameter nodes | parameter nodes | **alias for `Inputs`** |
+| `Inputs` | unknown section | pin declarations | pin declarations, arity-constrained | pin declarations |
+| `Outputs` | declarations **+ bindings** | pin declarations | pin declarations, arity-constrained | pin declarations |
+| `Results` | unknown section | alias for `Outputs` | alias for `Outputs` | alias for `Outputs` |
+| `Settings` | material settings | four function keys | four function keys | alias for `Options` |
+| `Options` | unknown section | unknown section | unknown section | the `Asset` reference |
+| `Graph` | required¹ | required | required | **hard error** |
+| `Layout` | yes | yes | yes | unknown section |
+| `Code` | **hard error** | **hard error** | **hard error** | **hard error** |
+
+1. Unless at least one output declaration carries an initializer <Since v="1.3.4" />.
+
+`Function` and `GraphFunction` have no sections at all — their `{ … }` is raw HLSL.
+
+## Repeat behaviour
+
+A repeated section does not always append. Getting this wrong silently loses statements.
+
+| Section | On repeat |
+| :-- | :-- |
+| `Properties`, `Inputs`, `Outputs`, `Results` | **appends** to the previous list |
+| `Settings`, `Options` | **merges**; the later key wins |
+| `Graph` | **overwrites** the previous body |
+| `Layout` | **resets** — a second `Layout` discards the first entirely |
+
+<Callout type="warn">
+
+`Layout` is the only section that throws its predecessor away. Only the last `Layout` block in a
+body has any effect. See [Layout and #Region](/en/docs/language/layout).
+
+</Callout>
+
+## `Properties`
+
+Declares the parameter nodes, constant nodes and `UE.*` builtin nodes a block generates **into its
+own graph**.
+
+<Synopsis>
+
+```c
+property-declaration := [ const ] <type-token> <name> [ = <default> ] [ [ <metadata> ] ] ;
+
+group-scope          := Group( "<group-name>" ) { { <property-declaration> | <group-scope> }… } [ ; ]
+```
+
+</Synopsis>
+
+The innermost `[ … ]` pair around `<metadata>` is **literal** DreamShaderLang punctuation; the outer
+pair is the meta-syntax for "optional". A declaration with metadata therefore reads
+`float Roughness = 0.5 [Group="Surface"];`.
+
+```c
+Properties = {
+    const float DebugScale = 1.0;                 // UMaterialExpressionConstant
+    float Strength         = 1.0;                 // UMaterialExpressionScalarParameter
+    vec3  Tint             = vec3(1.0, 1.0, 1.0); // UMaterialExpressionVectorParameter
+    UE.TexCoord(Index = 0) UV;                    // a builtin node, not a parameter
+}
+```
+
+A statement is decomposed in a fixed order, and that order is what makes type tokens containing
+spaces and parentheses work:
+
+| Step | Operation | Consequence |
+| :-- | :-- | :-- |
+| 1 | A trailing `[ … ]` block is peeled off the end | the statement must **end** with `]` for metadata to be seen at all |
+| 2 | Split at the first `=` outside `()`, `[]` and `"…"` | that `=` is the only thing that sets "has a default value" |
+| 3 | Split the left side at the **last** top-level whitespace | type is everything before, name is everything after |
+| 4 | `const` is stripped from the front of the type token | `const` is detected *after* the type/name split |
+
+Because step 3 is parenthesis-aware and accepts any whitespace, `UE.TexCoord(Index = 0) UV;` splits
+into the type `UE.TexCoord(Index = 0)` and the name `UV`.
+
+<Callout type="warn">
+
+A property name is only checked for being **non-empty** — it is not validated as an identifier.
+`Properties { float 1Bad = 0; }` parses without a diagnostic; the declaration is simply unreachable
+from `Graph`. `Inputs` / `Outputs` names, by contrast, must match `[A-Za-z_][A-Za-z0-9_]*`.
+
+</Callout>
+
+Property nodes are created **lazily, on first reference from `Graph`** <Since v="1.3.2" />. A
+property the `Graph` never mentions produces no node at all, so declaration order does not affect
+name resolution — only the vertical order of the generated nodes and the automatic sort counter
+below.
+
+Type tokens, `const`, defaults and the metadata block are covered on
+[Property Types](/en/docs/parameters/properties) and
+[Metadata and Groups](/en/docs/parameters/metadata).
+
+### `Group("Name") { … }` scopes
+
+<Since v="1.5.0" />
+
+A `Group` scope stamps its name onto every declaration inside it, so a shared group need not be
+repeated in each declaration's metadata.
+
+```c
+Properties {
+    Group("Surface") {
+        ScalarParameter Roughness = 0.5 [Slider(0, 1)];
+        VectorParameter BaseColor = float4(1, 1, 1, 1);
+    }
+}
+```
+
+| Rule | Detail |
+| :-- | :-- |
+| Keyword | `Group`, matched case-insensitively |
+| Argument | a balanced `( … )` whose trimmed inner text **must start with a `"`**; the name is then unquoted and must be non-empty |
+| Body | `{ … }`; the walker is brace-, paren-, bracket- and string-aware |
+| Terminator | a single `;` immediately after the closing `}` is consumed silently |
+
+`Group(…)` is the **only** construct that may open a `{` inside `Properties`. Any other `{` fails
+with `Unexpected '{' in Properties near '{Statement}'. Only Group("Name") { ... } may open a brace here.`
+
+Scopes nest to any depth, and a nested scope's effective name is the enclosing name, a `|`, and the
+inner name — Unreal's own sub-category syntax:
+
+```c
+Properties {
+    Group("Surface") {
+        float A = 0;                    // Group = "Surface"
+        Group("Detail") {
+            float B = 0;                // Group = "Surface|Detail"
+            Group("Micro") {
+                float C = 0;            // Group = "Surface|Detail|Micro"
+            }
+        }
+    }
+}
+```
+
+An explicit key on the declaration always wins. The inherited group is applied only when the
+member's metadata typed neither `Group` nor `Category`:
+
+```c
+Group("Surface") {
+    float A = 0;                        // Group = "Surface"    (inherited)
+    float B = 0 [Group="Override"];     // Group = "Override"   (explicit wins)
+    float C = 0 [Category="Other"];     // Group = "Other"      (Category is the alias)
+}
+```
+
+### Automatic `SortPriority`
+
+Members of a group scope are auto-numbered by declaration order.
+
+| Rule | Value |
+| :-- | :-- |
+| Counter start | `0` |
+| Counter step | `10` |
+| Counter scope | **one counter shared by every group in the same `Properties` section**, not one per group |
+| Explicit `SortPriority` / `Sort` | wins, and **does not consume a slot** |
+| Ungrouped (top-level) declarations | never auto-numbered, and never given a group |
+
+```c
+Properties {
+    Group("Surface") {
+        ScalarParameter A = 0.5;                    // SortPriority = 0
+        VectorParameter B = float4(1, 1, 1, 1);     // SortPriority = 10
+    }
+    Group("Detail") {
+        ScalarParameter C = 1.0 [SortPriority=99];  // SortPriority = 99, no slot consumed
+        ScalarParameter D = 2.0;                    // SortPriority = 20  (counter continued)
+    }
+    ScalarParameter Loose = 3.0;                    // no group, no auto sort
+}
+```
+
+<Callout type="info">
+
+The counter is seeded once **per `Properties` section**. A block that declares `Properties` twice
+gets a fresh counter starting at `0` in the second section, so two groups in two sections can end up
+with overlapping sort priorities.
+
+</Callout>
+
+When neither a group scope nor explicit metadata supplies a value, **no `SortPriority` is written at
+all** and the generated node keeps its class default.
+
+## `Inputs`, `Outputs` and `Results`
+
+The typed-parameter sections. They declare the pins of a generated material function, or the
+interface a `VirtualFunction` describes.
+
+<Synopsis>
+
+```c
+parameter-declaration := [ opt ] <type> <name> [ = <default-expression> ] [ [ <metadata> ] ] ;
+```
+
+</Synopsis>
+
+`Results` is a pure synonym for `Outputs` — it appends into the same list, with no warning.
+
+| Member | Required | Description |
+| :-- | :-- | :-- |
+| `opt` <Since v="1.2.3" /> | no | Marks the input optional in Unreal (`bUsePreviewValueAsDefault`). |
+| `<type>` | yes | See [Types and Values](/en/docs/language/types-and-values). |
+| `<name>` | yes | Must match `[A-Za-z_][A-Za-z0-9_]*`. Becomes the pin name. |
+| `= <default>` | no | Preview value or preview graph. Meaningless on a function's outputs. |
+| `[ <metadata> ]` | no | Only `Description` / `Desc` / `Tooltip` and `SortPriority` / `Sort` have an effect. |
+
+### The whitespace rule differs from `Properties`
+
+| | `Properties` | `Inputs` / `Outputs` / `Results` |
+| :-- | :-- | :-- |
+| Type/name split point | last **top-level whitespace**, parenthesis-aware | last **literal space** |
+| Tab as the separator | accepted | **not** accepted |
+| Type token may contain `( … )` | yes | no |
+| Name validated as an identifier | no | **yes** |
+
+<Callout type="warn">
+
+`opt` is recognised as the literal three letters followed by a **space**. `opt<TAB>float Strength;`
+parses without a diagnostic and produces a *required* input whose type token is `opt` plus the tab
+plus the real type; generation then fails with
+`{Kind} '{Function}' input '{Name}' uses unsupported type '{Type}'.`
+
+</Callout>
+
+<Callout type="info">
+
+`in` and `out` are **not** qualifiers in these sections. They exist only on the
+[`Function` / `GraphFunction`](/en/docs/language/functions) signature form. Writing
+`Inputs = { in float X; }` splits into the type `in float` and the name `X`, and generation reports
+`uses unsupported type 'in float'`.
+
+</Callout>
+
+### Input defaults
+
+| Case | Behaviour |
+| :-- | :-- |
+| Type is a plain scalar/vector **and** the default parses as a numeric literal | written straight into `PreviewValue` |
+| Anything else | evaluated as a **graph expression** and connected to the input's `Preview` pin |
+
+The graph-expression path is what lets a preview default reference a node the block itself generates
+<Since v="1.2.6" />:
+
+```c
+ShaderFunction(Name="Functions/F_Sample")
+{
+    Properties = {
+        const Texture2D PreviewTex = Path(Engine, "EngineResources/DefaultTexture");
+    }
+    Inputs = {
+        opt Texture2D Tex = PreviewTex;      // preview graph, not a literal
+        opt float     Mix = 0.5;             // literal → PreviewValue
+    }
+    Outputs = { vec4 OutColor; }
+    Graph   = { OutColor = Tex(Coordinates = UE.TexCoord(Index = 0)) * Mix; }
+}
+```
+
+`opt` — and only `opt` — is what marks the pin optional. A default on a non-`opt` input still builds
+the preview graph but leaves the pin required.
+
+<Callout type="warn">
+
+`= <expression>` on a material function's `Outputs` / `Results` entry is **parsed and then ignored**.
+A function output is only ever driven by the `Graph`. This does not apply to a `Shader`'s `Outputs`,
+where an initializer is meaningful <Since v="1.3.4" />.
+
+</Callout>
+
+### `Properties` versus `Inputs`
+
+Both put something into a generated function, but they are different grammars producing different
+nodes.
+
+| | `Properties` | `Inputs` |
+| :-- | :-- | :-- |
+| Generates | a parameter, constant or `UE.*` node *inside* the function graph | a `FunctionInput` pin *on* the function's interface |
+| Visible to callers | as a material parameter on any material that uses the function | as a wired input pin |
+| Name validation | non-empty only | must match the identifier rule |
+| Type/name separator | any whitespace | a literal space only |
+
+Property names must be unique within the block and must not collide with an input name. Both checks
+are case-insensitive and share one diagnostic:
+`{Kind} '{Function}' property '{Name}' conflicts with another property or input name.`
+
+## `Outputs` in a `Shader`
+
+A `Shader`'s `Outputs` fills **two** lists from one body, classifying each statement independently.
+
+| Statement shape | Classified as |
+| :-- | :-- |
+| no top-level `=` | bare output-variable declaration |
+| top-level `=`, left side is a valid typed declaration | **initialized** output declaration <Since v="1.3.4" /> |
+| top-level `=`, left side is **not** a valid typed declaration | output **binding** |
+
+```c
+Outputs = {
+    vec3  Color;
+    float Alpha;
+
+    Base.EmissiveColor = Color;
+    Base.Opacity       = Alpha;
+}
+```
+
+- Declarations and bindings may be interleaved freely; a binding may reference a variable declared
+  later in the same section.
+- The name `return` is reserved. It may not be declared, and as a binding source it may only feed
+  `Base.*` targets — never in a `Shader` that has a `Graph` block.
+- **No `[ … ]` metadata block is accepted** on any `Shader` `Outputs` statement. The metadata parser
+  is never invoked there, so a bracketed block is left inside the statement text and produces an
+  `Invalid typed declaration` or `Invalid output binding` error.
+
+The full `Base.*` catalogue and the `Expression( … ).Pin[i]` form are on
+[Output Bindings](/en/docs/generation/outputs).
+
+## `Settings` and `Options`
+
+Both use one statement grammar: `<Key> = <Value> ;`, split at the first `=` outside `()`, `[]` and
+`"…"`. Keys are trimmed and lower-cased; values have one surrounding `"…"` pair stripped; a
+duplicate key silently overwrites the earlier one.
+
+| Block | What `Settings` means |
+| :-- | :-- |
+| `Shader` | material settings — special keys plus reflected `UMaterial` properties. See [Material Settings](/en/docs/settings/material). |
+| `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | exactly four honoured keys: `Description`, `UserExposedCaption`, `ExposeToLibrary`, `LibraryCategories`. Every other key is parsed, stored and silently ignored. |
+| `VirtualFunction` | an alias for `Options`, whose only consumed key is `Asset`. |
+
+<Callout type="info">
+
+The four material-function keys are **reset when absent**, so removing a key from the source removes
+it from the asset. `LibraryCategories` is comma-split, each entry trimmed, empty entries dropped.
+
+</Callout>
+
+## `Graph`
+
+The node-graph body. The declaration parser does not look inside it — it stores the text between
+`Graph = {` and its matching `}` verbatim and hands it to a separate expression grammar at
+generation time. Comments are **not** stripped from it, and `#Region` directives are recognised only
+here.
+
+```c
+Graph = {
+    vec2 UV  = UE.TexCoord(Index = 0);
+    vec4 Tex = BaseTex(Coordinates = UV);
+    Color = Tex.rgb * Tint;
+}
+```
+
+The statement and expression language is documented in [The Graph Language](/en/docs/graph/overview).
+
+## `Layout`
+
+Pins generated node positions and declares comment boxes. See
+[Layout and #Region](/en/docs/language/layout).
+
+## Diagnostics
+
+<Diag>
+  <D msg="Invalid property declaration '{Statement}'." cause="No top-level whitespace separating the Properties type token from the name." />
+  <D msg="Missing property name in declaration '{Statement}'." cause="The name side of the split is empty." />
+  <D msg="Missing property type after const in declaration '{Statement}'." cause="const with nothing after it." />
+  <D msg="Unsupported property type '{Type}'." cause="The token matches no compact token, no parameter-node token and no UE. prefix." href="/en/docs/language/types-and-values" />
+  <D msg="Metadata must follow a declaration." cause="The statement is nothing but a [ … ] block." />
+  <D msg={`Unexpected '{' in Properties near '{Statement}'. Only Group("Name") { ... } may open a brace here.`} cause="A { inside Properties that is not a Group scope head." />
+  <D msg="Group(...) requires a non-empty name." cause='Group(""), or an argument that does not start with a quote.' />
+  <D msg={`Unterminated Group("{Name}") { ... } block.`} cause="The scope's { is never closed." />
+  <D msg="Invalid typed declaration '{Statement}'." cause="No literal space between type and name in Inputs / Outputs / Results, an empty side, or a name that is not an identifier." fix="Use a space, not a tab." href="/en/docs/language/lexical" />
+  <D msg="Invalid setting declaration '{Statement}'." cause="A Settings or Options statement with no top-level =." />
+  <D msg="Invalid empty setting key in '{Statement}'." cause="A Settings or Options statement whose key side is empty." />
+  <D msg="Metadata entry '{Entry}' must use Key=Value syntax." cause="A metadata entry with no top-level = that is not Slider(…)." href="/en/docs/parameters/metadata" />
+  <D msg="Metadata key '{Key}' is declared more than once." cause="Duplicate metadata key after normalisation." />
+  <D msg="Metadata SortPriority value '{Value}' is not an integer." cause="A non-integer sort priority." />
+  <D msg="{Kind} '{Function}' property '{Name}' conflicts with another property or input name." cause="A duplicate property name, or a property that shadows an input. Both compared ignoring case." />
+  <D msg="{File}: Property '{Name}' is declared more than once. Property names must be unique." cause="Two Shader properties whose names are equal ignoring case." />
+</Diag>
+
+## Where to next
+
+<Cards>
+  <Card title="Types and Values" href="/en/docs/language/types-and-values" description="Which type token is legal in which section." />
+  <Card title="Property Types" href="/en/docs/parameters/properties" description="Compact types, const, and the 22 explicit parameter nodes." />
+  <Card title="Metadata and Groups" href="/en/docs/parameters/metadata" description="The [ … ] block, Slider(…), and reflected passthrough." />
+  <Card title="Output Bindings" href="/en/docs/generation/outputs" description="The Base.* catalogue and Expression( … ).Pin[i]." />
+</Cards>

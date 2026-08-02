@@ -1,21 +1,37 @@
 ---
-title: 常用模式
-description: 最小材质、共享头文件、函数文件、Package、Function、UE 节点、ShaderFunction 和 VirtualFunction 示例。
+title: 常用写法
+description: DreamShaderLang 的文件级构件 —— 最小材质、参数、纹理采样、共享头文件、函数、Layer、GraphFunction 与 Layout，每一段都是完整源文件。
 ---
 
-这些片段按常见工作流排列，可以直接复制到 `.dsm` / `.dsf` / `.dsh` 中改名使用。
+本页的每一段都是一个完整文件或一个完整块，短到可以直接粘贴改名。顺序从"能产出资产的最小文件"开始，
+一直排到需要 `.dsh` 头文件、`.dsf` 函数文件或特定引擎版本的写法。
 
-## 最小 UI 材质
+| | |
+| :-- | :-- |
+| 适用于 | DreamShaderLang `1.5.0` |
+| 引擎 | UE 5.3 – 5.8；有版本门槛的都在正文里标出 |
+| 假定源码根目录 | `<Project>/DShader` —— 即 `SourceDirectory` [项目设置](/docs/settings/project) |
+| 生成产物 | 默认只在内存里 —— 见[内存材质](/docs/generation/in-memory) |
+
+每段开头注释里的路径就是该文件假定所在的位置，`import` 说明符按这个布局解析。用 `Path(Engine, …)`
+引用的资产随引擎自带，所以那几个例子照抄就能加载。
+
+本页讲的是**形状**。想要能跑出效果的完整材质，见[完整示例](/docs/examples/recipes)。
+
+## 最小材质
+
+能产出资产的最小文件：一个参数、一条绑定、一次赋值。
 
 ```c
-Shader(Name="DreamMaterials/M_Minimal")
+// DShader/Materials/M_Minimal.dsm
+Shader(Name="Materials/M_Minimal")
 {
     Properties = {
         vec3 Tint = vec3(1.0, 0.2, 0.2);
     }
 
     Settings = {
-        Domain = "UI";
+        Domain       = "UI";
         ShadingModel = "Unlit";
     }
 
@@ -30,146 +46,398 @@ Shader(Name="DreamMaterials/M_Minimal")
 }
 ```
 
-## 共享 `.dsh`
+生成的资产：
 
-`DShader/Shared/Common.dsh`：
+```text
+package     /Game/Materials/M_Minimal
+object path /Game/Materials/M_Minimal.M_Minimal
+```
+
+- `Shader` **区分大小写**；section 名 `Properties`、`Settings`、`Outputs`、`Graph` 不区分。见
+  [词法与大小写](/docs/language/lexical)。
+- section 名后的 `=` 是可选糖 <Since v="1.5.0" />：`Properties { … }` 解析结果完全一样。section
+  体内最后一个 `;` 同样可省。
+- `Root` 默认是 `/Game`，所以头部写成 `Shader(Name="Materials/M_Minimal", Root="Game")` 含义不变。
+  完整规则见[资产路径](/docs/generation/asset-paths)。
+- 一个 `Shader` 必须有 `Graph` 块，或者至少有一个带初始化式的输出声明。两者都没有时解析失败：
+  `Shader must provide a Graph block.`
+
+## 参数、分组与元数据
+
+一个文件里覆盖所有参数族，带 `Group("…")` 作用域、`[ … ]` 元数据块和 `Slider(min, max)` 简写。
 
 ```c
-Namespace(Name="Common")
+// DShader/Materials/M_Params.dsm
+Shader(Name="Materials/M_Params")
 {
-    Function BuildPulse(in float t, in vec2 uv, out vec3 result) {
-        vec2 p = uv - 0.5;
-        float ring = sin(t * 2.0 + length(p) * 12.0) * 0.5 + 0.5;
-        result = vec3(ring, ring * 0.5 + 0.1, 1.0 - ring * 0.35);
+    Properties = {
+        Group("Surface") {
+            ScalarParameter Roughness = 0.55 [Slider(0, 1)];
+            VectorParameter Albedo    = float4(0.8, 0.8, 0.8, 1.0) [Description="Base albedo"];
+        }
+
+        Group("Detail") {
+            TextureSampleParameter2D DetailMap = Path(Engine, "EngineResources/WhiteSquareTexture") [
+                SamplerType   = "LinearColor";
+                SamplerSource = "FromTextureAsset";
+                SortPriority  = 99;
+            ];
+            StaticSwitchParameter UseDetail = true;
+        }
+
+        Texture2D   NoiseTex   = Path(Engine, "EngineResources/WhiteSquareTexture");
+        const float DebugScale = 1.0;
     }
 
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
+    }
+
+    Outputs = {
+        float3 Color;
+        float  Rough;
+
+        Base.BaseColor = Color;
+        Base.Roughness = Rough;
+    }
+
+    Graph = {
+        vec2 UV     = UE.TexCoord(Index = 0);
+        vec4 Detail = DetailMap(Coordinates = UV);
+        vec4 Noise  = SampleTexture2D(NoiseTex, UV);
+
+        Color = UseDetail(True = Detail.rgb * Albedo.rgb, False = Albedo.rgb);
+        Rough = Roughness * DebugScale * Noise.r;
+    }
+}
+```
+
+- `float` / `vec3` / `Texture2D` 是**紧凑**写法；`ScalarParameter`、`VectorParameter`、
+  `TextureSampleParameter2D` 则直接点名 Unreal 节点类。两套写法都收录在
+  [Properties 类型](/docs/parameters/properties)。
+- `Group("…") { … }` 作用域 <Since v="1.5.0" /> 会把组名盖到里面每个参数上，并从**整个块共用的一个
+  计数器**按 `0, 10, 20, …` 分配 `SortPriority`。显式写的 `SortPriority` 优先，且不占用槽位 ——
+  所以上面的 `UseDetail` 拿到的是下一个自动值，而不是 `100`。嵌套的组用 `|` 拼接（`Outer|Inner`）。
+- `const` 声明的是 `Constant` 节点而不是参数，只能用在普通标量、向量或纹理类型上。
+
+<Callout type="warn">
+**裸读一个 `StaticSwitchParameter` 不是值。** `Color = UseDetail;` 会失败于
+`Unknown Graph identifier 'UseDetail'.` —— 这个参数必须被*调用*，带 `True=` 和 `False=`
+（或 `A=` / `B=`，或按位置传），并且两个分支的分量数必须一致。
+</Callout>
+
+## 采样纹理的两种写法
+
+上面那两个纹理声明的采样方式不同，而且这个区别不是写法偏好问题。
+
+| 声明 | 生成的节点 | 采样方式 |
+| :-- | :-- | :-- |
+| `Texture2D NoiseTex = Path(…);` | `TextureObjectParameter` —— 纹理*对象*，没有输入 pin | `SampleTexture2D(NoiseTex, UV)` |
+| `TextureSampleParameter2D DetailMap = Path(…);` | `TextureSampleParameter2D` —— 自带 `Coordinates` pin | `DetailMap(Coordinates = UV)` |
+
+<Callout type="warn">
+**pin 调用形式 `Name(Pin = …)` 只属于十个参数 token** —— `ChannelMaskParameter`、
+`StaticComponentMaskParameter`，以及八个 `*SampleParameter*` token。纹理**对象**参数
+（紧凑的 `Texture2D`，或 `TextureObjectParameter`）根本没有 pin，所以 `NoiseTex(Coordinates = UV)`
+会失败于 `Unknown Graph function 'NoiseTex'.`
+
+采样纹理对象请改用保留写法 `SampleTexture2D(textureObject, uv)`。它**区分大小写**，并且只接受两个
+位置参数。
+</Callout>
+
+## 共享 `.dsh` 头文件
+
+一个 `.dsh` 里只能有 `Function`、`GraphFunction`、`Namespace`、`VirtualFunction` 块和 `import`
+指令 —— 别的都不行。它自己不产出任何资产，内容会被内联进 import 它的文件。
+
+```c
+// DShader/Shared/Common.dsh
+Namespace(Name="Common")
+{
     Function ApplyTint(in vec3 color, in vec3 tint, out vec3 result) {
         result = color * tint;
     }
-}
-```
 
-## 在 `.dsm` 中引入 `.dsh`
-
-```c
-import "Shared/Common.dsh";
-
-Shader(Name="DreamMaterials/M_Imported")
-{
-    Properties = {
-        vec3 Tint = vec3(1.0, 1.0, 1.0);
-    }
-
-    Settings = {
-        Domain = "UI";
-        ShadingModel = "Unlit";
-    }
-
-    Outputs = {
-        vec3 Color;
-        Base.EmissiveColor = Color;
-    }
-
-    Graph = {
-        vec2 uv = UE.TexCoord(Index=0);
-        float t = UE.Time();
-        vec3 pulse;
-
-        Common::BuildPulse(t, uv, pulse);
-        Common::ApplyTint(pulse, Tint, Color);
+    Function float Luma(in vec3 color) {
+        return dot(color, float3(0.299, 0.587, 0.114));
     }
 }
-```
 
-## Package 纹理采样
-
-```c
-import "@typedreammoon/dreamshader-texture/Library/Texture.dsh";
-
-Shader(Name="DreamMaterials/M_TexturePackage")
-{
-    Properties = {
-        Texture2D MainTex = Path(Engine, "/EngineResources/DefaultTexture");
-        vec3 Tint = vec3(1.0, 1.0, 1.0);
-    }
-
-    Settings = {
-        Domain = "UI";
-        ShadingModel = "Unlit";
-    }
-
-    Outputs = {
-        vec3 Color;
-        Base.EmissiveColor = Color;
-    }
-
-    Graph = {
-        vec2 uv = UE.TexCoord(Index=0);
-        vec3 sampled;
-
-        Texture::Sample2DRGB(MainTex, uv, sampled);
-        Color = sampled * Tint;
-    }
-}
-```
-
-## `SelfContained` 函数
-
-```c
 Function SelfContained Remap01(in float value, out float result) {
     result = saturate(value * 0.5 + 0.5);
 }
+
+Function SplitChannels(in vec4 src, out vec3 rgb, out float alpha) {
+    rgb   = src.rgb;
+    alpha = src.a;
+}
 ```
 
-## `ShaderFunction`
-
-推荐放在 `DShader/Functions/F_Tint.dsf`：
+引入它：
 
 ```c
+// DShader/Materials/M_Tinted.dsm
+import "Shared/Common.dsh";
+
+Shader(Name="Materials/M_Tinted")
+{
+    Properties = {
+        vec3 Albedo = vec3(0.6, 0.8, 1.0);
+        vec3 Tint   = vec3(1.0, 0.4, 0.1);
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Common::ApplyTint(Albedo, Tint, Tinted);
+        Color = Tinted;
+    }
+}
+```
+
+- `import "Shared/Common"` 等价：说明符**完全不带扩展名**时会自动补 `.dsh`。所以引入 `.dsf` 或
+  `.dsm` 必须显式写扩展名。
+- 说明符按三个根依次解析：import 它的文件所在目录、源码根（`DShader`）、`DShader/Packages`。
+  逃出所属根的候选会被拒绝。
+- `;` 可省，`'单引号'` 也接受，行尾允许跟一个 `//` 注释 —— 但一条 `import` 必须**独占一行**。
+- `Function` 体是 HLSL，不是 `Graph` 语句：上面的 `dot`、`saturate` 和 `float3(…)` 都是 HLSL
+  内建函数。GLSL 写法会在这些函数体内被改写 —— `vec3` → `float3`、`mix` → `lerp`、
+  `fract` → `frac`、`mod` → `fmod`。
+- `Inline` 是 `SelfContained` 的完全别名。修饰符写在 `Function` 关键字**之后**，两种写法都不能用在
+  `GraphFunction` 上。
+
+<Callout type="warn">
+写在 `/* … */` 块注释里的 `import` 行**照样会被处理** —— import 扫描器只认 `//` 前缀。要注释掉一条
+import，请用 `//`，不要用块注释。
+</Callout>
+
+<Callout type="warn">
+写在**另一个 `Function` 或 `GraphFunction` 体内部**的命名空间限定调用会被拍平成
+`Common_ApplyTint`，并且永远不会改写成生成出来的符号名，于是输出的 HLSL 引用了一个不存在的函数。
+请像上面那样从 `Graph` 块里调用带命名空间的 helper，或者把函数体复制到调用方里。
+</Callout>
+
+## 调用函数：值形式与语句形式
+
+只有一个输出的函数可以当作值调用。两个及以上输出必须用语句形式，尾部的实参是接收结果的普通变量名。
+
+```c
+// DShader/Materials/M_Calls.dsm
+import "Shared/Common.dsh";
+
+Shader(Name="Materials/M_Calls")
+{
+    Properties = {
+        vec4 Source = vec4(0.4, 0.6, 0.9, 0.75);
+        vec3 Tint   = vec3(1.0, 0.4, 0.1);
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; BlendMode = "Translucent"; }
+
+    Outputs = {
+        vec3  Color;
+        float Alpha;
+
+        Base.EmissiveColor = Color;
+        Base.Opacity       = Alpha;
+    }
+
+    Graph = {
+        // 语句形式：两个 out 结果，两个目标名
+        SplitChannels(Source, Rgb, A);
+
+        // 语句形式：一个 out 结果
+        Common::ApplyTint(Rgb, Tint, Tinted);
+
+        // 值形式：单输出函数
+        float L    = Common::Luma(Tinted);
+        float Soft = Remap01(L);
+
+        Color = Tinted * Soft;
+        Alpha = A;
+    }
+}
+```
+
+| 被调用者 | 值形式 | 语句形式 | 命名参数 |
+| :-- | :-- | :-- | :-- |
+| `Function` | 可以 —— **恰好一个输出时** | 可以 | **不支持** |
+| `GraphFunction` | 可以 —— **恰好一个输出时** | 可以 | **不支持** |
+| `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` | 可以，输出个数不限 | 可以 | 仅值形式 |
+| `VirtualFunction` | 可以，输出个数不限 | 可以 | 仅值形式 |
+
+- out 目标不需要预先声明 —— 调用本身会创建它们。它们必须是裸标识符，且同一次调用里两个结果不能写进
+  同一个名字。
+- 参数个数必须精确：值形式是输入个数，语句形式是输入个数加结果个数。
+- 函数名**不区分大小写**，且**没有重载解析**。同一个名字解析到多种声明种类时调用失败：
+  `Graph call '…' is ambiguous because multiple definitions use that name: ….`
+- [数学内置](/docs/builtins/math)在用户函数**之前**匹配，永远无法被遮蔽。命名为 `lerp` 或 `dot` 的
+  `Function` 在 `Graph` 块里不可达，而且没有任何诊断。
+
+## 放在 `.dsf` 里的 `ShaderFunction`
+
+一个 `.dsf` 可以声明 `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`Function`、
+`GraphFunction`、`Namespace` 和 `VirtualFunction` —— 除了顶层 `Shader` 之外都行。
+
+```c
+// DShader/Functions/F_Tint.dsf
 ShaderFunction(Name="Functions/F_Tint")
 {
     Inputs = {
         vec3 InColor;
-        opt vec3 InTint = vec3(1.0, 1.0, 1.0) [
-            Description="Preview tint";
+        opt float Strength = 1.0 [
+            Description  = "Preview strength";
+            SortPriority = 10;
         ];
     }
 
     Outputs = {
-        vec3 OutColor;
+        vec3 OutColor [Description="Tinted colour"];
     }
 
     Settings = {
-        Description = "Tint helper";
+        Description     = "Tint helper";
         ExposeToLibrary = true;
-        LibraryCategories = "DreamShader,Color";
     }
 
     Graph = {
-        OutColor = InColor * InTint;
+        OutColor = InColor * Strength;
     }
 }
 ```
 
+从材质里调用：
+
 ```c
-Graph = {
-    vec3 tinted = F_Tint(BaseColor, default, Output="OutColor");
+// DShader/Materials/M_UsesTint.dsm
+import "Functions/F_Tint.dsf";
+
+Shader(Name="Materials/M_UsesTint")
+{
+    Properties = {
+        vec3 Albedo = vec3(0.6, 0.8, 1.0);
+    }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        // 命名形式；opt 输入可以省略，也可以传 `default`
+        Color = F_Tint(InColor = Albedo, Strength = 0.5);
+    }
 }
 ```
 
-## `VirtualFunction`
+- 这条 import 必须显式带 `.dsf` 扩展名。
+- `ShaderFunction` 可以用**完整 `Name`**（`Functions/F_Tint`）查找，也可以用最后一段
+  `/` 分隔的名字（`F_Tint`），都不区分大小写。
+- 实参要么**全按位置、要么全命名**；混用会失败于
+  `ShaderFunction 'F_Tint' input arguments cannot mix positional and named forms.`
+- 让输入在生成的 `UMaterialFunction` 上变成可选的是 `opt`；它的默认值驱动该输入的 Preview pin。
+  省略一个非 `opt` 输入会失败于
+  `ShaderFunction 'F_Tint' is missing required input 'InColor'.`
+- 编译这个 `.dsm` 会顺带生成被 import 的 `ShaderFunction` 资产 —— 材质函数总是先于调用它的材质写出。
+- 材质函数认得的 `Settings` 键只有四个：`Description`、`UserExposedCaption`、`ExposeToLibrary`、
+  `LibraryCategories`。其他键在这里被静默忽略；这一点和 `Shader` 不同，在 `Shader` 里未知键是硬错误。
+
+函数声明了多个输出时，在调用点用 `Output="Name"`（或 `OutputName=` / `OutputIndex=`）挑一个；
+位置参数可以用 `default` 跳过：
 
 ```c
+vec3 tinted = F_Tint(Albedo, default, Output="OutColor");
+```
+
+## `ShaderLayer` 与 `ShaderLayerBlend`
+
+这两个块生成原生的 `UMaterialFunctionMaterialLayer` 和 `UMaterialFunctionMaterialLayerBlend`
+资产 <Since v="1.3.0" />，接口形状由固定的元数规则约束。
+
+```c
+// DShader/Layers/L_SimpleSurface.dsf
+ShaderLayer(Name="Layers/L_SimpleSurface")
+{
+    Properties = {
+        VectorParameter LayerColor = float4(0.8, 0.2, 0.1, 1.0) [Group="Layer"];
+        ScalarParameter LayerRough = 0.5                        [Group="Layer"; Slider(0, 1)];
+    }
+
+    Outputs = {
+        MaterialAttributes Attrs;
+    }
+
+    Graph = {
+        Attrs.BaseColor = LayerColor.rgb;
+        Attrs.Roughness = LayerRough;
+    }
+}
+
+ShaderLayerBlend(Name="Layers/LB_Overlay")
+{
+    Properties = {
+        ScalarParameter Alpha = 0.5 [Group="Blend"; Slider(0, 1)];
+    }
+
+    Inputs = {
+        MaterialAttributes Bottom;
+        MaterialAttributes Top;
+    }
+
+    Outputs = {
+        MaterialAttributes Attrs;
+    }
+
+    Graph = {
+        Attrs.BaseColor = lerp(Bottom.BaseColor, Top.BaseColor, Alpha);
+        Attrs.Roughness = lerp(Bottom.Roughness, Top.Roughness, Alpha);
+    }
+}
+```
+
+| 块 | 输入 | 输出 |
+| :-- | :-- | :-- |
+| `ShaderLayer` | **至多一个**，且必须是 `MaterialAttributes` | 恰好一个 `MaterialAttributes` |
+| `ShaderLayerBlend` | **恰好两个**，都是 `MaterialAttributes` | 恰好一个 `MaterialAttributes` |
+
+- Layer 的*控制项*放 `Properties`，绝不放 `Inputs` —— 那两条诊断
+  （`… Use Properties for layer controls.` 和 `… Use Properties for blend controls.`）说的就是这件事。
+- 在 <Since v="5.7" ue /> 上，名为 `Top` / `TopLayer`，或 `Bottom` / `BottomLayer` / `Base` /
+  `BaseLayer` 的 blend 输入会被打上对应的 `BlendInputRelevance`。更早的引擎上这些名字只是普通名字，
+  只有顺序有意义。
+
+<Deprecated since="1.3.0" use="ShaderLayer" />
+
+`MaterialLayer(...)` 和 `MaterialLayerBlend(...)` 仍然作为兼容别名解析，生成的资产也完全相同，
+但各自会发一条警告：`MaterialLayer is deprecated; use ShaderLayer instead.` 和
+`MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.` 之后的所有诊断都报现代写法。
+
+## `VirtualFunction`：包装已有资产
+
+`VirtualFunction` 不生成任何东西。它声明一个**已经存在**的 `UMaterialFunction` 的接口，好让 `Graph`
+块能带类型检查地调用它。
+
+```c
+// DShader/VirtualFunctions/BufferWriter.dsh
 VirtualFunction(Name="BufferWriter")
 {
     Options = {
-        Asset = Path(Plugins.MoonToon, "MaterialFunctions/Buffer/Writer");
-        Description = "Existing MoonToon material function";
+        Asset       = Path(Game, "MaterialFunctions/F_BufferWriter");
+        Description = "Existing material function declared for Graph calls.";
     }
 
     Inputs = {
         float3 Color;
-        float Alpha;
+        opt float Alpha = 1.0;
     }
 
     Outputs = {
@@ -179,49 +447,202 @@ VirtualFunction(Name="BufferWriter")
 ```
 
 ```c
-Graph = {
-    float3 written = BufferWriter(Color, 1.0, Output="Result");
+// DShader/Materials/M_Buffered.dsm
+import "VirtualFunctions/BufferWriter.dsh";
+
+Shader(Name="Materials/M_Buffered")
+{
+    Properties = { vec3 Tint = vec3(1.0, 0.4, 0.1); }
+
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        Color = BufferWriter(Color = Tint, Alpha = 0.5);
+    }
 }
 ```
 
-## 参数反射属性与静态开关
+<Callout type="info">
+这个例子引用的 `/Game/MaterialFunctions/F_BufferWriter` 是项目资产。请换成你项目里真实存在的路径 ——
+或者让编辑器帮你写：对着一个 `UMaterialFunction` 执行 *DreamShader ▸ Create Virtual Function*，
+会在 `DShader/VirtualFunctions` 下生成对应的 `.dsh`。
+</Callout>
+
+- 资产可以来自 `Options = { Asset = … }`，也可以来自头部属性 `VirtualFunction(Name="…", Asset="…")`。
+  两者都没有时解析失败：`VirtualFunction 'BufferWriter' must provide Options = { Asset = Path(...); }.`
+- 仅在这个块内，`Settings` 是 `Options` 的别名，`Properties` 是 `Inputs` 的别名。`Graph` 和 `Code`
+  section 直接被拒绝。
+- 至少要有一个输出。
+- 声明的输入/输出名会不区分大小写地去匹配资产上的 pin 名，匹配不上再按序号回退。两者都落空时失败于
+  `VirtualFunction 'BufferWriter' output 'Result' does not exist on MaterialFunction asset '…'.`
+- `Path` 的根：`Game`、`Engine`、`Plugin.<Name>` / `Plugins.<Name>`、完整对象路径，或者裸的带引号
+  `"/Game/…"`。见 [Path 资产引用](/docs/parameters/path)。
+
+## `GraphFunction`：把 `UE.*` 调用提升进 Custom 节点
+
+`GraphFunction` 的体和 `Function` 一样是 HLSL，但里面每个 `UE.*` 调用都会被当作真正的材质节点求值，
+并作为额外输入 pin 接到生成的 Custom 节点上。
 
 ```c
-Shader(Name="DreamMaterials/M_StaticSwitch")
+// DShader/Shared/Wind.dsh
+GraphFunction WindPulse(in float2 uv, out float pulse) {
+    float t = UE.Time();
+    pulse = sin(uv.x * 8.0 + t);
+}
+```
+
+```c
+// DShader/Materials/M_Wind.dsm
+import "Shared/Wind.dsh";
+
+Shader(Name="Materials/M_Wind")
+{
+    Settings = { Domain = "Surface"; ShadingModel = "Unlit"; }
+
+    Outputs = {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph = {
+        vec2  UV    = UE.TexCoord(Index = 0);
+        float Pulse = WindPulse(UV);          // 值形式：一个 out 结果
+        Color = vec3(Pulse, Pulse, Pulse);
+    }
+}
+```
+
+生成的 Custom 节点代码，大致形状：
+
+```hlsl
+float pulse = (float)0;
+float t = __ds_WindPulse_UE0;
+pulse = sin(uv.x * 8.0 + t);
+return pulse;
+```
+
+- 生成的 pin 名为 `__ds_<Function>_UE<N>`，会与已声明的参数名做去重。
+- 只扫描 `UE.` 前缀。`GraphFunction` 体里的 `Substrate.*` 调用、数学内置和用户函数调用都原样留作
+  HLSL 文本。
+- 被提升的值不能是纹理对象、`MaterialAttributes` 或 `Substrate` —— 这些穿不过 Custom 节点的输入 pin。
+- `GraphFunction` <Since v="1.3.1" /> 不接受 `SelfContained` / `Inline` 修饰符、不接受命名实参、
+  不允许递归（`GraphFunction cycle detected: …`）。空函数体是错误。
+- 语句形式同样可用：`WindPulse(UV, Pulse);` 会创建 `Pulse`。
+
+## `Layout` 与 `#Region`
+
+`Layout` 把生成的节点钉在固定位置并画注释框。`#Region` / `#EndRegion` 在 `Graph` 块内给语句分组，
+region 名会变成生成图里的注释框。
+
+```c
+// DShader/Materials/M_Laid.dsm
+Shader(Name="Materials/M_Laid")
 {
     Properties = {
-        VectorParameter BaseColor = float4(0.1, 0.2, 0.3, 1.0) [
-            Group="Surface";
-            SortPriority=10;
-        ];
-        VectorParameter DetailColor = float4(1.0, 0.8, 0.3, 1.0) [
-            Group="Surface";
-            SortPriority=20;
-        ];
-        StaticSwitchParameter UseDetail = true [
-            Group="Switches";
-            SortPriority=30;
-            Description="Use detail color";
-        ];
+        VectorParameter BaseColor = float4(0.8, 0.8, 0.8, 1.0) [Group="Surface"; SortPriority=10];
+        ScalarParameter Roughness = 0.55                       [Group="Surface"; SortPriority=20];
+        Texture2D       NoiseTex  = Path(Engine, "EngineResources/WhiteSquareTexture");
+    }
+
+    Settings = {
+        Domain       = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode    = "Opaque";
     }
 
     Outputs = {
         float3 Color;
+        float  Rough;
+
         Base.BaseColor = Color;
+        Base.Roughness = Rough;
     }
 
     Graph = {
-        Color = UseDetail(True=DetailColor.rgb, False=BaseColor.rgb);
+        #Region "Sampling"
+        vec2 UV    = UE.TexCoord(Index = 0);
+        vec4 Noise = SampleTexture2D(NoiseTex, UV);
+        #EndRegion
+
+        #Region "Surface"
+        Color = BaseColor.rgb * Noise.rgb;
+        Rough = Roughness;
+        #EndRegion
+    }
+
+    Layout = {
+        Comment(Name="Sampling", X=-1200, Y=-200, W=900, H=400, Color=float4(0.10, 0.16, 0.22, 0.35));
+        Comment(Name="Surface",  X=-1200, Y=260,  W=900, H=400);
+        Node(Var="UV",    X=-1100, Y=-120);
+        Node(Var="Noise", X=-760,  Y=-120);
     }
 }
 ```
 
-## Material Parameter Collection
+| 调用 | 必填参数 | 可选 |
+| :-- | :-- | :-- |
+| `Node` | `Var`（文本）、`X`、`Y`（整数） | — |
+| `Comment` | `Name`（文本）、`X`、`Y`、`W`、`H`（整数） | `Color`，一个 `float4` 字面量 |
+
+- `Var` 指的是一个 `Graph` 变量。除此之外没有别的合法 `Layout` 语句：
+  `Unknown Layout statement '…'.`
+- 没有这个 section 时，注释框默认 `W=420`、`H=240`、`Color = (0.10, 0.16, 0.22, 0.35)`。
+- 第二个 `Layout` section 会**替换**第一个，而不是追加 —— 这和会追加的 `Properties`、`Inputs`、
+  `Outputs` 不同。
+- `#Region` 的名字可以带引号也可以裸写；指令不区分大小写，并且会被替换成等长的空格串，所以诊断的
+  行号**和**列号都不受影响。region 可以嵌套。
+- region 指令只在 `Graph` 块里处理 —— `Function` 或 `GraphFunction` 体内都不处理。
+
+<Callout type="warn">
+重新生成会清空目标图。没有被 `Layout` 钉住的节点位置、手加的节点、手改的节点属性，以及文本以
+`DreamShader: ` 开头的注释框，都会被销毁。只有不带这个前缀的注释框能保留。见
+[重新生成](/docs/generation/regeneration)。
+</Callout>
+
+## 从 package 引入
+
+package 就是 `DShader/Packages` 下的一个目录。它的头文件 import 起来和项目文件完全一样，因为
+`DShader/Packages` 正是第三个 `import` 解析根。
+
+```text
+<Project>/DShader/
+  Materials/
+    M_Noisy.dsm
+  Packages/
+    @typedreammoon/
+      dream-noise/
+        Library/
+          Noise.dsh
+```
 
 ```c
-Graph = {
-    float wind = UE.CollectionParam(
-        Collection=Path(Game, "Collections/MPC_Wind"),
-        Parameter="WindStrength");
-}
+// DShader/Materials/M_Noisy.dsm
+import "@typedreammoon/dream-noise/Library/Noise.dsh";
 ```
+
+说明符会依次尝试每个根：
+
+```text
+specifier   @typedreammoon/dream-noise/Library/Noise.dsh
+candidate 1 <Project>/DShader/Materials/@typedreammoon/dream-noise/Library/Noise.dsh   missing
+candidate 2 <Project>/DShader/@typedreammoon/dream-noise/Library/Noise.dsh             missing
+candidate 3 <Project>/DShader/Packages/@typedreammoon/dream-noise/Library/Noise.dsh    resolved
+```
+
+这里同样可以省掉扩展名 —— `import "@typedreammoon/dream-noise/Library/Noise";` 是同一条 import。
+package 的编写方式、清单文件和编辑器工具见 [Package](/docs/tools/packages)。
+
+## 接下来
+
+<Cards>
+  <Card title="完整示例" href="/docs/examples/recipes" description="用这些形状拼出来的完整材质。" />
+  <Card title="顶层块" href="/docs/language/blocks" description="全部七个块，以及各自生成什么。" />
+  <Card title="调用" href="/docs/graph/calls" description="完整调用语法：形式、实参、输出选择。" />
+  <Card title="Properties 类型" href="/docs/parameters/properties" description="Properties 声明接受的每个 token。" />
+  <Card title="Layout 与 #Region" href="/docs/language/layout" description="节点摆放和注释框的完整说明。" />
+</Cards>

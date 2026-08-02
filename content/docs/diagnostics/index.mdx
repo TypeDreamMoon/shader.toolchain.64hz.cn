@@ -1,0 +1,461 @@
+---
+title: 错误速查
+description: DreamShader 在哪里报错、怎么读一条消息，以及一张按流水线阶段分组的常见诊断速查表。
+---
+
+每一次编译失败都表现为一条 **诊断**：一条消息，归属于一个源文件，通常带着行号和列号。本页讲清楚这些消息出现在哪里、
+怎么读，然后按产生它的阶段列出实际项目里真正会撞上的那些。
+
+| 项目 | 值 |
+| :-- | :-- |
+| 产生者 | `DreamShader`（parser、runtime 模块）与 `DreamShaderEditor`（generator、bridge、工具） |
+| 日志分类 | `LogDreamShader` |
+| 严重级别 | 每条入库的诊断都是 `error` —— 诊断存储没有 warning、info 和 hint 级别 |
+| Bridge 产物 | `<Project>/Saved/DreamShader/Bridge/diagnostics.json`、`.../Bridge/diagnostics/`、`.../Bridge/bridge.db` |
+
+## 诊断出现在哪里
+
+| 界面 | 显示什么 |
+| :-- | :-- |
+| **Output Log** | 原始编译消息，失败时为 `Error`、成功时为 `Display`，分类 `LogDreamShader` |
+| **Material Content Browser ▸ Dream Shader Gen 页** | 按源文件分组的诊断列表，从 `diagnostics.json` 读回 |
+| **`Bridge/diagnostics.json`** | `{ version, updatedAtUtc, files[] }`，每个源文件一项 |
+| **`Bridge/diagnostics/`** | 每个文件一个 `<md5-of-normalized-path>.json` 分片，外加 `index.json`；每次写入都会删掉过期分片 |
+| **`Bridge/bridge.db`** | SQLite 表 `diagnostics(path, json, updated_at_utc)`，在一个事务里整体替换 |
+| **VSCode / Rider 波浪线** | 由扩展从上面三份 bridge 产物渲染 |
+
+三个 bridge sink 每次更新都一起写，所以它们永远不会互相矛盾。Output Log 是另一条独立路径，也是唯一还会显示 *成功* 消息的界面。
+
+诊断归属于产生它的源文件。重新编译 `A.dsm` 只清掉 `A.dsm` 产生的记录 —— 包括归到某个被 import 的 `.dsh` 上的记录 ——
+而不会动另一个材质在同一个头文件上的诊断。
+
+<Callout type="warn">
+bridge 从不在 commandlet 里运行。`-run=DreamShader`、`-run=Cook` 以及任何其他 commandlet 进程都不写 `diagnostics.json`、
+不写分片、不写 `bridge.db` 行；消息只存在于日志里。`-NoDreamShaderEditorBridge` 同样会关掉 bridge。见
+[命令行](/docs/tools/commandlet)。
+</Callout>
+
+## 只有一种严重级别
+
+`Severity` 默认是 `"error"`，插件里任何地方都不会把它赋成别的值。三个值得知道的后果：
+
+- 解析 **warning** —— 被弃用的写法、缺少 `Outputs` 的提醒 —— 从不入库。它们被追加到编译结果消息上，只在 Output Log 里出现。
+- 只写日志的 warning 同样不入库。
+- 按严重级别上色的扩展，会把每一条 DreamShader 记录都画成 error。
+
+Gen 页对缺失或非 `error` 的 severity 采取过滤而不是报错，所以将来加一个新级别不会把它弄坏。
+
+## 读懂一条消息
+
+带位置的诊断按 MSVC 风格格式化：
+
+```text
+I:/Project/DShader/Materials/M_Sample.dsm(37,9): Unknown Graph identifier 'Tin'.
+```
+
+| 阶段 | 位置从哪来 |
+| :-- | :-- |
+| 顶层解析 | 消息以 `near index {Index}` 结尾；这个索引经由展开 import 后的准备源码映射回真实的文件、行、列 |
+| `Graph` 块 | 块记录的起始偏移，加上语句在块内的相对行列；只有块的第一行需要对列做偏移 |
+| 材质编译 | 引擎自己的 `<path>(<line>,<col>): ` 前缀，被重新解析并重新归属 |
+| 其他一切 | 没有位置 —— 消息退化成 `<file>: <message>`，落在第 1 行第 1 列 |
+
+<Callout type="warn">
+**section 体内部的解析错误，报出来的行列号是错的。** section 体扫描器是在 *section 体子串* 上构造的，所以在
+`Properties`、`Settings`、`Outputs` 或 `Layout` 体内抛出的 `near index {Index}` 是体内局部索引，而映射器却把它当作
+准备源码里的全局索引。文件是对的，位置不是。请改用消息里引用的那段文本去定位语句。
+</Callout>
+
+### `{Placeholder}` 约定
+
+下面每张表里的运行时替换都写成 `{Placeholder}`。后面跟着 `...` 的花括号 —— 比如 `Graph = { ... }` ——
+是消息的字面文本，不是占位符。
+
+| 占位符 | 替换成 |
+| :-- | :-- |
+| `{File}` | 正在编译的 `.dsm` / `.dsf` / `.dsh` 的规范化绝对路径 |
+| `{Name}` | 作者书写的标识符，保留原始大小写 |
+| `{Kind}` | `ShaderFunction`、`ShaderLayer` 或 `ShaderLayerBlend` —— 被弃用的 `MaterialLayer` / `MaterialLayerBlend` 写法从不出现在诊断里 |
+| `{Detail}` | 内层诊断；到它自己所属阶段的表里查 |
+| `{Index}`、`{Count}`、`{Line}` | 数字；参数下标从 1 开始 |
+
+下面的消息全部 **逐字** 引用，包括标点不一致的那些。确实有一条消息末尾没有句点，出现的地方已经标出。
+
+<Callout type="info">
+本页收的是你大概率会遇到的消息。完整清单 —— parser、generator、commandlet 和 VirtualFunction 同步能发出的每一条消息，
+大约是这里的四倍 —— 在插件自带手册的 `Plugins/DreamShader/Docs/diagnostics/index.md`。
+</Callout>
+
+## 解析
+
+词法扫描、顶层块头，以及 import 内联器。它们跑在任何 section 体被检查之前；这里失败会中止整个文件。
+
+<Diag>
+  <D msg="Unexpected token near index {Index}." cause="这个位置没有匹配到任何顶层关键字。直接交给 parser 的 import 行也会落到这里。" fix="检查关键字的拼写和大小写 —— 顶层关键字是语言里唯一区分大小写的 token。" href="/docs/language/lexical" />
+  <D msg="Expected '{' near index {Index}." cause="这里应该出现一个块体。" fix="补上 { … } 块体。" href="/docs/language/file-model" />
+  <D msg="Expected identifier near index {Index}." cause="这里应该是一个标识符 —— 属性键、section 名或块名。" fix="标识符的形式是 [A-Za-z_][A-Za-z0-9_]*。" href="/docs/language/lexical" />
+  <D msg="Expected ',' or ')' near index {Index}." cause="块头属性列表格式不对。" fix="属性之间用逗号分隔；) 前允许有一个多余的逗号。" href="/docs/language/blocks" />
+  <D msg="Unterminated block." cause="到文件末尾都没有 } 闭合这个块。" fix="配平花括号。" href="/docs/language/lexical" />
+  <D msg="Unterminated string literal." cause="到文件末尾仍然停留在带引号的属性值里。" href="/docs/language/lexical" />
+  <D msg="A top-level Shader, Function, GraphFunction, Namespace, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction block was not found." cause="这个解析单元没有声明任何可识别的顶层块。空的 Namespace 体也会落到这里。" fix="加一个顶层块，并确认关键字大小写完全正确。" href="/docs/language/blocks" />
+  <D msg={`Shader(Name="...") is required.`} cause="Shader 块头没有 Name 属性。" fix={`补上 Name="…"。`} href="/docs/language/blocks" />
+  <D msg="Only one top-level Shader block is currently supported." cause="解析单元里出现了第二个 Shader 关键字 —— 这条规则作用于整个传递 import 闭包，不是单个文件。" fix="拆成多个 .dsm 文件。" href="/docs/language/blocks" />
+  <D msg="Shader must provide a Graph block." cause="Shader 的 Code 为空，也没有带初始化式的输出声明。" fix="加上 Graph = { … }，或给某个输出声明写初始化式。" href="/docs/language/blocks" />
+  <D msg="DreamShader import '{Specifier}' referenced from '{File}' could not be resolved." cause="三个候选根目录里都没有这个 specifier，或者某个候选路径逃出了它的包含根。" fix="检查扩展名 —— 不带扩展名的 specifier 隐含 .dsh —— 以及目标是否位于 DShader 或 DShader/Packages 之下。" href="/docs/language/imports" />
+  <D msg="DreamShader import cycle detected at '{File}'." cause="某个文件重新进入了自己的 import 栈。" fix="打断这个环；菱形 import 没问题，环不行。" href="/docs/language/imports" />
+  <D msg="DreamShader header '{File}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports." cause="某个 .dsh 的正文里任何位置出现了 Shader(、ShaderFunction(、ShaderLayer(、ShaderLayerBlend(、MaterialLayer( 或 MaterialLayerBlend( —— 包括注释和字符串字面量里。" fix="把这个块移到 .dsf 或 .dsm，或者改写那句注释。" href="/docs/language/file-model" />
+  <D msg="DreamShader function file '{File}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks." cause="某个 .dsf 的正文里任何位置出现了子串 Shader(。" fix="把 Shader 块移到 .dsm，或者改写那句注释。" href="/docs/language/file-model" />
+  <D msg="Function '{Name}' has an invalid parameter declaration '{Parameter}'." cause="参数没有拆成 2 或 3 个以空白分隔的 token，或者类型、名字为空。" fix="写成 [in|out] <Type> <Name>。" href="/docs/language/functions" />
+  <D msg="Function '{Name}' must declare at least one out parameter." cause="既没有 out 参数，也没有返回类型。" fix="加一个 out 参数，或者加一个返回类型。" href="/docs/language/functions" />
+  <D msg="Function '{Name}' has a return type and cannot also declare out parameters. Use out parameters without a return type for multiple outputs." cause="带返回类型的 Function 同时声明了 out。" fix="二选一。" href="/docs/language/functions" />
+  <D msg="Function '{Name}' parameter '{Parameter}' uses unsupported qualifier '{Qualifier}'. Supported qualifiers are in and out." cause="用了 in / out 以外的限定符 —— 包括 inout。" href="/docs/language/functions" />
+</Diag>
+
+## Section 与声明
+
+section 分派、`Outputs` 自己的文法、`Layout`、`#Region`、`Group(…)` 作用域，以及输出声明和绑定的解析后校验。
+
+<Diag>
+  <D msg="Unknown shader section '{Section}'." cause="出现了 Properties / Settings / Outputs / Graph / Layout / Code 之外的 section。" fix="检查拼写；Shader 里不接受 Inputs、Results 和 Options。" href="/docs/language/sections" />
+  <D msg="Unknown material function section '{Section}'." cause="出现了 Properties / Inputs / Outputs / Results / Settings / Graph / Layout / Code 之外的 section。" fix="检查拼写；这里不接受 Options。" href="/docs/language/sections" />
+  <D msg="Shader graph sections now use Graph = { ... }. Function Code = { ... } is still supported." cause="Shader 块里出现了 Code section。" fix="改名为 Graph。" href="/docs/language/sections" />
+  <D msg="Invalid typed declaration '{Statement}'." cause="左侧没能拆成 <Type> <Name>，或者名字不是标识符。类型和名字之间用 tab 分隔会在这里失败 —— 这个拆分器找的是字面空格。" fix="把 tab 换成空格。" href="/docs/language/sections" />
+  <D msg="Unsupported output type '{Type}' for '{Name}'." cause="Outputs 声明的类型 token 无法解析。" href="/docs/language/types-and-values" />
+  <D msg="Unsupported material output '{Name}'." cause="Base. 后面的名字不是可识别的材质属性。" fix="对照 Base.* 目标目录。" href="/docs/generation/outputs" />
+  <D msg="Output binding target '{Target}' must start with Base. for material outputs or Expression(...) for output nodes." cause="绑定目标两种形式都不是。" href="/docs/generation/outputs" />
+  <D msg="Output variable '{Name}' is declared as '{Type}' but bound material property '{Property}' expects a different type." cause="声明的类型和目标的类型不一致。" fix="把声明改成与目标一致。" href="/docs/generation/outputs" />
+  <D msg="Output variable '{Name}' must declare an explicit type before binding to expression target '{Target}'." cause="变量绑定到 Expression( … ).Pin[i]，但没有声明。" fix="先在 Outputs 里声明这个变量。" href="/docs/generation/outputs" />
+  <D msg="Outputs declarations cannot use the reserved name 'return'." cause="Outputs 里出现了名为 return 的声明（忽略大小写）。" href="/docs/generation/outputs" />
+  <D msg="The reserved output name 'return' can only bind to Base material properties." cause="return 被绑定到 Expression( … ).Pin[i] 目标。" fix="改成绑定一个具名变量。" href="/docs/generation/outputs" />
+  <D msg="Base.FrontMaterial requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上绑定了 Base.FrontMaterial。" href="/docs/builtins/substrate" />
+  <D msg="Output '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上出现了 Substrate 类型的输出声明。" href="/docs/builtins/substrate" />
+  <D msg={`Unexpected '{' in Properties near '{Text}'. Only Group("Name") { ... } may open a brace here.`} cause={`Properties 里出现了不属于 Group("Name") 头部的花括号。`} href="/docs/parameters/metadata" />
+  <D msg={`Unterminated Group("{Name}") { ... } block.`} cause="Group 作用域没有闭合。" href="/docs/parameters/metadata" />
+  <D msg="Graph #Region '{Name}' is missing #EndRegion." cause="Graph 体结束时仍有 region 没关闭；报的是最内层那个。" href="/docs/language/layout" />
+  <D msg="Invalid Layout Node statement '{Statement}'. {Detail}" cause="Node( … ) 的参数校验失败。" fix="提供 Var、X、Y。" href="/docs/language/layout" />
+  <D msg={`Parameter node type '{Type}' is recognized but not supported as a plain Properties declaration yet. Use UE.{Type}(OutputType="float4", ...) for reflected node creation.`} cause="这个表达式类 token 是已知的，但没有对应的 Properties 声明形式。" fix="改成用 UE.* 内置节点属性来声明。" href="/docs/parameters/properties" />
+</Diag>
+
+## Graph 语句与表达式
+
+`Graph = { … }` 内部的语句与表达式语言，外加构造器、swizzle 和强制转换。这里的解析阶段消息通常被语句级前缀
+`In Graph statement '{Statement}': {Detail}` 包起来。
+
+<Diag>
+  <D msg="Unknown Graph identifier '{Name}'." cause="这个名字既不是变量、property、输出，也不是 true / false。对 StaticSwitchParameter 做裸读取也会落到这里 —— 它必须以调用形式使用。" fix="检查拼写；Graph 变量查找忽略大小写，但拼错还是拼错。" href="/docs/graph/expressions" />
+  <D msg="In Graph statement '{Statement}': {Detail}" cause="语句级包装。{Detail} 才是真正的诊断。" href="/docs/graph/statements" />
+  <D msg="Failed to declare Graph variable '{Name}'. {Detail}" cause="没有初始化式、且类型 token 无法解析的声明 —— 大多数「不支持的写法」失败都被它包着。" href="/docs/graph/unsupported" />
+  <D msg="Unsupported Graph variable type '{Type}'." cause="裸声明的类型 token 无法解析。return x;、for (…) { }、while (…) { }、do { } 和 switch (…) { } 都会出现在这里，因为它们都被当成声明解析。" href="/docs/graph/unsupported" />
+  <D msg="Unsupported Graph variable type '{Type}' for '{Name}'." cause="同上，但声明带初始化式。带空格写的 a += b 会落到这里。" fix="不支持复合赋值；写成 a = a + b。" href="/docs/graph/unsupported" />
+  <D msg="Graph expression statements currently support only Function calls with explicit out arguments." cause="不是调用的裸表达式语句：break;、continue;、return;、a++;、单独一个标识符。" href="/docs/graph/unsupported" />
+  <D msg="Graph variable '{Name}' is declared more than once." cause="重复声明。查找忽略大小写，所以 Tint 和 tint 会冲突。" href="/docs/graph/statements" />
+  <D msg="Graph variable '{Name}' is declared as '{Type}' but assigned an incompatible value. {Detail}" cause="初始化式无法转换到声明的类型。" href="/docs/graph/expressions" />
+  <D msg="Graph variable '{Name}' was previously assigned an incompatible value. {Detail}" cause="重新赋值的形状与该变量第一次的值不同。" href="/docs/graph/expressions" />
+  <D msg="Graph variable type '{Type}' requires an explicit initializer." cause="纹理或 Substrate 类型的裸声明 —— 只有标量和向量会默认初始化。" href="/docs/graph/statements" />
+  <D msg="Graph output variable '{Name}' was assigned an incompatible value. {Detail}" cause="赋给某个 Outputs 名字的值无法转换到它声明的类型。" href="/docs/graph/expressions" />
+  <D msg="Unexpected token '{Token}' in Graph expression." cause="primary 位置出现了非 primary token，或者一个完整表达式之后还剩下真实 token。" fix="词法器不认识的字符永远不会走到这条消息 —— 它们会静默截断表达式。" href="/docs/graph/unsupported" />
+  <D msg="Expected token type {Type} in Graph expression near '{Text}'." cause="需要 ) 或 , 却没找到 —— 括号里出现未知字符时的典型症状。" href="/docs/graph/unsupported" />
+  <D msg="Operator '{Op}' requires matching vector sizes or a scalar/vector pair, got {A} and {B} component(s)." cause="操作数宽度不匹配。" fix="对其中一个操作数做 swizzle 或 splat。" href="/docs/graph/expressions" />
+  <D msg="Integer division is not supported by the material graph; use float() or floor(a/b)." cause="int(a) / int(b)。" href="/docs/graph/expressions" />
+  <D msg="Arithmetic operators cannot be applied to texture values." cause="对纹理对象用了 + - * /。" fix="先采样纹理。" href="/docs/graph/expressions" />
+  <D msg="Arithmetic operators cannot be applied to MaterialAttributes values." cause="对 MaterialAttributes 值用了 + - * /。" fix="先读出某个成员。" href="/docs/graph/statements" />
+  <D msg="Swizzle '{Swizzle}' is invalid for a value with {Count} components." cause="swizzle 引用了该值没有的通道。" fix="加宽这个值，或者缩短 swizzle。" href="/docs/graph/expressions" />
+  <D msg="Unsupported swizzle '{Swizzle}'." cause="出现了 xyzw / rgba 之外的字符，或者超过四个字符。" fix="从同一套里最多取四个通道。" href="/docs/graph/expressions" />
+  <D msg="Texture values do not support swizzle/member access in Code." cause="对纹理对象用了 .rgb。" fix="先采样纹理。" href="/docs/graph/expressions" />
+  <D msg="Constructor '{Name}' expects {Expected} total components but got {Actual}." cause="参数宽度加起来对不上。" href="/docs/graph/expressions" />
+  <D msg="Expected {Expected} component(s) but got {Actual}." cause="数值转换的宽度不对。" fix="显式加宽、收窄或 splat。" href="/docs/graph/expressions" />
+  <D msg="String literals can only be used in named UE builtin arguments." cause="把带引号的字符串当成值使用。" href="/docs/graph/expressions" />
+  <D msg="Graph if statement is missing a '{ ... }' body." cause="条件之后没有花括号 —— 不接受单语句体。" href="/docs/graph/control-flow" />
+  <D msg="Graph if condition left side must evaluate to a scalar value." cause="比较左侧是向量。" fix="用标量，或者加 swizzle。" href="/docs/graph/control-flow" />
+  <D msg="Unsupported Graph if comparison operator '{Op}'." cause="用了 > < >= <= == != 之外的运算符。" href="/docs/graph/control-flow" />
+  <D msg="Graph if statement could not resolve both branch values for '{Name}'." cause="某个名字只在一个分支里被赋值 —— 分支内的局部声明会泄漏到合并阶段。" fix="两个分支都赋值，或者在 if 之前声明。" href="/docs/graph/control-flow" />
+  <D msg="Graph if branches assign variable '{Name}' with inconsistent types" cause="两个分支的值在种类或宽度上不同。这条消息末尾没有句点。" href="/docs/graph/control-flow" />
+  <D msg="Unknown MaterialAttributes variable '{Name}'." cause="对未声明的名字做成员写入。" href="/docs/graph/statements" />
+  <D msg="MaterialAttributes values cannot be assigned to numeric outputs." cause="把 attributes 值赋给了数值目标。" fix="先读出某个成员。" href="/docs/graph/statements" />
+  <D msg="Texture objects cannot be assigned to numeric outputs." cause="把纹理对象赋给了数值目标。" fix="先采样。" href="/docs/graph/expressions" />
+</Diag>
+
+## 内置节点
+
+`Graph` 里的 `UE.*` 与 `Substrate.*` 调用面、`Properties` 里的 `UE.*` 声明形式、数学内置节点，以及共用的反射值写入器。
+`{Namespace}` 是 `UE` 或 `Substrate`。
+
+<Diag>
+  <D msg={`Unsupported UE builtin call '{Name}' in Graph. For generic MaterialExpression calls, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture/Substrate".`} cause="未注册的 UE.* 名字，且没有 OutputType / ResultType。" fix={`补上 OutputType="…"。提示字符串本身并不完整 —— MaterialAttributes、SamplerState、StaticBool 以及 half* / vec* / ivec* / uvec* / bvec* / int* / uint* / bool* 系列同样被接受。`} href="/docs/builtins/ue-expression" />
+  <D msg={`Unsupported UE builtin function '{Name}'. Use OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture" for generic MaterialExpression calls.`} cause="同上，适用于 Properties 声明形式。" fix={`补上 OutputType="…"；注意声明形式不接受 MaterialAttributes。`} href="/docs/parameters/properties" />
+  <D msg={`UE.Expression requires Class="MaterialExpressionName".`} cause="UE.Expression( … ) 没有 Class。" fix="加上 Class，或者写成 UE.<ClassName>( … ) 让 Class 默认取函数名。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} could not resolve MaterialExpression class '{Class}'." cause="没有任何已加载的、非抽象的 UMaterialExpression 子类匹配上任何候选写法。" fix="解析比较的是反射类名，它不带 U 前缀。写 Sine、MaterialExpressionSine 或 /Script/Engine.MaterialExpressionSine —— 带 U 前缀的写法永远解析不到。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} OutputType '{Type}' is not supported." cause="这个 token 解析不到任何已声明类型。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Name}: '{Argument}' is not a property on '{Class}'." cause="在非 Custom 节点上，这个参数既不匹配输入 pin 也不匹配反射属性。" fix="对照节点的 pin 和 UPROPERTY 检查名字。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} input '{Input}': {Detail}" cause="某个参数子表达式求值失败。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} output '{Output}' was not found on '{Class}'." cause="Output= / OutputName= 没有匹配到任何输出。未命名输出还接受掩码伪名 R、G、B、A、RG、RGB、RGBA。" href="/docs/builtins/ue-expression" />
+  <D msg="UE.{Name} OutputIndex is out of range for '{Class}'." cause="OutputIndex 是负数，或者超出了节点的输出数量。" href="/docs/builtins/ue-expression" />
+  <D msg="Generic {Namespace}.{Name} calls require named arguments." cause="通用 UE.* / Substrate.* 路径上出现了位置参数。" fix="每个参数都写成 Key=Value。" href="/docs/builtins/ue-expression" />
+  <D msg="'{Value}' is not a valid enum value for '{Property}'." cause="四种可接受的枚举写法都没匹配上。" fix="试试短名、全名、显示名，或者去掉前缀的短名。" href="/docs/builtins/ue-expression" />
+  <D msg="'{Value}' is not a valid boolean value for '{Property}'." cause="反射 bool 属性被写成了非布尔值。" fix="用 true 或 false。" href="/docs/builtins/ue-expression" />
+  <D msg={`Property '{Property}' on '{Class}' is not a supported literal type yet.`} cause="结构体或数组属性的文本没能通过 Unreal 自己的导入。" fix="使用 Unreal 的字面量语法，例如 (R=1,G=0,B=0,A=1)。" href="/docs/parameters/metadata" />
+  <D msg="UE builtin property '{Name}' does not support inline defaults. Put arguments inside UE.{Function}(...)." cause="写成了 UE.X Name = value; 的形式。" fix="把值挪进参数列表。" href="/docs/parameters/properties" />
+  <D msg={`UE.SceneTexture expects exactly Id="..." (e.g. Id="PostProcessInput0").`} cause="UE.SceneTexture 的调用参数不是单个 Id=。" href="/docs/builtins/ue-nodes" />
+  <D msg={`This builtin is not implemented by the material generator yet. For generic MaterialExpression support, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture".`} cause="parser 接受但 generator 没有实现的属性形式 UE.* 名字 —— UE.VertexNormalWS 和 UE.VertexTangentWS 是现存的两个。" fix={`加上 OutputType="…" 走通用路径，例如 UE.VertexNormalWS(OutputType="float3")。`} href="/docs/builtins/ue-nodes" />
+  <D msg="SampleTexture2D expects exactly two positional arguments: (textureObject, uv)." cause="参数个数不对。这个名字区分大小写。" fix="写成 SampleTexture2D(Tex, UV)。" href="/docs/builtins/ue-expression" />
+  <D msg="Math function '{Name}' expects exactly 1 argument." cause="一元内置节点的参数个数不对 —— 或者某个参数带了名字，那也报成个数错误。" fix="传恰好一个位置参数。两参数和三参数的版本消息形式相同。" href="/docs/builtins/math" />
+  <D msg="Math function '{Name}' only accepts numeric scalar/vector arguments." cause="参数是纹理、MaterialAttributes 或 Substrate 值。" href="/docs/builtins/math" />
+  <D msg="Substrate builtin call '{Name}' requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上进行任何 Substrate.* 调用。" href="/docs/builtins/substrate" />
+  <D msg="Unsupported Substrate builtin call '{Name}' in Graph." cause="这个名字不在 Substrate.* 表里。" href="/docs/builtins/substrate" />
+  <D msg="{Namespace}.{Name} input '{Input}' does not accept MaterialAttributes values." cause="把 attributes 值接到了数值 pin 上。" fix="先读出某个成员。" href="/docs/graph/statements" />
+</Diag>
+
+## 函数与调用
+
+从 `Graph` 调用 `Function`、`GraphFunction`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` 和
+`VirtualFunction`，以及生成的 HLSL helper include。`{Kind}` 是调用种类。
+
+<Diag>
+  <D msg="Unknown Graph function '{Name}'." cause="被调用者不是已声明的 Function。拼错的内置名在穿过所有其他解析步骤之后也落到这里。" fix="检查拼写和 import。" href="/docs/graph/calls" />
+  <D msg="Graph call '{Name}' is ambiguous because multiple definitions use that name: {Names}." cause="一个名字被多个可调用体声明。" fix="改名，或者用 namespace 限定。" href="/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' expects {Total} arguments ({Inputs} inputs, {Outs} out targets) but got {Actual}." cause="语句形式的参数个数不对。" fix="先传所有输入，再传所有 out 目标。" href="/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' has {Count} outputs and must be called with explicit out variables, for example {Name}(..., ResultA, ResultB)." cause="多输出 Function 被当成值表达式使用。" fix="改用带 out 目标的语句形式。只有单输出函数可以按返回值调用。" href="/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' returns one value and expects {Expected} input argument(s) when used as a value expression, but got {Actual}." cause="值形式的参数个数不对。" href="/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' currently uses positional arguments only." cause="Function 调用里出现了命名参数。" href="/docs/graph/calls" />
+  <D msg="DreamShader Function '{Name}' input '{Input}' uses Substrate, which is not supported by HLSL Custom node functions. Use GraphFunction or ShaderFunction instead." cause="HLSL Function 上出现了 Substrate 输入。" href="/docs/builtins/substrate" />
+  <D msg="SelfContained Function cycle detected: {Chain}. HLSL Custom nodes cannot compile recursive DreamShader functions." cause="SelfContained / Inline 函数之间存在递归。" href="/docs/language/functions" />
+  <D msg="GraphFunction cycle detected: {Chain}." cause="GraphFunction 直接或间接调用了自己。" href="/docs/language/functions" />
+  <D msg="DreamShader GraphFunction '{Name}' result '{Result}' was never assigned." cause="函数体从未写入这个结果。" href="/docs/language/functions" />
+  <D msg="{Kind} '{Name}' is missing required input '{Input}'." cause="没有提供某个非 opt 输入。" fix="补上它，或者把这个输入标成 opt。" href="/docs/language/sections" />
+  <D msg="{Kind} '{Name}' does not have an input named '{Input}'." cause="命名参数没有匹配到任何已声明输入。" href="/docs/graph/calls" />
+  <D msg="{Kind} '{Name}' input arguments cannot mix positional and named forms." cause="一部分参数带名字，一部分是位置参数。" fix="二选一。" href="/docs/graph/calls" />
+  <D msg={`{Kind} '{Name}' exposes multiple outputs. Specify Output="Name" or OutputIndex=N.`} cause="对多输出资产做了值形式调用。" href="/docs/graph/calls" />
+  <D msg="{Kind} '{Name}' could not load MaterialFunction asset '{Path}'." cause="引用的资产不存在。" href="/docs/graph/calls" />
+</Diag>
+
+## Properties 与参数
+
+`Properties` 声明、`[ … ]` 元数据块、参数节点构造、`Path( … )` 资产引用，以及从 `Graph` 读取参数。
+
+<Diag>
+  <D msg="Unsupported property type '{Type}'." cause="类型 token 既不是紧凑类型、也不是参数节点 token，也没有 UE. 前缀。" fix="对照类型目录检查这个 token。" href="/docs/parameters/properties" />
+  <D msg="Invalid property declaration '{Statement}'." cause="类型和名字之间没有顶层空白分隔。" href="/docs/parameters/properties" />
+  <D msg="{File}: Property '{Name}' is declared more than once. Property names must be unique." cause="两个 Properties 条目的名字忽略大小写后相等。" href="/docs/parameters/properties" />
+  <D msg="Invalid scalar default value '{Value}' for property '{Name}'." cause="默认值没能解析成数字、true 或 false。" href="/docs/parameters/properties" />
+  <D msg="Invalid vector default value '{Value}' for property '{Name}'." cause="默认值没能解析成 1–4 分量的字面量。" fix="使用 float3(…)、vec3(…) 或 ( … )。" href="/docs/parameters/properties" />
+  <D msg="Texture property '{Name}' could not load asset '{Path}'." cause="显式默认资产加载失败。" href="/docs/parameters/path" />
+  <D msg="Texture property '{Name}' with type Texture2DArray requires an explicit default asset." cause="Texture2DArray 没有引擎默认资产。" fix="补上 = Path( … )。" href="/docs/parameters/properties" />
+  <D msg="{Context} texture property '{Name}' expects {Expected} but '{Path}' is a '{Class}'." cause="赋的纹理维度与声明类型不符。{Context} 是 Const 或 Texture。" fix="换一张维度正确的纹理，或者改用 TextureObjectParameter —— 它从资产本身取维度。" href="/docs/parameters/properties" />
+  <D msg={`Texture defaults must use Path(Game|Engine|Plugin.PluginName, "/Folder/Asset"), Path("/Game/Folder/Asset"), or a bare "/Game/Folder/Asset".`} cause="默认值不是这三种可接受形式之一。" href="/docs/parameters/path" />
+  <D msg="Asset Path(...) expects either 1 argument (/Game/... path) or 2 arguments (Game|Engine|Plugin.PluginName, asset path)." cause="Path( … ) 的参数个数不对。" href="/docs/parameters/path" />
+  <D msg="Unsupported asset Path root '{Root}'. Use Game, Engine, or Plugin.PluginName." cause="元数据或 collection 引用里出现了无法识别的 root。" href="/docs/parameters/path" />
+  <D msg="Metadata entry '{Entry}' must use Key=Value syntax." cause="除 Slider( … ) 之外，元数据条目里没有顶层 =。" href="/docs/parameters/metadata" />
+  <D msg="Metadata key '{Key}' is declared more than once." cause="归一化之后出现重复键；消息回显原始写法。" href="/docs/parameters/metadata" />
+  <D msg="Metadata property '{Property}' is not a reflected property on '{Class}'." cause="无法识别的元数据键，且不属于三个软失败的组织字段。" fix="删掉它，或者换成真实的 UPROPERTY 名。" href="/docs/parameters/metadata" />
+  <D msg="Metadata 'Slider(min, max)' requires exactly two numeric bounds: '{Entry}'." cause="参数个数不对，或者边界不是数字。" fix="写成 Slider(0, 1)。" href="/docs/parameters/metadata" />
+  <D msg="Parameter '{Name}' ({Type}) has no input pin named '{Pin}'. Asset slots (Texture/Curve/Font/...) are set via [{Pin}=Path(...)] metadata, not call arguments." cause="调用形式的参数没有匹配到任何引擎 pin。最常见的是在纹理采样参数上写 TextureObject。" fix="资产槽位通过元数据设置；连线请用真实的 pin 名。" href="/docs/parameters/properties" />
+  <D msg="Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...))." cause="参数调用形式里出现了位置参数。" href="/docs/parameters/properties" />
+  <D msg="StaticSwitchParameter '{Name}' requires True=... and False=... inputs." cause="缺少一个或两个分支。A= / B= 以及位置 0 / 1 都是可接受的别名。" href="/docs/parameters/properties" />
+</Diag>
+
+## Settings
+
+`Shader` 的 `Settings` section —— 特殊键加上反射到 `UMaterial` 的属性路径 —— 以及材质函数 `Settings` 认可的四个键。
+`{Key}` 回显的是 **小写化后** 存下来的键，不是作者书写的写法。
+
+<Diag>
+  <D msg="Unsupported material setting '{Key}'." cause="按别名、归一化名、去掉 b 前缀、DisplayName 四种方式都没有在 UMaterial 上匹配到 FProperty。" fix="在材质的详情面板里核对属性名。" href="/docs/settings/material" />
+  <D msg="Invalid setting declaration '{Statement}'." cause="语句里没有顶层 =。" fix="写成 Key = Value;。" href="/docs/settings/material" />
+  <D msg="Invalid value '{Value}' for setting '{Key}'. {Detail}" cause="反射写入失败；{Detail} 是内置节点表里的值写入器消息。" href="/docs/settings/material" />
+  <D msg="Invalid boolean value '{Value}' for {Key}." cause="被 generator 当作布尔读取的设置项，给了既不是 true 也不是 false 的文本（忽略大小写比较）。" href="/docs/settings/material" />
+  <D msg="Unsupported ShadingModel '{Value}'." cause="这个值没有匹配到任何 EMaterialShadingModel 名称、别名或项目映射。" href="/docs/settings/enums" />
+  <D msg="Unsupported BlendMode/RenderType '{Value}'." cause="这个值没有匹配到任何 EBlendMode 名称、别名或项目映射。" href="/docs/settings/enums" />
+  <D msg="Unsupported MaterialDomain '{Value}'." cause="这个值没有匹配到任何 EMaterialDomain 名称、别名或项目映射。" href="/docs/settings/enums" />
+  <D msg="Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom." cause="无法识别的 Backend 值。" fix="用 Graph 或 ThinCustom；Instance 是 ThinCustom 的弃用别名。" href="/docs/settings/backend" />
+  <D msg={`ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.`} cause="在 UE 5.3 上使用 Substrate 或 Strata。" href="/docs/settings/enums" />
+  <D msg="{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader." cause="两个绑定同时存在。" href="/docs/generation/outputs" />
+  <D msg="{Kind} '{Name}': ExposeToLibrary must be true or false." cause="材质函数 Settings 里的 ExposeToLibrary 不是布尔值。" href="/docs/settings/material" />
+</Diag>
+
+## 资产生成与保存
+
+流水线闸门、资产命名与 root 解析、节点图填充、归属守卫，以及 package 保存。
+
+<Diag>
+  <D msg="{File}: Outputs block is required." cause="Shader 没有声明任何输出绑定。" fix="至少加一条 Base.<Property> = …; 绑定。" href="/docs/generation/outputs" />
+  <D msg="{File}: This file does not define a top-level Shader block." cause="对没有 Shader 的文件请求了材质生成。" href="/docs/language/blocks" />
+  <D msg="Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your shader or move/delete the existing asset before regenerating." cause="归属守卫：磁盘上的材质没有 DreamShader.SourceFile 元数据。" fix="给 Shader 改名，或者删掉那个资产。" href="/docs/generation/regeneration" />
+  <D msg="Asset '{ObjectPath}' already exists and was not generated by DreamShader. Rename your function or move/delete the existing asset before regenerating." cause="同一个守卫，适用于函数资产。" href="/docs/generation/regeneration" />
+  <D msg="Asset '{ObjectPath}' already exists and is not a Material." cause="Graph backend；目标路径上是另一个 UClass。" href="/docs/generation/asset-paths" />
+  <D msg={`Asset '{ObjectPath}' already exists and is not a DreamShader instance material. Delete it (or remove Backend="Instance") before switching backends.`} cause="ThinCustom backend；目标路径上是另一个 UClass。" href="/docs/settings/backend" />
+  <D msg="Asset '{ObjectPath}' already exists as '{Actual}', but {Kind} generation requires '{Expected}'. Delete or move the existing asset and regenerate it." cause="块的种类变了 —— 比如 ShaderFunction 改成了 ShaderLayer。" fix="删掉旧资产再重新生成。" href="/docs/generation/asset-paths" />
+  <D msg="DreamShader Root '{Root}' must reference a project plugin under '{Dir}'." cause="这个插件是引擎插件或市场插件，不是项目插件。" href="/docs/generation/asset-paths" />
+  <D msg="Generated DreamShader asset '{ObjectPath}' could not be saved." cause="单个资产保存失败。" fix="检查版本控制和文件权限。" href="/docs/generation/pipeline" />
+  <D msg="DreamShader header '{File}' does not generate assets directly. Recompile dependent .dsm or .dsf files instead." cause="对 .dsh 请求了资产生成。" href="/docs/language/file-model" />
+  <D msg="{File}: Graph output '{Name}' does not match its declared type." cause="Graph 里赋的值形状不对。" href="/docs/graph/expressions" />
+  <D msg="{Kind} '{Name}' output '{Output}' was never assigned an expression." cause="Graph 体从未给这个输出赋值。" href="/docs/language/blocks" />
+  <D msg="ShaderLayer '{Name}' must declare at most one input, and it must be MaterialAttributes. Use Properties for layer controls." cause="layer 的输入过多或类型不对。" href="/docs/language/blocks" />
+  <D msg="ShaderLayerBlend '{Name}' must declare exactly two inputs, both MaterialAttributes. Use Properties for blend controls." cause="blend 的输入形状不对。" href="/docs/language/blocks" />
+  <D msg="{Kind} '{Name}' must declare exactly one MaterialAttributes output." cause="ShaderLayer / ShaderLayerBlend 的输出形状不对。" href="/docs/language/blocks" />
+  <D msg="{File}: Material output '{Name}' expects a MaterialAttributes value." cause="把数值绑定到了 Base.MaterialAttributes。" href="/docs/graph/statements" />
+  <D msg="{File}: Material output '{Name}' expects a Substrate value and cannot be driven by a material Custom node. Use a Graph block and Substrate.* nodes." cause="ThinCustom / HLSL 路径产生不出 Substrate 值。" fix={`设置 Backend = "Graph"。`} href="/docs/settings/backend" />
+</Diag>
+
+## 命令行
+
+`-run=DreamShader` 与 cook 阶段的生成钩子。这些都不会进入诊断存储 —— bridge 不在 commandlet 进程里运行。
+
+<Diag>
+  <D msg="DreamShader compile requires a .dsm or .dsf file: {File}" cause="这个文件不是 DreamShader 源文件，或者是 .dsh 头文件。运行会继续，但整体被标记为失败。" href="/docs/tools/commandlet" />
+  <D msg="Unknown DreamShader command '{Command}'." cause="第一个裸 token 不是 compile、generate、decompile 或 export。第一个位置上的多余裸 token 会被当成命令名吃掉。后面会跟着用法横幅。" href="/docs/tools/commandlet" />
+  <D msg="DreamShader could not load asset '{Path}'." cause="规范化路径和原始路径都加载失败。" fix="检查对象路径；/Game/Path/Asset 会被自动展开成 /Game/Path/Asset.Asset。" href="/docs/tools/commandlet" />
+  <D msg="DreamShader decompile supports Material and MaterialFunction assets only: {Path}" cause="这个资产既不是 UMaterial，也不属于 UMaterialFunction 家族。" href="/docs/tools/decompiler" />
+  <D msg="DreamShader cook generation failed for {Count} source file(s); aborting the cook. See the [Cook] Failed entries above." cause="cook 阶段生成时有一个或多个源文件失败。记在 Fatal 级别，会中止 cook。" fix="cook 之前先在编辑器里把每个源文件干净地编译一遍，或者跑一次 commandlet。" href="/docs/generation/in-memory" />
+</Diag>
+
+## VirtualFunction 同步
+
+启动时重新读取每个 `VirtualFunction` 声明、并从它的 `UMaterialFunction` 资产刷新的那个服务。这些会以
+`stage = virtualFunctionSync` 入库。
+
+<Diag>
+  <D msg="VirtualFunction '{Name}' references missing MaterialFunction '{Path}'." cause="资产加载失败。" fix="恢复资产，或者更新 Options.Asset。" href="/docs/language/blocks" />
+  <D msg="VirtualFunction '{Name}' could not be refreshed from MaterialFunction '{Path}': {Detail}" cause="声明构建器失败。" href="/docs/tools/editor" />
+  <D msg="DreamShader could not read VirtualFunction source file '{File}'." cause="源文件不可读；报在第 1 行第 1 列。" fix="检查文件锁和权限。" href="/docs/tools/editor" />
+  <D msg="{Kind} '{Name}' input '{Input}' does not exist on MaterialFunction asset '{Path}'." cause="声明里的输入在资产上不存在 —— 通常是声明写完之后资产变了。" fix="重新同步这份声明。" href="/docs/tools/editor" />
+</Diag>
+
+## 警告
+
+警告不会让编译失败，也不会进入诊断存储。它们被追加到编译结果消息上，或者记在 `LogDreamShader` 下。
+
+| 消息 | 被弃用的写法 | 替代写法 | 弃用于 |
+| :-- | :-- | :-- | :-- |
+| `MaterialLayer is deprecated; use ShaderLayer instead.` | `MaterialLayer( … ) { … }` | `ShaderLayer( … ) { … }` | 1.3.0 |
+| `MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.` | `MaterialLayerBlend( … ) { … }` | `ShaderLayerBlend( … ) { … }` | 1.3.0 |
+
+<Callout type="warn">
+这是 **仅有的两个** 会发警告的弃用。其余每一种被弃用或别名化的写法都被静默接受：`Backend = "Instance"`、
+项目级的 **Default Compiler Backend = Instance**、用 `Results = { … }` 代替 `Outputs`，以及在 `VirtualFunction` 里用
+`Properties` / `Settings` 代替 `Inputs` / `Options`。没有任何东西会告诉你它们是遗留写法。
+</Callout>
+
+其他值得认得的警告：
+
+| 消息 | 含义 |
+| :-- | :-- |
+| `No Outputs block was provided. Generation requires explicit material property bindings.` | 解析成功；随后生成会以 `{File}: Outputs block is required.` 失败 |
+| `'{Class}' does not expose the '{Field}' organization field; ignoring it for this parameter.` | `Group`、`SortPriority` 或 `Desc` 元数据被写到了没有该属性的节点类上。只有这三个字段是软失败 —— 其他缺失的键都是错误 |
+| `In-memory material mode: '{ObjectPath}' already exists as a saved asset, which shadows in-memory regeneration. Delete the saved asset to make it fully in-memory.` | 目标路径上已保存的 `.uasset` 会遮蔽内存材质 |
+| `Skipping automatic layout for large DreamShader graph ({Count} nodes). Existing generated positions will be used.` | 记在 `Display` 级别；跳过了自动布局 |
+| `Failed to open DreamShader bridge database for diagnostics: {Detail}` | `bridge.db` 打不开；JSON sink 仍然会写 |
+| `DreamShader commandlet found no source files to compile.` | `compile -All` 解析出空列表。commandlet 仍然以 **0** 退出 |
+
+## 什么都不报的时候
+
+有些错误根本不会产生消息。数量最大的一类是 **表达式截断**：`Graph` 的词法器把它不认识的每一个字符 ——
+`%`、`&`、`|`、`^`、`<`、`>`、`?`、`[`、`!` 等等 —— 变成表达式结束 token，然后 parser 接受它前面那段表达式。
+`a % b` 编译成 `a`，`if (x > 0 && y > 0)` 编译成 `if (x > 0)`。
+
+[不支持的写法](/docs/graph/unsupported) 用一整页讲这件事。其余静默情况的简表在
+[当前限制](/docs/diagnostics/limitations)。
+
+## 成功消息
+
+同一条流水线在成功时返回下面这些 —— 在脚本里编译并匹配输出时很有用。
+
+| 消息 | 含义 |
+| :-- | :-- |
+| `Generated {ObjectPath} from {File}.{Suffix}` | Graph backend 成功；纯内存材质时 `{Suffix}` 是 ` (virtual)` |
+| `Generated DreamShader thin-custom material {ObjectPath} from {File}.` | ThinCustom backend 成功 |
+| `Generated {Kind} {ObjectPath} from {File}.` | 某个材质函数成功 |
+| `Generated DreamShader helper include '{Path}' from {File}.` | 生成的 `.ush` 已写出 |
+| `Skipped {ObjectPath} from {File}; source hash is unchanged.` | source hash 缓存短路了；用 `-Force` 覆盖 |
+| `DreamShader file '{File}' contains GraphFunction declarations only; no assets were generated.` | 成功；只产出了 helper include |
+| `DreamShader file '{File}' contains VirtualFunction declarations only; no assets were generated.` | 成功；这个文件只声明已有资产 |
+
+## 一条错误，四个界面
+
+```c
+// DShader/Materials/M_Sample.dsm
+Shader(Name="Materials/M_Sample")
+{
+    Properties = { vec3 Tint = vec3(1.0, 0.4, 0.1); }
+    Outputs    = { vec3 Color; Base.EmissiveColor = Color; }
+    Graph      = {
+        vec2 UV = UE.TexCoord(Index = 0);
+        Color   = Tin * UV.x;          // typo: Tin, not Tint
+    }
+}
+```
+
+Output Log：
+
+```text
+LogDreamShader: Error: I:/Project/DShader/Materials/M_Sample.dsm(8,19): Unknown Graph identifier 'Tin'.
+```
+
+`Saved/DreamShader/Bridge/diagnostics.json`：
+
+```json
+{
+  "version": 1,
+  "updatedAtUtc": "2026-07-29T11:04:22Z",
+  "files": [
+    {
+      "path": "I:/Project/DShader/Materials/M_Sample.dsm",
+      "diagnostics": [
+        {
+          "message": "Unknown Graph identifier 'Tin'.",
+          "detail": "I:/Project/DShader/Materials/M_Sample.dsm(8,19): Unknown Graph identifier 'Tin'.",
+          "stage": "generate",
+          "code": "generate-error",
+          "line": 8,
+          "column": 19,
+          "severity": "error",
+          "source": "DreamShader Generate"
+        }
+      ]
+    }
+  ]
+}
+```
+
+同一条记录还会写进 `Bridge/diagnostics/<md5>.json` 和 `Bridge/bridge.db` 的 `diagnostics` 表，并出现在
+Dream Shader Gen 页的源文件列表里 —— 这也正是 VSCode 和 Rider 扩展用来画波浪线的数据。
+
+## 按顺序修
+
+一个文件报出一大堆消息时，请自上而下地修。后面的阶段跑在前面阶段的产物上，所以一个解析错误能凭空生出十几条下游抱怨。
+
+<Steps>
+
+<Step>
+**先修解析。** 配平花括号、引号和圆括号，检查关键字大小写。文件解析不过，后面的阶段一个都不会跑。
+</Step>
+
+<Step>
+**然后是 import 和未知名字。** `could not be resolved`、`Unknown Graph identifier` 和 `Unknown Graph function`
+通常就是少了一条 `import`，或者拼错了一个字。
+</Step>
+
+<Step>
+**然后是类型与签名。** 分量数不匹配、`Expected {Expected} component(s)`，以及各种调用参数个数消息。
+</Step>
+
+<Step>
+**然后是生成。** 归属守卫、资产路径和保存失败 —— 这些说明源码是对的，目标不对。
+</Step>
+
+<Step>
+**最后是 Unreal 自己的材质编译。** 这些消息带着引擎的 `<path>(<line>,<col>)` 前缀，被重新归属到你的源文件上。
+它们是唯一不是 DreamShader 产生的消息。
+</Step>
+
+</Steps>
+
+## 继续阅读
+
+<Cards>
+  <Card title="当前限制" href="/docs/diagnostics/limitations" description="DreamShaderLang 还做不到的事，包括那些静默失败的类别。" />
+  <Card title="不支持的写法" href="/docs/graph/unsupported" description="截断、复合赋值、循环 —— 那些不报任何消息的写法。" />
+  <Card title="生成流程" href="/docs/generation/pipeline" description="这些表所依据的阶段划分。" />
+  <Card title="编辑器工具" href="/docs/tools/editor" description="渲染源文件列表的那个 Material Content Browser 页。" />
+  <Card title="命令行" href="/docs/tools/commandlet" description="无头编译，以及它为什么不写 bridge 产物。" />
+  <Card title="词法与大小写" href="/docs/language/lexical" description="若干「找不到」错误背后的大小写规则。" />
+</Cards>

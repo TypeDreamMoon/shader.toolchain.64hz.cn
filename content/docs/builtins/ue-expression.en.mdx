@@ -1,0 +1,655 @@
+---
+title: UE.Expression
+description: The generic reflected call that reaches any UMaterialExpression class by name, and the rules its arguments follow.
+---
+
+The [registered builtins](/en/docs/builtins/ue-nodes) cover 27 of Unreal's several hundred material
+expressions. `UE.Expression` is the escape hatch for everything else: it creates any non-abstract
+`UMaterialExpression` subclass by name and fills its input pins and `UPROPERTY`s from named
+arguments.
+
+```c
+float pulse = UE.Expression(Class = "Sine", OutputType = "float1", Input = UE.Time());
+```
+
+There is a shorter spelling. `Class` defaults to the function name, so `UE.Sine(…)` and
+`UE.Expression(Class = "Sine", …)` are the same call through the same implementation:
+
+```c
+float pulse = UE.Sine(OutputType = "float1", Input = UE.Time());
+```
+
+The name `Expression` is not special except that it never resolves to a class — which is exactly why
+`Class=` is mandatory in the first form.
+
+<Synopsis>
+```c
+UE.Expression( Class = <class-specifier> , { OutputType | ResultType } = <type-token>
+               [, { { Output | OutputName } = <text> | OutputIndex = <int> } ]
+               [, <arg-name> = <expression> ] … )
+
+UE.<ClassName>( { OutputType | ResultType } = <type-token> [, <arg-name> = <expression> ] … )
+```
+</Synopsis>
+
+<Grammar />
+
+Every argument must be named. A positional argument fails with
+`Generic {Namespace}.{Function} calls require named arguments.` Text arguments may be quoted or
+bare: `Class = Sine` and `Class = "Sine"` are the same, as are `OutputType = float3` and
+`OutputType = "float3"`.
+
+Unlike the registered builtins, this path **validates every argument name**. A name that matches
+neither a pin nor a property is an error, not a silent drop.
+
+## Class resolution
+
+`Class` must be a literal — a quoted string, a bare identifier, or a dotted name. The specifier is
+trimmed and then resolved:
+
+| # | Rule |
+| :-- | :-- |
+| 1 | Empty after trimming → unresolved |
+| 2 | If the text contains `/` or `.`, it is loaded directly as an object path and accepted only if the loaded class derives from `UMaterialExpression` — `Class = "/Script/Engine.MaterialExpressionSine"` |
+| 3 | Otherwise a candidate-name list is built, below |
+| 4 | Every loaded `UClass` is scanned; the first that derives from `UMaterialExpression`, is **not** abstract, and whose name equals any candidate ignoring case, wins |
+
+Candidate names for a specifier `S`:
+
+| Candidate | Added when |
+| :-- | :-- |
+| `S` | always |
+| `U` + `S` | `S` does not start with `U` |
+| `MaterialExpression` + `S` | `S` does not start with `MaterialExpression` |
+| `UMaterialExpression` + `S` | `S` does not start with `UMaterialExpression` |
+
+Both the prefix guards and the final comparison are case-insensitive.
+
+<Callout type="warn">
+**Do not write the `U` prefix.** The scan compares against the *reflected* class name, and reflected
+names carry no `U`. `UMaterialExpressionSine` reflects as `MaterialExpressionSine`, so any specifier
+that already begins with `U` — `USine`, `UMaterialExpressionSine` — never matches, and the two
+`U`-prefixed candidate rows above are unreachable in practice.
+
+The spellings that *do* resolve to `UMaterialExpressionSine` are `Sine`, `sine`,
+`MaterialExpressionSine` in any casing, and the object path `/Script/Engine.MaterialExpressionSine`.
+</Callout>
+
+<Callout type="info">
+Only **loaded** classes are scanned. An expression class living in a plugin module the editor has not
+loaded will not be found, and the call fails with
+`UE.{Function} could not resolve MaterialExpression class '{Class}'.` Abstract classes are skipped
+even when the name matches exactly.
+</Callout>
+
+On the [`Substrate.*`](/en/docs/builtins/substrate) path the class is fixed by the builtin descriptor
+and `Class=` is rejected outright.
+
+## Order of resolution
+
+The call is processed in this order. The order is observable, because the first failing step is the
+only error reported.
+
+| # | Step | Failure |
+| :-- | :-- | :-- |
+| 1 | Reject positional arguments | `Generic {Namespace}.{Function} calls require named arguments.` |
+| 2 | `Substrate.*` descriptor lookup and engine-version gate | see [Substrate](/en/docs/builtins/substrate) |
+| 3 | Resolve `OutputType` / `ResultType` | `Unsupported UE builtin call …`, `… OutputType must be a literal value.`, `… OutputType '{Token}' is not supported.` |
+| 4 | Resolve `Class` | `… Class must be a literal value.`, `UE.Expression requires Class="MaterialExpressionName".`, `… could not resolve MaterialExpression class '{Class}'.` |
+| 5 | Reject `Output`/`OutputName` together with `OutputIndex` | `… cannot use OutputName/Output together with OutputIndex.` |
+| 6 | Node-reuse lookup | — |
+| 7 | Create the node | `UE.{Function} failed to create '{Class}'.` |
+| 8 | `UMaterialExpressionCustom` setup | `… OutputType="Substrate" is not supported by UMaterialExpressionCustom.` and friends |
+| 9 | Dispatch each remaining argument to a pin, a property, or a Custom input | `… '{Argument}' is not a property on '{Class}'.` |
+| 10 | Synthesize Custom-node outputs | `… OutputName must be a non-empty literal value.` |
+| 11 | Resolve the output index | `… OutputIndex is out of range …`, `… output '{Name}' was not found …` |
+| 12 | Register static-switch / static-component-mask parameters on the material | — |
+| 13 | Derive the result type and component count | `{Namespace}.{Function} output is not a Substrate value.` |
+| 14 | Assemble the result and write the reuse cache | — |
+
+<Callout type="info">
+`UE.Expression()` with no arguments at all reports the **`OutputType`** error, not the missing
+`Class`, because step 3 runs before step 4.
+</Callout>
+
+## OutputType
+
+`OutputType` — or its alias `ResultType`, consulted only when `OutputType` is absent — is
+**required** on this path. Omitting it produces
+
+```text
+Unsupported UE builtin call '{Function}' in Graph. For generic MaterialExpression calls, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture/Substrate".
+```
+
+That hint lists nine spellings. The accepted set has **44**.
+
+<Callout type="warn">
+`OutputType` is **advisory only for the classes the generator recognizes**. Substrate,
+`MaterialAttributes` and texture outputs are re-derived from the node's real output value type, and
+so are the classes in the [known-width table](#result-type-and-component-count) — which is why
+`UE.Expression(Class = "WorldPosition", OutputType = "float1")` still yields a 3-component value.
+
+For every other class the declared token *is* the width, whatever the node's real output type is. On
+a Custom node the token is authoritative in a stronger sense: it is written to the node and decides
+the HLSL return type.
+</Callout>
+
+### Accepted tokens
+
+Every token, on every surface. Matching is case-insensitive throughout.
+
+<Wide>
+
+| Token | Kind | Components | Generic `UE.*` | Custom node | Property declaration |
+| :-- | :-- | :-- | :-: | :-: | :-: |
+| `float` | numeric | 1 | ✔ | ✔ | ✔ |
+| `float1` | numeric | 1 | ✔ | ✔ | ✔ |
+| `half` | numeric | 1 | ✔ | ✔ | ✔ |
+| `half1` | numeric | 1 | ✔ | ✔ | ✔ |
+| `int` | numeric | 1 | ✔ | ✔ | ✔ |
+| `uint` | numeric | 1 | ✔ | ✔ | ✔ |
+| `bool` | numeric | 1 | ✔ | ✔ | ✔ |
+| `float2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `half2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `vec2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `int2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `uint2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `bool2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `ivec2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `uvec2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `bvec2` | numeric | 2 | ✔ | ✔ | ✔ |
+| `float3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `half3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `vec3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `int3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `uint3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `bool3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `ivec3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `uvec3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `bvec3` | numeric | 3 | ✔ | ✔ | ✔ |
+| `float4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `half4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `vec4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `int4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `uint4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `bool4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `ivec4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `uvec4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `bvec4` | numeric | 4 | ✔ | ✔ | ✔ |
+| `MaterialAttributes` | material attributes | 0 | ✔ | ✔ | ✘ |
+| `Substrate` | Substrate | 0 | ✔ <Since v="5.4" ue /> | ✘ | ✘ |
+| `StaticBool` | numeric | 1 | ✔ | ✘ | ✘ |
+| `StaticBoolParameter` | numeric | 1 | ✔ | ✘ | ✘ |
+| `Texture2D` | texture object — 2D | 0 | ✔ | ✘ | ✔ † |
+| `SamplerState` | texture object — 2D | 0 | ✔ | ✘ | ✘ |
+| `TextureCube` | texture object — cube | 0 | ✔ | ✘ | ✔ † |
+| `Texture2DArray` | texture object — 2D array | 0 | ✔ | ✘ | ✔ † |
+| `Texture3D` | texture object — volume | 0 | ✔ | ✘ | ✔ † |
+| `VolumeTexture` | texture object — volume | 0 | ✔ | ✘ | ✔ † |
+
+</Wide>
+
+† On the property-declaration surface all five texture tokens resolve to the **same** declared kind —
+a texture-object property with 0 components. The dimension is not recorded there, unlike the `Graph`
+surface where `TextureCube` and `Texture2DArray` produce distinctly typed values. Declare the
+dimension with a plain type token (`TextureCube Tex;`) when it matters; see
+[Types and values](/en/docs/language/types-and-values).
+
+`SamplerState` is an accepted spelling of `Texture2D` on the `Graph` surface only. `StaticBool` and
+`StaticBoolParameter` both resolve to a one-component value; they exist so that a value can be
+type-checked against a `StaticBool` function input, and nothing else distinguishes them from `float`.
+
+### Normalization
+
+The token is not normalized uniformly — three different comparisons are used, and the difference is
+observable when the token carries stray whitespace.
+
+| Token group | Comparison |
+| :-- | :-- |
+| The 34 numeric tokens and `MaterialAttributes` | trimmed, lower-cased, **all** inner spaces removed |
+| `Substrate` | trimmed and inner spaces removed, compared ignoring case |
+| `StaticBool`, `StaticBoolParameter`, `Texture2D`, `SamplerState`, `TextureCube`, `Texture2DArray`, `Texture3D`, `VolumeTexture` | compared ignoring case against the value **as written** — no trimming, no space removal |
+
+<Callout type="info">
+So on the `Graph` surface `OutputType = " float4 "` resolves and `OutputType = " Texture2D "` does
+not. This is only reachable through a quoted literal — a bare token cannot contain whitespace. On the
+property-declaration surface the value is trimmed before resolution, so the asymmetry does not arise
+there. Underscores and dashes are never removed: `float_4` and `Material-Attributes` are not
+accepted spellings.
+</Callout>
+
+The normalized token also participates in the [node reuse key](#node-reuse). Two calls differing only
+in `OutputType` spelling — `float3` versus `vec3` — build different keys and therefore produce two
+nodes, even though the resulting value is identical.
+
+## Argument dispatch
+
+Six argument names are reserved and never dispatched to the node:
+
+| Reserved name | Purpose |
+| :-- | :-- |
+| `Class` | class specifier |
+| `OutputType` | declared output type |
+| `ResultType` | alias of `OutputType` |
+| `Output` | output selector by name |
+| `OutputName` | alias of `Output` |
+| `OutputIndex` | output selector by index |
+
+Every other argument is resolved against the created node in this order. The first match wins.
+
+| # | Test | Result |
+| :-- | :-- | :-- |
+| a | The normalized argument name equals the normalized name of one of the node's **input pins** | connect an expression to that pin |
+| b | The normalized argument name equals the normalized name of a reflected `FProperty` on the class or any super | pin path if the property is an expression-input struct, otherwise the literal path |
+| c | The node is a `UMaterialExpressionCustom` | a new Custom input pin named exactly as written |
+| d | — | `UE.{Function}: '{Argument}' is not a property on '{Class}'.` |
+
+<Callout type="warn">
+**An input-pin name beats a reflected property of the same name.** Several engine expressions carry
+both — a pin `Input` and a `UPROPERTY` of a related name — and the pin always wins. There is no
+alternative spelling that reaches a property shadowed by a pin name; use the property's real
+`UPROPERTY` name, which is what the second pass matches.
+</Callout>
+
+Property matching runs in two passes:
+
+| Pass | Matches | Note |
+| :-- | :-- | :-- |
+| 1 | any `FProperty` whose name equals the argument after trimming and lower-casing | **not** restricted to editable properties — private and non-`EditAnywhere` `UPROPERTY`s are reachable |
+| 2 | `FBoolProperty` only: the property name, lower-cased, with a leading `b` removed | this is how `FractionalPart` reaches `bFractionalPart` |
+
+<Callout type="warn">
+Pass 2 lower-cases **before** stripping, and strips a leading `b` from *any* bool property. A bool
+property named `bTangent` is therefore also reachable as `Tangent`, and a bool property named
+`BaseColor` is also reachable as `aseColor`. Only bool properties are affected. When two properties
+collide under these rules, pass 1 wins because it runs first.
+</Callout>
+
+### Input pins
+
+An argument that resolves to a pin — by pin name, or by a property whose type is an expression-input
+struct (`FExpressionInput`, or a struct named `MaterialAttributesInput`) — has its value evaluated as
+a `Graph` expression and connected. Any channel mask carried by the value is transferred to the
+connection.
+
+The pin's declared value type is then checked against the value:
+
+| Pin type | Value | Result |
+| :-- | :-- | :-- |
+| Substrate | non-Substrate | `{Namespace}.{Function} input '{Pin}' expects a Substrate value.` |
+| `MaterialAttributes` | non-attributes | `{Namespace}.{Function} input '{Pin}' expects a MaterialAttributes value.` |
+| numeric | Substrate | `{Namespace}.{Function} input '{Pin}' does not accept Substrate values.` |
+| numeric | `MaterialAttributes` | `{Namespace}.{Function} input '{Pin}' does not accept MaterialAttributes values.` |
+| otherwise | any | connected |
+
+No width check is applied at a pin: connecting a `float4` to a scalar pin is the engine's problem,
+not DreamShader's.
+
+### Literal properties
+
+Any other matched property is written from a literal. Object-typed properties are read as asset
+references; everything else is read as literal text.
+
+| Property type | Accepted value syntax | Message on failure |
+| :-- | :-- | :-- |
+| `FBoolProperty` | `true` / `false`, case-insensitive | `'{Value}' is not a valid boolean value for '{Property}'.` |
+| `FIntProperty` | decimal integer | `'{Value}' is not a valid integer value for '{Property}'.` |
+| `FUInt32Property` | integer in `0 … 4294967295` | `'{Value}' is not a valid unsigned integer value for '{Property}'.` |
+| `FFloatProperty` | any numeric literal | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FDoubleProperty` | any numeric literal | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `FStrProperty` | the trimmed text, verbatim — **always succeeds** | — |
+| `FNameProperty` | the trimmed text as an `FName` — **always succeeds** | — |
+| `FObjectPropertyBase` | `Path(…)` or an absolute Unreal object path | see [Object properties](#object-properties) |
+| `FEnumProperty` | see [Enum values](#enum-values) | `'{Value}' is not a valid enum value for '{Property}'.` |
+| `FByteProperty` backed by an enum | see [Enum values](#enum-values) | `'{Value}' is not a valid enum value for '{Property}'.` |
+| `FByteProperty` with no enum | integer in `0 … 255` | `'{Value}' is not a valid byte value for '{Property}'.` |
+| anything else — structs, arrays, sets, maps | Unreal's own import text, e.g. `(R=1,G=0,B=0,A=1)`, `(X=1,Y=2,Z=3)` | `Property '{Property}' on '{Class}' is not a supported literal type yet.` |
+
+All of these are wrapped as `UE.{Function} property '{Property}': {Message}`.
+
+<Callout type="warn">
+`FStrProperty` and `FNameProperty` never fail. Whatever text the argument carries — including a
+misspelled enum name or an unresolvable path — is stored verbatim. Neither a diagnostic nor a
+fallback value is produced.
+</Callout>
+
+### Enum values
+
+An enum value is matched against every non-hidden entry of the enum in four spellings. Both sides are
+lower-cased and the characters space, `_`, `-`, `:`, `.` and `/` are removed before comparison.
+
+| # | Spelling compared |
+| :-- | :-- |
+| 1 | the entry's short name — `PPI_PostProcessInput0` |
+| 2 | the entry's fully qualified name — `ESceneTextureId::PPI_PostProcessInput0` |
+| 3 | the entry's display name |
+| 4 | the short name with everything up to and including the first `_` removed — `PostProcessInput0` |
+
+Rule 4 is what makes prefix-less spellings work, and what
+[`UE.SceneTexture`](/en/docs/builtins/ue-nodes#uescenetexture) relies on.
+
+### Object properties
+
+An object-typed property takes `Path(<root>, "<asset>")`, `Path("/Game/…")` or a bare absolute object
+path. See [Asset references](/en/docs/parameters/path).
+
+| Situation | Result |
+| :-- | :-- |
+| The argument is neither a literal nor a `Path(…)` call | `UE.{Function} property '{Property}' must use Path(...) or an Unreal object path.` |
+| The text begins with `Path(` or `/` but does not resolve | the resolver's own message is reported |
+| The text is a literal that is not an asset reference and begins with neither | `Object property '{Property}' expects Path(...) or an absolute Unreal object path.` |
+| The asset fails to load, and the property is a `UTexture` named `Texture` or `TextureObject` | the property is set to **null** and this counts as **success** |
+| The asset fails to load, any other property | `Failed to load asset '{Path}' for '{Property}'.` |
+| The asset loads but is the wrong class | `Asset '{Path}' is not compatible with '{Property}'. Expected '{Class}'.` |
+
+<Callout type="warn">
+**The null-on-failure rule is silent.**
+
+```c
+UE.Expression(Class = "TextureSample", OutputType = "float4",
+              Texture = Path(Game, "Missing/T_Nope"))
+```
+
+compiles with an unassigned texture instead of reporting the missing asset. Only the two property
+names `Texture` and `TextureObject`, on `UTexture`-typed properties, behave this way.
+</Callout>
+
+## Selecting an output
+
+A node with several outputs is read through one of two mutually exclusive selectors. Using both is an
+error; using neither selects output 0.
+
+| Argument | Aliases | Kind | Semantics |
+| :-- | :-- | :-- | :-- |
+| `Output` | `OutputName` | literal text | resolved by name, then by mask pseudo-name |
+| `OutputIndex` | — | integer ≥ 0 | a direct index into the node's outputs |
+
+Name resolution walks the outputs in order:
+
+| Output | Matched by |
+| :-- | :-- |
+| named output | its name, compared as an `FName` — case-insensitive |
+| unnamed output | one of the mask pseudo-names below, tested in order against the output's channel mask |
+
+The specifier is trimmed; an empty specifier selects output 0.
+
+| Pseudo-name | Matches an unnamed output whose mask is |
+| :-- | :-- |
+| `RG` | R and G |
+| `RGB` | R, G and B |
+| `RGBA` | R, G, B and A |
+| `R` | R only |
+| `G` | G only |
+| `B` | B only |
+| `A` | A only |
+
+<Callout type="info">
+These are not `OutputType` values, and an `OutputType` token is never a valid `Output` selector.
+`UE.Expression(Class = "BreakMaterialAttributes", OutputType = "float3", Output = "BaseColor")`
+selects by output *name*; `Output = "RGB"` selects by mask.
+</Callout>
+
+## Custom nodes
+
+`UMaterialExpressionCustom` is the one class with dedicated handling — it is how you drop raw HLSL
+into a `Graph`.
+
+| Aspect | Behaviour |
+| :-- | :-- |
+| `OutputType = "Substrate"` | rejected — `UE.{Function} OutputType="Substrate" is not supported by UMaterialExpressionCustom.` |
+| Other `OutputType` values | must map to a Custom output type; `Texture2D`, `SamplerState`, `TextureCube`, `Texture2DArray`, `Texture3D`, `VolumeTexture`, `StaticBool` and `StaticBoolParameter` are valid `OutputType`s in general but **not** here |
+| Declared `OutputType` | authoritative — written to the node, and it decides the HLSL return type |
+| Unmatched arguments | become new Custom input pins named exactly as written; a Substrate value is rejected with `UE.{Function} Custom input '{Name}' does not accept Substrate values.` |
+| Fresh node | its `Inputs` and `AdditionalOutputs` arrays are cleared before the arguments are applied |
+| `OutputName` | must be a non-empty literal, and implies a request for additional output index 1 |
+| Missing additional outputs | placeholders named `Output1`, `Output2`, … are synthesized up to the requested index, then the node's outputs are rebuilt |
+| Result width | taken from the node's **actual** output value type, so secondary outputs are sized correctly |
+| Node reuse | **disabled** — every Custom call creates its own node |
+
+```c
+float3 tinted = UE.Expression(Class = "Custom", OutputType = "float3",
+                              Code = "return In * 0.5f;",
+                              In   = baseColor);
+```
+
+## Result type and component count
+
+The result is derived from the resolved output's real value type, in this order.
+
+| # | Condition | Result |
+| :-- | :-- | :-- |
+| 1 | `OutputType = "Substrate"` but the actual output is not Substrate | `{Namespace}.{Function} output is not a Substrate value.` |
+| 2 | Actual output is Substrate | 0 components, Substrate value, authoritative |
+| 3 | Actual output is `MaterialAttributes` | 0 components, attributes value, authoritative |
+| 4 | Actual output is any texture type | texture object, authoritative |
+| 5 | A `Substrate.*` utility builtin | width from the output's value type |
+| 6 | A Custom node | width from the output's value type |
+| 7 | `TextureCoordinate`, `Panner` or `Rotator` | 2 components |
+| 8 | Otherwise | the hard-coded known-width table, else the declared `OutputType` |
+
+The known-width table:
+
+| Width | Classes |
+| :-- | :-- |
+| 2 | `TextureCoordinate`, `Panner`, `ScreenPosition`, `Rotator`, `SceneTexelSize` |
+| 3 | `WorldPosition`, `ObjectPositionWS`, `CameraVectorWS`, `VertexNormalWS`, `VertexTangentWS`, `Transform`, `TransformPosition`, `SkyAtmosphereLightDirection`, `PixelNormalWS`, `CrossProduct` |
+| 1 | `PixelDepth`, `TwoSidedSign`, `Arctangent2Fast`, `Length`, `MaterialXLuminance` |
+
+Five classes then override the width from the values actually bound to their inputs:
+
+| Class | Width |
+| :-- | :-- |
+| `Saturate` | the width of the bound `Input` |
+| `StaticSwitchParameter` | the larger of the bound `True` and `False` |
+| `If` | the largest of the bound `AGreaterThanB`, `AEqualsB` and `ALessThanB` |
+| `StaticComponentMaskParameter` | the number of `DefaultR`/`DefaultG`/`DefaultB`/`DefaultA` set, minimum 1 |
+| `CurveAtlasRowParameter` | the number of channels in the selected output's mask, minimum 1 |
+
+A result with 0 components that is neither a texture nor a Substrate value is a `MaterialAttributes`
+value. See [Types and values](/en/docs/language/types-and-values).
+
+## Side effects on the material
+
+Two classes are registered as material parameters when created through this path, so they appear in
+the material instance editor:
+
+| Class | Registration |
+| :-- | :-- |
+| `UMaterialExpressionStaticSwitchParameter` with a parameter name | an editor-only static switch value on the material or material function |
+| `UMaterialExpressionStaticComponentMaskParameter` | an editor-only static component-mask value, from the node's four default channels |
+
+Both are given a fresh expression GUID when theirs is invalid.
+
+## Node reuse
+
+This is the surface that **does** deduplicate. Two cache keys are built per call:
+
+| Key | Contents |
+| :-- | :-- |
+| expression key | every non-reserved argument, plus the resolved class name and the normalized `OutputType` text |
+| output key | the expression key plus the output selector (`OutputName=…`, `OutputIndex=…`, or `OutputIndex=0`) |
+
+An output-key hit returns the previous result immediately. An expression-key hit reuses the **node**
+and re-resolves only the output — which is how one multi-output node can serve two reads with
+different `Output=` selectors. Literal text in a key is normalized by collapsing runs of spaces and
+normalizing line endings. `UMaterialExpressionCustom` subclasses never participate.
+
+<Callout type="info">
+When a node is reused, its input and property arguments are **not re-applied**. That is not
+observable through the language — the arguments are part of the key, so a reused node was built from
+the same arguments — but it does mean a single node ends up with several call sites in the source.
+</Callout>
+
+Contrast this with the [registered builtins](/en/docs/builtins/ue-nodes), which consult no cache at
+all and create a fresh node per call.
+
+## SampleTexture2D
+
+```c
+float4 texel = SampleTexture2D(BaseTex, uv);
+```
+
+A reserved two-argument form, resolved before user properties and functions and matched
+**case-sensitively** — `sampletexture2d(t, uv)` is not it. It rewrites to
+
+```c
+UE.Expression(Class = "TextureSample", OutputType = "float4",
+              TextureObject = <arg0>, Coordinates = <arg1>)
+```
+
+Both arguments are positional and both are required:
+`SampleTexture2D expects exactly two positional arguments: (textureObject, uv).`
+
+<Callout type="info">
+For sampling a declared texture *parameter*, prefer the parameter's own pin-call form —
+`BaseTex(Coordinates = uv)` — which reuses the parameter node instead of creating a plain
+`TextureSample`. See [Property types](/en/docs/parameters/properties).
+</Callout>
+
+## Declaration form
+
+A generic `UE.<Name>(…)` may also stand as a property type inside a `Properties` section, where any
+name outside the
+[declaration-form catalogue](/en/docs/builtins/ue-nodes#properties-declaration-form) is created by
+the same reflection machinery. The rules differ from the `Graph` form:
+
+<Wide>
+
+| Aspect | Declaration form | `Graph` form |
+| :-- | :-- | :-- |
+| `OutputType` / `ResultType` | required, from the reduced token set | required, from the full set |
+| `Class` | defaults to the builtin name, overridable | same |
+| Input-pin-name matching | **not performed** — only reflected properties are matched | performed first |
+| Unmatched argument | a Custom input on a Custom node, otherwise `'{Argument}' is not a property on '{Class}'.` | same |
+| Input values | a previously declared property, a scalar literal, or a 2–4 component vector literal | any `Graph` expression |
+| `ParameterName` | **auto-set from the property name** when the class exposes one and the author did not | never set |
+| Output selection | `Output` / `OutputName` / `OutputIndex`; Custom placeholders synthesized the same way | same |
+| Metadata `[ … ]` | applied to the node after creation | not applicable |
+| Node canvas X | -800 | 520 |
+
+</Wide>
+
+```c
+Properties {
+    UE.Expression(Class = "ObjectRadius", OutputType = "float1") Radius;
+}
+```
+
+Additional messages from this surface:
+
+| Message | Cause |
+| :-- | :-- |
+| `Unsupported vector literal '{Value}'.` | an input literal that is not 2–4 numeric components |
+| `Failed to create a scalar constant expression.` | the constant node for a scalar input literal could not be created |
+| `Failed to create a float{N} constant expression.` | the constant node for a vector input literal could not be created |
+| `'{Value}' is not a valid property reference or literal input.` | an input value that is neither a declared property nor a literal |
+| `'{Class}' does not expose a ParameterName property.` | `ParameterName` metadata on a class with no such property |
+| `OutputIndex is out of range for '{Class}'.` | the selected index does not exist |
+
+Writing the call in `Graph` is usually clearer, because the input relationships are visible at the
+call site.
+
+## Notes worth knowing
+
+- Property names are **flat**. Dotted paths and `[index]` selectors are not accepted here; those
+  exist only in [material settings](/en/docs/settings/material), which is a different resolver.
+- There is no way to leave a required engine pin unconnected on purpose and no way to disconnect one.
+  An argument either connects a value or is absent.
+- Because `Class` defaults to the function name, a typo in a class name produces
+  `could not resolve MaterialExpression class` rather than "unknown builtin". `UE.Sinee(OutputType="float1")`
+  and `UE.Expression(Class="Sinee", OutputType="float1")` report the same thing.
+- A generic call may be swizzled like any other expression:
+  `UE.Expression(Class = "VertexColor", OutputType = "float4").rgb`.
+- The editor exports a reflected expression manifest to
+  `Saved/DreamShader/Bridge/material-expressions.json`, listing every resolvable class with its pins
+  and properties. That is the practical way to discover argument names — see
+  [Editor tools](/en/docs/tools/editor).
+
+## Diagnostics
+
+`{Function}` preserves the author's spelling and casing; `{Namespace}` is literally `UE` or
+`Substrate`.
+
+<Diag>
+  <D msg={'Unsupported UE builtin call \'{Function}\' in Graph. For generic MaterialExpression calls, add OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture/Substrate".'} cause="Neither OutputType nor ResultType was given." fix="Add OutputType. Note the accepted set is much larger than the nine spellings in the hint." />
+  <D msg={'UE.Expression requires Class="MaterialExpressionName".'} cause="The function name is literally Expression and no Class was given." />
+  <D msg="UE.{Function} could not resolve MaterialExpression class '{Class}'." cause="No loaded, non-abstract UMaterialExpression subclass matched any candidate name." fix="Drop the U prefix — write Sine, not USine or UMaterialExpressionSine. Check the class is in a loaded module." />
+  <D msg="UE.{Function} OutputType '{Token}' is not supported." cause="The token is not one of the 44." />
+  <D msg="UE.{Function} OutputType must be a literal value." cause="The value is an expression rather than a literal." />
+  <D msg="Generic {Namespace}.{Function} calls require named arguments." cause="A positional argument on the generic path." fix="Name every argument. Only the registered builtins and math builtins take positional arguments." />
+  <D msg="UE.{Function}: '{Argument}' is not a property on '{Class}'." cause="The argument matched neither an input pin nor a reflected property." fix="Check the pin and property names in Saved/DreamShader/Bridge/material-expressions.json." />
+  <D msg="UE.{Function} input '{Pin}': {Message}" cause="The value bound to a pin failed to evaluate." />
+  <D msg="UE.{Function} property '{Property}': {Message}" cause="The literal could not be converted to the property's type." />
+  <D msg="UE.{Function} property '{Property}' must use Path(...) or an Unreal object path." cause="An object property was given a value that is neither a literal nor a Path(…) call." href="/en/docs/parameters/path" />
+  <D msg="UE.{Function} cannot use OutputName/Output together with OutputIndex." cause="Both output selectors were given." />
+  <D msg="UE.{Function} output '{Name}' was not found on '{Class}'." cause="No named output and no mask pseudo-name matched." />
+  <D msg="UE.{Function} OutputIndex is out of range for '{Class}'." cause="Negative, non-integer, or beyond the node's output count." />
+  <D msg="UE.{Function} created '{Class}', but it has no material outputs." cause="The node exposes no outputs." />
+  <D msg="UE.{Function} failed to create '{Class}'." cause="Node creation returned nothing." />
+  <D msg={'UE.{Function} OutputType="Substrate" is not supported by UMaterialExpressionCustom.'} cause="A Substrate output was requested from a Custom node." href="/en/docs/builtins/substrate" />
+  <D msg="UE.{Function} OutputType '{Token}' is not a valid Custom node output type." cause="A texture or static-bool OutputType on a Custom node." />
+  <D msg="{Namespace}.{Function} output is not a Substrate value." cause={'OutputType="Substrate" on a node whose real output is not Substrate.'} />
+  <D msg="SampleTexture2D expects exactly two positional arguments: (textureObject, uv)." cause="Wrong argument count, or named arguments." />
+</Diag>
+
+The complete list lives in the [diagnostics index](/en/docs/diagnostics).
+
+## Example
+
+```c
+Shader(Name="Docs/M_Generic")
+{
+    Properties {
+        Texture2D BaseTex = Path(Game, "Textures/T_Noise");
+        vec3      Dimmed  = vec3(0.2, 0.2, 0.2);
+    }
+
+    Settings { ShadingModel = "Unlit"; }
+
+    Outputs {
+        vec3 Color;
+        Base.EmissiveColor = Color;
+    }
+
+    Graph {
+        // Class defaults to the function name.
+        float pulse = UE.Sine(OutputType = "float1", Input = UE.Time());
+
+        // Explicit Class, plus an enum property written without its prefix.
+        float3 scene = UE.Expression(Class = "SceneTexture", OutputType = "float4",
+                                     SceneTextureId = "PostProcessInput0").rgb;
+
+        // An object property through Path(...), and a pin reached by its pin name.
+        float4 tex = UE.Expression(Class = "TextureSample", OutputType = "float4",
+                                   Texture     = Path(Game, "Textures/T_Noise"),
+                                   Coordinates = UE.TexCoord(Index = 0));
+
+        // A class the generator sizes from its bound inputs.
+        float3 sel = UE.Expression(Class = "StaticSwitch", OutputType = "float3",
+                                   True = Dimmed, False = tex.rgb, Value = true);
+
+        Color = (scene + sel) * pulse;
+    }
+}
+```
+
+Generated nodes:
+
+```text
+Time                                  -> Sine                       (pulse)
+SceneTexture (PPI_PostProcessInput0)  -> mask .rgb                  (scene)
+TextureCoordinate (Index 0)           -> TextureSample.Coordinates
+TextureSample (Texture = T_Noise)                                   (tex)
+Constant3Vector (0.2, 0.2, 0.2)       -> StaticSwitch.True
+StaticSwitch  (Value = true)                                        (sel)
+Add, Multiply                                                       (Color)
+```
+
+## Where to next
+
+<Cards>
+  <Card title="UE.* Nodes" href="/en/docs/builtins/ue-nodes" description="The 27 registered builtins this page is the fallback for." />
+  <Card title="Substrate Nodes" href="/en/docs/builtins/substrate" description="The sibling namespace that shares this code path." />
+  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The unprefixed numeric call surface." />
+  <Card title="Asset References" href="/en/docs/parameters/path" description="Path(...) syntax for object properties." />
+</Cards>

@@ -1,103 +1,452 @@
 ---
 title: VSCode Extension
-description: DreamShaderLang VSCode extension release notes.
+description: Release notes for the DreamShaderLang VSCode extension, taken from the extension repository.
 ---
+
+The main changes in the `dreamshader-language-support` extension, compiled from the extension
+repository's commit history and its own `CHANGELOG.md`.
+
+Extension repository:
+
+[https://github.com/TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support)
+
+<Callout type="info">
+The extension ships on its own cadence and its version numbers are unrelated to the plugin's. For
+the Unreal plugin see [DreamShader Plugin](/en/docs/changelog/dreamshader).
+</Callout>
 
 ## 1.5.3 - 2026-06-06
 
 ### Material Preview
 
-Added `DreamShaderLang: Show Material Preview` for active `.dsm` material files. The VSCode
-Webview preview panel supports sphere, plane, and cube meshes, sends preview requests to
-Unreal over local WebSocket by default, and falls back to the file bridge when WebSocket is
-unavailable.
-
-New settings: `dreamshader.previewWebSocketPort`, `dreamshader.previewAutoRefreshDelayMs`,
-`dreamshader.previewTransport`, and `dreamshader.previewLiveFrameRate`.
+- Added the `DreamShaderLang: Show Material Preview` command, active only for a `.dsm` material
+  file.
+- Added a VSCode Webview preview panel with `sphere`, `plane` and `cube` mesh selection.
+- Sends `previewMaterial` requests to Unreal over the local WebSocket on `127.0.0.1:17864` by
+  default, and receives preview results and continuous frames.
+- Falls back to the file bridge when the WebSocket is unavailable: it writes the request JSON and
+  reads `Saved/DreamShader/Bridge/preview.json` plus `Preview/*.png`.
+- Added the `dreamshader.previewWebSocketPort`, `dreamshader.previewAutoRefreshDelayMs`,
+  `dreamshader.previewTransport` and `dreamshader.previewLiveFrameRate` settings.
 
 ## 1.5.2 - 2026-06-06
 
 ### Callable Hover
 
-Added callable return and output-pin hover metadata for DreamShader functions, UE
-builtins, and Substrate helpers, including `Substrate.ThinFilm` fallback coverage for old
-bridge manifests.
+- Hover on DreamShader functions, UE builtins and Substrate helpers shows return-value and
+  output-pin metadata.
+- Added output-pin hover for helpers such as `Substrate.ThinFilm`, keeping a fallback for older
+  bridge manifests.
 
 ## 1.5.1 - 2026-06-06
 
-### Bridge, Packages, and Templates
+### Bridge, Packages and Templates
 
-Added Template-block language support, DreamShader bridge commands, status bar and
-diagnostics panel integration, package install/browse/update/remove/scaffold commands, and
-command-palette authoring templates for common DreamShader files.
+- Added parsing, completion, formatting, semantic tokens and syntax highlighting for the `Template`
+  block.
+- Added DreamShader bridge commands, status bar and diagnostics panel integration.
+- Added package install, browse, update, remove and scaffold commands.
+- Added command-palette authoring templates: material, function file, header file, texture sampling
+  and noise material.
+- Restored CodeLens and Inlay Hint registration after the extension activation modules were split.
+- Bridge diagnostics refresh when Unreal updates `Saved/DreamShader/Bridge/diagnostics.json`.
 
 ## 1.4.9 - 2026-05-29
 
 ### Function Builtins
 
-Unified HLSL intrinsics, GLSL aliases, and Unreal texture-sampling helper metadata for
-completion, hover, signature help, inlay hints, diagnostics, and semantic highlighting.
+- Added unified Function builtin metadata covering HLSL intrinsics, GLSL-style aliases and Unreal
+  texture-sampling helpers.
+- Completion, hover, signature help, inlay hints, semantic highlighting and the local diagnostic
+  allowlist share one builtin list.
+- The README and the Chinese README list the supported Function builtins.
 
 ## 1.4.8 - 2026-05-29
 
 ### Layout and Region
 
-Added editor support for `Layout`, `Node(...)`, `Comment(...)`, and Graph `#Region` /
-`#EndRegion`.
+- Added language support for the `Layout = { Node(...); Comment(...); }` section.
+- Added parsing, diagnostics, folding, snippets and highlighting for Graph `#Region` / `#EndRegion`.
+- Snippets, templates, README, formatter, document symbols and semantic tokens all understand the
+  layout metadata.
 
 ## 1.4.6 - 2026-05-22
 
 ### Volume Texture
 
-Added `VolumeTexture` / `Texture3D` types, default texture support, completion, and
-diagnostics.
+- Added `VolumeTexture` / `Texture3D` language support, highlighting, completion, snippets and
+  diagnostic coverage.
 
 ## 1.4.5 - 2026-05-18
 
 ### MaterialExpression Fallback
 
-Added built-in fallback metadata for `MaterialExpression` completion when bridge metadata
-is not available.
+- Built-in MaterialExpression completions are loaded from the language core as a strong fallback, so
+  `UE.` suggestions include `material-expressions.json` entries even when the VSCode adapter
+  services provide no project manifest.
 
 ## 1.4.4 - 2026-05-18
 
 ### Reflected Expressions
 
-Added support for reflected Unreal `UMaterialExpression` metadata exported by the plugin.
+- Reflected `UE.` MaterialExpression completion inserts a `UE.Expression(Class="...", ...)` snippet
+  while keeping short labels such as `Abs` and `TextureSampleParameter2D`.
 
 ## 1.4.3 - 2026-05-18
 
 ### Manifest Configuration
 
-Improved manifest configuration and metadata loading behavior.
+- The extension bundles a fallback `material-expressions.json` manifest, so reflected
+  `UE.Expression(Class="...")` completion works even when no Unreal project is detected
+  automatically.
+- Added `dreamshader.materialExpressionManifestPath`, pointing explicitly at a generated
+  `Saved/DreamShader/Bridge/material-expressions.json`.
+- Added a language smoke test for manifest-backed reflected MaterialExpression class completion.
 
 ## 1.4.2 - 2026-05-10
 
 ### MaterialExpression Metadata
 
-Expanded completion and hover metadata for Unreal material expression calls.
+- Language metadata synchronized with the reflected MaterialExpression support in the current
+  DreamShader release.
+- Added completion, hover, formatting and diagnostics for reflected texture sampler metadata such as
+  `SAMPLERTYPE_*`, `SSM_*`, `TMVM_*` and `TGM_*`.
+- Added `UE.StaticComponentMaskParameter(...)`, `UE.CurveAtlasRowParameter(...)` and reflected
+  TextureSample helper snippets.
+- Fixed the inlay hint signature lookup for the document-specific reflected UE expression manifest.
 
 ## 1.4.1 - 2026-05-10
 
 ### Dream Shader Function Files
 
-Added `.dsf` file support in the language extension.
+- Added `.dsf` file association, command-palette template creation, import completion, clickable
+  imports and workspace indexing.
+- `.dsf` diagnostics allow `ShaderFunction`, `Function`, `GraphFunction`, `Namespace` and
+  `VirtualFunction`, and reject material and layer asset blocks.
+- Added local diagnostics for statement-style multi-output `ShaderFunction` / `VirtualFunction`
+  calls.
+- Explicit import extensions are preserved: `import "Functions/F_Tint.dsf";` resolves as a function
+  file and is not rewritten to `.dsh`.
 
 ## 1.4.0 - 2026-05-10
 
 ### Parser-based Language Service
 
-Rebuilt the language service around scanner, parser, context, symbol, and provider modules
-to reduce scope leakage and improve diagnostics, completion, folding, and document symbols.
+- Extension version updated to `1.4.0`.
+- Rewrote the DreamShaderLang language service core around scanner, parser, context, symbol,
+  completion, diagnostic and provider modules.
+- Completion, diagnostics, semantic tokens, folding and document symbols all route through the new
+  language core.
+- Fixed broad completion-scope leakage between the `Inputs`, `Graph`, `Function`, `Settings`,
+  `Outputs` and metadata contexts.
+- Fixed `Base.` output completion so applying `BaseColor` no longer inserts `Base.BaseColor`.
+- Added parser-based formatting, cross-file import indexing and function cycle detection.
+- Restored deeper local diagnostics covering ShaderLayer / ShaderLayerBlend shape, VirtualFunction
+  options, Graph callable argument counts, Graph out variables and MaterialAttributes member writes.
+- Added Substrate / Strata types, syntax, completion and diagnostic hints.
+- Added language smoke tests for section-aware completion and diagnostics.
+- The README became the English primary document, with a new `README.zh-CN.md`.
 
-## Earlier Releases
+## 1.3.4 - 2026-05-10
 
-Earlier `1.3.x` and `1.2.x` releases added templates, Material Layer keywords,
-GraphFunction support, dynamic MaterialExpression metadata, output diagnostics,
-ShaderFunction properties, MaterialAttributes, parameter defaults, swizzles, language
-service improvements, root completion, bridge windows, Graph editing improvements, and
-automatic publishing.
+### Templates and Material Layer Keywords
+
+- Updated the built-in templates and snippets to produce more usable project-level DreamShader
+  skeletons.
+- Material Layer language support and templates moved to the recommended `ShaderLayer` /
+  `ShaderLayerBlend` keywords.
+- Removed `MaterialLayer` / `MaterialLayerBlend` from the active keyword, syntax, completion,
+  diagnostic and CodeLens paths.
+
+## 1.3.1 - 1.3.2 - 2026-05-09
+
+### GraphFunction
+
+- Added `GraphFunction` language support for reusable graph-node helpers that call `UE.*` nodes and
+  expand at the call site.
+- Single-output `Function` and `GraphFunction` calls participate in local diagnostics as Graph value
+  expressions.
+- Multi-output `Function` and `GraphFunction` calls still use the explicit out-variable syntax.
+- Top-level block templates moved into `templates.js`; keyword completion inserts only the keyword,
+  while entries such as `ShaderFunctionTemplate` and `GraphFunctionTemplate` expand the full
+  template.
+- Added GraphFunction snippets, completion, hover, signature help, symbols, folding and local
+  diagnostics.
+- Added a local diagnostic suggesting `GraphFunction` when a plain HLSL `Function` block calls a
+  `UE.*` graph node.
+
+## 1.3.0 - 2026-05-08
+
+### Material Layer
+
+- Added `MaterialLayer` and `MaterialLayerBlend` language support, snippets, semantic tokens,
+  folding, symbols, CodeLens, completion, hover, signature help and local diagnostics.
+- Added Material Layer output-shape and Material Layer Blend `MaterialAttributes` input validation.
+- `.dsm` / `.dsh` diagnostics recognize generated Material Layer assets.
+- Material Layer snippets use explicit `.rgb` access, so alpha stays readable through `.a`.
+
+## 1.2.27 - 2026-05-08
+
+### Dynamic MaterialExpression Metadata
+
+- Added dynamic `MaterialExpression` completion, hover and signature metadata sourced from
+  `Saved/DreamShader/Bridge/material-expressions.json`.
+- Added `Class="..."` value completion for the generic `UE.Expression(...)`, and shader output
+  `Expression(...).Pin[n]` binding completion.
+- Hand-written UE builtin metadata is kept as a stable overlay and merged with the Unreal reflected
+  expression metadata.
+
+## 1.2.26 - 2026-05-04
+
+### Output Diagnostics Sync
+
+- Extension version updated to `1.2.26`.
+- Local material output diagnostics synchronized with the `Base.*` outputs the plugin currently
+  supports, covering `Base.CustomizedUV0..7`, `Base.CustomizedUVs0..7`, Custom Data, the legacy
+  Color outputs, `Displacement`, `SurfaceThickness` and, on Moon Engine build targets,
+  `MooaEncodedAttribute0..4`.
+- Expression diagnostics accept the `Path(...)` helper inside
+  `UE.CollectionParam(Collection=Path(...), ...)` instead of reporting it as an unknown function.
+
+## 1.2.25 - 2026-04-30
+
+### ShaderFunction Properties
+
+- Added completion, diagnostics, symbol listing and visible-variable collection for the
+  `ShaderFunction.Properties` section.
+- Added hover, completion and the `constprop` snippet for the `const` property keyword.
+- The ShaderFunction snippet now uses the `Properties` plus `opt Texture2D Input = PreviewTex`
+  preview-default form.
+
+## 1.2.24 - 2026-04-30
+
+### MaterialAttributes
+
+- Added `MaterialAttributes` graph type completion, hover and snippets.
+- Material Attributes members such as `Attrs.BaseColor` and `Attrs.Roughness` are completed.
+- Local diagnostics treat `Attrs.Member = ...` as a member write rather than a new variable name.
+- Added `Base.MaterialAttributes` output binding support in `Outputs`.
+
+## 1.2.23 - 2026-04-30
+
+### Reflection Property Blocks
+
+- Declaration metadata parsing and snippets moved to the semicolon-separated `[...]` reflection
+  property block.
+- Added a `TextureSampleParameter2D` reflection property snippet covering the common sampler, mip,
+  coordinate and view mip bias fields.
+- Local symbol extraction accepts both the historical comma metadata and the new property block.
+
+## 1.2.22 - 2026-04-30
+
+### Parameters and Default Arguments
+
+- Completion, hover, signature help and snippets cover explicit parameter nodes,
+  `StaticSwitchParameter`, declaration metadata and optional function inputs.
+- Added language service support for `UE.CollectionParam(...)` and `UE.StaticSwitchParameter(...)`.
+- Local diagnostics understand `opt` inputs on `ShaderFunction` / `VirtualFunction` and the
+  call-side `default` argument.
+- Inlay hints show more argument and metadata information, making complex node calls easier to read.
+
+## 1.2.21 - 2026-04-29
+
+### Swizzle
+
+- Supported swizzle diagnostics after a chained call, such as `DebugFunction(...).rg`.
+- Swizzle completion and hover cover 1 to 4 channel combinations, including repeats such as `.rrr`,
+  `.ggg`, `.aaa`, `.rgaa` and `.rgbb`.
+
+## 1.2.20 - 2026-04-29
+
+### Language Service
+
+- Added semantic tokens, giving types, variables, parameters, material outputs and UE builtin calls
+  more stable semantic highlighting.
+- Added parameter inlay hints for DreamShader `Function`, `ShaderFunction`, `VirtualFunction` and
+  `UE.*` calls.
+- Import paths carry clickable document links; top-level blocks and sections support folding ranges.
+- The outline view shows finer top-level declaration and section structure.
+- Cleaned up duplicate command aliases and historical VSIX build artifacts.
+
+## 1.2.19 - 2026-04-29
+
+### Quick Actions
+
+- Editor title bar, view title bar and context menu commands use VSCode codicon glyphs.
+- CodeLens actions moved from long text to compact icon entries.
+
+## 1.2.18 - 2026-04-28
+
+### VirtualFunction
+
+- Added syntax highlighting, completion, hover, snippets, signature help and local diagnostics for
+  the top-level `VirtualFunction` declaration.
+- `Graph` treats `VirtualFunction` as a callable material function signature, supporting `Output` /
+  `OutputName` / `OutputIndex`.
+- `Options.Asset` offers a `Path(Plugins.PluginName, "...")` template.
+- `Path(Plugin.)` / `Path(Plugins.)` complete the names of plugins with a `Content` directory under
+  the current Unreal project's `Plugins` folder.
+
+## 1.2.17 - 2026-04-28
+
+### Root Completion
+
+- `Root="Plugins."` is supported as a compatibility spelling for project content plugin name
+  completion.
+- `Plugin.MoonToon` and `Plugins.MoonToon` resolve to the same project plugin content root.
+
+## 1.2.16 - 2026-04-28
+
+### Root Completion
+
+- After `Root="Plugin."`, completes the names of plugins with a `Content` directory under the
+  current Unreal project's `Plugins` folder.
+- Completion prefers `dreamshader.projectRoot` from the extension settings, otherwise it detects the
+  project root from the current `.dsm` / `.dsh` file and the workspace.
+
+## 1.2.15 - 2026-04-28
+
+### Root Documentation
+
+- Clarified that `Root="Plugin.PluginName"` points at the project plugin content directory
+  `[Project]/Plugins/PluginName/Content`.
+- Documented that `Shader(Name="Mat/Test", Root="Plugin.MoonToon")` generates
+  `/MoonToon/Mat/Test.Test`.
+
+## 1.2.14 - 2026-04-28
+
+### Root Support
+
+- Added completion, hover, snippets and syntax highlighting for the `Root` top-level attribute on
+  `Shader` / `ShaderFunction`.
+- Top-level block recognition accepts `Name` appearing after `Root`.
+
+## 1.2.13 - 2026-04-26
+
+### Automatic Publishing
+
+- Added an automatic GitHub Actions release workflow.
+- On a push to `main`, the workflow reads the version from `package.json` and runs `npm ci`,
+  `node --check extension.js` and `npm run package`.
+- The workflow creates or reuses the `vX.Y.Z` tag and uploads the resulting
+  `dreamshaderlang-language-support-X.Y.Z.vsix` to the matching GitHub Release.
+- Manual workflow dispatch is supported, for regenerating a release package for a given version.
+
+## 1.2.12 - 2026-04-26
+
+### Widgets and the Bridge Panel
+
+- `DreamShader Bridge` moved from the Explorer sidebar to the VSCode bottom panel, so it behaves
+  like the Problems and Output windows.
+- Added the `Show Bridge Panel` command; clicking the status bar item opens the Bridge panel.
+- CodeLens gained a Bridge shortcut, opening the diagnostics window straight from the top of a
+  source file.
+- Bridge tree nodes gained clearer status icons and a context-menu open action.
+- Reorganized the Package Store Webview widgets with statistics, card hover, focus states and more
+  consistent button styling.
+
+## 1.2.11 - 2026-04-26
+
+### Graph Experience
+
+- The language service for the `Shader` / `ShaderFunction` graph-building block moved from
+  `Code = { ... }` to `Graph = { ... }`.
+- `Graph` supports local parsing, diagnostics and statement splitting for basic `if` / `else`.
+- Declarations inside `Graph` branches and `Function` `out` targets participate in visible-symbol
+  collection, so completion matches how the code is actually written.
+- Snippets, built-in templates, hover, syntax highlighting and diagnostic wording all use `Graph`.
+
+## 1.2.10 - 2026-04-22
+
+- Updated support for modern DreamShaderLang `Function` signatures, strengthening completion and
+  diagnostics around the `in` / `out` parameter model.
+- Improved language service behavior for function definitions, calls and example templates.
+
+## 1.2.9 - 2026-04-22
+
+- Added the Explorer sidebar `DreamShader Bridge` view, presenting Unreal bridge diagnostics by
+  project, source file and individual problem.
+- Bridge diagnostics show more material compile context: stage, asset path, shader platform, quality
+  level and raw detail.
+- Added the `Refresh Bridge Diagnostics` command and Bridge view title-bar actions.
+
+## 1.2.8 - 2026-04-22
+
+- Added the `Clean Generated Shaders` command, asking Unreal to clean
+  `Intermediate/DreamShader/GeneratedShaders` and trigger a full recompile.
+- Added generated-shader cleanup entries to the command palette, the editor title bar and the
+  context menu.
+
+## 1.2.7 - 2026-04-22
+
+- Added local cycle diagnostics for the Function call graph, including recursive calls reachable
+  through `SelfContained` imports.
+- Added a status bar project indicator, a CodeLens recompile entry, and editor title-bar and context
+  menu shortcuts.
+- Added the `dreamshader.showStatusBar` and `dreamshader.enableCodeLens` settings.
+
+## 1.2.6 - 2026-04-22
+
+- Supported `Function SelfContained Name(...) { ... }` and `Function Inline Name(...) { ... }`.
+- Updated completion, hover, snippets and syntax highlighting for self-contained functions.
+
+## 1.2.5 - 2026-04-22
+
+- Widened `Settings` completion coverage to material categories including PostProcess, Refraction,
+  WorldPositionOffset, Mobile, Nanite, Usage, Lightmass, Substrate, VirtualTexture and
+  PixelDepthOffset.
+- Extended the `Path(...)` help text to Settings object references such as physical material and
+  override assets.
+
+## 1.2.4 - 2026-04-22
+
+- Added `TranslucencyLightingMode` / `LightingMode` settings completion.
+- Material settings accept Unreal enum display names such as `Surface ForwardShading`, as well as
+  the raw enum names.
+
+## 1.2.3 - 2026-04-22
+
+- Fixed package uninstall to use the install path recorded in the lock file.
+- Added the `dreamshader.packageUninstall` compatibility command.
+- Fixed Unreal bridge diagnostic discovery and watching when only the `ProjectName/DShader`
+  workspace is open.
+- Bridge diagnostics infer the Unreal project root from open documents, the active editor and the
+  workspace.
+
+## 1.2.2 - 2026-04-22
+
+- Supported comma declarations such as `float i, d, s, t = UE.Time(), f = t + 1.0;`.
+- Local diagnostics and visible-symbol tracking allow later variables in one declaration statement
+  to reference earlier ones.
+- Kept `Expression(...).Pin[n]` output binding support and improved graph code parsing.
+
+## 1.2.1 - 2026-04-21
+
+- Added local validation for the `Expression(...).Pin[n] = ...` auxiliary material output binding.
+- Added completion, snippets and syntax highlighting for output nodes such as
+  `ThinTranslucentMaterialOutput` and `TangentOutput`.
+- Built-in templates and snippets standardized on `Base.*` output bindings.
+
+## 1.2.0 - 2026-04-21
+
+- Reworked the `UE.*` builtin node metadata so completion, hover and signature help share one
+  definition set.
+- Added snippets for nodes such as `TexCoord`, `Time`, `Panner`, `TransformVector`,
+  `TransformPosition` and `Expression`.
+- `Outputs` completion covers `Base.*` material attributes and the `Expression(...).Pin[n]`
+  auxiliary output nodes.
+
+## 1.1.0 - 2026-04-21
+
+- Added DreamShader package management commands and Package Store Index support.
+- Improved local diagnostics, Function go-to-definition, find references and formatting.
+- Extended the language metadata and the VSIX packaging configuration.
 
 ## 1.0.0 - 2026-04-21
 
-Initial VSCode language-support extension for DreamShaderLang.
+- The initial DreamShaderLang VSCode extension.
+- Registers the `.dsm` material and `.dsh` header file languages.
+- Supports `Function`, `Namespace`, `Namespace::Function` and `import`.
+- Provides syntax highlighting, completion, hover, signature help, go to definition, find
+  references, formatting and local diagnostics.
+- Integrates the Unreal bridge recompile command and basic diagnostic feedback.
