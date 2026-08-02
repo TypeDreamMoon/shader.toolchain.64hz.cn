@@ -20,7 +20,16 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config({ path: path.resolve(process.cwd(), ".env"), quiet: true });
 
-const preserveList = new Set([".user.ini", ".htaccess"]);
+/**
+ * Names the clean step must never delete. These are server-managed and are not
+ * produced by the export, so nothing in ./out can ever shadow them:
+ *   .user.ini    PHP-FPM per-directory config, written by the panel
+ *   .htaccess    Apache per-directory config
+ *   .well-known  ACME http-01 challenges and security.txt — deleting this
+ *                mid-renewal breaks certificate issuance
+ * A preserved directory keeps its entire subtree.
+ */
+const preserveList = new Set([".user.ini", ".htaccess", ".well-known"]);
 const defaultLocalDir = "out";
 const defaultRemoteDir = "/www/wwwroot/lang.64hz.cn";
 
@@ -112,18 +121,33 @@ async function ensureRemoteDir(sftp, remoteDir) {
 	await sftp.mkdir(remoteDir, true);
 }
 
+/**
+ * Remove everything under `remoteDir` except the preserved names.
+ *
+ * Returns true when anything was kept at or below this level. The caller uses
+ * that to skip its own `rmdir`: a preserved entry leaves its parent non-empty,
+ * and `rmdir` fails on a non-empty directory.
+ */
 async function cleanRemoteDir(sftp, remoteDir) {
 	const list = await sftp.list(remoteDir);
+	let preservedAny = false;
 
 	for (const item of list) {
+		const remotePath = path.posix.join(remoteDir, item.name);
+
 		if (preserveList.has(item.name)) {
-			console.log(`Preserve: ${path.posix.join(remoteDir, item.name)}`);
+			// never descend into a preserved directory — the whole subtree stays
+			console.log(`Preserve: ${remotePath}${item.type === "d" ? "/" : ""}`);
+			preservedAny = true;
 			continue;
 		}
 
-		const remotePath = path.posix.join(remoteDir, item.name);
 		if (item.type === "d") {
-			await cleanRemoteDir(sftp, remotePath);
+			if (await cleanRemoteDir(sftp, remotePath)) {
+				preservedAny = true;
+				continue;
+			}
+
 			await sftp.rmdir(remotePath);
 			console.log(`Removed directory: ${remotePath}`);
 			continue;
@@ -132,6 +156,8 @@ async function cleanRemoteDir(sftp, remoteDir) {
 		await sftp.delete(remotePath);
 		console.log(`Removed file: ${remotePath}`);
 	}
+
+	return preservedAny;
 }
 
 async function deploy(localDir, remoteDir, config) {
