@@ -1,33 +1,35 @@
-import { HomeContent } from '@/app/home-content';
-import { defaultLocale, isLocale, localizedPath, type Locale } from '@/lib/i18n';
-import { baseOptions } from '@/lib/layout.shared';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
+import { HomeShell } from '@/app/_home/home-shell';
+import { defaultLocale, localizedPath } from '@/lib/i18n';
+import { resolveLocaleParam } from '@/lib/locale-param';
+import { SITE_DESCRIPTION_EN, SITE_TITLE } from '@/lib/site';
 import type { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
+
+type LocalizedHomeProps = {
+  params: Promise<{ lang: string }>;
+};
 
 export function generateStaticParams() {
   return [{ lang: 'en' }];
 }
 
-export async function generateMetadata(props: {
-  params: Promise<{ lang: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: LocalizedHomeProps,
+): Promise<Metadata> {
   const { lang } = await props.params;
+  const locale = resolveLocaleParam(lang);
 
-  if (!isLocale(lang)) {
-    notFound();
-  }
-
-  if (lang === defaultLocale) {
+  if (locale === defaultLocale) {
     return {};
   }
 
   return {
-    title: 'DreamShaderLang',
-    description:
-      'DreamShaderLang is a text-first material language for Unreal Engine material graphs.',
+    // absolute: the root layout's `%s | DreamShaderLang` template would
+    // otherwise render the homepage as "DreamShaderLang | DreamShaderLang"
+    title: { absolute: SITE_TITLE },
+    description: SITE_DESCRIPTION_EN,
     alternates: {
-      canonical: localizedPath(lang, '/'),
+      canonical: localizedPath(locale, '/'),
       languages: {
         zh: '/',
         en: '/en',
@@ -36,60 +38,13 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function HomePage(props: {
-  params: Promise<{ lang: string }>;
-}) {
+export default async function HomePage(props: LocalizedHomeProps) {
   const { lang } = await props.params;
+  const locale = resolveLocaleParam(lang);
 
-  if (!isLocale(lang)) {
-    notFound();
-  }
-
-  if (lang === defaultLocale) {
+  if (locale === defaultLocale) {
     redirect('/');
   }
 
-  const locale = lang as Locale;
-  const options = baseOptions(locale);
-
-  return (
-    <HomeLayout
-      {...options}
-      githubUrl="https://github.com/TypeDreamMoon/DreamShader"
-      links={[
-        {
-          text: 'Docs',
-          url: '/en/docs',
-          active: 'nested-url',
-        },
-        {
-          text: 'Syntax',
-          url: '/en/docs/syntax/file-model',
-          active: 'nested-url',
-        },
-        {
-          text: 'Tools',
-          url: '/en/docs/workflows/vscode',
-          active: 'nested-url',
-        },
-        {
-          text: 'ChangeLog',
-          url: '/en/docs/changelog',
-          active: 'nested-url',
-        },
-        {
-          text: 'Rider',
-          url: 'https://github.com/tsdaer/dreamshader-language-support',
-          external: true,
-        },
-      ]}
-      nav={{
-        ...options.nav,
-        transparentMode: 'top',
-      }}
-      className="ds-home"
-    >
-      <HomeContent locale="en" />
-    </HomeLayout>
-  );
+  return <HomeShell locale={locale} />;
 }
