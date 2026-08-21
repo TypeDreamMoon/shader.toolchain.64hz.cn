@@ -1,9 +1,9 @@
 ---
 title: 网站更新
-description: lang.64hz.cn 文档站的更新记录 —— 信息架构、部署和内容。
+description: shader.toolchain.64hz.cn 文档站的更新记录 —— 信息架构、部署和内容。
 ---
 
-这里记录 `lang.64hz.cn` 文档站本身的信息架构、部署和内容更新。
+这里记录 `shader.toolchain.64hz.cn` 文档站本身的信息架构、部署和内容更新。
 
 ## 2026-08-21
 
@@ -35,7 +35,21 @@ description: lang.64hz.cn 文档站的更新记录 —— 信息架构、部署�
   [Properties 类型](/docs/parameters/properties)与 [`UE.*` 节点](/docs/builtins/ue-nodes)补上
   纹理维度按 `GetMaterialType()` 判断、以及 `UE.CollectionParam` 的宽度。
 
+## 2026-08-19
+
+### 域名迁移到 shader.toolchain.64hz.cn
+
+文档站从 `lang.64hz.cn` 迁到 `shader.toolchain.64hz.cn`，与 DreamFX 的
+[`fx.toolchain.64hz.cn`](https://fx.toolchain.64hz.cn/) 一起收进 `*.toolchain.64hz.cn`
+命名下，GitHub 仓库同步改名。
+
+- 插件描述符的 `DocsURL`、两份 README、`Docs/` 与发布流程里指向文档站的链接全部改指新域名。
+- 站内链接不受影响 —— 全部是站内相对路径。
+- **旧域名没有做 301。**`lang.64hz.cn` 目前直接不解析，迁移之前发出去的链接（包括已安装插件里
+  写死的 `DocsURL`）会连接失败而不是跳转过来。
+
 ## 2026-08-02
+
 
 ### 文档重建 —— 插件 1.5.0
 

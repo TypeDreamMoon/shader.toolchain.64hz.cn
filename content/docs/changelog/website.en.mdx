@@ -1,9 +1,9 @@
 ---
 title: Website Updates
-description: Update history for the lang.64hz.cn documentation site — structure, deployment and content.
+description: Update history for the shader.toolchain.64hz.cn documentation site — structure, deployment and content.
 ---
 
-Changes to the `lang.64hz.cn` documentation site itself: information architecture, deployment and
+Changes to the `shader.toolchain.64hz.cn` documentation site itself: information architecture, deployment and
 content.
 
 ## 2026-08-21
@@ -47,7 +47,23 @@ on the pages whose generator semantics changed most.
   [`UE.*` Builtins](/en/docs/builtins/ue-nodes) gained the `GetMaterialType()` dimension check and the
   `UE.CollectionParam` width.
 
+## 2026-08-19
+
+### Moved to shader.toolchain.64hz.cn
+
+The site moved from `lang.64hz.cn` to `shader.toolchain.64hz.cn`, joining DreamFX's
+[`fx.toolchain.64hz.cn`](https://fx.toolchain.64hz.cn/) under the shared
+`*.toolchain.64hz.cn` naming. The GitHub repository was renamed to match.
+
+- `DocsURL` in the plugin descriptor, both READMEs, `Docs/` and the release workflow now
+  point at the new host.
+- Links within the site are unaffected — they are all site-relative.
+- **The old domain has no redirect.** `lang.64hz.cn` currently does not resolve at all, so
+  links handed out before the move — including the `DocsURL` baked into already-installed
+  copies of the plugin — fail to connect rather than redirecting here.
+
 ## 2026-08-02
+
 
 ### Documentation Rebuild — Plugin 1.5.0
 
