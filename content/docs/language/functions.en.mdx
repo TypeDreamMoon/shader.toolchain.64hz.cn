@@ -190,6 +190,37 @@ in the emitted HLSL. There is no diagnostic. Rename it, or spell it so it does n
 
 </Callout>
 
+## Hoisting a leading `#include`
+
+<Since v="1.8.0" />
+
+A `Function` block's HLSL used to be emitted verbatim **between the braces** of the generated
+`DreamShaderFn_*` definition, which made any `#include` land *inside* a function — fine for
+macro-only headers, a compile error for anything that defines a function.
+
+Leading `#include "…"` / `#include <…>` directives (only whitespace and comments before them) are now
+stripped from the body and emitted **once**, in first-seen order, right after the guard of the
+generated `.ush`:
+
+```c
+Function(Name="Wind") float3 SampleWind(float3 P)
+{
+    #include "/Plugin/DreamWind/Shared/DreamWindShared.h"
+
+    return DreamWind_Sample(P);
+}
+```
+
+| Case | Where the directive goes |
+| :-- | :-- |
+| an ordinary `Function` | file scope of the generated `.ush`, after the guard, de-duplicated in first-seen order |
+| a `SelfContained` / `Inline` embed | the call site's `Custom` node `IncludeFilePaths`, **ahead of** the generated include |
+| a `GraphFunction` body | the same — the `Custom` node's `IncludeFilePaths` |
+| a directive **after** the first statement | keeps the old behaviour and stays in the body |
+
+This is what lets a header shared between C++ and HLSL be consumed from a `.dsf` without copying its
+functions into DreamShaderLang.
+
 ## Generated HLSL
 
 Each `Function` is emitted into the generated include as:

@@ -1,9 +1,9 @@
 ---
 title: 项目设置
-description: Project Settings ▸ DreamPlugin ▸ Dream Shader 下的全部 13 个属性、它们真实的配置标识符、默认值与作用。
+description: Project Settings ▸ DreamPlugin ▸ Dream Shader 下的全部 15 个属性、它们真实的配置标识符、默认值与作用。
 ---
 
-DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13** 个属性。
+DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **15** 个属性。
 
 <Callout type="warn">
 面板位于 **Project Settings ▸ DreamPlugin ▸ Dream Shader** —— *不在* *Plugins* 下面。
@@ -21,7 +21,7 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13**
 该类是 `Config=Engine, DefaultConfig`，因此值保存在**项目的** `DefaultEngine.ini` 里，而不是
 每用户文件里。签出这个项目的所有人共享同一份配置。
 
-## 13 个设置
+## 15 个设置
 
 <Wide>
 
@@ -32,8 +32,10 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13**
 | Mappings | Material Domain Mappings | `MaterialDomainMappings` | `TMap<FString, EMaterialDomain>` | *空* | 为 `MaterialDomain` / `Domain` 增加或覆盖拼写。 |
 | Paths | Source Directory | `SourceDirectory` | `FDirectoryPath` | `DShader` | 扫描 `.dsm` / `.dsf` / `.dsh` 源文件的根目录。为空时回退到 `DShader`；相对路径相对项目目录解析。`<Source>/Packages` 由它推导。 |
 | Paths | Generated Shader Directory | `GeneratedShaderDirectory` | `FDirectoryPath` | `Intermediate/DreamShader/GeneratedShaders` | 生成的 `.ush` include 写到哪里，以及虚拟着色器目录映射到哪里。为空时回退到默认值。 |
+| Paths | **Scan Plugin Source Directories** <Since v="1.6.0" /> | `bScanPluginSourceDirectories` | `bool` | `true` | 开启时，每个带 `DShader` 目录的已启用插件都贡献一个自己的源码根。关闭后，项目的 *Source Directory* 是唯一的根。见[工程结构](/docs/start/project-layout)。 |
 | Compiler | **Default Compiler Backend** | `DefaultBackend` | `EDreamShaderDefaultBackend` | `ThinCustom` | 源文件未写 `Settings = { Backend = … }` 时使用的后端。修改它会在内存中重新生成所有源文件。 |
 | Compiler | **Show In-Memory Materials In Content Browser** | `bShowInMemoryMaterialsInContentBrowser` | `bool` | `false` | 关闭时，纯内存的 DreamShader 实例把自己报告为非资产，从内容浏览器、资产注册表枚举和保存选择器中消失。每次查询都实时读取。 |
+| Compiler | **Lay Out In-Memory Graphs** <Since v="1.6.0" /> | `bLayoutInMemoryGraphs` | `bool` | `true` | 开启时，交互式编译产出的纯内存材质也跑自动布局，于是保存后看到的图和生成资产一致。关闭后，这些图保留构建坐标 —— 一根高柱子。达到大图阈值的图两种情况下都跳过布局。 |
 | Compiler | Auto Compile On Save | `bAutoCompileOnSave` | `bool` | `true` | 关闭时，源目录监视器完全忽略文件变化。 |
 | Compiler | Save Debounce Seconds | `SaveDebounceSeconds` | `float` | `0.25` | 文件变化后等待多久再编译。钳制在 `[0.05, 10.0]`，滑条上限是 `2.0`。设置对象不可用时回退到 `0.25`。 |
 | Compiler | Verbose Logs | `bVerboseLogs` | `bool` | `false` | 为依赖文件编译队列增加 `Display` 级日志。 |
@@ -76,6 +78,14 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13**
 
 编辑器面板自身的原文，逐字照录。
 
+*Scan Plugin Source Directories*：
+
+> When enabled, every enabled plugin that ships a DShader folder contributes its own source root, so
+> a plugin can carry the .dsm/.dsf/.dsh files that build its materials. Plugin roots are discovered
+> and compiled but never rewritten by the editor -- only the project's own source directory is
+> writable. Imports never cross roots: a file resolves its imports against its own root and that
+> root's Packages folder.
+
 *Default Compiler Backend*：
 
 > How DreamShader materializes a source file that does not specify `Settings = { Backend = "..." }`.
@@ -101,6 +111,7 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13**
 | `bShowInMemoryMaterialsInContentBrowser` | *Tools ▸ DreamShader ▸ Show In-Memory Materials*，以及[材质内容浏览器](/docs/tools/editor)的 Project 页。两者都会写入 ini，并为每个纯内存实例重新广播资产的创建/移除。 |
 | `DefaultBackend` | 在面板里修改会立即触发所有源文件的内存重新生成；如果持久化的生成资产遮蔽了结果，还会弹出通知。 |
 | `SourceDirectory`、`GeneratedShaderDirectory` | 由模块的目录辅助函数消费 —— 见[项目结构](/docs/start/project-layout)和 [Package](/docs/tools/packages)。 |
+| `bScanPluginSourceDirectories` | 根列表是缓存的，只在 *Source Directory* 或这个开关变化、或按下 *DreamShader Gen ▸ Refresh* 时重建。**watcher 只在启动时注册一次**，所以会话中途才出现的根，它的 *Auto Compile On Save* 要到下次启动才生效。 |
 
 ## 备注
 
@@ -120,7 +131,9 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **13**
 SourceDirectory=(Path="DShader")
 GeneratedShaderDirectory=(Path="Intermediate/DreamShader/GeneratedShaders")
 DefaultBackend=ThinCustom
+bScanPluginSourceDirectories=True
 bShowInMemoryMaterialsInContentBrowser=False
+bLayoutInMemoryGraphs=True
 bAutoCompileOnSave=True
 SaveDebounceSeconds=0.250000
 bVerboseLogs=False

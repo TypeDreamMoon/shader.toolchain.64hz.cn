@@ -1,6 +1,6 @@
 ---
 title: Diagnostics
-description: Where DreamShader reports errors, how to read a message, and a lookup table of the ones you will actually hit — grouped by pipeline stage.
+description: Where DreamShader reports errors, how to read a message, how the DSHnnnn codes are banded, and a lookup table of the ones you will actually hit — grouped by pipeline stage.
 ---
 
 Every compile failure surfaces as a **diagnostic**: one message, owned by one source file, usually
@@ -95,6 +95,46 @@ end without a full stop, and it is marked where it appears.
 This page carries the messages you are likely to meet. The exhaustive list — every message the
 parser, generator, commandlet and VirtualFunction sync can emit, roughly four times as many rows —
 lives in the plugin's own manual at `Plugins/DreamShader/Docs/diagnostics/index.md`.
+</Callout>
+
+## `DSHnnnn` codes
+
+<Since v="1.6.0" />
+
+Until now the only thing identifying a DreamShader failure was its **English wording** — which is
+why the generator's message sites carry `I18N-EXEMPT` markers: translate the text and you break the
+tests, the corpus expectations and the diagnose skill that match on it.
+
+Every parser raise site now carries a code instead. The leading digit is the stage that raises it:
+
+| Range | Stage | Status |
+| :-- | :-- | :-- |
+| `DSH1xxx` | driver, source files and imports | tagged |
+| `DSH2xxx` | lexer and syntax | tagged |
+| `DSH3xxx` | sections and declarations | tagged |
+| `DSH4xxx` | Graph statements and expressions | no tagged site yet |
+| `DSH5xxx` | builtins — `UE.*`, math, Substrate | no tagged site yet |
+| `DSH6xxx` | functions and HLSL codegen | no tagged site yet |
+| `DSH7xxx` | properties, parameters and settings | tagged |
+| `DSH8xxx` | asset generation and saving | no tagged site yet |
+| `DSH9xxx` | tools, sync and internal invariants | no tagged site yet |
+
+<Callout type="info">
+**Nothing on the wire changed.** `FDreamShaderDiagnosticRecord::Code` and the `"code"` field in
+`diagnostics.json` already existed — what changed is that they are now populated. The code rides on
+`FDreamShaderTextError` alongside the `FText`.
+</Callout>
+
+<Callout type="warn">
+**Only the parser raises `DSHnnnn` so far; the generator does not.** 112 codes are documented, but
+the tables below stay the authoritative catalogue of all 659 messages until the generator's remaining
+~561 raise sites are tagged too — they still report through `FString& OutError` with no code, and
+reach the store as the generic `generate-error`.
+
+The per-code pages live in the plugin's own manual under
+`Plugins/DreamShader/Docs/diagnostics/`, generated from the raise sites by
+`.skill/gen-diagnostics.ps1`, with the Cause/Fix prose written by hand and preserved across
+regenerations.
 </Callout>
 
 ## Parse

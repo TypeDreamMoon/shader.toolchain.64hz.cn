@@ -5,6 +5,36 @@ description: lang.64hz.cn 文档站的更新记录 —— 信息架构、部署�
 
 这里记录 `lang.64hz.cn` 文档站本身的信息架构、部署和内容更新。
 
+## 2026-08-21
+
+### 同步到插件 1.8.0
+
+一次覆盖 `1.5.1` → `1.8.0` 四个版本的内容同步。除更新记录外，改动集中在生成器语义变化最大的那几页。
+
+- [插件更新记录](/docs/changelog/dreamshader)补齐 `1.5.1`、`1.6.0`、`1.7.0`、`1.7.1`、`1.8.0`；
+  全站当前版本表改为 `1.8.0`。
+- [重新生成](/docs/generation/regeneration)重写：新增**手改检测**（输出指纹、四种状态、什么算手改、
+  三个出口）、**原子重建**、**资产开着编辑器时拒绝重建**；「source hash 缓存」改写成**构建键**，
+  并补上按依赖顺序编译的批次规则。归属守卫那条「ThinCustom 路径上没有守卫」的警告已作废并删除。
+- [内存材质](/docs/generation/in-memory)的「被已保存资产遮蔽」换成**存储决定一次重建怎么落地**，
+  并说明启动扫描不再强制重建；cook 一节补上 AssetRegistry 注册。
+- [数学内置](/docs/builtins/math)从 19 个写法扩到 29 个，含 `reflect` / `refract` 的子图展开、
+  `step` 的 pin 反向映射，以及「这里没有的东西」重写。全站凡是写「19 个」的地方一并更正。
+- [import](/docs/language/imports) 与[工程结构](/docs/start/project-layout)补上**插件源码根**、
+  「import 永不跨根」和带根限定的 `Plugin.<Name>:path` 写法。
+- [编辑器工具](/docs/tools/editor)补上右键菜单的三个 provenance 动作、Graph 断点、原始 RGBA8 帧与空闲退避、
+  `status.json` / `Responses/` / `owner.lock`，以及**一个工程只有一个编辑器持有 bridge**。
+- [VSCode 与 Rider](/docs/tools/vscode)更正了两处已经不成立的说法：请求不再是「静默消失」（带 `requestId`
+  会有回复文件），`previewControl` 省略 `frameRate` 也不再把会话掉到 2 FPS。
+- [错误速查](/docs/diagnostics)新增 `DSHnnnn` 错误码分段表，并写明只有 parser 侧已标注。
+- [运算符与转换](/docs/graph/expressions)新增「swizzle 在图里长什么样」—— 内联 mask、改指输出、
+  `ComponentMask` 节点三选一，以及材质编辑器为什么会把内联 mask 改判到最后一个输出。
+- [项目设置](/docs/settings/project)从 13 项到 15 项（`bScanPluginSourceDirectories`、
+  `bLayoutInMemoryGraphs`）；[材质 Settings](/docs/settings/material) 补上由 domain 推导的
+  `bUsedWithVolumetricCloud`；[函数](/docs/language/functions)补上顶部 `#include` 的提升；
+  [Properties 类型](/docs/parameters/properties)与 [`UE.*` 节点](/docs/builtins/ue-nodes)补上
+  纹理维度按 `GetMaterialType()` 判断、以及 `UE.CollectionParam` 的宽度。
+
 ## 2026-08-02
 
 ### 文档重建 —— 插件 1.5.0

@@ -128,16 +128,34 @@ Hidden {Count} in-memory material(s) from the Content Browser and asset pickers.
 </Accordion>
 </Accordions>
 
-## 被已保存资产遮蔽
+## 磁盘上已经存在的资产
 
-如果一次纯内存编译的目标 package 路径在磁盘上已经存在，生成仍然成功，但会记一条警告：
+**存储决定一次重建怎么落地，而不是发起编译的那一方决定。** <Since v="1.8.0" /> 一次纯内存编译落在磁盘上
+已经存在的 package 上时，资产会被重建**并保存**，而不是在自己的文件之上于内存里重建。生成成功，并记一条：
 
 ```text
-In-memory material mode: '{PackageName}' already exists as a saved asset, which shadows in-memory
-regeneration. Delete the saved asset to make it fully in-memory.
+'{ObjectPath}' exists as a saved asset, so it is rebuilt and saved on disk rather than in memory. Run
+Tools > DreamShader > Clean Persisted Generated Assets to make it memory-only.
 ```
 
-有两个命令处理这种情况：
+| 项目 | 说明 |
+| :-- | :-- |
+| 适用于 | 每一种触发方式 —— 因为每一次交互式编译要的都是纯内存 |
+| 自 | `1.8.0` —— 在此之前，这样一次编译在内存里重建资产，然后清掉脏标记 |
+
+<Callout type="warn">
+旧行为产出的是一个**既不等于磁盘上的文件、也不等于将来会被写出的任何东西、还自称干净**的对象 ——
+于是一次 Save All 就能落下一个谁也没选过的状态，而你在编辑器里看到的版本会在重启后消失。
+现在「这个资产到底是什么」重新只有一个答案：上一次编译产出的东西，无论这个资产住在哪。
+</Callout>
+
+一个值得知道的推论：**启动扫描不再强制重建**。在每个内存资产无论如何都会重建时，强制是免费的；
+一旦磁盘资产开始被*保存*，它就不免费了 —— 每次启动都会重写每一个持久化的生成资产，带来磁盘写入、
+版本控制噪音和更慢的启动，而这些重建早已被 source hash 排除掉了。现在启动遵守
+[source hash 跳过](/docs/generation/regeneration)，所以一个已经最新的已保存资产不会被动。
+改 **Default Compiler Backend** 仍然强制，因为哈希看不见那个设置。
+
+有两个命令处理磁盘上的这些资产：
 
 | 命令 | 效果 |
 | :-- | :-- |
@@ -154,6 +172,9 @@ regeneration. Delete the saved asset to make it fully in-memory.
 Run Tools > DreamShader > Clean Persisted Generated Assets to remove them.
 ```
 
+（自 `1.8.0` 起，这些资产其实不再*遮蔽*任何东西 —— 它们只是仍然在磁盘上，并且就在磁盘上被重建。
+这条通知是指给想要「纯内存」终态的人看的。）
+
 ## Cook 行为
 
 cook 才是这些资产变成实体的时候。
@@ -164,6 +185,7 @@ cook 才是这些资产变成实体的时候。
 | 谁来生成 | **只有 cook director** —— 以 `-cookworker` 启动的进程跳过生成，直接加载 director 保存的结果 |
 | 何时 | post-engine-init，即引擎子系统就绪之后、commandlet 的 `Main` 之前 |
 | 生成什么 | 除 `.dsh` 外的所有项目 DreamShader 源文件，强制生成并持久化 |
+| 资产注册表 | 生成实际写出的每个 package 都会在 commandlet 的 `Main` 之前交给 `IAssetRegistry::ScanModifiedAssetFiles` <Since v="1.8.0" /> |
 | 失败时 | **中止整个 cook** |
 
 cook 日志：
@@ -185,10 +207,21 @@ Failed entries above.` 在 cook 之前，先在编辑器里把每个源文件干
 生成放在 post-engine-init 而不是模块启动时，是因为它依赖的材质编辑库需要编辑器子系统，而那些在模块加载期还不存在。
 限定只在 director 上跑，则避免了所有 worker 争抢保存同一批 package。
 
+<Callout type="info">
+**注册进资产注册表这一步是必要的，不是保险。** <Since v="1.8.0" /> 一个 cook 请求是经
+`IAssetRegistry::DoesPackageExistOnDisk` 解析的，而这个函数只查注册表的内存状态、没有文件系统兜底 ——
+而生成恰好跑在注册表枚举完内容目录**之后**。所以在此之前，刚写出的 package 对那次查询是不可见的：
+`DirectoriesToAlwaysCook` 把文件从磁盘上扫了进来，然后请求又被丢掉了，全程没有任何报错 ——
+材质根本没进 pak，`LoadObject` 在 Shipping 构建里才失败。现在会记一条
+`DreamShader cook: registered {Count} generated package(s) with the AssetRegistry.`
+</Callout>
+
 ## 说明
 
 - `IsMemoryOnly` 只由一件事决定：package 是否仍带着 `PKG_NewlyCreated`。除此之外没有任何东西区分内存材质和已持久化材质。
-- 纯内存材质保留构建阶段产生的节点位置 —— 纯内存模式下会跳过自动布局，所以内存里的图看起来比落盘后的乱。
+- 自 `1.6.0` 起，**纯内存材质也会跑自动布局**，所以保存之后你看到的图和生成资产是一样的。
+  *Project Settings ▸ … ▸ Compiler ▸ Lay Out In-Memory Graphs* 可以关掉它，关掉之后这些图保留构建阶段的
+  坐标 —— 一根高柱子。见[项目设置](/docs/settings/project)。
 - 来源元数据在 **两种** 模式下都会打在 ThinCustom 实例上，持久化模式下还会额外打在 base 上。`Graph` backend 材质和材质函数
   只在持久化时才打。
 - 生成出来的实例刻意 **不是** `RF_Transactional`：材质实例不支持撤销/重做，否则 shader map 会失步。

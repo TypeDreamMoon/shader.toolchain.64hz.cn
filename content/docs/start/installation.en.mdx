@@ -9,7 +9,7 @@ per project.
 | | |
 | --- | --- |
 | Repository | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
-| Plugin version | `1.5.0` |
+| Plugin version | `1.8.0` |
 | Engines | Unreal Engine `5.3` – `5.8`, Win64 verified |
 | Expected path | `<Project>/Plugins/DreamShader` |
 | Plugin dependencies | `WebSocketNetworking`, `SQLiteCore` — both engine plugins, both enabled automatically |
@@ -135,7 +135,7 @@ Generated DreamShader thin-custom material /Game/DreamMaterials/M_InstallCheck f
 
 ## The settings you will touch first
 
-The full panel has thirteen properties; these are the ones that matter on day one. Note that the
+The full panel has fifteen properties; these are the ones that matter on day one. Note that the
 config identifiers keep the `b` prefix Unreal drops from the display name.
 
 | UI name | Config property | Default | Effect |
@@ -149,7 +149,7 @@ config identifiers keep the `b` prefix Unreal drops from the display name.
 
 Values are written to the **project's** `Config/DefaultEngine.ini`, section
 `[/Script/DreamShader.DreamShaderSettings]`, so they are shared by everyone who checks the project
-out. All thirteen are documented on [Project Settings](/en/docs/settings/project).
+out. All fifteen are documented on [Project Settings](/en/docs/settings/project).
 
 <Callout type="warn">
   `GeneratedShaderDirectory` is only consulted while the `/DreamShaderGenerated` virtual shader mount
@@ -174,7 +174,7 @@ append folders — `Game/Generated`, `Plugin.MyPlugin/Generated`. The complete d
 
 ## Engine compatibility
 
-DreamShader `1.5.0` is developed against Unreal Engine `5.8` and verified on Win64 with
+DreamShader `1.8.0` is developed against Unreal Engine `5.8` and verified on Win64 with
 single-plugin `RunUAT BuildPlugin` builds:
 
 | Unreal Engine | Status |

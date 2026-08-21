@@ -8,7 +8,7 @@ DreamShader 是一个 Unreal Engine 插件，把 DreamShaderLang 源文件编译
 
 | | |
 | --- | --- |
-| 版本 | `1.5.0` —— 描述文件 `Version` `150`，`IsBetaVersion` 为 `false` |
+| 版本 | `1.8.0` —— 描述文件 `Version` `180`，`IsBetaVersion` 为 `false` |
 | 引擎 | Unreal Engine `5.3` – `5.8`，已用 `RunUAT BuildPlugin` 在 Win64 验证 |
 | 模块 | `DreamShader`（Runtime）、`DreamShaderCompiler`（Runtime）、`DreamShaderEditor`（Editor） |
 | 插件依赖 | `WebSocketNetworking`、`SQLiteCore` |
@@ -28,6 +28,8 @@ Unreal 材质图一旦变大，就很难 review、diff、复用和迁移。Dream
 | Substrate 图需要文本化编写 | `Substrate` 类型、`Base.FrontMaterial`，以及 `Substrate.*` 内置 <Since v="5.4" ue /> |
 | 已有的图需要迁移 | 反编译器把 `UMaterial` / `UMaterialFunction` 导出回 `.dsm` / `.dsf` |
 | 生成的资产追溯不到来源 | `DreamShader.SourceFile` 和 `DreamShader.SourceHash` 写进 package 元数据 |
+| 一次重建把手改的资产悄悄覆盖了 | 输出指纹 `DreamShader.OutputDigest` 拦下这次重建，并给出 Revert / Adopt / Detach <Since v="1.8.0" /> |
+| 插件想自带自己的材质源码 | 每个带 `DShader` 目录的已启用插件贡献一个源码根 <Since v="1.6.0" /> |
 
 它不是材质编辑器的替代品，也不是 shader 管线。`Graph` 是一个只有四个运算符和 `if` / `else` 的节点图
 构建器；真正命令式的逻辑应该写进 `Function`，它的函数体是真正的 HLSL，会被编译进 `Custom` 节点。一次性
@@ -114,4 +116,4 @@ WebSocket 通信。
 - [安装](/docs/start/installation) —— 把它装进项目
 - [日常工作流](/docs/start/workflow) —— 编译循环
 - [编辑器工具](/docs/tools/editor) —— 菜单、浏览器标签页、清理命令
-- [更新日志](/docs/changelog/dreamshader) —— `1.5.0` 改了什么
+- [更新日志](/docs/changelog/dreamshader) —— `1.8.0` 改了什么

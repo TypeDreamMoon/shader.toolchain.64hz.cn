@@ -8,9 +8,440 @@ language surface, the generator, the editor tooling and engine compatibility.
 
 | | |
 | :-- | :-- |
-| Current release | **1.5.0** — 2026-08-02 |
+| Current release | **1.8.0** — 2026-08-21 |
 | Engines | Unreal Engine `5.3` through `5.8`, Win64 |
 | Source of record | the plugin's own `CHANGELOG.md`, shipped in the plugin folder |
+
+## 1.8.0 - 2026-08-21
+
+The release about **not losing things**. Generation used to tear an asset down unconditionally: a
+hand-edited asset was overwritten silently, a failed rebuild left the asset empty, and an asset left
+open in the material editor had the rebuild quietly reverted by the next Apply. This version closes
+all of those — an output fingerprint, an atomic rebuild, an open-editor gate, dependency-ordered
+batches, and a build key that finally covers everything deciding what a source compiles into.
+
+### Divergence — three ways out
+
+- Every successful generation stamps a **`DreamShader.OutputDigest`** fingerprint of what the asset
+  actually holds, and the next rebuild compares it **before** anything is cleared. A mismatch
+  **fails the compile** with the asset exactly as you left it — not cleared, not half-built. See
+  [Regeneration](/en/docs/generation/regeneration).
+- The digest covers **exactly what a rebuild would destroy**: nodes, connections, node properties,
+  the reset-property set, a function's asset-level fields, and a ThinCustom instance's parameter
+  overrides. It deliberately excludes what a rebuild never touches — node positions, comment boxes
+  you wrote, pin GUIDs, and properties outside the reset list. Blocking on a property that was never
+  in danger only refuses a rebuild for nothing.
+- All three ways out are on the asset's right-click menu under **DreamShader**: **Revert to Source**
+  (discard the edits and rebuild), **Adopt Into Source** (rewrite the `.dsm` / `.dsf` from the asset,
+  backing the old one up to `<source>.bak`), and **Detach From DreamShader** (keep the asset, stop
+  managing it).
+- `-Force` does **not** get past it. `bForce` answers "is the source hash stale", and the editor
+  asserts it for every file in its own startup sweep — honouring it would have left the gate dead in
+  the mode the editor spends all its time in. Only Revert overrides a divergence, because only a
+  person can make that call.
+- Memory-only assets are stamped too, with the digest and the source **path** (but not the source
+  hash, which would switch the [skip](/en/docs/generation/pipeline) on). Without the path an
+  in-memory asset classifies as foreign and the gate never fires — dead in the editor's default mode.
+
+### A rebuild is atomic
+
+- The steps either all take effect or none of them do. The old graph is now **detached** rather than
+  destroyed, and destroyed only once the rebuild has fully succeeded; a failure restores the asset
+  from a serialized snapshot — render state, material-function usage, node graph, connections and
+  `FunctionInput` / `FunctionOutput` pin GUIDs all come back, so existing call sites stay wired.
+- This was necessary because **not every failure can be caught up front**: the whole-file parse, the
+  `Settings` validation and the `Outputs` validation all run before the asset is touched, but a
+  `Graph` block is compiled one statement at a time by the graph builder, which runs *after* the
+  teardown. Before `1.8.0` such a failure left the asset **emptied** — bad for a material, much worse
+  for a material function, whose call sites read their pins from the live asset: one bad `.dsf` took
+  every material that called it down with it, with no undo (generated assets are deliberately not
+  `RF_Transactional`).
+- Two things fall out of it. The teardown's two deletion strategies collapsed into one — the
+  node-by-node path existed to break inbound links, which is pointless when the graph leaves as a
+  unit — so the former 1200-expression threshold is gone and every rebuild takes the fast path. And
+  `DependentFunctionExpressionCandidates`, the second serialized node list whose stale entries used to
+  arm a null-deref for the rest of the session after a failed function compile, is now reset at
+  commit rather than at teardown.
+
+### A rebuild is refused while the asset is open in an asset editor
+
+- An asset editor **does not edit the asset**: `FMaterialEditor` duplicates it into a transient
+  `UPreviewMaterial` and copies that duplicate back over the original on Apply or Save; the material
+  instance editor writes back through a `UMaterialEditorInstanceConstant` wrapper. An editor left open
+  across a rebuild is therefore holding a *pre-rebuild* copy, and the next Apply silently reverts
+  everything the rebuild did — surfacing later as a divergence report on the compile after that, a
+  long way from the cause.
+- Compiles now stop with `Asset '{ObjectPath}' is open in an asset editor, so it was NOT rebuilt. …`
+  and say to close it.
+- **Revert to Source** and **Adopt Into Source** are the exception: they close the editor themselves,
+  act, and reopen it. Both are offered on that editor's own toolbar, and a menu item that is
+  permanently dead where it is most useful is not a guard, it is a bug.
+
+### The build key replaces the plain source hash
+
+- `DreamShader.SourceHash` is now a **build key**: prepared source text, the **Default Compiler
+  Backend**, the three mapping tables, the plugin version plus a hand-bumped format tag, and the
+  engine version. It used to hash the source text alone, so anything *else* that changes the output
+  left every already generated asset looking current.
+- The forced full sweep that was bolted onto the backend setting is therefore gone: each affected
+  asset fails the skip check on its own, and one the setting does **not** affect is still skipped
+  instead of being needlessly rebuilt.
+- Changing the key's composition invalidates every existing stamp — one rebuild per asset, once,
+  which is the intended effect.
+
+### A batch of source files compiles in dependency order
+
+- A `.dsm` that calls a `ShaderFunction` binds its call node against the **live** `UMaterialFunction`
+  asset — `SetMaterialFunction` reads the pins off the object, not off the source — so compiling the
+  caller first bound it against the *previous* version of that function's interface. Renaming a
+  function input and saving both files was enough to hit it, and which one won depended on the
+  iteration order of a `TMap`.
+- Both drain points — the watcher's pending-file batch and the whole-project sweep — now topologically
+  sort by the import graph. Only edges inside the batch are honoured; a cycle is left for the import
+  loader to reject with its own diagnostic.
+
+### One editor owns the bridge for a project
+
+- The bridge directory is per **project**, not per process: one `Requests` folder, one `status.json`,
+  one heartbeat. Two editors open on the same project therefore both polled the same queue and both
+  overwrote `status.json` with their own pid.
+- Ownership is now a lock file, `Bridge/owner.lock`, carrying the owning pid and a heartbeat: an owner
+  is believed while its process is alive **and** its heartbeat is under 30s old. Both tests are needed
+  — the pid test alone hands the bridge over whenever the owner is mid-compile (a compile blocks the
+  game thread), and the heartbeat test alone leaves it unowned after a hard crash. It is released on
+  shutdown.
+- A non-owning editor still compiles its own in-memory materials, but does not consume requests, write
+  `status.json`, or **write generated assets to disk**. That last part follows directly from storage
+  deciding how a rebuild persists: without it, two editors would both `SavePackage` the same file, and
+  a save that loses that race is not a merge — it is a corrupted package or a dead editor. The
+  commandlet is unaffected. See [Editor Tools](/en/docs/tools/editor).
+
+### An asset that exists on disk is rebuilt on disk
+
+- **Storage decides how a rebuild persists, not the compile that asked for it.** The editor asks for a
+  memory-only compile every time, and when that landed on a package which already existed, generation
+  rebuilt it in place and then cleared the dirty flag — producing an object that matched neither the
+  file on disk nor anything that would ever be written, and that reported itself clean. A Save All
+  could persist a state nobody chose, and the version visible in the editor disappeared on restart.
+  The only signal was one log warning.
+- `IsGeneratedAssetPersisted` now decides: an asset with a file behind it takes the persisted path —
+  stamped, saved, dirty flag never faked — and one without stays memory-only. There is exactly one
+  answer to "what is this asset" again. See [In-memory Materials](/en/docs/generation/in-memory).
+- The startup sweep stopped forcing as part of this, and had to. Forcing was free while every in-memory
+  asset regenerated regardless of its source hash; it stopped being free the moment a disk-backed asset
+  started being *saved*, because every editor launch would then rewrite every persisted generated
+  asset. Changing the **Default Compiler Backend** still forces, because the hash cannot see it.
+
+### Fixed
+
+- **A `Domain="Volume"` material carries `bUsedWithVolumetricCloud`, and decompiling one no longer
+  turns the flag back on.** The flag is now derived from the domain, and an explicit
+  `bUsedWithVolumetricCloud = "false";` still wins — a Volume material that only feeds volumetric fog
+  can decline the cloud shader permutations. It is written through `UMaterial::SetUsageByFlag` (UE 5.8
+  deprecates every `bUsedWith*` field), and the assignment moved out of the `Domain` branch to read the
+  domain back off the material, because `ResetMaterialToDefaults` does not clear usage flags. The
+  decompiler goes through the same `GetDefaultUsedWithVolumetricCloud`, so `UMaterial` → `.dsm` →
+  `UMaterial` is an identity again. See [Material Settings](/en/docs/settings/material). Reported in
+  [#27](https://github.com/TypeDreamMoon/DreamShader/pull/27).
+- **A swizzle survives the material editor.** A component selection like `CustomStencil.r` was written
+  as an inline mask on the connection (`OutputIndex=0` plus `Mask/MaskR`), which the HLSL translator
+  honours but the material graph editor cannot draw: pins correspond to an expression's `Outputs`
+  entries, and no pin means "output 0, red channel only". `UMaterialGraph::GetValidOutputIndex`
+  distrusts `OutputIndex 0` whenever a mask is present, finds no matching pin, and falls back to the
+  node's **last** output — which the first Apply/Save then writes back. On a `SceneTexture` node
+  (`Color / Size / InvSize`) that turned `CustomStencil.r` into `InvSize`, silently, with no error
+  anywhere: the stencil comparison failed for every pixel and the effect the function gated simply
+  stopped appearing. Any generated asset touched through the material editor was exposed, and
+  duplicating one first did not help.
+  Component selections are now emitted in a form the graph can round-trip. An inline mask is kept only
+  where the editor resolves it back to the pin it already names; where the expression publishes the
+  same value through several masked outputs (`TextureSample`'s `RGB/R/G/B/A/RGBA`, `VertexColor`, …)
+  the matching output is named directly; otherwise a real `ComponentMask` node is emitted. Mixed output
+  sets like `SceneTexture`'s are never retargeted, because there the outputs are different values
+  rather than views of one. The build key tag moves to `DSK2`, so every generated asset is rebuilt once
+  into the new form.
+- **`UE.CollectionParam(...) Name;` in `Properties` is as wide as the collection parameter.** The
+  parser records the declaration form as a scalar (it cannot open the collection), and the generator
+  used that width as-is, so a vector MPC parameter passed to a `float4` input was widened by three
+  `AppendVector` splats and the material failed with `Can't append float4 to float4`. The width now
+  comes from the loaded collection (vector → 4, scalar → 1); an explicit `OutputType=` still wins. See
+  [Properties](/en/docs/parameters/properties).
+- **A render target is accepted where a texture of its dimension is expected.** The dimension check
+  compared asset classes; it now reads `UTexture::GetMaterialType()` — the same answer the material
+  compiler gives on a texture-object pin — so `UTextureRenderTargetVolume`, `UTextureRenderTarget2D`,
+  `UTextureRenderTargetCube` and `UTextureRenderTarget2DArray` pass for their dimension, and anything
+  else a texture-object pin would take does too.
+- **Cook-generated assets are registered with the AssetRegistry, so they reach the package.** A cook
+  request is resolved through `IAssetRegistry::DoesPackageExistOnDisk`, which consults only the
+  registry's in-memory state and has no filesystem fallback; generation runs on post-engine-init, after
+  the registry enumerated the content directories, so a freshly written package was invisible to that
+  lookup — the material simply was not in the pak, and `LoadObject` failed at runtime in a Shipping
+  build, with no error anywhere. Generation now records what its saves actually wrote and hands the
+  filenames to `IAssetRegistry::ScanModifiedAssetFiles` before the commandlet's `Main` collects the
+  initial requests. Reported in [#26](https://github.com/TypeDreamMoon/DreamShader/issues/26).
+- **The ThinCustom instance path runs the ownership guard.** It checked only the class of whatever sat
+  at the target path, not its provenance, so generating onto a hand-authored
+  `UDreamShaderMaterialInstance` adopted it and then cleared its parameter overrides. Since ThinCustom
+  is the default backend this was the widest of the three creation paths and the only one without the
+  check.
+- **`DreamShaderGraphDecompilerHelpers.h` compiles on its own** — it declared functions taking
+  `EMaterialDomain` and `EBlendMode` without including either enum's header, which a unity build only
+  ever had through a neighbouring translation unit.
+
+### Added
+
+- **`#include` at the top of a `Function` body is hoisted to file scope.** A `Function` block's HLSL
+  used to be emitted verbatim between the braces of the generated `DreamShaderFn_*` definition, which
+  made any `#include` land *inside* a function — fine for macro-only headers, a compile error for
+  anything that defines a function. Leading `#include "…"` / `#include <…>` directives (only whitespace
+  and comments before them) are now stripped from the body and emitted once, in first-seen order, right
+  after the guard of the generated `.ush`; a `SelfContained` embed or a `GraphFunction` body puts them
+  on the Custom node's `IncludeFilePaths` instead, ahead of the generated include. A directive after
+  the first statement keeps the old behaviour. This is what lets a header shared between C++ and HLSL
+  be consumed from a `.dsf` without copying its functions into DreamShaderLang. See
+  [Functions](/en/docs/language/functions).
+
+## 1.7.1 - 2026-08-16
+
+### Fixed
+
+- **Closing the editor crashed after using a Graph breakpoint.** An access violation reading `0x3b0` in
+  `UMaterial::GetExpressionInputDescription`, from the probe preview's own destructor, reached through
+  `FDreamShaderPreviewWebSocketServer::Shutdown` while modules were unloading.
+  Modules unload from inside the exit path: `EngineExit()` raises the exit request, `FEngineLoop::Exit()`
+  runs the purge, and only then calls `UnloadModulesAtShutdown()` — so a module tearing down its own
+  state at that point is doing it *after* the objects it points at are gone. `TStrongObjectPtr` keeps
+  the preview material out of the garbage collector's reachable-set sweep, but it does not exempt it
+  from the exit purge: the pointer stayed non-null while the object behind it did not, which is why the
+  existing null checks passed and the dereference still faulted.
+  What it faulted on is worth naming, because nothing about the call site suggests it —
+  `UMaterial::GetExpressionInputDescription` and `GetExpressionCollection` both dereference
+  `GetEditorOnlyData()` without checking it, so reaching for a material's inputs or expressions after
+  the purge is an unconditional null-plus-offset read rather than a recoverable failure. The teardown is
+  now skipped once the engine is exiting, which is correct and not merely safe: releasing the shared
+  expression collection exists so the preview material cannot touch the graph material's nodes *later*,
+  and at exit there is no later. The ordinary path, where a client disconnects while the editor keeps
+  running, is unchanged.
+
+## 1.7.0 - 2026-08-16
+
+### Added
+
+- **Graph breakpoints in the live preview — "Start Previewing Node" for a text source.** Set a
+  breakpoint on a `Graph` line and the preview mesh shows the value bound at that line instead of the
+  finished material. This is the same idea as right-clicking a node in the Material Editor and choosing
+  *Start Previewing Node*, except the "node" is a line of DreamShaderLang.
+  It reuses the engine's own machinery: the generator publishes a per-source **debug table** mapping
+  every `(line, name)` binding to the exact `UMaterialExpression` / output / channel-mask it produced,
+  and a transient `UPreviewMaterial` — sharing the generated material's expression collection, with the
+  probed node wired into its emissive (or `MaterialAttributes` / `FrontMaterial` for those value kinds,
+  and a default-coordinate sample for a texture object) — is recompiled through
+  `FMaterialUpdateContext`. `UPreviewMaterial::ShouldCache` keeps that recompile to a handful of
+  shaders, exactly as the node-thumbnail path does.
+  A breakpoint on a blank or comment line snaps forward to the next line that binds a value; one set
+  before the source has ever generated is remembered and attaches on the next compile; after a recompile
+  the probe re-resolves automatically and the client is told the line it landed on. Wire protocol:
+  `setProbe` / `clearProbe` / `probeState`. See [Editor Tools](/en/docs/tools/editor).
+
+### Changed
+
+- **The streaming preview now sends raw RGBA8 frames instead of a PNG per frame.** A new
+  `encoding: "raw"` session reads the render target back and streams the pixels as one self-describing
+  binary frame (a 24-byte header — size, flags, camera, resolved probe line — then the pixels), with no
+  PNG encode on the editor side. A browser/webview client paints them straight onto a canvas. This is
+  most of what a smooth 30–60 FPS stream costs; PNG-encoding a 512² frame per tick was tens of
+  milliseconds of game-thread time. The legacy `encoding: "png"` path is unchanged for older clients.
+- **Streaming got cheaper when nothing is moving.** Identical frames are dropped, and after a few in a
+  row the render clock backs off to a low idle rate until an edit, a camera/mesh change, or a probe
+  change re-arms it (a frame rendered while shaders are still compiling never backs off). A
+  `previewControl` that omits a field — including `frameRate` — now keeps the current value rather than
+  resetting to 2 FPS, and it can now carry `width` / `height` / `mesh` so the client can drive the
+  render size and shape without a full re-request. A `force` flag on `previewMaterial` distinguishes an
+  explicit refresh (regenerate) from a camera/mesh re-request (reuse the last generation).
+
+## 1.6.0 - 2026-08-15
+
+### Language — ten more math builtins
+
+- `Graph` gains `step`, `smoothstep`, `length`, `cross`, `asin`, `acos`, `atan`, `atan2`, `reflect` and
+  `refract`. Every one of them had a node — or, for `reflect` and `refract`, a four-line definition —
+  and none of them had a spelling, so the only way to write `step(0.5, x)` was
+  `UE.Expression(Class="Step", OutputType="float1", Y=0.5, X=x)`, and the failure when you wrote it the
+  HLSL way was `Unknown Graph function 'step'` wrapped inside whichever call the argument belonged to.
+  The builtin surface goes from 19 spellings to 29. See [Math Builtins](/en/docs/builtins/math).
+- Three of the new names do not wire to a pin called `Input`, which is the whole reason the mapping is
+  worth stating: `Step` and `Arctangent2` name their pins `Y` and `X`, and `SmoothStep` names them
+  `Min` / `Max` / `Value`. Argument order stays HLSL's in every case, so `step(edge, x)` wires argument
+  1 to `Y` and argument 2 to `X` and still means `x >= edge`.
+- `length` and `cross` join `dot` as the builtins with a fixed return width — 1 and 3 components,
+  authoritative.
+- `reflect` and `refract` are the **first builtins that are not one node**. Unreal has no expression for
+  either, so they are lowered to the arithmetic HLSL defines them as: four nodes for
+  `i - 2 * dot(i, n) * n`, and fourteen for refraction including the `If` that returns zero under total
+  internal reflection. Both are exact and both are expensive; where the surrounding code is already
+  HLSL, a `Function` body still does it in one node.
+
+<Callout type="warn">
+**This widens a reserved namespace.** These ten names now shadow user code silently, the same way the
+original nineteen do — a `Function`, property or `ShaderFunction` named `length`, `step` or `cross`
+becomes unreachable from a `Graph` block with no diagnostic. Existing sources that declare one need
+renaming.
+</Callout>
+
+Not added, and not addable: matrices. The Unreal material graph has **no matrix value type at all**, so
+`mul(M, v)` has no `Graph` spelling regardless of what the DSL does —
+`UE.Expression(Class="Transform"/"TransformPosition", …)` covers space conversions and a `Function` HLSL
+body covers the rest. Still absent but reachable through `UE.Expression`, each having a node:
+exponential, logarithmic, `tan`, `sign`, `round`, `trunc` and `distance`. The decompiler is unchanged,
+so the new nodes export as generic `UE.Expression(Class="…", …)` calls rather than round-tripping to the
+builtin spelling — the same asymmetry `Fmod` already has. `reflect` and `refract` cannot round-trip at
+all, since they leave behind ordinary arithmetic nodes with nothing marking their origin.
+
+### Diagnostics — `DSHnnnn` codes
+
+- Until now the only thing identifying a DreamShader failure was its **English wording**. All 120 parser
+  raise sites now carry a code instead: `DSH1xxx` path resolution, `DSH2xxx` lexer and syntax, `DSH3xxx`
+  sections and declarations, `DSH7xxx` properties, parameters and settings. The code rides on
+  `FDreamShaderTextError` alongside the `FText`. See [Diagnostics](/en/docs/diagnostics).
+- **Nothing on the wire changed** — `FDreamShaderDiagnosticRecord::Code` and the `"code"` field in
+  `diagnostics.json` already existed.
+- The generator does not raise codes yet: 112 codes are documented, while the full catalogue of all 659
+  messages, grouped by stage, stays authoritative until the generator's remaining ~561 raise sites are
+  tagged too.
+
+### Localization — the editor UI speaks your language; the wire format does not
+
+- Editor-facing text — the *DreamShader Gen* page, the settings section, slow-task progress, parser and
+  decompiler diagnostics — moved from `FString` literals to `LOCTEXT` / `NSLOCTEXT`, and the diagnostic
+  records that carry it are `FText`. Simplified Chinese ships with it:
+  `Content/Localization/DreamShader/zh-Hans/DreamShader.locres`, loaded through the
+  `LocalizationTargets` entry in `DreamShader.uplugin` with an `Editor` loading policy. `FString`
+  overloads are kept alongside every converted signature. Thanks to
+  [@youli42](https://github.com/youli42) — PR [#24](https://github.com/TypeDreamMoon/DreamShader/pull/24).
+- **`diagnostics.json`, `diagnostics/*.json`, `bridge.db` and the preview WebSocket stay English in every
+  editor culture.** The VSCode and Rider extensions parse those, so a translated editor must not change
+  a byte of them. `FTextInspector::GetSourceString` is only half an answer: it hands back the source
+  string for a plain `LOCTEXT`, but for an `FText::Format` result it returns the *localized* substituted
+  display, so one message site adopting `FText::Format` would have leaked translated text onto the wire.
+  `ToInvariantWireString` instead replays an `FText`'s historic format data — the source pattern, every
+  argument rendered in the invariant culture, nested formats recursively, number grouping off so `12345`
+  never becomes `12,345` — and every JSON / SQLite / WebSocket write goes through it.
+
+### Plugin source roots
+
+- Every enabled plugin that ships a `DShader` folder now contributes its own source root, so a plugin
+  can carry the `.dsm` / `.dsf` / `.dsh` files that build its materials instead of parking them in the
+  project's tree. `Root="Plugin.<Name>"` has been able to *write* assets into a plugin since `1.2.0`;
+  the source half was missing. Discovery, the dependency graph and generate-all pick plugin roots up
+  with no further configuration. See [Project Layout](/en/docs/start/project-layout).
+- *Project Settings ▸ DreamPlugin ▸ Dream Shader ▸ Paths ▸ **Scan Plugin Source Directories***
+  (`bScanPluginSourceDirectories`, default on) turns the plugin scan off.
+- **A plugin-root file defaults to its own plugin's mount point.** A `.dsm` under
+  `Plugins/MoonToon/DShader` with no `Root=` attribute now generates into `/MoonToon`, not `/Game` —
+  source and asset stay in the plugin that ships them. Only an absent or whitespace-only `Root` is
+  defaulted, so `Root="/"` opts back into `/Game`.
+- **Imports never cross roots.** A file resolves its imports against its own root and that root's
+  `Packages` folder only. Two plugins shipping the same relative path can no longer shadow one another,
+  and disabling a plugin cannot silently change what another root's import means.
+- **Root-qualified imports** — `import "Plugin.MoonToon:Shared/Toon.dsh";` — are the one way to cross a
+  root deliberately. The qualifier is `Project`, `Plugin.<Name>` or `Plugins.<Name>` (`/` spells the
+  same as `.`), matched case-insensitively. The `:` is load-bearing: `Plugin.MoonToon/Shared/Common.dsh`
+  could not be told apart from a relative path through a folder of that name. See
+  [Imports](/en/docs/language/imports).
+- The source-directory watcher registers one watch per root, `DreamShader.code-workspace` lists one
+  `folders` entry per root, and the *DreamShader Gen* page labels a plugin-root file with its root name
+  in the row subtitle — typing a plugin's name filters to everything it ships.
+
+### Editor and generation
+
+- **Graph layout runs on in-memory materials.** Interactive compiles are memory-only, and the placement
+  pass used to be skipped for them outright — so the graph you saw after a save was not a badly laid out
+  graph, it was an *unlaid out* one: the tall single column of construction coordinates, wires strung
+  across it. *Project Settings ▸ … ▸ Compiler ▸ **Lay Out In-Memory Graphs***
+  (`bLayoutInMemoryGraphs`, default on) turns it back off. See
+  [Project Settings](/en/docs/settings/project).
+- **Automatic layout places nodes at their real size.** Every node used to be assumed `320 × 150` and
+  spaced on a fixed `420 × 220` grid, so nothing that draws taller than 220 fitted — a `TextureSample`'s
+  preview thumbnail alone is 106, a `Custom` node grows a row per pin — and those nodes overlapped their
+  neighbours and pushed out through the comment box meant to contain them. Sizes are now estimated from
+  what the node widget actually assembles.
+- **Long edges get lanes, and chains come out straight.** An edge spanning several ranks now reserves a
+  dummy slot in each column it crosses. Crossing reduction only ever compares neighbours one rank apart,
+  so without lanes it could not see those edges at all — which is what let a graph read as a ball of wire
+  even though each column, taken on its own, was tidy. Placement then runs four straightening passes,
+  each repairing the column with an isotonic regression.
+- **Blocks pack into columns instead of one stack.** A material with several connected outputs used to
+  become a ribbon tens of thousands of units tall. Blocks are now packed into columns against a height
+  budget of `max(2400, sqrt(totalArea / 1.6))`.
+- **The *DreamShader Gen* page reads diagnostics from the bridge**, not by re-parsing the
+  `diagnostics.json` the bridge had just written. One consequence worth knowing: those records live for
+  the editor session, so the page no longer shows errors left over from a *previous* session before you
+  compile again.
+
+### Fixed
+
+- **The plugin builds again on UE 5.5 and 5.6.** Five UE 5.7 APIs had been used without a gate, so the
+  plugin compiled only on the engine it was written against. All five now route through
+  `DreamShaderVersionCompat.h`: `Materials/MaterialParameters.h` (5.7 and later),
+  `UMaterialExpression::ShouldShowPreview()` (5.7), `UMaterialExpressionScalarParameter::ControlType` and
+  its two neighbours (5.7), `UMaterialExpressionCustomOutput::GetInputValueType` (5.6), and six engine
+  expression classes — `SceneDepth`, `SceneColor`, `ObjectRadius`, `ObjectBounds`, `PerInstanceRandom`,
+  `PerInstanceFadeAmount` — that are `UCLASS()` with no export macro and whose `StaticClass()` does not
+  resolve from a plugin before 5.6. That last one is an `LNK2019`, not a compile error: it passes every
+  compile-time check and only a full `RunUAT BuildPlugin` sees it. Below 5.6 the class is looked up by
+  script path instead, so the `UE.*` builtins behave the same.
+- Two missing includes that unity builds had been papering over (`UObject/Package.h`,
+  `Engine/EngineTypes.h`), which only a non-unity compile exposes.
+
+### Tools
+
+- **The editor bridge answers now, and says whether it is alive.** It had an inbound half and nothing
+  else: a request produced no reply, no error file and no log line — a malformed one simply vanished —
+  and a client's only way to guess whether an editor was running at all was to look for `bridge.db` and
+  hope. The bridge now publishes `Bridge/status.json` (protocol, pid, project, plugin version, `busy` /
+  `busyAction`, `lastResult`, heartbeat), rewritten every 2 s and **deleted on shutdown** so a missing
+  file means "not running" definitively rather than "timed out", and answers any request carrying a
+  `requestId` in `Bridge/Responses/<requestId>.json` with `ok`, `durationMs`, `message` and this
+  compile's diagnostics. A `ping` action was added; bad scopes, missing `sourceFile` and unknown actions
+  are now error responses instead of silent no-ops. See [Editor Tools](/en/docs/tools/editor).
+- **`.skill/build-plugin.ps1`** — `RunUAT BuildPlugin` across a list of engine roots, one `PASS` / `FAIL`
+  line each, exit code = the number that failed. This is what caught the five ungated newer-engine APIs
+  above; an editor build against one engine cannot, and neither can any compile-time check, because one
+  of the five is a link error.
+- **`Tools/Localization/localization_lint.ps1`** — checks `LOCTEXT_NAMESPACE` define/undef pairing,
+  rejects it in headers, and flags literals that gather cannot see, with an `I18N-EXEMPT` escape for text
+  that is deliberately not display text.
+
+## 1.5.1 - 2026-08-02
+
+Documentation and tooling only. No plugin code changed, so a project on `1.5.0` needs no migration.
+
+### Added
+
+- `.skill/` — an agent skill set for DreamShaderLang, in the Claude Code `SKILL.md` format:
+  `dream-shader-create` (a description becomes a `.dsm` that provably compiles),
+  `dream-shader-optimize` (decompiler output becomes a source a human would write),
+  `dream-shader-decompile`, `dream-shader-verify` and `dream-shader-diagnose`.
+- `.skill/dsc.ps1` — a headless driver around `-run=DreamShader`. It resolves the engine from the
+  `.uproject`'s `EngineAssociation`, finds the project by walking up, de-duplicates the doubled `LogInit`
+  echo of every `LogDreamShader` line, and classifies each asset the run wrote against git. `-CleanNew`
+  then deletes exactly the untracked ones and prunes the emptied folders.
+- `.skill/sync-skills.ps1` — publishes the tree into `.claude/skills`, rewriting the relative `Docs/`
+  links and the driver path against the destination. `-Check` exits `1` on drift.
+
+### Changed
+
+- Both READMEs restructured around the reference manual. The sections that had become abridged copies of
+  `Docs/` pages — Properties, Graph, MaterialAttributes, Substrate, Material Layers, VirtualFunction,
+  Configuration, Release — now link to the page that owns them, which is also the page that gets
+  maintained. 459 → 279 lines, and the two languages are kept structurally identical.
+
+### Fixed
+
+- The release archive now ships `Shaders/`, `README.zh-CN.md` and `.skill/`. Up to `1.5.0` the packaging
+  step copied a seven-item allowlist and skipped anything missing **silently**, so an archive install had
+  no `Shaders/DreamShaderBuiltins.ush` for the `/Plugin/DreamShader` virtual shader directory to resolve
+  against.
 
 ## 1.5.0 - 2026-08-02
 

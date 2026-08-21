@@ -29,6 +29,17 @@ several classes of node state are dropped with no per-property warning at all.
 | Content Browser | right-click a `UMaterialFunction`, `UMaterialFunctionMaterialLayer` or `UMaterialFunctionMaterialLayerBlend` ▸ *DreamShader* ▸ **Export DSF** | `.dsf` |
 | Material Editor | the **DreamShader** toolbar combo ▸ **Export DSM** / **Export DSF** | as above |
 | Commandlet | `-run=DreamShader decompile -Asset=<object path> [-Out=<file>]` | as above |
+| Content Browser | right-click a **generated** asset ▸ *DreamShader* ▸ **Adopt Into Source** <Since v="1.8.0" /> | rewrites that asset's own `.dsm` / `.dsf` in place, backing the old file up to `<source>.bak` |
+
+<Callout type="info">
+**Adopt Into Source** runs this same exporter, except that it writes the asset's own source file
+rather than a new one under `Decompiled/` — it is the "the asset was right" way out of a
+[divergence](/en/docs/generation/regeneration). Everything under Known gaps therefore applies to it:
+adopting drops whatever the exporter cannot reproduce. It is **refused** when the source file declares
+more than one asset, because the exporter emits one block rather than a translation unit, and adopting
+one asset out of such a file would silently delete the others — use **Export DSM** and merge by hand
+in that case.
+</Callout>
 
 Both editor routes require **exactly one** selected asset, write the file, and then open it in your
 preferred editor — see [Editor Tools](/en/docs/tools/editor). The headless route is on

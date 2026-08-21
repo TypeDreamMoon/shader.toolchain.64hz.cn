@@ -99,7 +99,7 @@ export const homeCopies: Record<Locale, HomeCopy> = {
       result: '生成 /Game/DreamMaterials/M_Minimal',
     },
     versions: [
-      ['DreamShader', '1.5.0'],
+      ['DreamShader', '1.8.0'],
       ['VSCode', '1.5.3'],
       ['UE', '5.3 – 5.8'],
       ['License', 'MIT'],
@@ -174,7 +174,7 @@ export const homeCopies: Record<Locale, HomeCopy> = {
       result: 'builds /Game/DreamMaterials/M_Minimal',
     },
     versions: [
-      ['DreamShader', '1.5.0'],
+      ['DreamShader', '1.8.0'],
       ['VSCode', '1.5.3'],
       ['UE', '5.3 – 5.8'],
       ['License', 'MIT'],

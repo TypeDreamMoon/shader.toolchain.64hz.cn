@@ -101,11 +101,28 @@ Unreal 里的菜单名是按精确类名索引的，所以实例那一项注册�
 ### Material 子菜单
 
 标签 **DreamShader**，tooltip "DreamShader actions for this Material."，图标 `Icons.Settings`。
-只有当唯一选中的资产是 `UMaterial` 时才会构建。一个 section，**Decompiler**：
+只有当唯一选中的资产是 `UMaterial` 时才会构建。两个 section。
+
+**Decompiler：**
 
 | 条目 | Tooltip | 图标 | 效果 |
 | :-- | :-- | :-- | :-- |
 | **Export DSM** <Since v="1.3.5" /> | "Export this Material graph to a DreamShader .dsm source file." | `Icons.Save` | 反编译到 `DShader/Decompiled/Materials/…​.dsm` 并打开文件 —— [反编译导出](/docs/tools/decompiler) |
+
+**Provenance** <Since v="1.8.0" /> —— [手改检测](/docs/generation/regeneration)的三个出口。同一组条目也出现在
+Material Function 子菜单和生成的 ThinCustom 实例上：
+
+| 条目 | 效果 |
+| :-- | :-- |
+| **Revert to Source** | 丢掉手改、按源码重建。源文件不动。已保存的资产重建后保存，纯内存的在内存里重建。**这是唯一能覆盖一次手改判定的动作** —— `-Force` 不能 |
+| **Adopt Into Source** | 用资产当前的内容反写 `.dsm` / `.dsf`，旧源码先备份成 `<source>.bak`，然后重新编译让两边一致。源文件声明了不止一个资产时拒绝执行 |
+| **Detach From DreamShader** | 丢掉全部 `DreamShader.*` 标记。资产保留内容、变成普通手写资产。要保存资产才能留住这次改动 |
+
+<Callout type="info">
+这三个动作是[「资产开着编辑器就拒绝重建」](/docs/generation/regeneration)的例外：它们自己关掉资产编辑器、
+动手、再打开。对 **Adopt** 来说，关闭过程中弹出的引擎保存提示是承重的 —— 未 Apply 的编辑器改动在它被回答之前
+不算「这个资产当前的内容」。取消它就取消整个动作。
+</Callout>
 
 ### Material Function 子菜单
 
@@ -355,8 +372,8 @@ Material Content Browser 的 [Project 页](#project-页)上有一个复选框，
 
 #### 错误叠加
 
-这一页的错误直接读自 `<Project>/Saved/DreamShader/Bridge/diagnostics.json`，而不是 bridge 的内存存储 ——
-这一页是刻意和 bridge 内部解耦的。
+这一页的错误来自 **bridge 已经持有的诊断记录** <Since v="1.6.0" />，而不是去重新解析 bridge 刚写完的
+`diagnostics.json`。
 
 | 规则 | 细节 |
 | :-- | :-- |
@@ -368,6 +385,9 @@ Material Content Browser 的 [Project 页](#project-页)上有一个复选框，
 <Callout type="info">
 一个有五个错误的文件在这里只显示一个。Output Log 和编辑器扩展有完整列表；插件只发出一种严重度 —— `error` ——
 所以这一页上永远不会出现 warning 或 hint。
+
+<Since v="1.6.0" /> 起有一个值得知道的后果：这些记录活在**编辑器会话**里，所以在你重新编译之前，
+这一页不再显示**上一次**会话遗留的错误。本次会话产生的一切 —— 包括启动扫描和保存即编译 —— 显示如常。
 </Callout>
 
 #### 编译操作
@@ -476,11 +496,11 @@ Gen 页的 *Materialize* 按钮刻意在点击时按 object path 重新解析材
 
 | | Gen 页缩略图 | 单次预览 | 流式预览 |
 | :-- | :-- | :-- | :-- |
-| 是什么 | 一张普通的 160×160 引擎资产缩略图 | 渲染出的 PNG 加 `preview.json` | WebSocket 上的实时 PNG 流 |
+| 是什么 | 一张普通的 160×160 引擎资产缩略图 | 渲染出的 PNG 加 `preview.json` | WebSocket 上的实时帧流 |
 | 触发方式 | 在 Gen 页选中一项 | `previewMaterial` 请求文件，或 `stream` 为 false 的 WebSocket 消息 | `stream` 为 true（默认）的 `previewMaterial` WebSocket 消息 |
 | 等待 shader 编译 | 不适用 | 是 —— 所以它会短暂卡住编辑器 | 否 |
 | 相机控制 | 无 | 请求文件通道：无。WebSocket 通道：有 | 有，通过 `previewControl` |
-| 起始版本 | <Since v="1.5.0" /> | — | <Since v="1.5.0" /> |
+| 起始版本 | <Since v="1.5.0" /> | — | <Since v="1.5.0" />；原始 RGBA8 帧与 Graph 断点 <Since v="1.7.0" /> |
 
 只有 `.dsm` 能被预览；`.dsf` 或 `.dsh` 会被拒绝，消息是
 `DreamShader preview only supports .dsm material files: '{File}'.` 材质总是以 transient 方式编译 ——
@@ -500,6 +520,38 @@ Gen 页的 *Materialize* 按钮刻意在点击时按 object path 重新解析材
 拖拽旋转视口写的那几个字段。所以一次预览渲染会改变该材质在 Content Browser 图块和材质编辑器视口里用的形状与相机。
 未知的网格名会被静默接受并渲染成球；看 `preview.json` 里回显的 `mesh` 才知道实际用了什么。
 </Callout>
+
+### 帧编码与空闲退避
+
+<Since v="1.7.0" />
+
+流式路径默认发**原始 RGBA8 帧**（`encoding: "raw"`）：编辑器把 render target 读回来、把像素原样发出，
+不做 PNG 编码，客户端直接画到 canvas 上。这就是流畅 30–60 FPS 之所以负担得起的原因 —— 每 tick 给一张
+512² 的帧做 PNG 编码，是几十毫秒的游戏线程时间。旧的 JSON 元数据加 PNG 那条路径仍然以 `encoding: "png"`
+提供给老客户端。
+
+画面不动时，相同的帧会被丢弃；连续几帧相同之后渲染时钟退到一个很低的空闲速率，直到一次编辑、一次相机 /
+网格变化或一次探针变化把它唤醒（shader 还在编译时渲出的帧不会触发退避）。省略了某个字段的 `previewControl`
+—— 包括 `frameRate` —— 保持当前值而不是重置回 2 FPS，并且可以携带 `width` / `height` / `mesh`。
+
+### Graph 断点（探针预览）
+
+<Since v="1.7.0" />
+
+在 `Graph` 的某一行上打断点（DreamShaderLang VS Code 扩展里是 F9），预览网格就显示**那一行绑定的值**，
+而不是成品材质 —— 材质编辑器右键 *Start Previewing Node* 的文本版。
+
+| 方面 | 行为 |
+| :-- | :-- |
+| 选择 | 同一时刻只有一个探针 —— 活动 `.dsm` 中最靠上的那个启用断点 |
+| 行吸附 | 空行或注释行上的断点向前吸附到下一个绑定了值的行 |
+| 显示什么 | 该绑定值接进一个 unlit 的 Emissive 预览（值是 `MaterialAttributes` / Substrate 时接对应输入；纹理对象用默认坐标采样一次） |
+| 编译前设置 | 记为 *pending*，在下一次生成时挂上 |
+| 重新编译后 | 自动重解析；行号可能移动，并会把新行号告诉客户端 |
+
+机制上复用引擎自己的预览材质：一个临时 `UPreviewMaterial` 共享生成材质的表达式集合、把被探测的节点接进去，
+经 `FMaterialUpdateContext` 重新编译。`UPreviewMaterial` 受限的 `ShouldCache` 把这次重编译压到少数几个
+shader —— 和节点缩略图走的是同一条路。协议是 `setProbe` / `clearProbe` / `probeState`。
 
 插件侧没有 pitch 钳制 —— 编辑器扩展在发送前会钳到约 ±89°，不这么做的客户端会把相机翻过去。
 运动模糊、抗锯齿和动态屏幕百分比都是关的，alpha 被强制成不透明，UI domain 材质总是画在平面上。
@@ -578,10 +630,49 @@ CRC 用八位小写十六进制。写在这里的 `.dsh` 会像其他头文件�
 | `diagnostics.json`、`diagnostics/` | 当前全部诊断，聚合版和按文件分片版 |
 | `bridge.db` | 诊断和三份 manifest 的 SQLite 镜像，启动和关闭时都会被删掉 |
 | `preview.json`、`Preview/*.png` | 单次预览结果 |
-| `Requests/*.json` | 入站请求目录，每 0.1 秒轮询一次，读完即删 |
+| `Requests/*.json` | 入站请求目录，每 0.1 秒轮询一次，**派发前**即删（这样一个能弄崩编辑器的请求不会在每次启动时重放）；读不出来的文件留给下一轮，因为那几乎总是一个正在被写入的文件 |
+| `status.json` <Since v="1.6.0" /> | 心跳，空闲时每 2 秒重写一次，**退出时删除** —— 所以文件缺失确定地意味着「没在运行」。带 `protocol`、`pid`、`project`、`projectDir`、`engineDir`、`pluginVersion`、`busy` / `busyAction`、`lastResult`、`heartbeatUtc` |
+| `Responses/<requestId>.json` <Since v="1.6.0" /> | 任何带 `requestId` 的请求的回复：`ok`、`durationMs`、`message`（永远是 invariant 英文）和本次编译的诊断。原子写入（写在旁边再改名） |
+| `owner.lock` <Since v="1.8.0" /> | 持有本工程 bridge 的编辑器的 pid 与心跳 —— 见下 |
 
-每份 manifest 都带一个 `generatedAt` ISO-8601 UTC 时间戳。插件唯一会读回来的是 `diagnostics.json` ——
-[Gen 页](#错误叠加)读它。这些 schema 和请求协议从消费端的角度记在 [VSCode 与 Rider](/docs/tools/vscode)。
+每份 manifest 都带一个 `generatedAt` ISO-8601 UTC 时间戳。这些 schema 和请求协议从消费端的角度记在
+[VSCode 与 Rider](/docs/tools/vscode)。
+
+<Callout type="warn">
+判断心跳是否过期**之前**先读 `busy`。编译会阻塞游戏线程，所以编译期间心跳是停的 —— 只看时间戳的客户端
+会把每一次真实编译都读成崩溃。剩下的歧义是硬崩溃，它会把文件留在原地；记录下来的 `pid` 用来收尾。
+</Callout>
+
+### 一个工程只有一个编辑器持有 bridge
+
+<Since v="1.8.0" />
+
+bridge 目录是按**工程**而不是按进程的：一个 `Requests` 目录、一个 `status.json`、一个心跳。两个开在同一
+工程上的编辑器于是都在轮询同一个队列 —— 谁先到谁消费掉文件，另一个读到的是一个删了一半的文件 ——
+而且都在用自己的 pid 覆写 `status.json`。
+
+| 项目 | 说明 |
+| :-- | :-- |
+| 文件 | `<Project>/Saved/DreamShader/Bridge/owner.lock` |
+| 内容 | `pid` 和一个 ISO-8601 `heartbeat`，随常规心跳刷新 |
+| 认定持有的条件 | 持有进程仍在运行**且**心跳不超过 30 秒 |
+| 释放 | 编辑器关闭时释放，所以下一个编辑器在它的下一次心跳就接手，不用等过期窗口 |
+
+两个条件缺一不可：只看 pid，会在持有者正在编译（编译阻塞游戏线程、心跳因此停摆）时把 bridge 交出去；
+只看心跳，会在硬崩溃之后留下一段无主窗口。
+
+非持有者仍然编译自己的内存材质 —— 那是每进程各自的事 —— 但它不消费请求、不写 `status.json`，
+也**不把生成资产写到磁盘**。最后这条是[「存储决定一次重建怎么落地」](/docs/generation/in-memory)的直接推论：
+否则两个编辑器会 `SavePackage` 同一个文件，而这场竞争的输家不是合并，是一个损坏的 package 或一个死掉的编辑器。
+这样的编译会报：
+
+```text
+Skipped {AssetPath}; another editor owns this project's DreamShader bridge, and only that one
+writes generated assets to disk.
+```
+
+[命令行](/docs/tools/commandlet)不受影响：它没有 bridge、没有锁文件、也没有第二个进程要谈判，
+而写这些资产正是它的全部工作。
 
 ## 关闭整套集成
 
@@ -634,6 +725,6 @@ commandlet 运行会以另一条路径到达同样的状态：模块一旦检测
   <Card title="VSCode 与 Rider" href="/docs/tools/vscode" description="workspace 文件、两个扩展，以及它们消费的产物。" />
   <Card title="命令行" href="/docs/tools/commandlet" description="无头入口，它写的是真资产。" />
   <Card title="内存材质" href="/docs/generation/in-memory" description="为什么 Content Browser 是空的，以及 Materialize 做了什么。" />
-  <Card title="项目设置" href="/docs/settings/project" description="这些命令读写的十三项设置。" />
+  <Card title="项目设置" href="/docs/settings/project" description="这些命令读写的十五项设置。" />
   <Card title="错误速查" href="/docs/diagnostics" description="每条消息、原因和处理办法。" />
 </Cards>

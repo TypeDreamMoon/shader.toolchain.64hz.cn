@@ -1,6 +1,6 @@
 ---
 title: Project Layout
-description: How DShader/ is organized, which directories the plugin owns, and the package rules that decide what gets compiled.
+description: How DShader/ is organized, how a plugin contributes a source root of its own, which directories the plugin owns, and the package rules that decide what gets compiled.
 ---
 
 DreamShaderLang sources live in one directory under the project root — `DShader` by default, set by
@@ -9,6 +9,9 @@ against the project directory.
 
 The plugin creates the source directory, its `Packages` subdirectory and the generated-shader
 directory at module startup, on the first editor launch, whether or not you have authored anything.
+
+Since <Since v="1.6.0" /> that is no longer the only root: **every enabled plugin that ships a
+`DShader` folder contributes a source root of its own** — see [Plugin source roots](#plugin-source-roots).
 
 ## The tree
 
@@ -56,6 +59,54 @@ directory at module startup, on the first editor launch, whether or not you have
   </Folder>
 </Files>
 
+## Plugin source roots
+
+<Since v="1.6.0" />
+
+A plugin can carry the `.dsm` / `.dsf` / `.dsh` files that build its materials instead of parking them
+in the project's tree. `Root="Plugin.<Name>"` has been able to *write* assets into a plugin since
+`1.2.0`; the source half was what was missing.
+
+<Files>
+  <Folder name="Plugins" defaultOpen>
+    <Folder name="MoonToon" defaultOpen>
+      <Folder name="DShader" defaultOpen>
+        <Folder name="Materials" defaultOpen>
+          <File name="M_Toon.dsm" />
+        </Folder>
+        <Folder name="Shared" defaultOpen>
+          <File name="Toon.dsh" />
+        </Folder>
+        <Folder name="Packages" />
+      </Folder>
+      <File name="MoonToon.uplugin" />
+    </Folder>
+  </Folder>
+</Files>
+
+| Aspect | Rule |
+| :-- | :-- |
+| Discovery | no configuration needed. The toggle is *Project Settings ▸ … ▸ Paths ▸ **Scan Plugin Source Directories*** (default on) |
+| Default asset target | a plugin-root file with no `Root=` generates into **its own plugin's mount point** — `/MoonToon`, not `/Game`. Only an absent or whitespace-only `Root` is defaulted, so `Root="/"` opts back into `/Game` |
+| Imports | **never cross roots**. A file resolves its imports against its own root and that root's `Packages` folder; crossing one deliberately means `import "Plugin.MoonToon:Shared/Toon.dsh";` — see [Imports](/en/docs/language/imports) |
+| Writability | **only the project root is writable**. VirtualFunction sync skips files under a plugin root: a plugin ships its definitions as authored, and the editor no longer rewrites them |
+| Watcher | one watch per root, so *Auto Compile On Save* fires for a plugin's sources the same way it does for the project's |
+| Workspace | `DreamShader.code-workspace` lists one `folders` entry per root — the project as `"."`, then `Plugin: <Name>` for each plugin root |
+| Gen page | a plugin-root file is labelled with its root name in the row subtitle, and the search box matches root names — typing a plugin's name filters to everything it ships |
+
+<Callout type="warn">
+A plugin `DShader` folder that **overlaps** an existing root is ignored with a warning, rather than
+handing the same file to two owners. That happens when *Source Directory* is pointed at a plugin
+folder, or at something containing one.
+</Callout>
+
+<Callout type="info">
+The root list is cached and rebuilt only when *Source Directory* or the scan toggle changes, or when
+*DreamShader Gen ▸ Refresh* is pressed — which is what picks up a `DShader` folder you just created,
+or a plugin mounted mid-session. The **watcher** is still registered once at startup, so
+*Auto Compile On Save* for a root that appeared mid-session starts working on the next editor start.
+</Callout>
+
 ## Directory roles
 
 | Directory | Owner | Contents |
@@ -100,10 +151,15 @@ import "Shared/Common.dsh";
 import "@typedreammoon/dream-noise/Library/Noise.dsh";
 ```
 
-A specifier is tried against three roots in order: the importing file's own directory, the source
-root, then the packages root. The first candidate that exists **and stays inside its own root** wins
-— a file inside a package cannot climb out with `../`. A specifier with no extension gets `.dsh`
-appended, so `import "…/Noise"` can never resolve to a `.dsf`. Full rules:
+A specifier is tried against three candidates in order: the importing file's own directory, the
+**owning root's** source directory, then that root's `Packages` directory. The first candidate that
+exists **and stays inside its own containment root** wins — a file inside a package cannot climb out
+with `../`. A specifier with no extension gets `.dsh` appended, so `import "…/Noise"` can never
+resolve to a `.dsf`.
+
+An unqualified specifier <Since v="1.6.0" /> **never leaves its own root**, so installing a plugin
+cannot change what an existing import means. To cross one deliberately, write
+`import "Plugin.MoonToon:Shared/Toon.dsh";`. Full rules:
 [Imports and Namespaces](/en/docs/language/imports).
 
 Keeping imports shallow also keeps rebuilds honest: the source hash covers the whole inlined import
@@ -115,7 +171,7 @@ The plugin has two enumerators, and they exclude different things.
 
 | Enumerator | Extensions | Excludes | Used by |
 | --- | --- | --- | --- |
-| Full source enumeration | `.dsm`, `.dsh`, `.dsf` | **everything** under `DShader/Packages` | startup in-memory generation, the commandlet's `compile -All`, cook, the Gen page list, VirtualFunction sync |
+| Full source enumeration | `.dsm`, `.dsh`, `.dsf` | **everything** under any root's `Packages` folder | startup in-memory generation, the commandlet's `compile -All`, cook, the Gen page list, VirtualFunction sync |
 | Material source enumeration | `.dsm`, `.dsf` | only `.dsm` files under `DShader/Packages` | *Recompile DSM*, the auto-compile queue, the dependency graph |
 
 <Callout type="warn">
@@ -146,7 +202,9 @@ declarations — a `VirtualFunction` shipped in a package is never validated aga
 | Generated `.uasset` files | usually **no** — with the default backend the editor writes none anyway |
 | `Intermediate/DreamShader/` | no |
 
-Standardize *Source Directory* across the team so imports resolve identically on every machine.
+Standardize *Source Directory* across the team so imports resolve identically on every machine. A
+plugin's own `DShader` folder is committed with the plugin — it is part of the same deliverable as its
+`Content/`.
 
 ## Next
 

@@ -13,7 +13,7 @@ and regenerated.
 
 | | |
 | --- | --- |
-| Plugin version | `1.5.0` |
+| Plugin version | `1.8.0` |
 | Engines | Unreal Engine `5.3` – `5.8`, Win64 verified |
 | Modules | `DreamShader` (Runtime), `DreamShaderCompiler` (Runtime), `DreamShaderEditor` (Editor) |
 | Source extensions | `.dsm` · `.dsf` · `.dsh` |
@@ -90,7 +90,9 @@ It generates material assets in the Unreal editor. That is the whole scope. Spec
   DreamShaderLang, and none of the tooling exists in a packaged game.
 - **A generated asset is output, not a document.** Regeneration tears the graph down and rebuilds
   it, destroying hand edits; parameter overrides set directly on a generated instance are cleared on
-  every rebuild. See [Regeneration](/en/docs/generation/regeneration).
+  every rebuild. See [Regeneration](/en/docs/generation/regeneration). Since <Since v="1.8.0" /> a rebuild
+  that *would* destroy a hand edit does not happen — the asset carries a fingerprint, a mismatch fails
+  the compile, and you pick one of Revert / Adopt / Detach.
 - **`Substrate.*` requires <Since v="5.4" ue />** and a plugin binary built against 5.4 or newer —
   the gate is compile-time.
 - **Some spellings are already deprecated.** These are the `Instance` backend value and the
@@ -115,7 +117,7 @@ It generates material assets in the Unreal editor. That is the whole scope. Spec
     Property types, parameter nodes, metadata and groups, asset references.
   </Card>
   <Card title="Settings" href="/en/docs/settings/material">
-    Material settings and enum values, the backend, and all thirteen project settings.
+    Material settings and enum values, the backend, and all fifteen project settings.
   </Card>
   <Card title="Generation" href="/en/docs/generation/pipeline">
     The pipeline, asset paths, in-memory materials, output bindings, regeneration.

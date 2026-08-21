@@ -27,6 +27,14 @@ description: 把已有的 UMaterial 或 UMaterialFunction 导出成 .dsm / .dsf 
 | Content Browser | 右键 `UMaterialFunction`、`UMaterialFunctionMaterialLayer` 或 `UMaterialFunctionMaterialLayerBlend` ▸ *DreamShader* ▸ **Export DSF** | `.dsf` |
 | 材质编辑器 | **DreamShader** 工具栏组合按钮 ▸ **Export DSM** / **Export DSF** | 同上 |
 | 命令行 | `-run=DreamShader decompile -Asset=<object path> [-Out=<file>]` | 同上 |
+| Content Browser | 右键一个**生成的**资产 ▸ *DreamShader* ▸ **Adopt Into Source** <Since v="1.8.0" /> | 就地改写该资产自己的 `.dsm` / `.dsf`，旧文件先备份成 `<source>.bak` |
+
+<Callout type="info">
+**Adopt Into Source** 用的就是这个导出器，只不过写的是该资产自己的源文件，而不是 `Decompiled/` 下的新文件 ——
+它是[手改检测](/docs/generation/regeneration)的「资产才是对的」那个出口。因此本页的已知缺口同样适用：
+adopt 会把导出器还原不了的东西一起丢掉。源文件声明了不止一个资产时它会**拒绝执行**，因为导出器发射的是
+一个块而不是一个翻译单元，从这种文件里 adopt 一个资产会静默删掉其余的 —— 这种情况请用 **Export DSM** 再手工合并。
+</Callout>
 
 两个编辑器入口都要求**恰好选中一个**资产，写完文件后用你偏好的编辑器打开它 —— 见
 [编辑器工具](/docs/tools/editor)。无头入口见[命令行](/docs/tools/commandlet)。

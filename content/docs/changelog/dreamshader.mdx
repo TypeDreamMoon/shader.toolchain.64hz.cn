@@ -7,9 +7,341 @@ Unreal 插件的版本更新记录，新版本在前。这里记录会影响使�
 
 | | |
 | :-- | :-- |
-| 当前版本 | **1.5.0** —— 2026-08-02 |
+| 当前版本 | **1.8.0** —— 2026-08-21 |
 | 引擎 | Unreal Engine `5.3` 到 `5.8`，Win64 |
 | 记录来源 | 插件目录内自带的 `CHANGELOG.md` |
+
+## 1.8.0 - 2026-08-21
+
+一个关于**不把东西弄丢**的版本。生成器过去是无条件推倒重建的：手改过的资产被悄悄覆盖、失败的重建把资产
+清空、开着材质编辑器的资产在下一次 Apply 时被悄悄回滚。这一版把这几条路全部堵上 —— 手改指纹、原子重建、
+编辑器占用闸门、按依赖排序的批编译，以及一个真正覆盖「什么决定编译产物」的构建键。
+
+### 手改检测 —— 三个出口
+
+- 每次成功生成都会在资产上写一个 **`DreamShader.OutputDigest`** 指纹，下一次重建在清空资产**之前**先比对它。
+  对不上就**拒绝编译**，资产保持你离开时的样子 —— 没有清空，也没有半成品。见
+  [重新生成](/docs/generation/regeneration)。
+- 指纹**恰好覆盖重建会摧毁的东西**：节点、连线、生成节点上的属性、reset 属性集、材质函数的资产级字段、
+  ThinCustom 实例的参数覆盖。重建本来就不碰的东西被刻意排除在外 —— 节点位置、你自己写的注释框、
+  pin GUID、reset 列表之外的材质属性。护着一个本来就没危险的属性，只会白白拒掉一次重建。
+- 三个出口都在资产右键菜单的 **DreamShader** 下：**Revert to Source**（丢掉手改、按源码重建）、
+  **Adopt Into Source**（用资产反写 `.dsm` / `.dsf`，旧文件先备份成 `<source>.bak`）、
+  **Detach From DreamShader**（保留资产、从此不再管它）。
+- `-Force` **绕不过它**。`bForce` 回答的是「源码哈希过期了吗」，而编辑器的启动扫描对每个文件都置了这个标志 ——
+  认它就等于在编辑器唯一常驻的模式里让闸门直接失效。只有 Revert 能覆盖一次手改判定，因为只有人能做这个决定。
+- 纯内存资产也会被打上指纹和源码**路径**（但不打源码哈希，那会把[跳过重建](/docs/generation/pipeline)
+  也一起打开）。没有这条路径，内存资产会被判成「外来资产」，闸门在编辑器的默认模式里根本不会触发。
+
+### 重建是原子的
+
+- 步骤要么全部生效、要么一条都不生效。旧图现在是被**摘下来**而不是被销毁，重建完整成功之后才真正销毁；
+  中途失败会从一份序列化快照把资产放回去 —— 渲染状态、材质函数 usage、节点图、连线，以及
+  `FunctionInput` / `FunctionOutput` 的 pin GUID 都会回来，所以既有调用点仍然连着。
+- 这件事非做不可，是因为**不是所有失败都能提前拦住**：整文件解析、`Settings` 校验和 `Outputs` 校验
+  都在资产被碰之前，但 `Graph` 块是由图构建器一句一句编的，跑在拆除**之后**。在 `1.8.0` 之前，
+  这类失败会留下一个**被清空的**资产 —— 材质如此已经很糟，材质函数更糟：调用点是从活着的资产上读 pin 的，
+  一个坏掉的 `.dsf` 会把每一个调用它的材质一起带走，而且没有 undo（生成资产刻意不是 `RF_Transactional` 的）。
+- 顺带两个结果：拆除的两套删除策略合并成一套（逐节点删除是为了断开入边，而图整体离开时这件事没有意义），
+  原来 1200 个节点的阈值消失，每次重建都走快路径；`DependentFunctionExpressionCandidates` —— 那份会在
+  函数编译失败后给整个会话装上一颗空指针雷的第二份序列化节点表 —— 改在提交时重置。
+
+### 资产开着编辑器时拒绝重建
+
+- 材质编辑器**并不编辑资产本身**：`FMaterialEditor` 把它复制成一个临时 `UPreviewMaterial`，在 Apply 或 Save
+  时再把副本盖回原件；材质实例编辑器则通过 `UMaterialEditorInstanceConstant` 包装写回。一个跨越了重建仍然
+  开着的编辑器，手里握的是**重建之前**的副本，下一次 Apply 会把重建做的一切静默还原 —— 然后以一次
+  「手改检测」的形式出现在再下一次编译里，离病因已经很远。
+- 现在编译直接停下并说明：`Asset '{ObjectPath}' is open in an asset editor, so it was NOT rebuilt. …`
+- **Revert to Source** 和 **Adopt Into Source** 是例外：它们自己关掉编辑器、动手、再打开。两者都挂在
+  那个编辑器自己的工具栏上，一个在最有用的地方永远是灰的菜单项不是保护，是 bug。
+
+### 构建键取代了单纯的源码哈希
+
+- `DreamShader.SourceHash` 现在是一把**构建键**：准备好的源码文本、**Default Compiler Backend**、三张映射表、
+  插件版本加一个手动 bump 的格式标签、以及引擎版本。此前它只哈希源码文本，于是任何**别的**东西发生变化时，
+  已经生成的资产统统看起来仍是最新的。
+- 原来专为 backend 设置外挂的那次「强制全量重扫」因此可以删掉了：受影响的资产各自过不了跳过检查，
+  而**不**受影响的资产仍然被跳过，不做无谓重建。
+- 改变构建键的组成会让所有既有 stamp 作废 —— 每个资产重建一次，一次而已，这正是预期效果。
+
+### 一批文件按依赖顺序编译
+
+- 一个调用 `ShaderFunction` 的 `.dsm` 会把调用节点绑到**活着的** `UMaterialFunction` 资产上 ——
+  `SetMaterialFunction` 是从对象而不是从源码上读 pin 的 —— 所以先编调用方就意味着绑到了那个函数**上一版**的接口。
+  改一个函数输入的名字、两个文件一起保存就能撞上，而谁赢取决于一个 `TMap` 的遍历顺序。
+- 现在两个入口（watcher 的待编译批次和全工程扫描）都按 import 图做拓扑排序。只有批次内部的边被考虑，
+  成环则留给 import 加载器用自己的诊断拒绝。
+
+### 一个工程只有一个编辑器持有 bridge
+
+- bridge 目录是**按工程**而不是按进程的：一个 `Requests` 目录、一个 `status.json`、一个心跳。两个开在同一
+  工程上的编辑器于是都在轮询同一个队列，也都在用自己的 pid 覆写 `status.json`。
+- 归属现在写在锁文件 `Bridge/owner.lock` 里，带着持有者的 pid 和心跳：**进程还活着且心跳不超过 30 秒**
+  才算持有。两个条件缺一不可 —— 只看 pid，会在持有者正在编译（编译阻塞游戏线程）时把 bridge 交出去；
+  只看心跳，会在硬崩溃后留下一段无主窗口。退出时主动释放。
+- 非持有者仍然编译自己的内存材质，但不消费请求、不写 `status.json`，也**不把生成资产写到磁盘**。
+  最后这条是「存储决定如何持久化」的直接推论：否则两个编辑器会 `SavePackage` 同一个文件，而这场竞争的
+  输家不是合并，是一个损坏的 package 或一个死掉的编辑器。commandlet 不受影响。见
+  [编辑器工具](/docs/tools/editor)。
+
+### 磁盘上存在的资产就在磁盘上重建
+
+- **存储决定一次重建怎么落地，而不是发起编译的那一方决定。** 编辑器每次要的都是纯内存编译，而当它落在一个
+  已经存在的 package 上时，旧行为是就地在内存里重建、然后**清掉脏标记** —— 得到一个既不等于磁盘上的文件、
+  也不等于将来会被写出的任何东西、还自称干净的对象。一次 Save All 就能落下一个谁也没选过的状态，
+  而你在编辑器里看到的版本会在重启后消失。全部信号只有一条日志 warning。
+- 现在由 `IsGeneratedAssetPersisted` 说了算：背后有文件的资产走持久化路径（stamp、保存、脏标记绝不作假），
+  没有文件的留在内存。「这个资产到底是什么」重新只有一个答案。见
+  [内存材质](/docs/generation/in-memory)。
+- 与之配套，**启动扫描不再强制重建**。在每个内存资产无论如何都会重建时，强制是免费的；一旦磁盘资产开始被
+  *保存*，它就不免费了 —— 每次启动都会重写每一个持久化的生成资产。改 **Default Compiler Backend** 仍然强制，
+  因为哈希看不见那个设置。
+
+### 修复
+
+- **`Domain="Volume"` 的材质自带 `bUsedWithVolumetricCloud`，反编译也不会再把它打开。** 标志现在从 domain
+  推导，显式写 `bUsedWithVolumetricCloud = "false";` 仍然胜出 —— 只喂体积雾的 Volume 材质可以拒绝云的
+  shader 排列。写入走 `UMaterial::SetUsageByFlag`（UE 5.8 弃用了所有 `bUsedWith*` 字段），并且移出了
+  `Domain` 分支、改为回读材质的 domain，因为 `ResetMaterialToDefaults` 不清 usage 标志。反向也一样：
+  两个方向现在都经过同一个 `GetDefaultUsedWithVolumetricCloud`，所以 `UMaterial` → `.dsm` → `UMaterial`
+  重新是恒等的。见 [材质设置](/docs/settings/material)。issue [#27](https://github.com/TypeDreamMoon/DreamShader/pull/27)
+- **swizzle 能活着穿过材质编辑器了。** `CustomStencil.r` 这样的分量选择过去被写成连接上的内联 mask
+  （`OutputIndex=0` 加 `Mask/MaskR`）—— HLSL 翻译器认，但材质图编辑器画不出来：pin 对应的是表达式的
+  `Outputs` 条目，而「没有 pin」意味着「output 0，只取红通道」。`UMaterialGraph::GetValidOutputIndex`
+  一见到带 mask 的 `OutputIndex 0` 就不信任它（那个组合过去表示 `OutputIndex` 之前的老式连接），
+  找不到 mask 匹配的 pin，就回退到节点的**最后一个**输出。第一次 Apply/Save 会把这条线写回去。
+  在 `SceneTexture`（`Color / Size / InvSize`）上，这把 `CustomStencil.r` 变成了 `InvSize` —— 静默、
+  没有任何报错，然后 stencil 比较对每个像素都失败，被它 gate 的效果直接不出现了。任何被材质编辑器碰过的
+  生成资产都中招，先复制一份也没用（副本第一次保存就被同样地毁掉）。
+  现在分量选择按图能 round-trip 的形式发射：只有在编辑器能把内联 mask 解析回它已经指名的那个 pin 时才保留
+  内联 mask；表达式通过多个带 mask 的输出发布同一个值时（`TextureSample` 的 `RGB/R/G/B/A/RGBA`、
+  `VertexColor` 等），直接指名对应的输出；其余情况发射一个真的 `ComponentMask` 节点。像 `SceneTexture`
+  这种输出集合混杂的（各个输出是不同的值，而不是同一个值的不同视图）永远不改指。构建键标签升到 `DSK2`，
+  所以每个生成资产都会按新形式重建一次。
+- **`Properties` 里的 `UE.CollectionParam(...) Name;` 宽度跟着集合参数走。** parser 只能把声明形式记成标量
+  （它打不开集合），而生成器过去照单全收，于是一个 vector MPC 参数喂给 `float4` 输入时会被加宽规则补三次
+  `AppendVector`，材质以 `Can't append float4 to float4` 编译失败。现在建节点时从加载好的集合读宽度
+  （vector → 4，scalar → 1）；声明上显式写的 `OutputType=` 仍然胜出。见
+  [Properties 类型](/docs/parameters/properties)。
+- **render target 可以喂给期待对应维度纹理的地方。** 维度检查过去比的是资产类，现在读
+  `UTexture::GetMaterialType()` —— 和材质编译器在 texture-object pin 上给出的答案是同一个 —— 所以
+  `UTextureRenderTargetVolume`、`UTextureRenderTarget2D`、`UTextureRenderTargetCube`、
+  `UTextureRenderTarget2DArray` 都能通过各自维度的检查，`UTexture2DDynamic` 之类也一样。
+- **cook 生成的资产会注册进 AssetRegistry，因此能进包。** cook 请求是经 `IAssetRegistry::DoesPackageExistOnDisk`
+  解析的，而这个函数只查 registry 的内存状态、没有文件系统兜底；生成跑在 post-engine-init，也就是 registry
+  枚举完内容目录**之后**，于是刚写出的 package 对那次查询是不可见的 —— 材质根本没进 pak，`LoadObject`
+  在 Shipping 构建里失败，全程没有任何报错。现在生成过程记录自己实际写了哪些 package，并在 commandlet 的
+  `Main` 收集初始请求之前交给 `IAssetRegistry::ScanModifiedAssetFiles`。
+  issue [#26](https://github.com/TypeDreamMoon/DreamShader/issues/26)
+- **ThinCustom 实例路径也跑归属检查了。** 它过去只看目标路径上那个对象的类、不看来历，于是往一个手写的
+  `UDreamShaderMaterialInstance` 上生成会直接接管它、并清掉它的参数覆盖。ThinCustom 是默认 backend，
+  这是三条创建路径里覆盖面最广、却唯一没有这个检查的一条。
+- **`DreamShaderGraphDecompilerHelpers.h` 能单独编译了** —— 它声明了吃 `EMaterialDomain` 和 `EBlendMode`
+  的函数却没 include 对应的头，unity 构建靠邻居的翻译单元蒙混过关，非 unity 编译（`-SingleFile`）才暴露。
+
+### 新增
+
+- **`Function` 体顶部的 `#include` 会被提升到文件作用域。** `Function` 块的 HLSL 过去原样发射在生成的
+  `DreamShaderFn_*` 定义的花括号之间，于是任何 `#include` 都落在了**函数内部** —— 只有宏的头文件没事，
+  定义了函数的头文件就是编译错误。现在开头的 `#include "…"` / `#include <…>`（前面只允许空白和注释）
+  会被从函数体里摘出来、按首次出现顺序在生成 `.ush` 的 guard 之后发射一次；`SelfContained` 内嵌和
+  `GraphFunction` 体则把它们放到 Custom 节点的 `IncludeFilePaths` 上，排在生成的 include 之前。
+  第一条语句之后的指令保持旧行为。这正是让一个 C++ 与 HLSL 共用的头文件能被 `.dsf` 直接消费的东西。
+  见 [函数](/docs/language/functions)。
+
+## 1.7.1 - 2026-08-16
+
+### 修复
+
+- **用过 Graph 断点之后关编辑器会崩。** `UMaterial::GetExpressionInputDescription` 里读 `0x3b0` 的访问违例，
+  来自预览探针自己的析构函数，在模块卸载期间经由 `FDreamShaderPreviewWebSocketServer::Shutdown` 触发。
+  模块卸载发生在退出路径**内部**：`EngineExit()` 抬起退出请求，`FEngineLoop::Exit()` 先跑 purge，
+  之后才调 `UnloadModulesAtShutdown()` —— 所以此时拆自己状态的模块，拆的是已经消失的对象。
+  `TStrongObjectPtr` 能让预览材质躲开 GC 的可达性扫描，却不能豁免退出 purge：指针还非空、对象已经没了，
+  这就是既有的空指针检查全部通过、解引用却仍然爆掉的原因。
+  值得点名的是它爆在哪：`UMaterial::GetExpressionInputDescription` 和 `GetExpressionCollection` 都不加检查地
+  解引用 `GetEditorOnlyData()`，所以 purge 之后去够材质的输入或表达式，是一次无条件的空指针加偏移读取，
+  而不是一次可恢复的失败。现在引擎开始退出时直接跳过这次拆除 —— 这不只是「安全」而是**正确**：
+  释放共享表达式集合的目的是让预览材质之后碰不到图材质的节点，而在退出时没有「之后」，两者都在被销毁。
+  客户端断开而编辑器继续运行的那条常规路径不变，仍然照常释放。
+
+## 1.7.0 - 2026-08-16
+
+### 新增
+
+- **实时预览里的 Graph 断点 —— 给文本源码的「Start Previewing Node」。** 在 `Graph` 的某一行上打断点，
+  预览网格就显示**那一行绑定的值**，而不是成品材质。这和在材质编辑器里右键节点选 *Start Previewing Node*
+  是同一个想法，只不过这里的「节点」是 DreamShaderLang 的一行。
+  实现是复用引擎自己的机制：生成器现在为每个源文件发布一张**调试表**，把每个 `(行号, 名字)` 绑定映射到它
+  产生的那个 `UMaterialExpression` / 输出 / 通道 mask；一个临时 `UPreviewMaterial` —— 共享生成材质的表达式
+  集合，把被探测的节点接到它的 emissive（值是 `MaterialAttributes` / `FrontMaterial` 时接到对应输入，
+  纹理对象则用默认坐标采样一次）—— 经 `FMaterialUpdateContext` 重新编译。`UPreviewMaterial::ShouldCache`
+  把这次重编译限制在少数几个 shader 上，和节点缩略图走的是同一条路。
+  空行或注释行上的断点会向前吸附到下一个绑定了值的行；在源码还没生成过时打的断点会被记住，并在下一次编译时
+  挂上；重新编译之后探针自动重解析，并把落在哪一行告诉客户端。协议是 `setProbe` / `clearProbe` / `probeState`。
+  见 [编辑器工具](/docs/tools/editor)。
+
+### 变更
+
+- **流式预览现在发原始 RGBA8 帧，而不是每帧一张 PNG。** 新的 `encoding: "raw"` 会话把 render target 读回来、
+  把像素作为一个自描述的二进制帧发出（24 字节头 —— 尺寸、标志位、相机、解析后的探针行号 —— 之后是像素），
+  编辑器侧完全没有 PNG 编码。浏览器 / webview 客户端把它直接画到 canvas 上。这就是流畅 30–60 FPS 的
+  绝大部分成本所在：每 tick 给一张 512² 的帧做 PNG 编码，是几十毫秒的游戏线程时间。旧的
+  `encoding: "png"` 路径（JSON `previewFrame` 加带 tag 的 PNG）对老客户端保持不变。
+- **画面不动时流式预览变便宜了。** 相同的帧会被丢弃，连续几帧都相同之后渲染时钟退到一个很低的空闲速率，
+  直到一次编辑、一次相机 / 网格变化或一次探针变化把它重新唤醒（shader 还在编译时渲出的帧不会触发退避）。
+  省略了某个字段的 `previewControl` —— 包括 `frameRate` —— 现在保持当前值而不是重置回 2 FPS，
+  并且可以携带 `width` / `height` / `mesh`，客户端不必重发完整请求就能驱动渲染尺寸和形状。
+  `previewMaterial` 上的 `force` 标志用来区分显式刷新（重新生成）和相机 / 网格重新请求（复用上次生成结果）。
+
+## 1.6.0 - 2026-08-15
+
+### 语言 —— 十个新的数学内置
+
+- `Graph` 里补齐 `step`、`smoothstep`、`length`、`cross`、`asin`、`acos`、`atan`、`atan2`、`reflect`、
+  `refract`。它们每一个原本都有节点（`reflect` / `refract` 是四行定义），却都没有写法 —— 想写 `step(0.5, x)`
+  只能写成 `UE.Expression(Class="Step", OutputType="float1", Y=0.5, X=x)`，而按 HLSL 的写法写出来时，
+  报错是 `Unknown Graph function 'step'` 包在参数所属的那次调用里面。内置写法从 19 个增加到 29 个。
+  见 [数学内置](/docs/builtins/math)。
+- 其中三个的输入 pin 不叫 `Input`，这正是这份映射值得写清楚的原因：`Step` 和 `Arctangent2` 把 pin 叫
+  `Y` 和 `X`，`SmoothStep` 叫 `Min` / `Max` / `Value`。参数顺序在每种情况下都保持 HLSL 的顺序，
+  所以 `step(edge, x)` 把参数 1 连到 `Y`、参数 2 连到 `X`，含义仍然是 `x >= edge`。
+- `length` 和 `cross` 与 `dot` 一样是返回宽度固定的内置（1 和 3 分量，且是权威宽度）。
+- `reflect` 和 `refract` 是**头两个不是一个节点**的内置。Unreal 两者都没有对应表达式，所以它们被降级成
+  HLSL 对它们的定义：`i - 2 * dot(i, n) * n` 是四个节点，折射连同处理全内反射的 `If` 一共十四个。
+  两者都精确，也都很贵；周围代码本来就是 HLSL 时，写在 `Function` 体里一个节点就够了。
+
+<Callout type="warn">
+**这拓宽了一个保留命名空间。** 这十个名字现在和原来那十九个一样会**静默遮蔽**用户代码 —— 叫 `length`、
+`step` 或 `cross` 的 `Function`、property 或 `ShaderFunction`，从 `Graph` 块里将无法被调用到，
+而且没有任何诊断。既有源码里声明了同名符号的需要改名。
+</Callout>
+
+矩阵不在其中，而且加不了：Unreal 材质图**根本没有矩阵值类型**，所以无论 DSL 怎么做，`mul(M, v)` 都没有
+`Graph` 写法 —— 空间转换用 `UE.Expression(Class="Transform"/"TransformPosition", …)`，其余的用 `Function`
+的 HLSL 体。仍然缺席但可以经 `UE.Expression` 触达（各自都有节点）的还有：指数、对数、`tan`、`sign`、
+`round`、`trunc` 和 `distance`。反编译器未做改动，所以新节点导出成通用的 `UE.Expression(Class="…", …)`
+调用，而不是回到内置写法 —— 和 `Fmod` 一样的不对称；`reflect` / `refract` 则根本无法 round-trip，
+因为它们留下的是普通算术节点，没有任何东西标记它们的来历。
+
+### 诊断 —— `DSHnnnn` 错误码
+
+- 在此之前，唯一标识一条 DreamShader 失败的东西是它的**英文措辞**。现在 parser 的全部 120 个抛出点都改为
+  携带一个错误码：`DSH1xxx` 路径解析、`DSH2xxx` 词法与语法、`DSH3xxx` section 与声明、`DSH7xxx`
+  properties / 参数 / 设置。码随 `FText` 一起挂在 `FDreamShaderTextError` 上。
+  见[错误速查](/docs/diagnostics)。
+- 线上格式**没有任何变化** —— `FDreamShaderDiagnosticRecord::Code` 和 `diagnostics.json` 里的 `"code"`
+  字段本来就存在。
+- 生成器一侧还没有码：`Docs/diagnostics/` 覆盖 112 个码，而全部 659 条消息的权威目录仍然是按阶段分组的
+  那份清单，直到生成器剩下的约 561 个抛出点也被标注。
+
+### 本地化 —— 编辑器 UI 说你的语言，线上格式不说
+
+- 编辑器界面文本 —— *DreamShader Gen* 页、设置分区、慢任务进度、parser 与反编译诊断 —— 从 `FString`
+  字面量迁到 `LOCTEXT` / `NSLOCTEXT`，承载它们的诊断记录也改成 `FText`。简体中文随之附带：
+  `Content/Localization/DreamShader/zh-Hans/DreamShader.locres`，经 `DreamShader.uplugin` 的
+  `LocalizationTargets` 条目以 `Editor` 加载策略载入。每个改过的签名旁边都保留了 `FString` 重载。
+  感谢 [@youli42](https://github.com/youli42) —— PR [#24](https://github.com/TypeDreamMoon/DreamShader/pull/24)。
+- **`diagnostics.json`、`diagnostics/*.json`、`bridge.db` 和预览 WebSocket 在任何编辑器语言下都保持英文。**
+  VSCode 和 Rider 扩展要解析它们，所以一个被翻译的编辑器不能改动其中的任何一个字节。
+  `FTextInspector::GetSourceString` 只解决了一半问题：它对普通 `LOCTEXT` 返回源字符串，但对
+  `FText::Format` 的结果返回的是**已本地化**的替换结果 —— 只要有一个消息点改用 `FText::Format`，
+  翻译过的文本就会漏到线上。`ToInvariantWireString` 改为重放 `FText` 的历史 format 数据：源模板、
+  每个参数按 invariant 文化渲染、嵌套 format 递归处理、关掉数字分组以免 `12345` 变成 `12,345`，
+  每一次 JSON / SQLite / WebSocket 写入都过它。
+
+### 插件源码根
+
+- 每个带 `DShader` 目录的已启用插件现在都贡献一个自己的源码根，所以插件可以自带那些构建它材质的
+  `.dsm` / `.dsf` / `.dsh`，而不必把它们停在工程的树里。`Root="Plugin.<Name>"` 从 `1.2.0` 起就能**写**
+  资产到插件里，缺的一直是源码这一半。发现、依赖图和全量生成都无需额外配置就能认到插件根。见
+  [工程结构](/docs/start/project-layout)。
+- *Project Settings ▸ DreamPlugin ▸ Dream Shader ▸ Paths ▸ **Scan Plugin Source Directories***
+  （`bScanPluginSourceDirectories`，默认开）可以关掉插件扫描。
+- **插件根下的文件默认落到它自己插件的挂载点。** `Plugins/MoonToon/DShader` 下没写 `Root=` 的 `.dsm`
+  现在生成到 `/MoonToon` 而不是 `/Game` —— 源码和资产留在同一个插件里。只有缺失或全空白的 `Root` 才会被
+  默认化，所以 `Root="/"` 可以显式选回 `/Game`。
+- **import 永不跨根。** 一个文件只针对**自己所在的根**及该根的 `Packages` 目录解析 import。两个插件带同样
+  相对路径的文件不会再互相遮蔽，禁用一个插件也不会静默改变另一个根里 import 的含义。
+- **带根限定的 import** —— `import "Plugin.MoonToon:Shared/Toon.dsh";` —— 是刻意跨根的唯一方式。
+  限定符是 `Project`、`Plugin.<Name>` 或 `Plugins.<Name>`（`/` 和 `.` 等价），大小写不敏感。
+  那个 `:` 是承重的：`Plugin.MoonToon/Shared/Common.dsh` 无法与「经过一个同名文件夹的相对路径」区分开。
+  见 [Import](/docs/language/imports)。
+- 源码目录 watcher 为每个根注册一个监视，`DreamShader.code-workspace` 为每个根列一个 `folders` 条目，
+  *DreamShader Gen* 页在行副标题里标出插件根的名字，搜索框也匹配根名。
+
+### 编辑器与生成
+
+- **内存材质也会跑自动布局了。** 交互式编译是纯内存的，而布局环节过去对它们整个跳过 —— 所以保存之后你看到的
+  不是「布局很糟的图」，而是一张**没有布局过的**图：一根用构造坐标堆起来的高柱子，线横穿其间。
+  *Project Settings ▸ … ▸ Compiler ▸ **Lay Out In-Memory Graphs***（`bLayoutInMemoryGraphs`，默认开）
+  可以关掉。见[项目设置](/docs/settings/project)。
+- **自动布局按节点的真实尺寸摆放。** 过去每个节点都被当成 `320 × 150`、按固定的 `420 × 220` 网格排布，
+  于是任何画得比 220 高的节点都挤到邻居身上、并从本该框住它们的注释框里顶出去（光是 `TextureSample` 的
+  预览缩略图就有 106，`Custom` 节点每多一个 pin 长一行）。现在尺寸从节点控件实际拼出来的东西估算。
+- **长边有专用泳道，链路会被拉直。** 跨多个 rank 的边现在在它穿过的每一列里预留一个占位槽 —— 交叉消减
+  只比较相邻 rank，没有泳道就根本看不见这些边，这正是「每一列单看都很整齐、整张图却像一团线」的原因。
+  之后跑四遍拉直，每遍把节点拉向邻居的平均中心并用保序回归修复该列。
+- **块按列打包，不再堆成一条。** 有多个输出的材质过去会变成几万单位高的一条带子，只有完全缩到最小才读得懂。
+  现在块围绕各自的原点布局，并按 `max(2400, sqrt(总面积 / 1.6))` 的高度预算打包成列。
+- ***DreamShader Gen* 页改从 bridge 读诊断**，而不是重新解析 bridge 刚写完的 `diagnostics.json`。
+  一个值得知道的后果：这些记录活在编辑器会话里，所以在你重新编译之前，页面不再显示**上一次**会话遗留的错误。
+
+### 修复
+
+- **插件在 UE 5.5 和 5.6 上重新能编了。** 五个 UE 5.7 API 用得没有版本门，于是插件只能在它被写出来的那个
+  引擎上编译。五个现在都走 `DreamShaderVersionCompat.h`：`Materials/MaterialParameters.h`（5.7 起）、
+  `UMaterialExpression::ShouldShowPreview()`（5.7）、`UMaterialExpressionScalarParameter::ControlType`
+  等三个属性（5.7）、`UMaterialExpressionCustomOutput::GetInputValueType`（5.6），
+  以及六个没有导出宏的引擎表达式类（`SceneDepth`、`SceneColor`、`ObjectRadius`、`ObjectBounds`、
+  `PerInstanceRandom`、`PerInstanceFadeAmount`）—— 5.6 之前它们的 `StaticClass()` 在插件里根本解析不到。
+  最后这个是 `LNK2019` 而不是编译错误：它能通过每一项编译期检查，只有一次完整的 `RunUAT BuildPlugin`
+  能看见它。5.6 以下改为按 script path 查类，所以 `UE.*` 内置行为不变。
+- 两处 unity 构建掩盖的缺失 include（`UObject/Package.h`、`Engine/EngineTypes.h`），非 unity 编译才暴露。
+
+### 工具
+
+- **编辑器 bridge 现在会回答，也会说明自己活着。** 它过去只有入站的一半：一个请求不产生回复、不产生错误文件、
+  也没有日志行 —— 格式错误的请求直接消失，而客户端想知道编辑器是否在运行，唯一的办法是找 `bridge.db` 然后
+  祈祷。现在 bridge 发布 `Bridge/status.json`（protocol、pid、工程、插件版本、`busy` / `busyAction`、
+  `lastResult`、心跳），每 2 秒重写一次，并在**退出时删除** —— 所以文件缺失确定地意味着「没在运行」，
+  而不是「超时了」。任何带 `requestId` 的请求都会在 `Bridge/Responses/<requestId>.json` 里得到
+  `ok`、`durationMs`、`message` 和本次编译的诊断。新增 `ping` 动作；错误的 scope、缺失的 `sourceFile`
+  和未知动作现在是错误响应而不是静默无操作。见 [编辑器工具](/docs/tools/editor)。
+- **`.skill/build-plugin.ps1`** —— 在一串引擎根上跑 `RunUAT BuildPlugin`，每个一行 `PASS` / `FAIL`，
+  退出码等于失败的个数。上面那五个没加版本门的新引擎 API 就是它抓到的：一次针对单一引擎的编辑器构建做不到，
+  任何编译期检查也做不到，因为五个里有一个是链接错误。
+- **`Tools/Localization/localization_lint.ps1`** —— 检查 `LOCTEXT_NAMESPACE` 的 define / undef 配对、
+  拒绝它出现在头文件里，并标出 gather 看不见的字面量，带一个 `I18N-EXEMPT` 逃生口。
+
+## 1.5.1 - 2026-08-02
+
+只有文档和工具变化，插件代码没有改动，所以停在 `1.5.0` 的工程不需要任何迁移。
+
+### 新增
+
+- `.skill/` —— 一套 DreamShaderLang 的 agent skill，采用 Claude Code 的 `SKILL.md` 格式：
+  `dream-shader-create`（一段描述变成一个能证明编译通过的 `.dsm`）、`dream-shader-optimize`
+  （反编译输出变成一份人会写的源码）、`dream-shader-decompile`、`dream-shader-verify`
+  和 `dream-shader-diagnose`。
+- `.skill/dsc.ps1` —— 包在 `-run=DreamShader` 外面的无头驱动。它从 `.uproject` 的 `EngineAssociation`
+  解析引擎、向上走找到工程、去掉每条 `LogDreamShader` 被 `LogInit` 重复回显的那一份，并对照 git 分类本次
+  运行写出的每个资产。`-CleanNew` 随后精确删除其中未被跟踪的那些，并清掉空掉的文件夹。
+- `.skill/sync-skills.ps1` —— 把这棵树发布到 `.claude/skills`，同时按目标位置改写相对的 `Docs/` 链接和
+  驱动路径。`-Check` 在有漂移时以 `1` 退出。
+
+### 变更
+
+- 两份 README 围绕参考手册重构。那些已经变成 `Docs/` 页面缩略副本的章节 —— Properties、Graph、
+  MaterialAttributes、Substrate、Material Layers、VirtualFunction、配置、发布 —— 改为链接到真正拥有它、
+  也真正会被维护的那一页。459 行 → 279 行，两种语言保持结构一致。
+
+### 修复
+
+- 发布归档现在会带上 `Shaders/`、`README.zh-CN.md` 和 `.skill/`。到 `1.5.0` 为止，打包步骤复制的是一份
+  七项白名单，并且**静默**跳过缺失的条目，所以归档安装出来的插件没有
+  `Shaders/DreamShaderBuiltins.ush` 可以给 `/Plugin/DreamShader` 虚拟着色器目录解析。
 
 ## 1.5.0 - 2026-08-02
 

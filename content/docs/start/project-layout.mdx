@@ -1,6 +1,6 @@
 ---
 title: 项目结构
-description: DShader/ 怎么组织、哪些目录归插件所有，以及决定什么会被编译的 Package 规则。
+description: DShader/ 怎么组织、插件如何贡献自己的源码根、哪些目录归插件所有，以及决定什么会被编译的 Package 规则。
 ---
 
 DreamShaderLang 的源文件放在项目根目录下的一个目录里 —— 默认是 `DShader`，由
@@ -9,6 +9,9 @@ DreamShaderLang 的源文件放在项目根目录下的一个目录里 —— �
 
 源目录、它的 `Packages` 子目录和生成 shader 目录都由插件在模块启动时创建，也就是编辑器第一次启动时，
 无论你有没有写过任何源文件。
+
+自 <Since v="1.6.0" /> 起，这不再是唯一的根：**每个带 `DShader` 目录的已启用插件都贡献一个自己的源码根** ——
+见下面的[插件源码根](#插件源码根)。
 
 ## 目录树
 
@@ -56,6 +59,51 @@ DreamShaderLang 的源文件放在项目根目录下的一个目录里 —— �
   </Folder>
 </Files>
 
+## 插件源码根
+
+<Since v="1.6.0" />
+
+一个插件可以自带那些构建它材质的 `.dsm` / `.dsf` / `.dsh`，而不必把它们停在工程的树里。
+`Root="Plugin.<Name>"` 从 `1.2.0` 起就能把资产**写**进插件；缺的一直是源码这一半。
+
+<Files>
+  <Folder name="Plugins" defaultOpen>
+    <Folder name="MoonToon" defaultOpen>
+      <Folder name="DShader" defaultOpen>
+        <Folder name="Materials" defaultOpen>
+          <File name="M_Toon.dsm" />
+        </Folder>
+        <Folder name="Shared" defaultOpen>
+          <File name="Toon.dsh" />
+        </Folder>
+        <Folder name="Packages" />
+      </Folder>
+      <File name="MoonToon.uplugin" />
+    </Folder>
+  </Folder>
+</Files>
+
+| 行为 | 规则 |
+| :-- | :-- |
+| 发现 | 无需配置。开关是 *Project Settings ▸ … ▸ Paths ▸ **Scan Plugin Source Directories***（默认开） |
+| 默认资产目标 | 插件根下没写 `Root=` 的文件生成到**它自己插件的挂载点** —— `/MoonToon`，不是 `/Game`。只有缺失或全空白的 `Root` 才被默认化，所以 `Root="/"` 可以显式选回 `/Game` |
+| import | **永不跨根**。一个文件只针对自己所在的根及该根的 `Packages` 解析 import；刻意跨根要写 `import "Plugin.MoonToon:Shared/Toon.dsh";` —— 见 [import](/docs/language/imports) |
+| 可写性 | **只有工程根是可写的**。VirtualFunction 同步跳过插件根下的文件：插件按作者写的样子交付定义，编辑器不再改写它们 |
+| 监视器 | 每个根注册一个监视，所以插件的源文件同样享受 *Auto Compile On Save* |
+| workspace | `DreamShader.code-workspace` 每个根一个 `folders` 条目 —— 工程是 `"."`，插件是 `Plugin: <Name>` |
+| Gen 页 | 插件根下的文件在行副标题里标出根名，搜索框也匹配根名 —— 输入插件名就能筛出它带的全部文件 |
+
+<Callout type="warn">
+和某个既有根**重叠**的插件 `DShader` 目录会被忽略并给出警告，而不是把同一个文件交给两个所有者。
+把 *Source Directory* 指向一个插件目录、或指向一个包含插件目录的位置时，就会出现这种情况。
+</Callout>
+
+<Callout type="info">
+根列表是缓存的，只在 *Source Directory* 或那个扫描开关变化、或按下 *DreamShader Gen ▸ Refresh* 时重建 ——
+后者正是用来拾取「你刚建的 `DShader` 文件夹」或「会话中途挂载的插件」的。但 **watcher 只在启动时注册一次**，
+所以会话中途才出现的根，它的 *Auto Compile On Save* 要到下次编辑器启动才开始工作。
+</Callout>
+
 ## 各目录职责
 
 | 目录 | 归属 | 内容 |
@@ -98,9 +146,12 @@ import "Shared/Common.dsh";
 import "@typedreammoon/dream-noise/Library/Noise.dsh";
 ```
 
-一个 specifier 会依次尝试三个根：导入方文件所在目录、源根、Package 根。第一个存在**且没有跑出自己根
-目录**的候选胜出 —— Package 内部的文件不能用 `../` 爬出去。没有扩展名的 specifier 会被补上 `.dsh`，
-所以 `import "…/Noise"` 永远不可能解析到 `.dsf`。完整规则见
+一个 specifier 会依次尝试三个候选：导入方文件所在目录、**所属根**的源目录、该根的 `Packages` 目录。
+第一个存在**且没有跑出自己包含根**的候选胜出 —— Package 内部的文件不能用 `../` 爬出去。没有扩展名的
+specifier 会被补上 `.dsh`，所以 `import "…/Noise"` 永远不可能解析到 `.dsf`。
+
+裸 specifier <Since v="1.6.0" /> **不会离开自己所在的根**：装一个插件因此不可能改变某条既有 import 的含义。
+要刻意跨根，写 `import "Plugin.MoonToon:Shared/Toon.dsh";`。完整规则见
 [import 与命名空间](/docs/language/imports)。
 
 `import` 保持浅层还有一个好处：源 hash 覆盖的是整段内联后的 import 闭包，改一个 header 会让所有引入它的
@@ -112,7 +163,7 @@ import "@typedreammoon/dream-noise/Library/Noise.dsh";
 
 | 枚举器 | 扩展名 | 排除 | 使用者 |
 | --- | --- | --- | --- |
-| 全量源枚举 | `.dsm`、`.dsh`、`.dsf` | `DShader/Packages` 下的**全部**文件 | 启动时的内存生成、commandlet 的 `compile -All`、cook、Gen 页列表、VirtualFunction 同步 |
+| 全量源枚举 | `.dsm`、`.dsh`、`.dsf` | 任意根的 `Packages` 下的**全部**文件 | 启动时的内存生成、commandlet 的 `compile -All`、cook、Gen 页列表、VirtualFunction 同步 |
 | 材质源枚举 | `.dsm`、`.dsf` | 仅 `DShader/Packages` 下的 `.dsm` | *Recompile DSM*、自动编译队列、依赖图 |
 
 <Callout type="warn">
@@ -141,7 +192,8 @@ Package 的 `.dsh` header 完全可以被 import，但从不参与 `VirtualFunct
 | 生成的 `.uasset` | 一般**不提交** —— 默认 backend 下编辑器本来也不会写出它们 |
 | `Intermediate/DreamShader/` | 不提交 |
 
-团队内统一 *Source Directory*，这样 import 在每台机器上的解析结果才一致。
+团队内统一 *Source Directory*，这样 import 在每台机器上的解析结果才一致。插件带的 `DShader` 目录随插件
+一起提交 —— 它和插件的 `Content/` 属于同一份交付物。
 
 ## 下一步
 

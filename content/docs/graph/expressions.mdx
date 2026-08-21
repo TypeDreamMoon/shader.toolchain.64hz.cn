@@ -452,6 +452,36 @@ float m  = MyFunction(A, B).r;
 `Code` → `Graph` 的 section 改名。
 </Callout>
 
+### swizzle 在图里长什么样
+
+<Since v="1.8.0" />
+
+一次分量选择在生成的图里有三种落法，取决于**材质图编辑器能不能把它读回来**：
+
+| 落法 | 用在什么时候 |
+| :-- | :-- |
+| 连接上的内联 mask | 只在编辑器能把这个 mask 解析回它已经指名的那个 pin 时 |
+| 直接指名另一个输出 | 表达式通过多个带 mask 的输出发布**同一个值**时 —— `TextureSample` 的 `RGB/R/G/B/A/RGBA`、`VertexColor` 等 |
+| 一个真的 `ComponentMask` 节点 | 其余全部情况 |
+
+<Callout type="warn">
+**为什么不能一律用内联 mask。** pin 对应的是表达式的 `Outputs` 条目，所以「没有 pin」意味着
+「output 0，只取红通道」。`UMaterialGraph::GetValidOutputIndex` 一见到带 mask 的 `OutputIndex 0`
+就不信任它（那个组合过去表示 `OutputIndex` 出现之前的老式连接），找不到 mask 匹配的 pin，
+就回退到节点的**最后一个**输出 —— 而第一次 Apply / Save 会把这条线连同那个 pin 自己的 mask 一起写回去。
+
+在 `SceneTexture`（输出是 `Color / Size / InvSize`）上，这把 `CustomStencil.r` 变成了 `InvSize`：
+静默、没有任何报错，然后 stencil 比较对每个像素都失败，被它 gate 的效果直接不出现。
+`1.8.0` 之前，任何被材质编辑器碰过的生成资产都中招，先复制一份也没用 —— 副本第一次保存就被同样地毁掉。
+</Callout>
+
+<Callout type="info">
+像 `SceneTexture` 这种**输出集合混杂**的节点永远不会被改指到别的输出：那里的各个输出是不同的值，
+而不是同一个值的不同视图。改指只发生在多个输出确实是同一个值的 mask 视图时。
+
+这次修复让[构建键](/docs/generation/regeneration)的标签升到 `DSK2`，所以每个生成资产都会按新形式重建一次。
+</Callout>
+
 ## 转换
 
 转换不是作者写出来的。它在任何"值遇到期望形状"的地方自动应用，也是生成材质里大多数静默宽度变化的成因。

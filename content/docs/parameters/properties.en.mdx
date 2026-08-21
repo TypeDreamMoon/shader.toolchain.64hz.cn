@@ -207,6 +207,15 @@ with `{Context}` being `Texture` for a parameter and `Const` for a `const` decla
 successful load `AutoSetSampleType()` runs, so `SamplerType` follows the asset unless
 [metadata](/en/docs/parameters/metadata#texture-keys) overrides it.
 
+<Callout type="info">
+The dimension check reads `UTexture::GetMaterialType()` <Since v="1.8.0" /> rather than comparing
+asset classes — the same answer the material compiler gives on a texture-object pin. A **render target
+is therefore accepted where a texture of its dimension is expected**: `UTextureRenderTargetVolume`
+passes for `VolumeTexture`, `UTextureRenderTarget2D`, `UTextureRenderTargetCube` and
+`UTextureRenderTarget2DArray` for theirs, and so does anything else a texture-object pin would take
+(e.g. `UTexture2DDynamic`). Compact tokens and `TextureObjectParameter` alike, `const` or not.
+</Callout>
+
 ## `const` declarations
 
 <Since v="1.2.6" /> A `const` declaration emits a constant node instead of a parameter: no name in

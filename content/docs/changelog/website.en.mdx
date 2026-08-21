@@ -6,6 +6,47 @@ description: Update history for the lang.64hz.cn documentation site — structur
 Changes to the `lang.64hz.cn` documentation site itself: information architecture, deployment and
 content.
 
+## 2026-08-21
+
+### Synced to plugin 1.8.0
+
+A content sync covering four releases, `1.5.1` → `1.8.0`. Beyond the changelog, the edits concentrate
+on the pages whose generator semantics changed most.
+
+- The [plugin changelog](/en/docs/changelog/dreamshader) gained `1.5.1`, `1.6.0`, `1.7.0`, `1.7.1` and
+  `1.8.0`; every current-version table now reads `1.8.0`.
+- [Regeneration](/en/docs/generation/regeneration) was rewritten: new sections on **divergence** (the
+  output digest, the four states, what counts as a hand edit, the three ways out), the **atomic
+  rebuild**, and **refusing while the asset is open in an asset editor**. "The source-hash cache"
+  became **the build key**, with the dependency-ordered batch rule alongside it. The ownership guard's
+  "no guard on the ThinCustom path" warning is obsolete and was removed.
+- [In-memory Materials](/en/docs/generation/in-memory) replaced "Shadowed by a saved asset" with
+  **storage decides how a rebuild persists**, and records that the startup sweep no longer forces; the
+  cook section gained the AssetRegistry registration.
+- [Math Builtins](/en/docs/builtins/math) went from 19 spellings to 29, including the `reflect` /
+  `refract` subgraph expansions, `step`'s reversed pin mapping, and a rewritten "What is not here".
+  Every "19" elsewhere on the site was corrected.
+- [Imports](/en/docs/language/imports) and [Project Layout](/en/docs/start/project-layout) gained
+  **plugin source roots**, "imports never cross roots", and the root-qualified `Plugin.<Name>:path`
+  form.
+- [Editor Tools](/en/docs/tools/editor) gained the three provenance context-menu actions, Graph
+  breakpoints, raw RGBA8 frames and idle backoff, `status.json` / `Responses/` / `owner.lock`, and
+  **one editor owns the bridge for a project**.
+- [VSCode and Rider](/en/docs/tools/vscode) corrected two claims that no longer hold: a request no
+  longer "simply vanishes" (one with a `requestId` gets a response file), and omitting `frameRate`
+  from a `previewControl` no longer drops the session to 2 FPS.
+- [Diagnostics](/en/docs/diagnostics) gained the `DSHnnnn` code-range table, with the parser-only
+  tagging status stated.
+- [Expressions](/en/docs/graph/expressions) gained "What a swizzle looks like in the graph" — the
+  inline mask / retargeted output / `ComponentMask` node choice, and why the material editor used to
+  retarget an inline mask to the node's last output.
+- [Project Settings](/en/docs/settings/project) went from 13 to 15 (`bScanPluginSourceDirectories`,
+  `bLayoutInMemoryGraphs`); [Material Settings](/en/docs/settings/material) gained the domain-derived
+  `bUsedWithVolumetricCloud`; [Functions](/en/docs/language/functions) gained the leading-`#include`
+  hoist; and [Properties](/en/docs/parameters/properties) plus
+  [`UE.*` Builtins](/en/docs/builtins/ue-nodes) gained the `GetMaterialType()` dimension check and the
+  `UE.CollectionParam` width.
+
 ## 2026-08-02
 
 ### Documentation Rebuild — Plugin 1.5.0

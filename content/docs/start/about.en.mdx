@@ -9,7 +9,7 @@ diagnostics, decompilation and the editor integration.
 
 | | |
 | --- | --- |
-| Version | `1.5.0` — descriptor `Version` `150`, `IsBetaVersion` `false` |
+| Version | `1.8.0` — descriptor `Version` `180`, `IsBetaVersion` `false` |
 | Engines | Unreal Engine `5.3` – `5.8`, Win64 verified with `RunUAT BuildPlugin` |
 | Modules | `DreamShader` (Runtime), `DreamShaderCompiler` (Runtime), `DreamShaderEditor` (Editor) |
 | Plugin dependencies | `WebSocketNetworking`, `SQLiteCore` |
@@ -30,6 +30,8 @@ the repeatable parts into text:
 | Substrate graphs need text authoring | the `Substrate` type, `Base.FrontMaterial`, and the `Substrate.*` builtins <Since v="5.4" ue /> |
 | Existing graphs need migrating | the decompiler exports `UMaterial` / `UMaterialFunction` back to `.dsm` / `.dsf` |
 | Generated assets lose their provenance | `DreamShader.SourceFile` and `DreamShader.SourceHash` are stamped into package metadata |
+| A rebuild silently overwrote a hand-edited asset | the `DreamShader.OutputDigest` fingerprint stops that rebuild and offers Revert / Adopt / Detach <Since v="1.8.0" /> |
+| A plugin wants to ship its own material sources | every enabled plugin with a `DShader` folder contributes a source root <Since v="1.6.0" /> |
 
 It is not a replacement for the material editor, and not a shader pipeline. `Graph` is a node-graph
 builder with four operators and `if` / `else`; anything genuinely imperative belongs in a `Function`,
@@ -121,4 +123,4 @@ and the package store are documented in the extension repositories, not here.
 - [Installation](/en/docs/start/installation) — get it into a project
 - [Daily Workflow](/en/docs/start/workflow) — the compile loop
 - [Editor Tools](/en/docs/tools/editor) — the menus, the browser tab, the clean commands
-- [Changelog](/en/docs/changelog/dreamshader) — what changed in `1.5.0`
+- [Changelog](/en/docs/changelog/dreamshader) — what changed in `1.8.0`

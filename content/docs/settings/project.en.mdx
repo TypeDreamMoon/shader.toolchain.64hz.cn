@@ -1,9 +1,9 @@
 ---
 title: Project Settings
-description: All 13 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects.
+description: All 15 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects.
 ---
 
-DreamShader's project-wide configuration is a `UDeveloperSettings` object with **13** properties.
+DreamShader's project-wide configuration is a `UDeveloperSettings` object with **15** properties.
 
 <Callout type="warn">
 The panel is at **Project Settings ▸ DreamPlugin ▸ Dream Shader** — *not* under *Plugins*. Older
@@ -21,7 +21,7 @@ documentation pointed at the wrong place and listed fewer properties under names
 The class is `Config=Engine, DefaultConfig`, so values live in the **project's**
 `DefaultEngine.ini`, not in a per-user file. They are shared by everyone who checks the project out.
 
-## The 13 settings
+## The 15 settings
 
 <Wide>
 
@@ -32,8 +32,10 @@ The class is `Config=Engine, DefaultConfig`, so values live in the **project's**
 | Mappings | Material Domain Mappings | `MaterialDomainMappings` | `TMap<FString, EMaterialDomain>` | *empty* | Extra or overriding spellings for `MaterialDomain` / `Domain`. |
 | Paths | Source Directory | `SourceDirectory` | `FDirectoryPath` | `DShader` | Root scanned for `.dsm` / `.dsf` / `.dsh` sources. Empty falls back to `DShader`; a relative path resolves against the project directory. `<Source>/Packages` is derived from it. |
 | Paths | Generated Shader Directory | `GeneratedShaderDirectory` | `FDirectoryPath` | `Intermediate/DreamShader/GeneratedShaders` | Where the generated `.ush` include is written and the virtual shader directory is mapped. Empty falls back to the default. |
+| Paths | **Scan Plugin Source Directories** <Since v="1.6.0" /> | `bScanPluginSourceDirectories` | `bool` | `true` | When on, every enabled plugin that has a `DShader` folder contributes a source root of its own. Off leaves the project's *Source Directory* as the only root. See [Project Layout](/en/docs/start/project-layout). |
 | Compiler | **Default Compiler Backend** | `DefaultBackend` | `EDreamShaderDefaultBackend` | `ThinCustom` | Backend for a source file that does not set `Settings = { Backend = … }`. Changing it regenerates every source file in memory. |
 | Compiler | **Show In-Memory Materials In Content Browser** | `bShowInMemoryMaterialsInContentBrowser` | `bool` | `false` | When off, memory-only DreamShader instances report themselves as non-assets and disappear from the Content Browser, asset-registry enumeration and save pickers. Read live, on every query. |
+| Compiler | **Lay Out In-Memory Graphs** <Since v="1.6.0" /> | `bLayoutInMemoryGraphs` | `bool` | `true` | When on, graph layout also runs for the memory-only materials an interactive compile produces, so the graph you see after a save matches the generated asset. Off, those graphs keep their construction coordinates — a single tall column. Graphs at or above the large-graph threshold skip layout either way. |
 | Compiler | Auto Compile On Save | `bAutoCompileOnSave` | `bool` | `true` | When off, the source-directory watcher ignores file changes entirely. |
 | Compiler | Save Debounce Seconds | `SaveDebounceSeconds` | `float` | `0.25` | Quiet period after a file change before compiling. Clamped to `[0.05, 10.0]`; the slider stops at `2.0`. Falls back to `0.25` when the settings object is unavailable. |
 | Compiler | Verbose Logs | `bVerboseLogs` | `bool` | `false` | Adds `Display`-level logging of the dependent-file compile queue. |
@@ -77,6 +79,14 @@ The complete built-in tables are on [Enum Values](/en/docs/settings/enums).
 
 The editor's own wording, verbatim.
 
+*Scan Plugin Source Directories*:
+
+> When enabled, every enabled plugin that ships a DShader folder contributes its own source root, so
+> a plugin can carry the .dsm/.dsf/.dsh files that build its materials. Plugin roots are discovered
+> and compiled but never rewritten by the editor -- only the project's own source directory is
+> writable. Imports never cross roots: a file resolves its imports against its own root and that
+> root's Packages folder.
+
 *Default Compiler Backend*:
 
 > How DreamShader materializes a source file that does not specify `Settings = { Backend = "..." }`.
@@ -102,6 +112,7 @@ The editor's own wording, verbatim.
 | `bShowInMemoryMaterialsInContentBrowser` | *Tools ▸ DreamShader ▸ Show In-Memory Materials*, and the Project page of the [Material Content Browser](/en/docs/tools/editor). Both write the ini and re-broadcast asset creation/removal for every memory-only instance. |
 | `DefaultBackend` | Changing it in the panel triggers an immediate in-memory regeneration of every source file, plus a notification when persisted generated assets shadow the result. |
 | `SourceDirectory`, `GeneratedShaderDirectory` | Consumed by the module's directory helpers — see [Project Layout](/en/docs/start/project-layout) and [Packages](/en/docs/tools/packages). |
+| `bScanPluginSourceDirectories` | The root list is cached and rebuilt only when *Source Directory* or this toggle changes, or when *DreamShader Gen ▸ Refresh* is pressed. The **watcher** is registered once at startup, so *Auto Compile On Save* for a root that appeared mid-session starts working on the next editor start. |
 
 ## Notes
 
@@ -123,7 +134,9 @@ The editor's own wording, verbatim.
 SourceDirectory=(Path="DShader")
 GeneratedShaderDirectory=(Path="Intermediate/DreamShader/GeneratedShaders")
 DefaultBackend=ThinCustom
+bScanPluginSourceDirectories=True
 bShowInMemoryMaterialsInContentBrowser=False
+bLayoutInMemoryGraphs=True
 bAutoCompileOnSave=True
 SaveDebounceSeconds=0.250000
 bVerboseLogs=False

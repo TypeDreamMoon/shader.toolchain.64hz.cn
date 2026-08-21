@@ -8,7 +8,7 @@ DreamShaderLang 由 DreamShader 这个 Unreal 插件编译。本页的事情每�
 | | |
 | --- | --- |
 | 仓库 | [TypeDreamMoon/DreamShader](https://github.com/TypeDreamMoon/DreamShader) |
-| 插件版本 | `1.5.0` |
+| 插件版本 | `1.8.0` |
 | 引擎 | Unreal Engine `5.3` – `5.8`，已在 Win64 验证 |
 | 放置路径 | `<Project>/Plugins/DreamShader` |
 | 插件依赖 | `WebSocketNetworking`、`SQLiteCore` —— 都是引擎插件，都会被自动启用 |
@@ -131,7 +131,7 @@ Generated DreamShader thin-custom material /Game/DreamMaterials/M_InstallCheck f
 
 ## 最先会用到的几项设置
 
-完整面板有十三项属性，下面这几项是第一天就会碰到的。注意配置标识符保留了 `b` 前缀，而显示名会把它去掉。
+完整面板有十五项属性，下面这几项是第一天就会碰到的。注意配置标识符保留了 `b` 前缀，而显示名会把它去掉。
 
 | 界面名称 | 配置属性 | 默认值 | 作用 |
 | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Generated DreamShader thin-custom material /Game/DreamMaterials/M_InstallCheck f
 | Save Debounce Seconds | `SaveDebounceSeconds` | `0.25` | 文件变化后等待多久再编译。取值被钳制到 `[0.05, 10.0]`。 |
 
 这些值写入**项目的** `Config/DefaultEngine.ini`，section 为
-`[/Script/DreamShader.DreamShaderSettings]`，因此会被所有拉取该项目的人共享。十三项设置全部记录在
+`[/Script/DreamShader.DreamShaderSettings]`，因此会被所有拉取该项目的人共享。十五项设置全部记录在
 [项目设置](/docs/settings/project)。
 
 <Callout type="warn">
@@ -167,7 +167,7 @@ Shader(Name="DreamMaterials/M_Minimal", Root="Plugin.MyPlugin")
 
 ## 引擎兼容性
 
-DreamShader `1.5.0` 基于 Unreal Engine `5.8` 开发，并在 Win64 上用单插件
+DreamShader `1.8.0` 基于 Unreal Engine `5.8` 开发，并在 Win64 上用单插件
 `RunUAT BuildPlugin` 验证过：
 
 | Unreal Engine | 状态 |

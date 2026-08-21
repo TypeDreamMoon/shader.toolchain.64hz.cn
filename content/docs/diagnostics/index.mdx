@@ -1,6 +1,6 @@
 ---
 title: 错误速查
-description: DreamShader 在哪里报错、怎么读一条消息，以及一张按流水线阶段分组的常见诊断速查表。
+description: DreamShader 在哪里报错、怎么读一条消息、DSHnnnn 错误码怎么分段，以及一张按流水线阶段分组的常见诊断速查表。
 ---
 
 每一次编译失败都表现为一条 **诊断**：一条消息，归属于一个源文件，通常带着行号和列号。本页讲清楚这些消息出现在哪里、
@@ -84,6 +84,41 @@ I:/Project/DShader/Materials/M_Sample.dsm(37,9): Unknown Graph identifier 'Tin'.
 <Callout type="info">
 本页收的是你大概率会遇到的消息。完整清单 —— parser、generator、commandlet 和 VirtualFunction 同步能发出的每一条消息，
 大约是这里的四倍 —— 在插件自带手册的 `Plugins/DreamShader/Docs/diagnostics/index.md`。
+</Callout>
+
+## `DSHnnnn` 错误码
+
+<Since v="1.6.0" />
+
+在此之前，唯一标识一条 DreamShader 失败的东西是它的**英文措辞** —— 这也是生成器的消息点上带着
+`I18N-EXEMPT` 标记的原因：一旦翻译文本，测试、语料期望和诊断技能匹配的东西就全断了。
+
+现在 parser 的每一个抛出点都携带一个码。首位数字就是抛出它的阶段：
+
+| 段 | 阶段 | 状态 |
+| :-- | :-- | :-- |
+| `DSH1xxx` | 驱动、源文件与 import | 已标注 |
+| `DSH2xxx` | 词法与语法 | 已标注 |
+| `DSH3xxx` | section 与声明 | 已标注 |
+| `DSH4xxx` | Graph 语句与表达式 | 尚无带码的抛出点 |
+| `DSH5xxx` | 内置节点 —— `UE.*`、数学、Substrate | 尚无带码的抛出点 |
+| `DSH6xxx` | 函数与 HLSL 代码生成 | 尚无带码的抛出点 |
+| `DSH7xxx` | Properties、参数与设置 | 已标注 |
+| `DSH8xxx` | 资产生成与保存 | 尚无带码的抛出点 |
+| `DSH9xxx` | 工具、同步与内部不变式 | 尚无带码的抛出点 |
+
+<Callout type="info">
+**线上格式没有任何变化。** `FDreamShaderDiagnosticRecord::Code` 和 `diagnostics.json` 里的 `"code"`
+字段本来就存在 —— 变化的只是现在它们被填上了。码挂在 `FDreamShaderTextError` 上，和 `FText` 一起走。
+</Callout>
+
+<Callout type="warn">
+**只有 parser 抛出 `DSHnnnn`，生成器还没有。** 已经有码的是 112 条；全部 659 条消息的权威目录，
+仍然是下面这些按阶段分组的表，直到生成器剩下的约 561 个抛出点也被标注 —— 它们目前仍以
+`FString& OutError` 上报、不带码，进入诊断存储时是统一的 `generate-error`。
+
+逐码页面在插件自带手册的 `Plugins/DreamShader/Docs/diagnostics/` 下，由 `.skill/gen-diagnostics.ps1`
+从抛出点生成，Cause / Fix 的散文是手写的、会跨重新生成保留。
 </Callout>
 
 ## 解析

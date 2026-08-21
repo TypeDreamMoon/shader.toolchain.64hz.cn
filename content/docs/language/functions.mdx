@@ -177,6 +177,34 @@ Function SampleTinted(in Texture2D tex, in vec2 uv, in vec3 tint, out vec3 rgb, 
 
 </Callout>
 
+## 顶部 `#include` 的提升
+
+<Since v="1.8.0" />
+
+`Function` 块的 HLSL 过去是原样发射在生成的 `DreamShaderFn_*` 定义的花括号**之间**的，于是任何
+`#include` 都落在了**函数内部** —— 只有宏的头文件没事，定义了函数的头文件就是编译错误。
+
+现在函数体开头的 `#include "…"` / `#include <…>` 指令（前面只允许空白和注释）会被摘出来，按首次出现顺序
+在生成 `.ush` 的 guard 之后发射**一次**：
+
+```c
+Function(Name="Wind") float3 SampleWind(float3 P)
+{
+    #include "/Plugin/DreamWind/Shared/DreamWindShared.h"
+
+    return DreamWind_Sample(P);
+}
+```
+
+| 情况 | 指令去哪 |
+| :-- | :-- |
+| 普通 `Function` | 生成 `.ush` 的文件作用域，guard 之后，按首次出现顺序去重 |
+| `SelfContained` / `Inline` 内嵌 | 调用点 `Custom` 节点的 `IncludeFilePaths`，排在生成的 include **之前** |
+| `GraphFunction` 体 | 同上 —— `Custom` 节点的 `IncludeFilePaths` |
+| 第一条语句**之后**的 `#include` | 保持旧行为，原样留在函数体里 |
+
+这正是让一个 C++ 与 HLSL 共用的头文件能被 `.dsf` 直接消费、而不必把它的函数抄进 DreamShaderLang 的东西。
+
 ## 生成的 HLSL
 
 每个 `Function` 以这种形态写进生成的 include：

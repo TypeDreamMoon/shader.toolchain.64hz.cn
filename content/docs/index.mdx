@@ -11,7 +11,7 @@ DreamShaderLang 是虚幻引擎材质的文本化语言。你写 `.dsm`、`.dsf`
 
 | | |
 | --- | --- |
-| 插件版本 | `1.5.0` |
+| 插件版本 | `1.8.0` |
 | 引擎 | Unreal Engine `5.3` – `5.8`，已在 Win64 验证 |
 | 模块 | `DreamShader`（Runtime）、`DreamShaderCompiler`（Runtime）、`DreamShaderEditor`（Editor） |
 | 源文件扩展名 | `.dsm` · `.dsf` · `.dsh` |
@@ -85,7 +85,9 @@ Shader(Name="DreamMaterials/M_Minimal")
 - **生成只发生在编辑器里。** 没有任何运行时路径能从 DreamShaderLang 构建材质，打包后的游戏里也不存在
   这些工具。
 - **生成的资产是产物，不是文档。** 重新生成会拆掉整张图再重建，手动改动会丢失；直接在生成的实例上设置的
-  参数覆盖每次重建都会被清空。见[重新生成](/docs/generation/regeneration)。
+  参数覆盖每次重建都会被清空。自 <Since v="1.8.0" /> 起，会毁掉手改的那次重建**不会发生** ——
+  资产带指纹，对不上就拒绝编译，并让你在 Revert / Adopt / Detach 里选一个。见
+  [重新生成](/docs/generation/regeneration)。
 - **`Substrate.*` 需要 <Since v="5.4" ue />**，而且插件二进制必须是针对 5.4 及以上编译的 —— 这是
   编译期开关。
 - **有些写法已经废弃。** 包括 `Instance` backend 取值，以及 `MaterialLayer` /
@@ -110,7 +112,7 @@ Shader(Name="DreamMaterials/M_Minimal")
     Properties 类型、参数节点、元数据与分组、资产引用。
   </Card>
   <Card title="设置" href="/docs/settings/material">
-    材质 Settings 与枚举取值、Backend，以及全部十三项项目设置。
+    材质 Settings 与枚举取值、Backend，以及全部十五项项目设置。
   </Card>
   <Card title="生成与产物" href="/docs/generation/pipeline">
     生成流程、资产路径、内存材质、输出绑定、重新生成。

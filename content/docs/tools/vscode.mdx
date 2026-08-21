@@ -201,12 +201,42 @@ toast 文本和日志文本不同，两者都列出。运行期替换写作 `{Pl
 | `settings.json` | 编辑器 → 扩展 | `ShadingModel` / `BlendMode` / `MaterialDomain` 别名表 |
 | `substrate-builtins.json` | 编辑器 → 扩展 | 带 snippet 的 [`Substrate.*`](/docs/builtins/substrate) 目录；UE 5.4 以下 `supported: false` |
 | `preview.json` + `Preview/*.png` | 编辑器 → 扩展 | 单次预览的结果清单和图片 |
-| `ws://127.0.0.1:17864` | 双向 | 带轨道控制的流式预览 |
+| `status.json` | 编辑器 → 扩展 | 心跳与身份 —— **文件缺失就是「编辑器没在运行」** <Since v="1.6.0" /> |
+| `Responses/<requestId>.json` | 编辑器 → 扩展 | 带 `requestId` 的请求的回复 <Since v="1.6.0" /> |
+| `owner.lock` | 编辑器内部 | 哪个编辑器持有本工程的 bridge <Since v="1.8.0" /> |
+| `ws://127.0.0.1:17864` | 双向 | 带轨道控制和断点的流式预览 |
 
 <Callout type="warn">
 `bridge.db` 从插件这一侧看是**只写**的，而且不是持久状态：bridge 启动时**和**关闭时都会删掉它，
 每个写入者都在事务里整表替换。插件里没有任何东西读回过一行。把它当作 JSON 产物的一个便于查询的镜像，
 只在编辑器运行期间有效 —— 绝不要拿它存客户端状态。
+</Callout>
+
+### 编辑器还活着吗
+
+<Since v="1.6.0" />
+
+在此之前，客户端想知道有没有编辑器在跑，唯一的办法是找 `bridge.db` 然后祈祷。现在 bridge 每 2 秒重写一次
+`status.json`，并在**退出时删除**它 —— 所以文件缺失确定地意味着「没在运行」，客户端可以立刻回退，
+而不必等一个存活窗口过期。
+
+| 字段 | 说明 |
+| :-- | :-- |
+| `protocol`、`pid`、`project`、`projectDir`、`engineDir`、`pluginVersion` | 身份 |
+| `busy` | 正在服务某个请求时为 true |
+| `busyAction` | 只在 busy 时出现 |
+| `lastResult` | 有东西完成过之后出现 |
+| `heartbeatUtc` | ISO-8601 UTC |
+
+<Callout type="warn">
+判断心跳是否过期**之前**先读 `busy`。编译会阻塞游戏线程，所以编译期间心跳是停的 —— 只看时间戳的客户端
+会把每一次真实编译都读成崩溃。剩下的歧义是硬崩溃，它会把文件留在原地；记录下来的 `pid` 用来收尾。
+</Callout>
+
+<Callout type="info">
+没人在听的时候写下的请求会被**丢弃**而不是排队。分界线是 bridge 自己的启动时间，所以一个在编辑器启动时
+就躺在磁盘上的请求会被删掉并记一条日志，而不是被迟到地服务 —— 到那时发它的人早就超时了。
+写请求之前先看 `status.json`。
 </Callout>
 
 ### 请求文件
@@ -218,20 +248,46 @@ toast 文本和日志文本不同，两者都列出。运行期替换写作 `{Pl
 | 轮询间隔 | `0.1 秒` |
 | 消费方式 | 每个发现的文件都在该轮循环结束时**被删除** |
 
-文件名无关紧要，只有 JSON 内容有意义。`action` 和 `scope` 都做大小写不敏感匹配。一共只有四个 action：
+文件名无关紧要，只有 JSON 内容有意义。`action` 和 `scope` 都做大小写不敏感匹配。
 
-| `action` | 必需字段 | 效果 |
-| :-- | :-- | :-- |
-| `recompile` | `scope: "all"` | 重建依赖图并把每个项目 `.dsm` / `.dsf` 排入队列 |
-| `recompile` | `scope: "file"`、`sourceFile` | 把一个文件排进防抖队列 |
-| `cleanGeneratedShaders` | — | 删掉生成的 `*.ush` include，然后排入一次全量扫描 |
-| `previewMaterial` | `sourceFile` | 同步渲染一次预览并写 `preview.json` |
+| `action` | 必需字段 | 效果 | 何时回复 |
+| :-- | :-- | :-- | :-- |
+| `ping` <Since v="1.6.0" /> | —— | 什么都不做，只确认 bridge 在服务 | 立即 |
+| `recompile` | `scope: "all"` | 重建依赖图并把每个项目 `.dsm` / `.dsf` 排入队列 | 立即，作为 *queued* |
+| `recompile` | `scope: "file"`、`sourceFile` | 把一个文件排进防抖队列 | **那次编译完成时** |
+| `cleanGeneratedShaders` | —— | 删掉生成的 `*.ush` include，然后排入一次全量扫描 | 立即 |
+| `previewMaterial` | `sourceFile` | 同步渲染一次预览并写 `preview.json` | 立即，带渲染结果 |
+
+带 `requestId` 的请求会在 `Responses/<requestId>.json` 里被回答 <Since v="1.6.0" />，字段是 `protocol`、
+`requestId`、`ok`、`durationMs`、`message` 和 `diagnostics`。写入是原子的（写在旁边再改名），
+所以「出现」和「完整」是同一个事件；上个会话遗留的回复在启动时被删掉。
 
 <Callout type="warn">
-请求文件是**无条件删除**的 —— 派发成功后删、读失败后删、JSON 解析失败后删、`action` 无法识别也删。
-畸形请求没有回复文件、没有错误文件、也没有日志行：它就是消失了。而且轮询器可能打开一个还在写入中的文件，
-所以请把 JSON 写到别处的临时名字上，再**重命名**进 `Requests/`，让它原子地出现。
+`recompile` 的 `scope: "file"` 是唯一**延迟回复**的动作：文件进防抖队列、若干 tick 之后才编译，
+所以在派发时回答就等于在什么都还没试之前报告成功。它的 id 被寄存下来，由那次编译本身回答，
+并带上那次编译的诊断。
+
+`scope: "all"` 正相反，并且明说：它立即以 *queued* 回复，因为批次跨多个 tick 才排干，结果此刻不可知。
+**别把它当成结果。**
 </Callout>
+
+<Callout type="info">
+错误的 `scope`、缺失的 `sourceFile` 和无法识别的 `action` 现在是**错误响应**，而不再是静默无操作 ——
+前提是请求带了 `requestId`。不带 id 时行为不变：文件被删掉，什么都不说。这正是当前 VSCode 扩展发出的
+每一个请求的样子，也是它无需改动仍然能工作的原因。
+
+请求在**派发之前**就被删除，所以一个能弄崩编辑器的请求不会在之后每次启动时被重放。唯一的例外是完全读不出来
+的文件：那几乎总是一个还在被写入的文件，所以留给下一轮，而不是丢掉。仍然建议把 JSON 写到别处的临时名字上、
+再**重命名**进 `Requests/`，让它原子地出现。
+</Callout>
+
+请求可以带 `protocol`。**缺失**这个字段会被读成当前版本而不是版本不匹配 —— 当前 VSCode 扩展发出的每个请求
+都不带它，拒绝这些请求会让每台装了它的机器都用不了。字段存在**且**不同才会被拒：
+
+```text
+Protocol 3 is not understood; this editor speaks 1. Update the DreamShaderLang extension or the
+plugin so the two match.
+```
 
 走这条路径的编译永远是内存内的；排队的文件在防抖窗口
 （*Save Debounce Seconds*，钳制到 `[0.05, 10.0]`，默认 `0.25`）加最多 `0.1 秒` 轮询延迟之后编译，
@@ -270,35 +326,60 @@ UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5
 
 | 消息 | 方向 | 用途 |
 | :-- | :-- | :-- |
-| `previewMaterial` | 客户端 → 编辑器 | 为一个 `.dsm` 开启预览会话 |
-| `previewControl` | 客户端 → 编辑器 | 调整当前会话 |
+| `previewMaterial` | 客户端 → 编辑器 | 为一个 `.dsm` 开启预览会话。`encoding` 选 `raw` 或 `png`，`force` 控制是否重新生成 <Since v="1.7.0" /> |
+| `previewControl` | 客户端 → 编辑器 | 调整当前会话 —— 流开关、帧率、相机角度、`width` / `height` / `mesh` <Since v="1.7.0" /> |
+| `setProbe` / `clearProbe` | 客户端 → 编辑器 | 挂上 / 摘掉一个断点式探针 <Since v="1.7.0" /> |
 | `previewResult` | 编辑器 → 客户端 | 会话启动结果，或流中途的错误 |
-| `previewFrame` | 编辑器 → 客户端 | 紧随其后那张 PNG 的元数据 |
+| `previewFrame` | 编辑器 → 客户端 | *（仅 png 编码）* 紧随其后那张 PNG 的元数据 |
+| `probeState` | 编辑器 → 客户端 | 探针处于 `attached`、`pending` 还是 `cleared` <Since v="1.7.0" /> |
 
 每条**出站**消息都是 WebSocket *binary* 帧，载荷是 4 字节小端长度、1 字节类型标签
-（`1` = UTF-8 JSON，`2` = 原始 PNG），然后是载荷本体。JSON 消息总是先发，匹配的二进制消息紧接着在同一连接上发，
-客户端按到达顺序配对。入站消息是纯 UTF-8 JSON，没有长度前缀也没有标签字节。
+（`1` = UTF-8 JSON，`2` = 原始 PNG，`3` = 原始 RGBA8 帧 <Since v="1.7.0" />），然后是载荷本体。
+入站消息是纯 UTF-8 JSON，没有长度前缀也没有标签字节。
 
 流式既限速又受确认门控：只有客户端已确认上一帧**且**帧间隔已过，新帧才会开始。
 
-<Callout type="warn">
-`previewControl` 里省略 `frameRate` **并不等于**"保持当前帧率" —— 读取器在找这个字段之前就把它初始化成了
-`2.0`，所以一条纯粹用来确认帧或微调相机的控制消息会静默把会话掉到 2 FPS。轨道角度的行为正好相反，会被保留。
-**每一条 `previewControl` 都带上当前的 `frameRate`。**
+<Callout type="info">
+**默认编码自 <Since v="1.7.0" /> 起是 `raw`。** 标签 `3` 的帧自带描述：24 字节头（尺寸、标志位、相机、
+解析后的探针行号）之后直接是像素，编辑器侧完全没有 PNG 编码，客户端把它直接画到 canvas 上。
+这就是流畅 30–60 FPS 之所以负担得起的原因。旧的 `previewFrame` JSON 加带 tag 的 PNG 那一对
+仍然以 `encoding: "png"` 提供给老客户端，行为不变。
+
+画面不动时相同的帧会被丢弃，连续几帧相同之后渲染时钟退到一个很低的空闲速率，直到一次编辑、一次相机 / 网格
+变化或一次探针变化把它唤醒。
 </Callout>
+
+<Callout type="warn">
+**旧行为（`1.7.0` 之前）：** `previewControl` 里省略 `frameRate` 会把会话静默掉到 2 FPS —— 读取器在找这个
+字段之前就把它初始化成了 `2.0`，所以一条纯粹用来确认帧或微调相机的控制消息就足以踩中。
+
+`1.7.0` 起，**省略的字段保持当前值**（`frameRate` 也一样），只有 `requestId` 和 `ackFrameIndex` 例外。
+仍然需要兼容旧插件的客户端，可以继续在每条 `previewControl` 上带 `frameRate` —— 两种版本下都正确。
+</Callout>
+
+### Graph 断点
+
+<Since v="1.7.0" />
+
+`setProbe` 把一个 `Graph` 行号交给编辑器，预览网格随即显示**那一行绑定的值**而不是成品材质 ——
+材质编辑器右键 *Start Previewing Node* 的文本版。空行或注释行上的断点会向前吸附到下一个绑定了值的行；
+源码还没生成过时设的探针记为 *pending*，下一次编译时挂上；重新编译之后自动重解析，并通过 `probeState`
+把落在哪一行告诉客户端。行号也会随每一帧回显在标签 `3` 的帧头里。语义细节见
+[编辑器工具](/docs/tools/editor)。
 
 一次会话，客户端视角：
 
 ```text
 → {"type":"previewMaterial","sourceFile":"…/M_Sample.dsm","mesh":"shaderball",
-   "width":512,"height":512,"requestId":"8f3c1b","stream":true,"frameRate":12}
-← [len][1] {"type":"previewResult","requestId":"8f3c1b","status":"ready", … "imagePath":"…"}
-← [len][2] <PNG bytes>
-← [len][1] {"type":"previewFrame","requestId":"8f3c1b","frameIndex":0, …}
-← [len][2] <PNG bytes>
-→ {"type":"previewControl","requestId":"8f3c1b","ackFrameIndex":0,"frameRate":12,"orbitYaw":-140.0}
-← [len][1] {"type":"previewFrame","requestId":"8f3c1b","frameIndex":1, …}
-← [len][2] <PNG bytes>
+   "width":512,"height":512,"requestId":"8f3c1b","stream":true,"frameRate":12,
+   "encoding":"raw"}
+← [len][1] {"type":"previewResult","requestId":"8f3c1b","status":"ready", … }
+← [len][3] <24-byte header><RGBA8 pixels>
+→ {"type":"previewControl","requestId":"8f3c1b","ackFrameIndex":0,"orbitYaw":-140.0}
+← [len][3] <24-byte header><RGBA8 pixels>
+→ {"type":"setProbe","requestId":"8f3c1b","line":31}
+← [len][1] {"type":"probeState","requestId":"8f3c1b","state":"attached","line":31}
+← [len][3] <24-byte header><RGBA8 pixels>      // 现在显示的是第 31 行绑定的值
 ```
 
 渲染器自身的限制 —— 只支持 `.dsm`、尺寸钳制、网格回退、没有 pitch 钳制 ——

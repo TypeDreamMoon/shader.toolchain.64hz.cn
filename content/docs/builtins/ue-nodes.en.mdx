@@ -542,7 +542,7 @@ The declared width comes from the first of these that resolves:
 1. an explicit `OutputType` or `ResultType` argument, from the
    [reduced token set](/en/docs/builtins/ue-expression#outputtype);
 2. the parser's own name table, below;
-3. `CollectionParam` / `CollectionParameter`, which declare a 1-component scalar;
+3. `CollectionParam` / `CollectionParameter`, which the parser records as a 1-component scalar — but the node is built at the collection parameter's **real** width, see below;
 4. otherwise the declaration is rejected.
 
 | Name(s) | Declared as |
@@ -551,6 +551,17 @@ The declared width comes from the first of these that resolves:
 | `Time` | scalar, 1 |
 | `WorldPosition`, `CameraVectorWS`, `ObjectPositionWS`, `VertexNormalWS`, `VertexTangentWS` | vector, 3 |
 | `ScreenPosition`, `VertexColor` | vector, 4 |
+
+<Callout type="warn">
+**`UE.CollectionParam(...) Name;` in `Properties` is as wide as the collection parameter**
+<Since v="1.8.0" />. The parser can only record the declaration form as a scalar — it cannot open the
+collection — and the generator used to take that width as-is, so a vector MPC parameter passed to a
+`float4` input was widened by three `AppendVector` splats and the material failed to compile with
+`Can't append float4 to float4`.
+
+The width now comes from the loaded collection when the node is created (vector → 4, scalar → 1); an
+explicit `OutputType=` on the declaration still wins.
+</Callout>
 
 <Callout type="info">
 That table names ten builtins and it is **not** the expression-form roster, nor the same list as the

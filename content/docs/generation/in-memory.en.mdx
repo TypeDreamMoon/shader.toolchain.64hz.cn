@@ -145,17 +145,39 @@ the asset registry is notified directly, so the Content Browser updates without 
 </Accordion>
 </Accordions>
 
-## Shadowed by a saved asset
+## When the asset already exists on disk
 
-If a memory-only compile targets a package path that already exists on disk, generation still
-succeeds, but logs a warning:
+**Storage decides how a rebuild persists, not the compile that asked for it.** <Since v="1.8.0" /> A
+memory-only compile that lands on a package which already exists on disk rebuilds the asset *and
+saves it*, rather than rebuilding it in memory over the top of its own file. Generation succeeds and
+logs:
 
 ```text
-In-memory material mode: '{PackageName}' already exists as a saved asset, which shadows in-memory
-regeneration. Delete the saved asset to make it fully in-memory.
+'{ObjectPath}' exists as a saved asset, so it is rebuilt and saved on disk rather than in memory. Run
+Tools > DreamShader > Clean Persisted Generated Assets to make it memory-only.
 ```
 
-Two commands address this:
+| Aspect | Value |
+| :-- | :-- |
+| Applies to | every trigger, since every interactive compile asks for memory-only |
+| Since | `1.8.0` — before it, such a compile rebuilt the asset in memory and then cleared the dirty flag |
+
+<Callout type="warn">
+What that older behaviour produced was an object matching **neither the file on disk nor anything
+that would ever be written**, and reporting itself clean — so a Save All could persist a state nobody
+chose, and the version you saw in the editor vanished on restart. There is now exactly one answer to
+"what is this asset": whatever the last compile produced, wherever the asset lives.
+</Callout>
+
+A consequence worth knowing: **the startup sweep no longer forces**. Forcing was free while every
+in-memory asset regenerated regardless of its source hash; it stopped being free once a disk-backed
+asset started being saved, because every launch would then rewrite every persisted generated asset —
+disk churn, source-control noise and a slow startup, for rebuilds the source hash had already ruled
+out. Startup now respects the [source-hash skip](/en/docs/generation/regeneration), so an up-to-date
+saved asset is left alone. Changing the **Default Compiler Backend** still forces, because the hash
+cannot see that setting.
+
+Two commands address the persisted assets themselves:
 
 | Command | Effect |
 | :-- | :-- |
@@ -174,6 +196,10 @@ any saved generated assets remain:
 Run Tools > DreamShader > Clean Persisted Generated Assets to remove them.
 ```
 
+(Since `1.8.0` those assets are not *shadowing* anything any more — they are simply still on disk, and
+are rebuilt there. The notification points at the cleaner for anyone who wants the memory-only end
+state.)
+
 ## Cook behaviour
 
 Cooking is where the assets become real.
@@ -184,6 +210,7 @@ Cooking is where the assets become real.
 | Who generates | **the cook director only** — a process launched with `-cookworker` skips generation and loads what the director saved |
 | When | on post-engine-init, after engine subsystems exist but before the commandlet's `Main` |
 | What | every project DreamShader source file except `.dsh`, generated forced and persisted |
+| Registry | every package the generation actually wrote is handed to `IAssetRegistry::ScanModifiedAssetFiles` before the commandlet's `Main` <Since v="1.8.0" /> |
 | On failure | **the cook aborts** |
 
 Cook log lines:
@@ -206,12 +233,25 @@ Generation runs on post-engine-init rather than at module startup because the ma
 library it depends on needs editor subsystems that do not exist during module load. Restricting it to
 the director avoids every worker racing to save the same packages.
 
+<Callout type="info">
+**Registering with the AssetRegistry is load-bearing, not belt-and-braces.** <Since v="1.8.0" /> A
+cook request is resolved through `IAssetRegistry::DoesPackageExistOnDisk`, which consults only the
+registry's in-memory state and has no filesystem fallback — and generation runs *after* the registry
+enumerated the content directories. So a freshly written package used to be invisible to that lookup:
+`DirectoriesToAlwaysCook` scanned the file off disk and then the request was dropped again, with no
+error anywhere — the material simply was not in the pak, and `LoadObject` failed at runtime in a
+Shipping build. The run now logs
+`DreamShader cook: registered {Count} generated package(s) with the AssetRegistry.`
+</Callout>
+
 ## Notes
 
 - `IsMemoryOnly` is decided by exactly one thing: the package still carries `PKG_NewlyCreated`.
   Nothing else distinguishes an in-memory material from a persisted one.
-- Memory-only materials keep whatever node positions the construction pass produced — automatic
-  layout is skipped in memory-only mode, so an in-memory graph looks messier than a materialized one.
+- Since `1.6.0`, **automatic layout runs on memory-only materials too**, so the graph you see after a
+  save matches the generated asset. *Project Settings ▸ … ▸ Compiler ▸ Lay Out In-Memory Graphs* turns
+  it back off, and those graphs then keep their construction coordinates — a single tall column. See
+  [Project Settings](/en/docs/settings/project).
 - Provenance metadata is stamped on a ThinCustom instance in **both** modes, and additionally on the
   base in persist mode. `Graph`-backend materials and material functions are stamped only when
   persisted.

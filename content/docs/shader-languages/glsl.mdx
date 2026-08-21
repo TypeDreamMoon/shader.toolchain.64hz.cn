@@ -90,7 +90,8 @@ Function vec3 ApplyTint(in vec3 color, in vec3 tint) {
 | `fract` | 真正的内置 <Since v="1.5.0" />，与 `frac` 同一节点 | 改写成 `frac` |
 | `mod` | 真正的内置 <Since v="1.5.0" />，与 `fmod` 同一节点 | 改写成 `fmod` |
 | `clamp`、`dot`、`min`、`max`、`pow`、`sqrt`、`abs`、`floor`、`ceil`、`sin`、`cos`、`normalize` | 两种语言拼写相同 —— 都是真正的内置 | HLSL 内建函数 |
-| `smoothstep`、`step`、`length`、`distance`、`cross`、`reflect`、`refract`、`exp`、`log` | **不是内置** —— 走 `UE.Expression(Class = …)` 或写进 `Function` 体 | HLSL 内建函数，可直接使用 |
+| `smoothstep`、`step`、`length`、`cross`、`reflect`、`refract` | 真正的内置 <Since v="1.6.0" /> —— 两种语言拼写相同 | HLSL 内建函数 |
+| `distance`、`exp`、`log` | **不是内置** —— 走 `UE.Expression(Class = …)` 或写进 `Function` 体 | HLSL 内建函数，可直接使用 |
 
 完整的内置目录见[数学内置](/docs/builtins/math)。
 
@@ -152,16 +153,21 @@ Function float Ring(in vec2 uv, in float t)
 }
 ```
 
-写成 `Graph` 语句，这里什么都不改写，而且 `length` 不是内置：
+写成 `Graph` 语句，这里什么都不改写 —— 但 `length` 和 `fract` 都是内置：
 
 ```c
 Graph = {
     vec2  uv = UE.TexCoord(Index = 0);
     vec2  p  = uv - 0.5;
-    float d  = sqrt(dot(p, p));                    // length，手动展开
+    float d  = length(p);                          // 内置 <Since v="1.6.0" />
     float r  = fract(sin(UE.Time()) * 0.5 + d * 4.0);
 }
 ```
+
+<Callout type="info">
+`1.6.0` 之前 `length` 不是内置，这一段得手动展开成 `sqrt(dot(p, p))`。旧源码这样写仍然完全有效 ——
+只是不再必要。
+</Callout>
 
 `Function` 版本更短；`Graph` 版本产出可以在材质图里查看、也可以接参数的真实节点。按场景选择 ——
 见[函数](/docs/language/functions)。
@@ -185,6 +191,6 @@ Graph = {
   <Card title="HLSL 简介" href="/docs/shader-languages/hlsl" description="HLSL 在哪里运行，以及自带的 helper 头文件。" />
   <Card title="关键字速查" href="/docs/shader-languages/keywords-cheatsheet" description="三套词汇并排对照。" />
   <Card title="类型与值" href="/docs/language/types-and-values" description="封闭的 token 集合及其有效性矩阵。" />
-  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 19 个名字。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 29 个名字。" />
   <Card title="运算符与转换" href="/docs/graph/expressions" description="运算符、构造器、swizzle 与加宽。" />
 </Cards>

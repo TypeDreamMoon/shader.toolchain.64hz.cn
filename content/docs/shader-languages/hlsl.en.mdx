@@ -155,13 +155,16 @@ compiles as `if (a > 0)` with no diagnostic. The same truncation applies to `%`,
 | Context | What is available |
 | :-- | :-- |
 | `Function` / `GraphFunction` body | the **full HLSL intrinsic set**, plus everything Unreal's `Common.ush` puts in scope |
-| `Graph` block | exactly 19 [math builtin](/en/docs/builtins/math) spellings, plus `UE.Expression(…)` for anything else |
+| `Graph` block | exactly 29 [math builtin](/en/docs/builtins/math) spellings, plus `UE.Expression(…)` for anything else |
 
-The `Graph` surface is `abs`, `ceil`, `clamp`, `cos`, `dot`, `floor`, `fmod`, `frac`, `fract`,
-`lerp`, `max`, `min`, `mix`, `mod`, `normalize`, `pow`, `saturate`, `sin`, `sqrt`. Notably absent:
-`step`, `smoothstep`, `length`, `cross`, `reflect`, `refract`, `exp`, `log`, and every inverse
-trigonometric function. Reach them through `UE.Expression(Class = …)`, or write them in a `Function`
-body.
+The `Graph` surface is `abs`, `acos`, `asin`, `atan`, `atan2`, `ceil`, `clamp`, `cos`, `cross`,
+`dot`, `floor`, `fmod`, `frac`, `fract`, `length`, `lerp`, `max`, `min`, `mix`, `mod`, `normalize`,
+`pow`, `reflect`, `refract`, `saturate`, `sin`, `smoothstep`, `sqrt`, `step` — the last ten of which
+arrived in <Since v="1.6.0" />.
+
+Still absent: `exp`, `log`, `tan`, `sign`, `round`, `trunc`, `distance`, and matrices. Everything but
+matrices has a node behind it, so reach it through `UE.Expression(Class = …)`; matrices have no value
+type in the Unreal material graph at all and belong in a `Function` body.
 
 <Callout type="warn">
 Naming your own helper after a math builtin makes it unreachable from `Graph`, with no diagnostic. A
@@ -339,6 +342,6 @@ DreamShaderLang** column marks what the declaration grammar recognises outside a
   <Card title="GLSL Overview" href="/en/docs/shader-languages/glsl" description="The GLSL aliases and how they are rewritten." />
   <Card title="Keyword Cheatsheet" href="/en/docs/shader-languages/keywords-cheatsheet" description="DreamShaderLang, HLSL and GLSL vocabulary side by side." />
   <Card title="Functions" href="/en/docs/language/functions" description="Function, GraphFunction and Namespace in full." />
-  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The 19 names a Graph block understands." />
+  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The 29 names a Graph block understands." />
   <Card title="Types and Values" href="/en/docs/language/types-and-values" description="The closed token set and its validity matrix." />
 </Cards>

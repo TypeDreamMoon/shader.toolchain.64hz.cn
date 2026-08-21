@@ -194,6 +194,14 @@ Texture2D C = "/Game/Textures/T_X";            // 裸的带引号绝对路径
 其中 `{Context}` 对参数是 `Texture`，对 `const` 声明是 `Const`。加载成功后会执行
 `AutoSetSampleType()`，所以除非[元数据](/docs/parameters/metadata)覆盖，`SamplerType` 会跟随资产。
 
+<Callout type="info">
+维度检查读的是 `UTexture::GetMaterialType()` <Since v="1.8.0" />，而不是比较资产类 —— 这和材质编译器在
+texture-object pin 上给出的答案是同一个。于是 **render target 可以喂给期待对应维度纹理的地方**：
+`UTextureRenderTargetVolume` 能通过 `VolumeTexture` 的检查，`UTextureRenderTarget2D`、
+`UTextureRenderTargetCube`、`UTextureRenderTarget2DArray` 各自对应，`UTexture2DDynamic` 之类
+texture-object pin 本来就接受的类型也一样。紧凑 token 和 `TextureObjectParameter`、`const` 与否都适用。
+</Callout>
+
 ## `const` 声明
 
 <Since v="1.2.6" /> `const` 声明生成常量节点而不是参数：材质参数列表里没有它的名字，实例也无法覆盖。

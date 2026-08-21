@@ -28,7 +28,7 @@ DreamShaderLang 的编译目标不是字节码，也不是可执行文件，而�
 | 3 | 加载预处理源码 | 递归内联 `import`，合成一份文本 | `DreamShader import '{Import}' referenced from '{File}' could not be resolved.` · `DreamShader import cycle detected at '{File}'.` · `DreamShader could not read '{File}'.` |
 | 4 | 内容闸门 | 逐文件子串扫描，针对每个文件自身的文本，其中 `import` 行已被清空 | `DreamShader header '{File}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports.` · `DreamShader function file '{File}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks.` |
 | 5 | 解析 | 整份预处理文本，作为一个解析单元 | 任何解析诊断 |
-| 6 | 计算哈希 | 对 **预处理后** 文本做 CRC32 —— 即 source hash | — |
+| 6 | 计算构建键 | 对 **预处理后** 文本做 CRC32，并折进默认 backend、三张映射表、插件版本和引擎版本 <Since v="1.8.0" /> | — |
 | 7 | `.dsf` 闸门 | `.dsf` 不允许声明顶层 `Shader` | `{File}: .dsf files cannot define top-level Shader blocks.` |
 | 8 | 写 helper include | 仅当该单元至少声明了一个 `Function` | `Failed to write generated helper include '{Path}'.` · `DreamShader Function '{Name}' is declared more than once.` |
 | 9 | 材质函数资产 | 每个 `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` 一个资产，按声明顺序 | `{Kind} '{Name}' must declare at least one output.` · `{Kind} '{Name}' must provide a Graph block.` · 资产创建错误 |
@@ -83,7 +83,7 @@ backend 在子阶段 7 就被解析，*早于* 任何材质对象存在，也早
 5. 为每个未初始化的 `MaterialAttributes` 输出声明各生成一个 `MakeMaterialAttributes` 节点。
 6. 构建主体 —— 要么是 `Graph` 块，要么在既无 `Graph` 又无已初始化输出时，用一个整表面 `Custom` 节点。
 7. 连接每一条 `Outputs` 绑定。
-8. 布局。**纯内存模式下跳过**；表达式数量达到 1200 及以上且没有 [`Layout`](/docs/language/layout) section 时同样跳过。
+8. 布局。纯内存模式下**也会运行** <Since v="1.6.0" />，可用 *Lay Out In-Memory Graphs* 关掉；表达式数量达到 1200 及以上且没有 [`Layout`](/docs/language/layout) section 时跳过。
 9. 重新编译材质。
 
 第 1 步就是"手改生成出来的资产没有意义"的原因 —— 见 [重新生成](/docs/generation/regeneration)。
@@ -93,7 +93,8 @@ backend 在子阶段 7 就被解析，*早于* 任何材质对象存在，也早
 | 触发方式 | 强制 | 目标 | 结果 |
 | :-- | :-- | :-- | :-- |
 | 保存时自动编译 —— 文件监视器加防抖 | 否 | 内存 | hash 短路生效；最常见的路径 |
-| *Generate all in-memory materials* —— 编辑器启动，以及每次修改 **Default Compiler Backend** | 是 | 内存 | 重编所有项目源文件 |
+| 编辑器启动扫描 | **否** <Since v="1.8.0" /> | 内存 / 磁盘 | 遵守构建键，所以已经最新的资产不会被动 |
+| *Generate all in-memory materials* —— 每次修改 **Default Compiler Backend** | 是 | 内存 | 重编所有项目源文件 |
 | Material Content Browser 的 *Compile* / 缩略图刷新按钮 | 是 | 内存 | 单个源文件 |
 | 实时预览渲染器 | 是 | 内存 | 单个源文件 |
 | *Materialize*，以及为纯内存材质创建子实例 | 是 | **磁盘** | 单个源文件，持久化 |
@@ -105,9 +106,19 @@ backend 在子阶段 7 就被解析，*早于* 任何材质对象存在，也早
 [项目设置](/docs/settings/project)。
 
 <Callout type="info">
+**一批文件按依赖顺序编译** <Since v="1.8.0" />。一个调用 `ShaderFunction` 的 `.dsm` 会把调用节点绑到
+**活着的** `UMaterialFunction` 资产上 —— `SetMaterialFunction` 是从对象而不是从源码上读 pin 的 ——
+所以先编调用方就绑到了那个函数上一版的接口。两个入口（watcher 的待编译批次、全工程扫描）都按 import 图
+做拓扑排序；只有批次内部的边被考虑，成环留给 import 加载器用自己的诊断拒绝。
+</Callout>
+
+<Callout type="info">
 交互式编辑器从不写出每个材质自己的 `.uasset`。源文件才是创作面；生成的资产一直留在内存里，直到 cook、commandlet
 或一次显式的 *Materialize* 把它们落盘。几乎每个人第一次都会被这一点绊住 ——
 [内存材质](/docs/generation/in-memory) 有完整解释。
+
+一个例外自 <Since v="1.8.0" /> 起：**存储决定一次重建怎么落地**。落在一个磁盘上已经存在的 package 上的
+纯内存编译，会在磁盘上重建并保存，而不是在自己的文件之上于内存里重建。
 </Callout>
 
 ## 不产出资产的结果

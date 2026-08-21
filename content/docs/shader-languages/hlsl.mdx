@@ -144,12 +144,16 @@ Function SampleTinted(in Texture2D tex, in vec2 uv, in vec3 tint, out vec3 rgb, 
 | 上下文 | 可用范围 |
 | :-- | :-- |
 | `Function` / `GraphFunction` 体 | **完整 HLSL 内建函数集**，以及 Unreal `Common.ush` 引入作用域的一切 |
-| `Graph` 块 | 恰好 19 个[数学内置](/docs/builtins/math)写法，其余靠 `UE.Expression(…)` |
+| `Graph` 块 | 恰好 29 个[数学内置](/docs/builtins/math)写法，其余靠 `UE.Expression(…)` |
 
-`Graph` 这一面是：`abs`、`ceil`、`clamp`、`cos`、`dot`、`floor`、`fmod`、`frac`、`fract`、`lerp`、
-`max`、`min`、`mix`、`mod`、`normalize`、`pow`、`saturate`、`sin`、`sqrt`。明显缺席的有：`step`、
-`smoothstep`、`length`、`cross`、`reflect`、`refract`、`exp`、`log`，以及全部反三角函数。
-要用它们，走 `UE.Expression(Class = …)`，或者写进 `Function` 体里。
+`Graph` 这一面是：`abs`、`acos`、`asin`、`atan`、`atan2`、`ceil`、`clamp`、`cos`、`cross`、`dot`、
+`floor`、`fmod`、`frac`、`fract`、`length`、`lerp`、`max`、`min`、`mix`、`mod`、`normalize`、`pow`、
+`reflect`、`refract`、`saturate`、`sin`、`smoothstep`、`sqrt`、`step` —— 其中后十个是
+<Since v="1.6.0" /> 加进来的。
+
+仍然缺席的有：`exp`、`log`、`tan`、`sign`、`round`、`trunc`、`distance`，以及矩阵。
+除矩阵外，它们各自都有节点，走 `UE.Expression(Class = …)`；矩阵在 Unreal 材质图里根本没有值类型，
+只能写进 `Function` 体。
 
 <Callout type="warn">
 把自己的 helper 命名成数学内置的名字，会让它在 `Graph` 里不可达，而且没有任何诊断。名为 `lerp`、
@@ -316,6 +320,6 @@ GraphFunction vec2 Wobble(in vec2 uv, in float speed)
   <Card title="GLSL 简介" href="/docs/shader-languages/glsl" description="GLSL 别名及其改写规则。" />
   <Card title="关键字速查" href="/docs/shader-languages/keywords-cheatsheet" description="DreamShaderLang、HLSL 与 GLSL 词汇对照。" />
   <Card title="函数" href="/docs/language/functions" description="Function、GraphFunction 与 Namespace 的完整说明。" />
-  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 19 个名字。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 29 个名字。" />
   <Card title="类型与值" href="/docs/language/types-and-values" description="封闭的 token 集合及其有效性矩阵。" />
 </Cards>

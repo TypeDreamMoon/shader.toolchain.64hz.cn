@@ -478,6 +478,42 @@ The texture message says "in Code" while the `Substrate` one says "in Graph". Bo
 builder; the wording predates the `Code` → `Graph` section rename.
 </Callout>
 
+### What a swizzle looks like in the graph
+
+<Since v="1.8.0" />
+
+A component selection lands in the generated graph in one of three forms, chosen by whether the
+**material graph editor can read it back**:
+
+| Form | Used when |
+| :-- | :-- |
+| an inline mask on the connection | only where the editor resolves that mask back to the pin it already names |
+| naming a different output directly | where the expression publishes the **same value** through several masked outputs — `TextureSample`'s `RGB/R/G/B/A/RGBA`, `VertexColor`, … |
+| a real `ComponentMask` node | everything else |
+
+<Callout type="warn">
+**Why an inline mask cannot be used everywhere.** Pins correspond to an expression's `Outputs`
+entries, so no pin means "output 0, red channel only". `UMaterialGraph::GetValidOutputIndex` distrusts
+`OutputIndex 0` whenever a mask is present — that combination used to mean a pre-`OutputIndex` legacy
+connection — looks for a pin whose mask matches, finds none, and falls back to the node's **last**
+output. The first Apply/Save then writes the wire back from that pin, with the pin's own mask.
+
+On a `SceneTexture` node (outputs `Color / Size / InvSize`) that turned `CustomStencil.r` into
+`InvSize`, silently, with no error anywhere: the stencil comparison then failed for every pixel and
+the effect the function gated simply stopped appearing. Before `1.8.0` any generated asset touched
+through the material editor was exposed, and duplicating one first did not help — the copy is
+corrupted the same way on its first save.
+</Callout>
+
+<Callout type="info">
+A node with a **mixed output set** like `SceneTexture`'s is never retargeted to a different output:
+there the outputs are different values rather than views of one. Retargeting happens only where
+several outputs really are masked views of the same value.
+
+The fix moves the [build key](/en/docs/generation/regeneration) tag to `DSK2`, so every generated
+asset is rebuilt once into the new form.
+</Callout>
+
 ## Conversions
 
 Coercion is never written by the author. It is applied automatically wherever a value meets an

@@ -254,6 +254,11 @@ display name（`Surface`），或短名去掉第一个 `_` 及之前部分（`Su
 | `MaterialDecalResponse` | `MDR_ColorNormalRoughness` |
 | `bHasPixelAnimation` <Since v="5.4" ue /> | `false` |
 | `NumCustomizedUVs` | `0` |
+| `bUsedWithVolumetricCloud` <Since v="1.8.0" /> | `Domain="Volume"` 时为 `true`，否则 `false` |
+
+`bUsedWithVolumetricCloud` 是上表里唯一**不是常量**的一项：由 domain 决定。`Volume` domain 的材质就是体积
+材质，而体积云渲染器会拒绝一个没打这个标志的材质 —— 所以你永远不需要手写它。显式写出来可以覆盖 domain 的选择：
+一个只喂体积雾的 `Volume` 材质可以用 `bUsedWithVolumetricCloud = "false";` 把标志关掉，省下云的 shader 排列。
 
 其余 `UMaterial` 属性保持新构造材质的样子。凡是必须在重新生成后仍然存在的设置，都要写在 `Settings` 里，
 而不是在生成的资产上手改。
@@ -264,7 +269,7 @@ display name（`Surface`），或短名去掉第一个 `_` 及之前部分（`Su
 `UMaterial` 类默认值不同时写出下面这些。这就是 `UMaterial` → `.dsm` → `UMaterial` 往返能保证保留的集合；
 它是 `Settings` 可接受范围的子集，而不是上限。
 
-**布尔（39 个，按写出顺序）**
+**布尔（40 个，按写出顺序）**
 
 ```text
 TwoSided                    Wireframe                     DitheredLODTransition
@@ -280,10 +285,14 @@ bUsedWithGeometryCache      bUsedWithStaticLighting       bUsedWithSplineMeshes
 bUsedWithInstancedStaticMeshes                            bUsedWithGeometryCollections
 bUsedWithHairStrands        bUsedWithWater                bUsedWithVirtualHeightfieldMesh
 bCastRayTracedShadows       bWriteOnlyAlpha               BlendableOutputAlpha
-bAlwaysEvaluateWorldPositionOffset
+bAlwaysEvaluateWorldPositionOffset                        bUsedWithVolumetricCloud
 ```
 
 `bHasPixelAnimation` 只在 <Since v="5.4" ue /> 上写出。
+
+`bUsedWithVolumetricCloud` <Since v="1.8.0" /> 是这里唯一**不**与 `UMaterial` 类默认值比较的布尔：
+它比较的是 domain 会给它的值。在 `Domain="Volume"` 的材质上，不需要写出来的那个值是 `true`，
+所以真正被写出的是 `false` —— 这正是让一个只喂体积雾的 `Volume` 材质不会带着标志回来的原因。
 
 **枚举（1 个）** —— `MaterialDecalResponse`。
 

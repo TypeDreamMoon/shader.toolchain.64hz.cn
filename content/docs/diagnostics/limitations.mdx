@@ -57,7 +57,7 @@ parser 随后接受它前面那段表达式。`a % b` 编译成 `a`。`if (x > 0
 | 未闭合的 `/* … */` 注释 | 一直吃到文件末尾并被接受 |
 
 <Callout type="info">
-遮蔽规则值得读两遍：19 个 [数学内置节点](/docs/builtins/math) 和所有向量构造器名都是保留名。
+遮蔽规则值得读两遍：29 个 [数学内置节点](/docs/builtins/math) 和所有向量构造器名都是保留名。
 命名为 `lerp`、`clamp`、`dot` 或 `float3` 的 `Function`、`GraphFunction` 或 property 仍然能编译、仍然会生成对应资产，
 但从 `Graph` 块里根本触达不到，而且没有任何诊断。
 </Callout>

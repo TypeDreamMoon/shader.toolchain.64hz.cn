@@ -98,7 +98,8 @@ three of them are:
 | `fract` | a real builtin <Since v="1.5.0" />, same node as `frac` | rewritten to `frac` |
 | `mod` | a real builtin <Since v="1.5.0" />, same node as `fmod` | rewritten to `fmod` |
 | `clamp`, `dot`, `min`, `max`, `pow`, `sqrt`, `abs`, `floor`, `ceil`, `sin`, `cos`, `normalize` | spelled the same in both languages — real builtins | HLSL intrinsics |
-| `smoothstep`, `step`, `length`, `distance`, `cross`, `reflect`, `refract`, `exp`, `log` | **not builtins** — use `UE.Expression(Class = …)` or a `Function` body | HLSL intrinsics, available directly |
+| `smoothstep`, `step`, `length`, `cross`, `reflect`, `refract` | real builtins <Since v="1.6.0" /> — spelled the same in both languages | HLSL intrinsics |
+| `distance`, `exp`, `log` | **not builtins** — use `UE.Expression(Class = …)` or a `Function` body | HLSL intrinsics, available directly |
 
 The complete builtin catalogue is [Math Builtins](/en/docs/builtins/math).
 
@@ -163,16 +164,21 @@ Function float Ring(in vec2 uv, in float t)
 }
 ```
 
-As `Graph` statements, where nothing is rewritten and `length` does not exist as a builtin:
+As `Graph` statements, where nothing is rewritten — but both `length` and `fract` are builtins:
 
 ```c
 Graph = {
     vec2  uv = UE.TexCoord(Index = 0);
     vec2  p  = uv - 0.5;
-    float d  = sqrt(dot(p, p));                    // length, spelled out
+    float d  = length(p);                          // a builtin <Since v="1.6.0" />
     float r  = fract(sin(UE.Time()) * 0.5 + d * 4.0);
 }
 ```
+
+<Callout type="info">
+Before `1.6.0`, `length` was not a builtin and this line had to be spelled out as `sqrt(dot(p, p))`.
+Older sources written that way are still perfectly valid — just no longer necessary.
+</Callout>
 
 The `Function` version is shorter; the `Graph` version produces inspectable material nodes that can
 be wired to parameters. Pick per case — see [Functions](/en/docs/language/functions).
@@ -197,6 +203,6 @@ above.
   <Card title="HLSL Overview" href="/en/docs/shader-languages/hlsl" description="Where HLSL runs, and the shipped helper header." />
   <Card title="Keyword Cheatsheet" href="/en/docs/shader-languages/keywords-cheatsheet" description="All three vocabularies side by side." />
   <Card title="Types and Values" href="/en/docs/language/types-and-values" description="The closed token set and its validity matrix." />
-  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The 19 names a Graph block understands." />
+  <Card title="Math Builtins" href="/en/docs/builtins/math" description="The 29 names a Graph block understands." />
   <Card title="Expressions and Conversions" href="/en/docs/graph/expressions" description="Operators, constructors, swizzle and widening." />
 </Cards>

@@ -513,7 +513,7 @@ UE.TexCoord UV = 0;
 
 1. 显式的 `OutputType` 或 `ResultType` 参数，取自[缩减 token 集](/docs/builtins/ue-expression#outputtype)；
 2. 解析器自己的名字表，见下；
-3. `CollectionParam` / `CollectionParameter`，声明为 1 分量标量；
+3. `CollectionParam` / `CollectionParameter`，解析器把它记成 1 分量标量 —— 但**生成时按集合参数的真实宽度**建节点，见下；
 4. 都不满足则拒绝该声明。
 
 | 名字 | 声明为 |
@@ -522,6 +522,14 @@ UE.TexCoord UV = 0;
 | `Time` | 标量，1 |
 | `WorldPosition`、`CameraVectorWS`、`ObjectPositionWS`、`VertexNormalWS`、`VertexTangentWS` | 向量，3 |
 | `ScreenPosition`、`VertexColor` | 向量，4 |
+
+<Callout type="warn">
+**`Properties` 里的 `UE.CollectionParam(...) Name;` 宽度跟着集合参数走** <Since v="1.8.0" />。
+解析器只能把声明形式记成标量 —— 它打不开集合 —— 而生成器过去照单全收，于是一个 vector MPC 参数喂给
+`float4` 输入时会被加宽规则补三次 `AppendVector`，材质以 `Can't append float4 to float4` 编译失败。
+
+现在建节点时从加载好的集合读宽度（vector → 4，scalar → 1）；声明上显式写的 `OutputType=` 仍然胜出。
+</Callout>
 
 <Callout type="info">
 这张表列了十个名字，它**既不是**表达式形式的名单，也不是上面那张可识别名字表。`VertexNormalWS` 和

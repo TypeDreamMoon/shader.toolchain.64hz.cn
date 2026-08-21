@@ -207,13 +207,47 @@ the loopback WebSocket endpoint.
 | `settings.json` | editor → extension | `ShadingModel` / `BlendMode` / `MaterialDomain` alias tables |
 | `substrate-builtins.json` | editor → extension | [`Substrate.*`](/en/docs/builtins/substrate) catalogue with snippets; `supported: false` below UE 5.4 |
 | `preview.json` + `Preview/*.png` | editor → extension | result manifest and image for a one-shot preview |
-| `ws://127.0.0.1:17864` | bidirectional | streaming preview with orbit control |
+| `status.json` | editor → extension | heartbeat and identity — **a missing file means "no editor is running"** <Since v="1.6.0" /> |
+| `Responses/<requestId>.json` | editor → extension | the answer to a request that carried a `requestId` <Since v="1.6.0" /> |
+| `owner.lock` | editor-internal | which editor owns this project's bridge <Since v="1.8.0" /> |
+| `ws://127.0.0.1:17864` | bidirectional | streaming preview with orbit control and breakpoints |
 
 <Callout type="warn">
 `bridge.db` is **write-only from the plugin's side** and is not durable state: it is deleted on bridge
 startup *and* on shutdown, and every writer replaces its whole table inside a transaction. Nothing in
 the plugin ever reads a row back. Treat it as a query-friendly mirror of the JSON, valid only while
 the editor is running — never as a place to store client state.
+</Callout>
+
+### Is the editor alive?
+
+<Since v="1.6.0" />
+
+A client's only way to guess whether an editor was running used to be looking for `bridge.db` and
+hoping. The bridge now rewrites `status.json` every 2 s and **deletes it on shutdown** — so a missing
+file means "not running", definitively, and a client can fall back immediately instead of waiting out
+a liveness window.
+
+| Field | Notes |
+| :-- | :-- |
+| `protocol`, `pid`, `project`, `projectDir`, `engineDir`, `pluginVersion` | identity |
+| `busy` | true while a request is being served |
+| `busyAction` | present only when busy |
+| `lastResult` | present once something has completed |
+| `heartbeatUtc` | ISO-8601 UTC |
+
+<Callout type="warn">
+Read `busy` **before** judging the heartbeat's age. A compile blocks the game thread, so the heartbeat
+stops while one runs — a client that only looks at the timestamp reads every real compile as a crash.
+The remaining ambiguity is a hard crash, which leaves the file behind; the recorded `pid` is what
+closes it.
+</Callout>
+
+<Callout type="info">
+Requests written while nobody was listening are **discarded**, not queued. The cutoff is the bridge's
+own start time, so a request that was waiting on disk when an editor starts is deleted with a log line
+rather than served late — by then whoever sent it has long since timed out. Check `status.json` before
+writing a request.
 </Callout>
 
 ### Request files
@@ -226,22 +260,52 @@ the editor is running — never as a place to store client state.
 | Consumption | every discovered file is **deleted** at the end of its loop iteration |
 
 The filename is irrelevant; only the JSON contents matter. `action` and `scope` are both matched
-case-insensitively. There are exactly four actions:
+case-insensitively.
 
-| `action` | Required fields | Effect |
-| :-- | :-- | :-- |
-| `recompile` | `scope: "all"` | rebuild the dependency graph and queue every project `.dsm` / `.dsf` |
-| `recompile` | `scope: "file"`, `sourceFile` | queue one file into the debounce queue |
-| `cleanGeneratedShaders` | — | delete the generated `*.ush` includes, then queue a full rescan |
-| `previewMaterial` | `sourceFile` | render one preview synchronously and write `preview.json` |
+| `action` | Required fields | Effect | Answered |
+| :-- | :-- | :-- | :-- |
+| `ping` <Since v="1.6.0" /> | — | nothing; confirms the bridge is serving | immediately |
+| `recompile` | `scope: "all"` | rebuild the dependency graph and queue every project `.dsm` / `.dsf` | immediately, as *queued* |
+| `recompile` | `scope: "file"`, `sourceFile` | queue one file into the debounce queue | **when that compile finishes** |
+| `cleanGeneratedShaders` | — | delete the generated `*.ush` includes, then queue a full rescan | immediately |
+| `previewMaterial` | `sourceFile` | render one preview synchronously and write `preview.json` | immediately, with the render result |
+
+A request carrying a `requestId` is answered in `Responses/<requestId>.json` <Since v="1.6.0" />, with
+`protocol`, `requestId`, `ok`, `durationMs`, `message` and `diagnostics`. It is written atomically —
+beside the target, then renamed — so appearing and being complete are the same event; stale responses
+from a previous session are deleted at startup.
 
 <Callout type="warn">
-A request file is deleted **unconditionally** — after a successful dispatch, after a read failure,
-after a JSON parse failure, and after an unrecognized `action`. There is no reply file, no error file
-and no log line for a malformed request: it simply vanishes. And because the poller may open a file
-that is still being written, write the JSON to a temporary name elsewhere and **rename** it into
-`Requests/` so it appears atomically.
+`recompile` with `scope: "file"` is the only action whose response is **deferred**. The file goes into
+the debounce queue and is compiled some ticks later, so answering at dispatch time would report
+success before anything had been attempted. The id is parked and answered from the compile itself,
+carrying that compile's diagnostics.
+
+`scope: "all"` is the opposite and says so: it answers immediately with *queued*, because the batch
+drains across ticks and the outcome is not knowable yet. **Do not read that as a result.**
 </Callout>
+
+<Callout type="info">
+A bad `scope`, a missing `sourceFile`, or an unrecognized `action` is now an **error response** rather
+than a silent no-op — provided the request carried a `requestId`. Without one the behaviour is
+unchanged: the file is deleted and nothing is said. That is what every request the shipped VSCode
+extension sends looks like, and is why it keeps working unchanged.
+
+A request is deleted **before** it is dispatched, so one that crashes the editor cannot be replayed on
+every subsequent start. The one exception is a file that cannot be read at all: that is almost always
+one still being written, so it is left for the next poll rather than thrown away. Writing the JSON to
+a temporary name elsewhere and **renaming** it into `Requests/` is still the right way to make it
+appear atomically.
+</Callout>
+
+A request may carry `protocol`. A **missing** field is read as the current version, not as a mismatch
+— every request the shipped VSCode extension sends omits it, and rejecting those would break it on
+every machine that has it installed. A field that is present *and* different is refused:
+
+```text
+Protocol 3 is not understood; this editor speaks 1. Update the DreamShaderLang extension or the
+plugin so the two match.
+```
 
 Compilation through this path is always in-memory; a queued file compiles after the debounce window
 (*Save Debounce Seconds*, clamped to `[0.05, 10.0]`, default `0.25`) plus up to `0.1 s` of poll
@@ -282,38 +346,67 @@ The preview panel connects to `ws://127.0.0.1:17864` and drives the plugin's ren
 
 | Message | Direction | Purpose |
 | :-- | :-- | :-- |
-| `previewMaterial` | client → editor | start a preview session for a `.dsm` |
-| `previewControl` | client → editor | adjust the active session |
+| `previewMaterial` | client → editor | start a preview session for a `.dsm`. `encoding` selects `raw` or `png`; `force` controls regeneration <Since v="1.7.0" /> |
+| `previewControl` | client → editor | adjust the active session — streaming, frame rate, camera, `width` / `height` / `mesh` <Since v="1.7.0" /> |
+| `setProbe` / `clearProbe` | client → editor | attach or detach a breakpoint-style probe <Since v="1.7.0" /> |
 | `previewResult` | editor → client | session start result, or a mid-stream error |
-| `previewFrame` | editor → client | metadata for the PNG that follows |
+| `previewFrame` | editor → client | *(png encoding only)* metadata for the PNG that follows |
+| `probeState` | editor → client | whether the probe is `attached`, `pending`, or `cleared` <Since v="1.7.0" /> |
 
 Every **outbound** message is a WebSocket *binary* frame whose payload is a 4-byte little-endian
-length, a 1-byte type tag (`1` = UTF-8 JSON, `2` = raw PNG), then the payload. A JSON message is
-always sent first and the matching binary message immediately after, on the same connection; the
-client pairs them by arrival order. Inbound messages are plain UTF-8 JSON with no prefix and no tag.
+length, a 1-byte type tag (`1` = UTF-8 JSON, `2` = raw PNG, `3` = raw RGBA8 frame
+<Since v="1.7.0" />), then the payload. Inbound messages are plain UTF-8 JSON with no prefix and no
+tag.
 
 Streaming is both rate-limited and acknowledgement-gated: a new frame starts only when the client has
 acknowledged the previous one **and** the frame interval has elapsed.
 
-<Callout type="warn">
-`frameRate` does **not** mean "keep the current rate" when omitted from a `previewControl` message —
-the reader initializes it to `2.0` before looking for the field, so a control message sent purely to
-acknowledge a frame or nudge the camera silently drops the session to 2 FPS. Orbit angles behave the
-opposite way and are preserved. **Send the current `frameRate` on every `previewControl`.**
+<Callout type="info">
+**The default encoding is `raw` since <Since v="1.7.0" />.** A tag-`3` frame is self-describing: a
+24-byte header (size, flags, camera, resolved probe line) followed by the pixels, with no PNG encode
+on the editor side, and the client paints it straight onto a canvas. That is what makes smooth
+30–60 FPS affordable. The old `previewFrame`-plus-tagged-PNG pair is still available as
+`encoding: "png"` for older clients, unchanged.
+
+When nothing is moving, identical frames are dropped, and after a few in a row the render clock backs
+off to a low idle rate until an edit, a camera/mesh change, or a probe change re-arms it.
 </Callout>
+
+<Callout type="warn">
+**Old behaviour (before `1.7.0`):** omitting `frameRate` from a `previewControl` silently dropped the
+session to 2 FPS — the reader initialized it to `2.0` before looking for the field, so a control
+message sent purely to acknowledge a frame or nudge the camera was enough to hit it.
+
+Since `1.7.0`, **an omitted field keeps its current value** (`frameRate` included); only `requestId`
+and `ackFrameIndex` are exempt. A client that must also work against older plugins can keep sending
+`frameRate` on every `previewControl` — correct under both versions.
+</Callout>
+
+### Graph breakpoints
+
+<Since v="1.7.0" />
+
+`setProbe` hands the editor a `Graph` line number, and the preview mesh then shows the **value bound
+at that line** instead of the finished material — the text analogue of the Material Editor's
+right-click *Start Previewing Node*. A breakpoint on a blank or comment line snaps forward to the next
+line that binds a value; one set before the source has ever generated is remembered as *pending* and
+attaches on the next compile; after a recompile the probe re-resolves automatically and `probeState`
+tells the client the line it landed on. The line is also echoed per frame in the tag-`3` frame header.
+The semantics are on [Editor Tools](/en/docs/tools/editor).
 
 A session example, client side:
 
 ```text
 → {"type":"previewMaterial","sourceFile":"…/M_Sample.dsm","mesh":"shaderball",
-   "width":512,"height":512,"requestId":"8f3c1b","stream":true,"frameRate":12}
-← [len][1] {"type":"previewResult","requestId":"8f3c1b","status":"ready", … "imagePath":"…"}
-← [len][2] <PNG bytes>
-← [len][1] {"type":"previewFrame","requestId":"8f3c1b","frameIndex":0, …}
-← [len][2] <PNG bytes>
-→ {"type":"previewControl","requestId":"8f3c1b","ackFrameIndex":0,"frameRate":12,"orbitYaw":-140.0}
-← [len][1] {"type":"previewFrame","requestId":"8f3c1b","frameIndex":1, …}
-← [len][2] <PNG bytes>
+   "width":512,"height":512,"requestId":"8f3c1b","stream":true,"frameRate":12,
+   "encoding":"raw"}
+← [len][1] {"type":"previewResult","requestId":"8f3c1b","status":"ready", … }
+← [len][3] <24-byte header><RGBA8 pixels>
+→ {"type":"previewControl","requestId":"8f3c1b","ackFrameIndex":0,"orbitYaw":-140.0}
+← [len][3] <24-byte header><RGBA8 pixels>
+→ {"type":"setProbe","requestId":"8f3c1b","line":31}
+← [len][1] {"type":"probeState","requestId":"8f3c1b","state":"attached","line":31}
+← [len][3] <24-byte header><RGBA8 pixels>      // now showing the value bound on line 31
 ```
 
 The renderer's own limits — `.dsm` only, the size clamp, the mesh fallback, the missing pitch clamp —

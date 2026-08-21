@@ -107,11 +107,31 @@ for the stock class and once for the DreamShader subclass.
 ### Material submenu
 
 Label **DreamShader**, tooltip "DreamShader actions for this Material.", icon `Icons.Settings`. Built
-only when the single selected asset is a `UMaterial`. One section, **Decompiler**:
+only when the single selected asset is a `UMaterial`. Two sections.
+
+**Decompiler:**
 
 | Entry | Tooltip | Icon | Effect |
 | :-- | :-- | :-- | :-- |
 | **Export DSM** <Since v="1.3.5" /> | "Export this Material graph to a DreamShader .dsm source file." | `Icons.Save` | Decompiles to `DShader/Decompiled/Materials/…​.dsm` and opens the file — [Decompiler](/en/docs/tools/decompiler) |
+
+**Provenance** <Since v="1.8.0" /> — the three ways out of a
+[divergence](/en/docs/generation/regeneration). The same group appears on the Material Function
+submenu and on generated ThinCustom instances:
+
+| Entry | Effect |
+| :-- | :-- |
+| **Revert to Source** | Discards the hand edits and rebuilds from the source, which is not modified. A saved asset is rebuilt and saved; a memory-only one is rebuilt in memory. **This is the only action that overrides a divergence** — `-Force` does not |
+| **Adopt Into Source** | Rewrites the `.dsm` / `.dsf` from the asset's current contents, backing the old source up to `<source>.bak` first, then recompiles so the two agree. Refused when the source file declares more than one asset |
+| **Detach From DreamShader** | Drops every `DreamShader.*` stamp. The asset keeps its contents and becomes an ordinary hand-authored asset. Save it to keep the change |
+
+<Callout type="info">
+These three are the exception to
+[a rebuild being refused while the asset is open in an asset editor](/en/docs/generation/regeneration):
+they close the asset editor themselves, act, and reopen it. For **Adopt**, the engine's save prompt
+that may appear during that close is load-bearing — unapplied editor changes are not part of "this
+asset's current contents" until it is answered. Cancelling it cancels the whole action.
+</Callout>
 
 ### Material Function submenu
 
@@ -376,9 +396,8 @@ this session reports **not compiled** until something loads it.
 
 #### Error overlay
 
-Errors on this page are read straight out of
-`<Project>/Saved/DreamShader/Bridge/diagnostics.json`, not from the bridge's in-memory store — the
-page is deliberately decoupled from the bridge internals.
+Errors on this page come from the **diagnostic records the bridge already holds** <Since v="1.6.0" />,
+rather than from re-parsing the `diagnostics.json` the bridge had just written.
 
 | Rule | Detail |
 | :-- | :-- |
@@ -390,6 +409,11 @@ page is deliberately decoupled from the bridge internals.
 <Callout type="info">
 A file with five errors shows one here. The Output Log and the editor extension have the full list;
 the plugin emits exactly one severity — `error` — so no warning or hint ever reaches this page.
+
+One consequence worth knowing since <Since v="1.6.0" />: those records live for the **editor
+session**, so the page no longer shows errors left over from a *previous* session before you compile
+again. Everything produced in the current session — including the startup and auto-compile passes —
+shows exactly as before.
 </Callout>
 
 #### Compile actions
@@ -507,11 +531,11 @@ Two different renderers exist, and they are easy to confuse.
 
 | | Gen page thumbnail | One-shot preview | Streaming preview |
 | :-- | :-- | :-- | :-- |
-| What it is | a plain 160×160 engine asset thumbnail | a rendered PNG plus `preview.json` | a live PNG stream over WebSocket |
+| What it is | a plain 160×160 engine asset thumbnail | a rendered PNG plus `preview.json` | a live frame stream over WebSocket |
 | Triggered by | selecting an item in the Gen page | a `previewMaterial` request file, or a WebSocket message with `stream` false | a `previewMaterial` WebSocket message with `stream` true (the default) |
 | Waits for shader compilation | n/a | yes — which is why it can block the editor briefly | no |
 | Camera control | none | request-file path: no. WebSocket path: yes | yes, through `previewControl` |
-| Since | <Since v="1.5.0" /> | — | <Since v="1.5.0" /> |
+| Since | <Since v="1.5.0" /> | — | <Since v="1.5.0" />; raw RGBA8 frames and Graph breakpoints <Since v="1.7.0" /> |
 
 Only `.dsm` can be previewed; a `.dsf` or `.dsh` is rejected with
 `DreamShader preview only supports .dsm material files: '{File}'.` The material is always compiled
@@ -533,6 +557,44 @@ A preview render therefore changes the shape and camera the Content Browser tile
 Editor viewport use for that material. An unknown mesh name is accepted silently and renders a
 sphere; check the `mesh` echoed back in `preview.json` to see what was actually used.
 </Callout>
+
+### Frame encoding and idle backoff
+
+<Since v="1.7.0" />
+
+The streaming path defaults to **raw RGBA8 frames** (`encoding: "raw"`): the editor reads the render
+target back and sends the pixels as-is, with no PNG encode, and the client paints them straight onto
+a canvas. This is what makes smooth 30–60 FPS affordable — PNG-encoding a 512² frame per tick was
+tens of milliseconds of game-thread time. The old JSON-metadata-plus-PNG path is still available as
+`encoding: "png"` for older clients.
+
+When nothing is moving, identical frames are dropped, and after a few in a row the render clock backs
+off to a low idle rate until an edit, a camera/mesh change, or a probe change re-arms it (a frame
+rendered while shaders are still compiling never backs off). A `previewControl` that omits a field —
+including `frameRate` — keeps the current value rather than resetting to 2 FPS, and it can carry
+`width` / `height` / `mesh`.
+
+### Graph breakpoints (probe preview)
+
+<Since v="1.7.0" />
+
+A breakpoint set on a `Graph` line (F9 in the DreamShaderLang VS Code extension) previews the **value
+bound at that line** on the mesh, instead of the finished material — the text analogue of the Material
+Editor's right-click *Start Previewing Node*.
+
+| Aspect | Behaviour |
+| :-- | :-- |
+| Selection | one probe at a time — the topmost enabled breakpoint in the active `.dsm` |
+| Line snapping | a breakpoint on a blank/comment line snaps forward to the next line that binds a value |
+| What is shown | the bound value routed into an unlit Emissive preview (or MaterialAttributes / Substrate when the value is one of those); a texture object is sampled with default coordinates |
+| Set before compile | remembered as *pending* and attaches on the next generation |
+| After a recompile | re-resolved automatically; the line may move, and the client is told the new line |
+
+The mechanism reuses the engine's own preview material machinery: a transient `UPreviewMaterial` that
+shares the generated material's expression collection and has the probed node wired into it,
+recompiled through `FMaterialUpdateContext`. `UPreviewMaterial`'s restricted `ShouldCache` keeps that
+recompile to a handful of shaders, exactly as the node-thumbnail path does. The protocol side is
+`setProbe` / `clearProbe` / `probeState`.
 
 There is no pitch clamp on the plugin side — the editor extension clamps to roughly ±89° before
 sending, and a client that does not will flip the camera over. Motion blur, anti-aliasing and dynamic
@@ -620,11 +682,55 @@ Workspace*; the rest are produced as work happens.
 | `diagnostics.json`, `diagnostics/` | all current diagnostics, aggregated and sharded per file |
 | `bridge.db` | a SQLite mirror of the diagnostics and the three manifests, deleted at startup and shutdown |
 | `preview.json`, `Preview/*.png` | one-shot preview results |
-| `Requests/*.json` | the inbound request directory, polled every 0.1 s and deleted on read |
+| `Requests/*.json` | the inbound request directory, polled every 0.1 s and deleted **before** dispatch, so a request that crashes the editor cannot be replayed on every start. A file that cannot be read at all is left for the next poll, since that is almost always one still being written |
+| `status.json` <Since v="1.6.0" /> | the heartbeat, rewritten every 2 s while idle and **deleted on shutdown** — so a missing file means "not running", definitively. Carries `protocol`, `pid`, `project`, `projectDir`, `engineDir`, `pluginVersion`, `busy` / `busyAction`, `lastResult` and `heartbeatUtc` |
+| `Responses/<requestId>.json` <Since v="1.6.0" /> | the answer to any request carrying a `requestId`: `ok`, `durationMs`, `message` (always the invariant English) and this compile's diagnostics. Written atomically — beside the target, then renamed |
+| `owner.lock` <Since v="1.8.0" /> | the pid and heartbeat of the editor that owns this project's bridge — see below |
 
-Every manifest carries a `generatedAt` ISO-8601 UTC timestamp. Only `diagnostics.json` is ever read
-back by the plugin — the [Gen page](#error-overlay) reads it. The schemas and the request protocol
+Every manifest carries a `generatedAt` ISO-8601 UTC timestamp. The schemas and the request protocol
 are covered from the consumer's side on [VSCode and Rider](/en/docs/tools/vscode).
+
+<Callout type="warn">
+Read `busy` **before** judging the heartbeat's age. A compile blocks the game thread, so the heartbeat
+stops while one runs — a client that only looks at the timestamp reads every real compile as a crash.
+The remaining ambiguity is a hard crash, which leaves the file behind; the recorded `pid` is what
+closes it.
+</Callout>
+
+### One editor owns the bridge for a project
+
+<Since v="1.8.0" />
+
+The bridge directory is per **project**, not per process: one `Requests` folder, one `status.json`,
+one heartbeat. Two editors open on the same project therefore both polled the same queue — whichever
+got there first consumed the file, the other read a half-deleted one — and both overwrote
+`status.json` with their own pid.
+
+| Aspect | Value |
+| :-- | :-- |
+| File | `<Project>/Saved/DreamShader/Bridge/owner.lock` |
+| Contents | `pid` and an ISO-8601 `heartbeat`, refreshed on the ordinary heartbeat |
+| Believed while | the owning process is still running **and** its heartbeat is under 30s old |
+| Released | on editor shutdown, so the next editor takes over on its next heartbeat rather than after the stale window |
+
+Both conditions are needed. The pid test alone would hand the bridge to a second editor every time the
+first was mid-compile, since a compile blocks the game thread and stops the heartbeat; the heartbeat
+test alone would leave the bridge unowned for a stale window after a hard crash.
+
+A non-owning editor still compiles its own in-memory materials — those are per-process and nobody
+else's business — but it does not consume requests, does not write `status.json`, and **does not write
+generated assets to disk**. That last one follows directly from
+[storage deciding how a rebuild persists](/en/docs/generation/in-memory): without it, two editors would
+both `SavePackage` the same file, and a save that loses that race is not a merge — it is a corrupted
+package or a dead editor. Such a compile reports:
+
+```text
+Skipped {AssetPath}; another editor owns this project's DreamShader bridge, and only that one
+writes generated assets to disk.
+```
+
+The [commandlet](/en/docs/tools/commandlet) is unaffected: it has no bridge, no lock file and no
+second process to negotiate with, and writing these assets is its entire job.
 
 ## Disabling the integration
 
@@ -680,6 +786,6 @@ Launch the editor with the integration off, then do the same work headlessly:
   <Card title="VSCode and Rider" href="/en/docs/tools/vscode" description="The workspace file, the extensions, and the artifacts they consume." />
   <Card title="Commandlet" href="/en/docs/tools/commandlet" description="The headless entry point, which writes real assets." />
   <Card title="In-memory Materials" href="/en/docs/generation/in-memory" description="Why the Content Browser is empty, and what Materialize does." />
-  <Card title="Project Settings" href="/en/docs/settings/project" description="The thirteen settings these commands read and write." />
+  <Card title="Project Settings" href="/en/docs/settings/project" description="The fifteen settings these commands read and write." />
   <Card title="Diagnostics" href="/en/docs/diagnostics" description="Every message, with cause and fix." />
 </Cards>

@@ -1,6 +1,6 @@
 ---
 title: import 与命名空间
-description: import 如何把多个文件拼成一个翻译单元 —— 识别规则、specifier 规范化、搜索根、循环，以及源码行映射。
+description: import 如何把多个文件拼成一个翻译单元 —— 识别规则、specifier 规范化、源码根与跨根限定、循环，以及源码行映射。
 ---
 
 `import` 把另一个 DreamShaderLang 源文件内联进当前翻译单元。它**不属于**任何一套语法：编辑器源加载器
@@ -24,6 +24,9 @@ description: import 如何把多个文件拼成一个翻译单元 —— 识别�
 ```c
 import "<specifier>" [;] [// <comment>]
 import '<specifier>' [;] [// <comment>]
+
+<specifier>      := [ <root-qualifier> ":" ] <path>
+<root-qualifier> := Project | Plugin.<PluginName> | Plugins.<PluginName>
 ```
 
 </Synopsis>
@@ -32,10 +35,14 @@ import '<specifier>' [;] [// <comment>]
 <Since v="1.2.2" /> 和一个可选的 `//` 注释。`import` 本身按大小写不敏感匹配。
 
 ```c
-import "Shared/Common";                                   // -> DShader/Shared/Common.dsh
-import '@typedreammoon/dream-noise/Library/Noise.dsh';    // -> DShader/Packages/@typedreammoon/…
-import "../Functions/F_Tint.dsf"                          // -> DShader/Functions/F_Tint.dsf
+import "Shared/Common";                                   // -> 自己所在根的 Shared/Common.dsh
+import '@typedreammoon/dream-noise/Library/Noise.dsh';    // -> <根>/Packages/@typedreammoon/…
+import "../Functions/F_Tint.dsf"                          // -> 相对导入方所在目录
+import "Plugin.MoonToon:Shared/Toon.dsh";                 // -> 跨根，见下 <Since v="1.6.0" />
 ```
+
+裸 `<path>` 在**导入方自己所在的源码根**里解析。`<root-qualifier>` 前缀 <Since v="1.6.0" /> 是让 import
+够到另一个根的唯一方式。
 
 ### 识别规则
 
@@ -94,14 +101,66 @@ import "../Functions/F_Tint.dsf"                          // -> DShader/Function
 
 | # | 候选 | 包含根 |
 | :-- | :-- | :-- |
-| 1 | `<导入方文件所在目录>/<specifier>` | 源目录和 packages 目录中包含该导入方的、较长的那个；两者都不包含时是文件自己的目录 |
-| 2 | `<源目录>/<specifier>` | 源目录 |
-| 3 | `<packages 目录>/<specifier>` | packages 目录 |
+| 1 | `<导入方文件所在目录>/<specifier>` | 所有根的源目录和 packages 目录中，包含该导入方的、最长的那个；都不包含时是文件自己的目录 |
+| 2 | `<所属根的源目录>/<specifier>` | 该源目录 |
+| 3 | `<所属根的 packages 目录>/<specifier>` | 该 packages 目录 |
 
 | 目录 | 默认值 | 项目设置 |
 | :-- | :-- | :-- |
-| 源目录 | `<Project>/DShader` | *Source Directory* |
-| Packages | `<Source>/Packages` | 推导得到，不能单独配置 |
+| 项目源目录 | `<Project>/DShader` | *Source Directory* |
+| 插件源目录 <Since v="1.6.0" /> | `<Plugin>/DShader` | *Scan Plugin Source Directories* |
+| Packages | `<源目录>/Packages` | 推导得到，不能单独配置 |
+
+### 源码根
+
+<Since v="1.6.0" />
+
+候选 2 和 3 属于导入方文件的**所属根** —— 也就是该文件所在的那个源码根。
+
+<Callout type="warn">
+**裸 specifier 永不跨根。** `Plugins/MoonToon/DShader` 下的一个 `.dsm` 写 `Shared/Common.dsh`
+够不到 `<Project>/DShader`，反过来也一样。
+
+这条规则的存在是为了让「装一个插件」不能改变一个既有 import 的含义。如果项目根是全局兜底，
+两个都带 `Shared/Common.dsh` 的插件就会按扫描顺序解析，而禁用一个插件会静默改变另一个根的 import 指向。
+</Callout>
+
+不属于**任何**根的文件 —— 测试夹具、`-Source` 指到树外的 commandlet —— 候选 2 和 3 用项目的源目录和
+packages 目录，也就是根这个概念存在之前每个文件的行为。
+
+### 刻意跨根
+
+<Since v="1.6.0" />
+
+给 specifier 加一个根限定符和一个 `:`。
+
+| Specifier | 解析到 |
+| :-- | :-- |
+| `Project:Shared/Common.dsh` | `<Project>/DShader/Shared/Common.dsh`，然后 `<Project>/DShader/Packages/…` |
+| `Plugin.MoonToon:Shared/Toon.dsh` | `<MoonToon>/DShader/Shared/Toon.dsh`，然后 `<MoonToon>/DShader/Packages/…` |
+| `Plugins.MoonToon:Shared/Toon.dsh` | 同上 —— `Plugin` / `Plugins`、`.` / `/` 拼的是同一个东西 |
+| `Plugin/MoonToon:Shared/Toon.dsh` | 同上 |
+
+限定符用的是 [`Root=`](/docs/generation/asset-paths) 已有的那套词汇（去掉只对 package 有意义的写法），
+大小写不敏感。`Project` 指的是项目根，无论 *Source Directory* 指到哪里。
+
+带限定的 specifier 按构造就是有根的，所以只尝试两个候选 —— 目标根的源目录、然后是它的 packages 目录 ——
+两者都同样做包含检查。**没有**相对导入方文件的候选，导入方自己的根也不会被查。
+
+<Callout type="info">
+那个 `:` 正是让这个形式无歧义的东西。没有它，`Plugin.MoonToon/Shared/Common.dsh` 就无法与「经过一个
+叫 `Plugin.MoonToon` 的文件夹的普通相对路径」区分开，解析器又要回去猜 —— 而同根规则的存在就是为了消灭猜测。
+`:` 在 Windows 上不能出现在路径段里，所以不会和任何真实 specifier 撞上。
+
+`:` 之前的文本**不匹配**限定符形状时，它完全不被当作限定符，整个 specifier 按普通路径解析 ——
+这正是让 `import "C:/Shared/Common.dsh"` 保持它一贯的失败方式、而不是报一个「未知源码根」的原因。
+形状匹配但名字指向一个不存在的根 —— `Plugin.NotInstalled:X.dsh` —— 有专门的诊断。
+</Callout>
+
+<Callout type="warn">
+**一个把自己限定进 `Project:` 的插件不再是自包含的**：把它交付到另一个项目，这条 import 就悬空了。
+这个形式刻意写得啰嗦、方便 grep，就是为了这一点。
+</Callout>
 
 包含比较在所有平台上都忽略大小写；至于候选最终能不能被找到，仍然遵循文件系统自身的大小写行为。
 
@@ -140,6 +199,7 @@ import "../Functions/F_Tint.dsf"                          // -> DShader/Function
 | 循环 | 重新进入一个仍在内联中的文件会失败于 `DreamShader import cycle detected at '{Path}'.` |
 | 无法读取 | `DreamShader could not read '{Path}'.` |
 | 无法解析的 specifier | `DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved.` |
+| 限定符指向的根不存在 <Since v="1.6.0" /> | `DreamShader import '{Specifier}' referenced from '{Path}' names source root '{Qualifier}', which is not a DreamShader source root.` —— 插件名拼错、插件被禁用，或者它根本没带 `DShader` 目录 |
 
 每个文件的内容都被标记注释包起来，每一行 import 都被替换成**空行**，这样它下面各行的行号保持不变：
 
@@ -261,6 +321,7 @@ import "Shared/Common.dsh";
 
 <Diag>
   <D msg="DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved." cause="三个候选都不存在，或存在的候选全都落在包含根之外。" fix="检查扩展名：无后缀的 specifier 会补 .dsh，所以 .dsf 或 .dsm 必须写全。" />
+  <D msg="DreamShader import '{Specifier}' referenced from '{Path}' names source root '{Qualifier}', which is not a DreamShader source root." cause="带根限定的 import，限定符形状对但没有对应的活动源码根 —— 插件名拼错、插件被禁用，或者它没有 DShader 目录。" fix="核对插件名，并确认该插件已启用且带 DShader 目录。" />
   <D msg="DreamShader import cycle detected at '{Path}'." cause="文件直接或间接导入了自己。" fix="把共享声明抽到两边都导入的第三个 header 里。" />
   <D msg="DreamShader could not read '{Path}'." cause="解析出的文件读取失败。" />
   <D msg="Only one top-level Shader block is currently supported." cause="闭包里出现了两个 Shader 块 —— 常常是被误导入的。" href="/docs/language/file-model" />
