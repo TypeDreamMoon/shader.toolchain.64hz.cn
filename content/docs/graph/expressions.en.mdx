@@ -204,7 +204,7 @@ what it collected; the failure surfaces later as a missing `)` or a truncated st
 
 ### Boolean literals
 
-`true` and `false` *(unreleased)* lex as ordinary identifiers and resolve **late** — after Graph
+`true` and `false` <Since v="1.5.0" /> lex as ordinary identifiers and resolve **late** — after Graph
 variables and after declared properties. They produce a `UMaterialExpressionStaticBool` node with one
 component, matched case-insensitively, and are the only way to feed a `StaticSwitch` input or a
 `StaticBool` function input from a `Graph` block.

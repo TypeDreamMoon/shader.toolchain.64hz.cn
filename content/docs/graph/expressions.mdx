@@ -191,7 +191,7 @@ float x    = "0.5";   // String literals can only be used in named UE builtin ar
 
 ### 布尔字面量
 
-`true` 和 `false` *（未发布）* 按普通标识符词法处理，并且**很晚**才解析——排在 Graph 变量和已声明属性
+`true` 和 `false` <Since v="1.5.0" /> 按普通标识符词法处理，并且**很晚**才解析——排在 Graph 变量和已声明属性
 之后。它们产生一个 1 分量的 `UMaterialExpressionStaticBool` 节点，匹配不区分大小写，也是从 `Graph` 块里
 给 `StaticSwitch` 输入或 `StaticBool` 函数输入供值的唯一方式。
 
