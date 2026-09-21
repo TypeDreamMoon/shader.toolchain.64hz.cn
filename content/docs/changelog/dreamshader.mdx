@@ -7,9 +7,45 @@ Unreal 插件的版本更新记录，新版本在前。这里记录会影响使�
 
 | | |
 | :-- | :-- |
-| 当前版本 | **1.8.0** —— 2026-08-21 |
+| 当前版本 | **2.0.0** |
 | 引擎 | Unreal Engine `5.3` 到 `5.8`，Win64 |
 | 记录来源 | 插件目录内自带的 `CHANGELOG.md` |
+
+## 2.0.0
+
+2.0 这条线：与其说是功能版本，不如说是一次编译器重写。一个只依赖 Core 的语言前端、夹在解析器与材质图之间的图 IR、
+作为同一个编译器第二前端保留下来的 1.x 语法，以及与之并列的 HLSL 形状的 `.dss` 语言。`1.8.0` 之后的一切 ——
+包括 `1.9.x` 的条件编译与 Graph 断点 —— 都在里面。
+
+- **[DreamShaderLang 2.0](/docs/language-v2)** —— `.dss` 源文件：`uniform`、`///` 指令、`#pragma material(...)`、
+  每个 `export` 一个资产、真正的表达式与控制流、会内联的 helper、`/// @custom` HLSL 函数体、给已存在资产用的 `extern` 原型。
+- **一个编译器，两个前端。** `.dsm` / `.dsf` 由 legacy 前端读成同一棵树、由同一个发射器构建；
+  拿四个真实源码根的 1.x 冻结图对拍，每个源文件都逐节点重建出同一张图。1.x 的生成器与解析器已经删除。
+- **[把材质实例写成源码](/docs/language-v2/instances)** —— `.dsi`，对照父材质真实的参数表检查。
+- **[`dsc migrate`](/docs/language-v2/migrate)** —— 1.x 到 `.dss`，落盘之前先证明注释一条不丢、生成的图一模一样。
+- **会写 2.0 文本的反编译器**，做法是把编译器倒着跑；语言说不出来的东西会写在文件头部点名，绝不悄悄丢掉。
+- **[Substrate 语法糖](/docs/language-v2/substrate)** —— `A + B`、`A * w`、`lerp(A, B, t)`；Slab 上的旧参数，
+  转换节点替你加好；运行时分支变成 `Substrate.Select`；按成员逐步构建的值；
+  `#pragma material(Substrate = Legacy | Bridge | Native)`。
+- **读源码的图布局**，做成工程设置 **Graph Layout Style**。默认的 `Blocks` 把图排成一页按源码顺序的框 ——
+  一个 `#pragma region` 或一段连续语句一个框，框里是一小张从左到右的图，**框与框之间没有连线**：
+  别的框要读的值，在它旁边放一个具名 reroute 声明（`DS_<变量名>`），读它的每个框里各放一个 usage；
+  常量不走 reroute，在读它的地方再写一遍。另两种不插入任何节点：`SourceBands` 一条语句一带，
+  `Layered` 整图分层。`dsc dump-layout` 不构建任何东西就能把三种都画出来，供你先看再选。
+  1.x 的布局改名 `Classic`，仍可选用。已有的图在其源码下次重建时换成新的排法；节点位置不进手改指纹，
+  所以不会有资产因此被当成「手改过」。
+- **工具** —— `check`（以及把 HLSL 错误映射回源码行的 `check -Shaders`）、`fmt`、`list-generated`
+  与一页[版本控制](/docs/generation/source-control)、`dump-ir`、`index`、`export-catalog`；
+  节点 ↔ 源码行双向跳转；为语言服务写出的符号索引与节点目录。
+- **Graph 材质与材质函数总是落盘。** 只有 ThinCustom 材质还保留纯内存状态。
+- **修复：换一种语言的编辑器，生成的图层 / 混合 / 属性函数就被当成「手改过」。** [手改检测](/docs/generation/regeneration#手改检测)的指纹
+  用引擎的 `GetInputName` 给引脚起名，而 `BreakMaterialAttributes`、`GetMaterialAttributes`、`SetMaterialAttributes`
+  这三个节点给出的是**翻译过的文字** —— 英文编辑器盖的戳，中文编辑器算出来对不上，中英混用的团队会互相看到对方的资产是
+  `Diverged` 并被拒绝重建。现在这些引脚按属性本名命名；指纹还多覆盖了一项：`GetMaterialAttributes` 发布哪些属性。
+  指纹格式从 `DSD3` 升到 `DSD4`，所以升级后每个生成资产会读作一次 `Unstamped`，下次重建时重新盖戳。
+  `dump-graph` 同步改为按属性命名这三种节点的引脚。
+- **修复：图层混合写不了 `FrontMaterial`。** 混合的结果从空开始，写入会变成 `MakeMaterialAttributes`，
+  而它没有 `FrontMaterial` 引脚（`DSH8212`）。现在 Make 没有引脚的属性由叠在它上面的 `SetMaterialAttributes` 设置。
 
 ## 1.8.0 - 2026-08-21
 

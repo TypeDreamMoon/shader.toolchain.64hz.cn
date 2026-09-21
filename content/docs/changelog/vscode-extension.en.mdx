@@ -15,6 +15,21 @@ The extension ships on its own cadence and its version numbers are unrelated to 
 the Unreal plugin see [DreamShader Plugin](/en/docs/changelog/dreamshader).
 </Callout>
 
+## 2.0.0
+
+### DreamShader 2.0: `.dss` and `.dsi`
+
+- Both file kinds open as **DreamShader 2.0**, with a grammar of their own (doc directives, the four
+  `#pragma` forms, the `UE.` and `Substrate.` namespaces, swizzles), snippets, folding on
+  `#pragma region` and `#if`, and `///` that continues on Enter.
+- Go to Definition, Find References, Hover, the Outline, Signature Help and Rename read the symbol index
+  the plugin writes after every compile; completion of `UE.` / `Substrate.` — node names, pins,
+  properties, the Substrate sugar arguments — reads the builtin catalog the plugin exports. A position
+  the text no longer matches is dropped, and a rename refuses and asks for a compile.
+- New command **Reveal in Material Editor**: from a line of a `.dss` to the node it became.
+- Recompile, the diagnostics panel, the live preview and graph breakpoints work on a `.dss` as they do
+  on a `.dsm`.
+
 ## 1.5.3 - 2026-06-06
 
 ### Material Preview

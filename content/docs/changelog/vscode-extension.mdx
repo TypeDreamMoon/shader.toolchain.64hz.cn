@@ -14,6 +14,18 @@ description: DreamShaderLang VSCode 扩展的版本更新记录，取自扩展�
 [DreamShader 插件](/docs/changelog/dreamshader)。
 </Callout>
 
+## 2.0.0
+
+### DreamShader 2.0：`.dss` 与 `.dsi`
+
+- 两种文件都以 **DreamShader 2.0** 语言打开，有自己的语法高亮（文档指令、四种 `#pragma` 形式、`UE.` 与 `Substrate.`
+  命名空间、swizzle）、代码片段、`#pragma region` 与 `#if` 的折叠，以及回车后自动续写的 `///`。
+- 转到定义、查找引用、悬停、大纲、签名帮助与重命名读取插件每次编译后写出的符号索引；`UE.` / `Substrate.` 的补全 ——
+  节点名、引脚、属性、Substrate 语法糖实参 —— 读取插件导出的内建目录。文本已经对不上的位置会被丢掉，
+  重命名则拒绝并提示先编译。
+- 新命令 **Reveal in Material Editor**：从 `.dss` 的一行跳到它生成的节点。
+- 重新编译、诊断面板、实时预览与 Graph 断点对 `.dss` 与对 `.dsm` 一样可用。
+
 ## 1.5.3 - 2026-06-06
 
 ### 材质预览

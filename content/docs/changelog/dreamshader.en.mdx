@@ -8,9 +8,59 @@ language surface, the generator, the editor tooling and engine compatibility.
 
 | | |
 | :-- | :-- |
-| Current release | **1.8.0** — 2026-08-21 |
+| Current release | **2.0.0** |
 | Engines | Unreal Engine `5.3` through `5.8`, Win64 |
 | Source of record | the plugin's own `CHANGELOG.md`, shipped in the plugin folder |
+
+## 2.0.0
+
+The 2.0 line: a compiler rewrite rather than a feature release. A language front end that depends on
+nothing but Core, a graph IR between the parser and the material graph, the 1.x syntax carried as a
+second front end of the same compiler, and the HLSL-shaped `.dss` language beside it. Everything since
+`1.8.0` — conditional compilation and graph breakpoints from `1.9.x` included — is in it.
+
+- **[DreamShaderLang 2.0](/en/docs/language-v2)** — `.dss` sources: `uniform`s, `///` directives,
+  `#pragma material(...)`, one asset per `export`, real expressions and control flow, helpers that inline,
+  `/// @custom` HLSL bodies, `extern` prototypes for assets that already exist.
+- **One compiler, two front ends.** A `.dsm` / `.dsf` is read by a legacy front end into the same tree
+  and built by the same emitter; measured against frozen 1.x graphs of four real source roots, every
+  source rebuilds the same graph node for node. The 1.x generator and the 1.x parser are gone.
+- **[Material instances as source](/en/docs/language-v2/instances)** — `.dsi`, checked against the
+  parent's real parameters.
+- **[`dsc migrate`](/en/docs/language-v2/migrate)** — 1.x to `.dss`, proving before it writes that no
+  comment is lost and the same graph comes out.
+- **A decompiler that writes 2.0 text**, by running the compiler backwards; what the language cannot
+  say is named at the head of the file, never dropped silently.
+- **[Substrate sugar](/en/docs/language-v2/substrate)** — `A + B`, `A * w`, `lerp(A, B, t)`; legacy
+  parameters on a slab with the conversion node added for you; run-time branches as `Substrate.Select`;
+  values built member by member; `#pragma material(Substrate = Legacy | Bridge | Native)`.
+- **Graph layouts that read the source**, as the project setting **Graph Layout Style**. `Blocks`, the
+  default, is a page of boxes in source order — one per `#pragma region` or run of statements, each a small
+  left-to-right drawing — with **no wire between two boxes**: a value another box reads gets a named
+  reroute declaration (`DS_<variable>`) beside it and a usage in every box that reads it, and a constant
+  is written again where it is read. The other two insert nothing: `SourceBands` is one band per
+  statement, `Layered` the whole graph in layers. `dsc dump-layout` draws all three for any source and
+  builds nothing, to look before choosing. The 1.x layout is now called `Classic` and can still be
+  chosen. An existing graph takes the new arrangement the next time its source is rebuilt; node positions
+  are not part of the divergence digest, so nothing reads as hand-edited.
+- **Tooling** — `check` (and `check -Shaders`, which maps HLSL errors back to source lines), `fmt`,
+  `list-generated` and a page on [source control](/en/docs/generation/source-control), `dump-ir`,
+  `index`, `export-catalog`; node ↔ source line navigation both ways; the symbol index and the node
+  catalog written for the language service.
+- **Graph materials and material functions always save.** Only a ThinCustom material still has a
+  memory-only state.
+- **Fixed: a generated layer, blend or attribute function read as hand-edited in an editor of another
+  language.** The [divergence](/en/docs/generation/regeneration#divergence) digest named inputs by the engine's
+  `GetInputName`, and `BreakMaterialAttributes`, `GetMaterialAttributes` and `SetMaterialAttributes`
+  answer that with **translated text** — a digest stamped by an English editor did not match what a
+  Chinese editor computed, so a team that uses both saw each other's assets as `Diverged` and was
+  refused the rebuild. Those inputs are named by the attribute itself now, and the digest also covers
+  which attributes a `GetMaterialAttributes` publishes. The format moves from `DSD3` to `DSD4`, so every
+  generated asset reads as `Unstamped` once after the upgrade and is restamped by its next rebuild.
+  `dump-graph` names the pins of those three nodes the same way.
+- **Fixed: a layer blend could not write `FrontMaterial`.** A blend's result starts empty, so its
+  writes become a `MakeMaterialAttributes`, which has no `FrontMaterial` pin (`DSH8212`). What Make has
+  no pin for is set by a `SetMaterialAttributes` on top of it.
 
 ## 1.8.0 - 2026-08-21
 
