@@ -1,0 +1,155 @@
+---
+title: DreamShaderLang 2.0
+description: The HLSL-shaped language of DreamShader 2.0 — .dss sources, uniforms and doc directives, one asset per export, and how it sits beside the 1.x language.
+---
+
+DreamShader 2.0 adds a second language beside the 1.x one. A material is written as what it always was
+underneath — HLSL with declarations: `uniform`s are the parameters, `///` doc comments carry their
+metadata, `#pragma material(...)` holds the settings, and one exported function fills in the material.
+
+| Aspect | Value |
+| :-- | :-- |
+| Files | `.dss` — a compilation unit · `.dsi` — a [material instance](/en/docs/language-v2/instances) · `.dsh` — a shared header, which may hold both languages |
+| Produces | one material per file at most, and one material function, layer or layer blend per other `export` |
+| Compiler | the same one that builds `.dsm` / `.dsf`: two front ends, one graph IR, one emitter |
+| Since | <Since v="2.0.0" /> |
+
+<Callout type="info">
+**Nothing forces a migration.** A `.dsm` is read by a legacy front end into the same tree a `.dss`
+parses to, and built by the same code — measured against frozen 1.x graphs of four real source roots,
+every source rebuilds the same graph node for node. Move a file when you want what only 2.0 has:
+real expressions and control flow, `#include`, material instances beside the material, comments that
+survive tooling. [`dsc migrate`](/en/docs/language-v2/migrate) does the rewriting, and proves it first.
+</Callout>
+
+## A material
+
+```hlsl
+// M_TeleportGlow.dss
+#pragma material(ShadingModel = Unlit, BlendMode = Additive)
+
+/// @group Glow|Look   @desc Multiplied on top of the particle colour
+uniform float4 Tint = float4(1, 1, 1, 1);
+
+/// @group Glow|Look   @desc Overall emissive gain
+/// @slider 0 4
+uniform float Intensity = 0.7;
+
+float GlowMask(float2 UV)                       // a helper: inlined into whoever calls it
+{
+    float2 P = UV * 2.0 - 1.0;
+    return pow(saturate(1.0 - dot(P, P)), 2.4);
+}
+
+export void M_TeleportGlow(inout material m)    // the entry: this signature is what makes a material
+{
+    float2 UV = UE.TexCoord(Index = 0);
+    m.EmissiveColor = Tint.rgb * GlowMask(UV) * Intensity;
+}
+```
+
+The asset is named after the function and lands where the file is — `DShader/FX/M_TeleportGlow.dss`
+builds `/Game/FX/M_TeleportGlow`. `/// @name /Game/Somewhere/Else` overrides that.
+
+## A material function
+
+```hlsl
+// MF_ToonUV.dss
+/// @asset /MoonToon/MaterialFunctions/Utils/MF_UVChannelSwitch
+extern float2 MF_UVChannelSwitch(float UVChannelIndex);      // an asset that already exists
+
+/// @library MoonToon|Shared
+/// @param UVChannel    Which UV channel to read.
+export float2 MF_ToonUV(float UVChannel = 0.0, float4 ScaleOffset = float4(1, 1, 0, 0))
+{
+    float2 Selected = MF_UVChannelSwitch(UVChannel);
+    return Selected * ScaleOffset.xy + ScaleOffset.zw;
+}
+```
+
+Inputs are parameters, a default argument is an optional input, the return value is the first output
+and `out` parameters are the others.
+
+## What a function is
+
+| Declaration | Becomes |
+| :-- | :-- |
+| `export void M(inout material m)` | the material of the file — at most one |
+| `export T F(...)` | a material function asset |
+| `/// @layer` + `export void L(inout material m)` | a material layer |
+| `/// @layerblend` + `export void B(material Bottom, material Top, inout material Result)` | a material layer blend |
+| `T Helper(...)` — no linkage keyword | nothing of its own: inlined into every caller's graph |
+| `/// @custom` + a function | a Custom node; the body is HLSL, handed to the shader compiler verbatim |
+| `/// @asset <path>` + `extern T F(...);` | a call to a material function asset that already exists |
+
+## Parameters
+
+A `uniform` is a material parameter, and its `///` block is the parameter's metadata.
+
+| Directive | On | Meaning |
+| :-- | :-- | :-- |
+| `@group A\|B` | uniform | the group in the instance editor; `\|` nests |
+| `@desc text` | anything | tooltip / description |
+| `@sort 10` · `@slider 0 1` | uniform | sort priority · slider range |
+| `@static` | `uniform bool` | a static switch: an `if` on it is compiled out, not selected |
+| `@default /Game/T_X` · `@sampler Normal` | texture uniform | default asset · sampler type |
+| `@name` | uniform · product | display name · asset path |
+| `@library A\|B` · `@param Name text` | export | function library category · an input pin's description |
+
+`static const T Name = ...;` is a compile-time constant and makes no parameter.
+
+## The body
+
+Real HLSL expressions and statements: full operator precedence, `?:`, casts, constructors, swizzles,
+`if` / `else`, and `for` / `while` loops whose trip count the compiler can prove (they are unrolled).
+Engine nodes are calls into two namespaces, with arguments by name:
+
+```hlsl
+float3 N = UE.VertexNormalWS();
+float4 Tex = Albedo.Sample(UE.TexCoord(Index = 0));
+m.Opacity = UE.Fresnel(ExponentIn = 4.0, BaseReflectFractionIn = 0.04);
+m.FrontMaterial = Substrate.Slab(BaseColor = Tex.rgb, Metallic = 1.0, Roughness = 0.35);
+```
+
+Every `UMaterialExpression` class the engine and the loaded plugins have is callable as `UE.<Name>`;
+the Substrate nodes live under `Substrate.` and have [sugar of their own](/en/docs/language-v2/substrate).
+Two equal calls are one node, so writing a call where its value is read costs nothing.
+
+An `if` whose condition is a `/// @static` uniform is a StaticSwitch; any other `if` assigns through
+a run-time select, per variable. A `material` is a value with fields — `m.BaseColor = ...` — and a
+field nobody assigns is a pin nobody connects.
+
+## Regions and layout
+
+```hlsl
+#pragma region "Rim light"
+float Rim = pow(1.0 - saturate(dot(N, V)), RimPower);
+m.EmissiveColor = RimColor * Rim;
+#pragma endregion
+```
+
+A region is a comment box around the nodes of its statements. `#pragma layout(...)` lines are what the
+decompiler writes to keep hand-placed nodes where they were. How the rest is arranged is a project
+setting — **Graph Layout Style**: `Blocks`, the default, a box per region or run of statements with
+named reroutes between the boxes; `Classic`, the 1.x layout; `SourceBands`, one band per source
+statement; `Layered`, the whole graph in layers. `dsc dump-layout` draws the three that read the source, for
+any source, without building anything.
+
+## What it does not have
+
+| Not there | Instead |
+| :-- | :-- |
+| loops with a run-time trip count, `discard` inside a branch | a `/// @custom` function |
+| matrices in the graph | compute them inside a `/// @custom` body |
+| `switch`, the comma operator, `let` / `auto` | `if` chains; declare the type |
+| a material layer *stack* | `@layer` and `@layerblend` produce the two function kinds; the stack is assembled in the editor |
+
+## Tooling
+
+| Tool | 2.0 |
+| :-- | :-- |
+| [`dsc check`](/en/docs/tools/commandlet) | compiles as far as IR validation and writes no asset — the CI gate; `-Shaders` also compiles the shaders and maps HLSL errors back to source lines |
+| [`dsc fmt`](/en/docs/tools/commandlet) | the language's own printer as a formatter, which refuses any file it cannot vouch for |
+| [`dsc decompile`](/en/docs/tools/decompiler) | writes `.dss` (and `.dsi` for an instance) by running the compiler backwards |
+| [VS Code](/en/docs/tools/vscode) | highlighting and snippets; navigation, hover, rename and node completion answered by the compiler's own index |
+| Editor | node ↔ source line navigation both ways, *Adopt Into Source* for hand-edited assets |
