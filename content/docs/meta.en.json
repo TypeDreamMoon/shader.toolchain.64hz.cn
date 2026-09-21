@@ -4,6 +4,7 @@
     "index",
     "start",
     "language",
+    "language-v2",
     "graph",
     "builtins",
     "parameters",
