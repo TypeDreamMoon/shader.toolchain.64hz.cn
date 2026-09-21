@@ -1,0 +1,176 @@
+---
+title: Substrate sugar
+description: Operators and lerp over Substrate values, legacy parameters on a slab, run-time branches, values built member by member, and one source for Substrate and non-Substrate projects.
+---
+
+Shorter spellings for Substrate graphs. Each one is a spelling and nothing else: it binds to a fixed
+pattern of `Substrate.*` nodes, the graph is the one the long form makes, and the decompiler writes the
+short form back. Both languages have it — a `.dsm` as much as a `.dss`.
+
+| Aspect | Value |
+| :-- | :-- |
+| Requires | the engine's Substrate nodes (UE 5.4+); `Substrate.Select` needs UE 5.6 |
+| Changes the graph | never — `A + B` **is** `Substrate.Add(A = A, B = B)` |
+| Since | <Since v="2.0.0" /> |
+
+```hlsl
+#pragma material(Substrate = Native)
+
+uniform Texture2D Albedo;
+uniform float Rust = 0.3;
+uniform float Coat = 1.0;
+
+export void M_CoatedMetal(inout material m)
+{
+    float4 Tex = Albedo.Sample(UE.TexCoord(Index = 0));
+
+    Substrate Metal = Substrate.Slab(BaseColor = Tex.rgb, Metallic = 1.0, Roughness = 0.35);
+    Substrate RustS = Substrate.Slab(BaseColor = Tex.rgb * float3(0.6, 0.3, 0.1), Roughness = 0.9);
+    Substrate Body  = lerp(Metal, RustS, saturate(Tex.a * Rust));
+    Substrate Clear = Substrate.Slab(IOR = 1.5, Roughness = 0.1);
+
+    m.FrontMaterial = Substrate.Layer(Clear * Coat, Body, 0.01);
+}
+```
+
+## Operators and lerp
+
+A Substrate value is not a number. It has two operators and one intrinsic, and each is a node.
+
+| You write | It is | Pins |
+| :-- | :-- | :-- |
+| `A + B` | `Substrate.Add` | `A`, `B` |
+| `A * w`, `w * A` | `Substrate.Weight` | `A`, `Weight` |
+| `lerp(A, B, t)` | `Substrate.HorizontalMix` | `Background`, `Foreground`, `Mix` |
+
+Precedence is the language's own: `A + B * w` weights `B`, then adds. Any other operator over a
+Substrate value — `-`, `/`, `A * B`, `A += B` — is `DSH5293`, and so is a `lerp` that mixes a Substrate
+value with a number.
+
+The five composition nodes also take their operands by position, and two of them have short names:
+`Substrate.Add(A, B)`, `Substrate.Weight(A, w)`, `Substrate.Mix(Bg, Fg, t)`,
+`Substrate.Layer(Top, Base, Thickness)`, `Substrate.Select(A, B, t)`. A BSDF has eighteen pins, so a
+BSDF takes its arguments by name only.
+
+<Callout type="info">
+The operators take the engine's default for parameter blending — off. A source that wants it writes the
+named call, `Substrate.Mix(A, B, t, UseParameterBlending = true)`.
+</Callout>
+
+## Branches over Substrate values
+
+| The condition | The branch becomes |
+| :-- | :-- |
+| a `/// @static` uniform or function parameter | a `StaticSwitch` typed Substrate — one side is compiled out |
+| anything decided at run time | `Substrate.Select`, with the `else` side on `A`, the `then` side on `B` and the condition on `SelectValue` |
+
+`Substrate.Select` exists from UE 5.6 on; on an older engine the run-time form is `DSH4378`, which
+offers the two ways out: make the condition static, or `lerp` the two values. Select parameter-blends
+its inputs and the engine refuses some pairs of unlike BSDFs, so two sides of different node classes
+get a warning, `DSH4380`, and the node is made all the same.
+
+## Legacy parameters on a slab
+
+`Substrate.Slab` is parameterised by `DiffuseAlbedo` and `F0`, which nobody has textures for. These
+arguments are **not pins**; each family is the input side of a conversion node the compiler puts in
+front of the pins it stands for.
+
+| Arguments | Conversion node | Feeds |
+| :-- | :-- | :-- |
+| `BaseColor`, `Metallic`, `Specular` | `Substrate.MetalnessToDiffuseAlbedoF0` | `DiffuseAlbedo`, `F0` |
+| `Haziness` — against the call's own `Roughness` | `Substrate.HazinessToSecondaryRoughness` | `SecondRoughness`, `SecondRoughnessWeight` |
+| `Transmittance`, `Thickness` | `Substrate.TransmittanceToMFP` | `SSSMFP` |
+| `IOR` | none: F0 = ((n − 1) / (n + 1))² | `F0` |
+
+A node takes a family when it has every pin the family feeds — `Slab` all four, `SimpleClearCoat` the
+two that end in `F0` — and a name that **is** a pin of the node is that pin. An `IOR` that is a number
+folds into a constant `F0` (`1.5` gives `0.04`); two slabs that convert the same values share one
+conversion node. Two names for the same pins are `DSH5295`; `Haziness` without `Roughness` and
+`Thickness` without `Transmittance` are `DSH5296`.
+
+## Building a value member by member
+
+A Substrate local declared as a node call **without arguments** is a value still being built.
+
+```hlsl
+Substrate S = Substrate.Slab();      // no arguments: a builder
+S.BaseColor = Albedo;                // a pin, or an argument of the table above — in any order
+S.Metallic  = 1.0;
+#if DS_HAS_FUZZ
+S.FuzzAmount = Fuzz;                 // the preprocessor cuts lines, which is what this form is for
+#endif
+m.FrontMaterial = S;                 // the first use of S makes the node
+```
+
+| Rule | Detail |
+| :-- | :-- |
+| The last write wins | `S.Pin *= x` and `++S.Pin` start from what the member holds |
+| A member read makes no node | it is whatever was written; reading a member nothing wrote is `DSH5299` |
+| The first use seals the value | a member write after it is `DSH5297` |
+| No member write under an `if` the declaration is outside of | it would be one node in two versions — `DSH5298`. A builder declared inside the arm is that arm's own, and `#if` is not an `if`. |
+
+The node is made where the value is first used and through the path the call takes, so the builder and
+`Substrate.Slab(Roughness = r, BaseColor = c)` cannot come out as different graphs.
+
+## A layer blend that carries Substrate
+
+`m.FrontMaterial` is a Substrate value wherever a `material` is — also when the material arrived
+through a pin, where it is read through a GetMaterialAttributes node.
+
+```hlsl
+/// @layerblend
+export void MLB_Wet(material Bottom, material Top, float Alpha, inout material R)
+{
+    R.FrontMaterial = lerp(Bottom.FrontMaterial, Top.FrontMaterial, Alpha);
+}
+```
+
+## One source, two kinds of project
+
+`#pragma material(Substrate = ...)` says how a material written against the legacy attributes is read
+in a project that has Substrate on.
+
+| Mode | Substrate off | Substrate on |
+| :-- | :-- | :-- |
+| `Legacy` (default) | as written | as written — the engine converts the legacy attributes itself |
+| `Bridge` | as written | the shading attributes of a Surface material go into one `Substrate.ShadingModels` node on `FrontMaterial`, pin for pin as the engine's own conversion does it — see the table below |
+| `Native` | driving `FrontMaterial` is `DSH4382` | as written |
+
+What `Bridge` folds is exactly what the engine's conversion of a legacy Surface material folds, so the
+asset reads the same as the one the engine would have made at load — except that the node is in the
+graph you build, diff and decompile.
+
+| Attribute | Pin of `Substrate.ShadingModels` | On the material afterwards |
+| :-- | :-- | :-- |
+| `BaseColor`, `Metallic`, `Specular`, `Roughness`, `Anisotropy`, `EmissiveColor`, `Tangent` | the pin of the same name | no |
+| `SubsurfaceColor` | `SubSurfaceColor` | no |
+| `ClearCoat`, `ClearCoatRoughness` (`CustomData0` / `CustomData1`) | `ClearCoat`, `ClearCoatRoughness` | no |
+| `Normal`, `Opacity` | the pin of the same name | **yes** — the engine copies these two, and so does `Bridge` |
+| `ShadingModel` (a material whose setting is `FromMaterialExpression`) | `ShadingModel` | **yes** |
+| everything else — `OpacityMask`, `WorldPositionOffset`, `PixelDepthOffset`, `Displacement`, `Refraction`, `AmbientOcclusion`, `SurfaceThickness`, the customized UVs | — | stays as written |
+
+The node's `ShadingModelOverride` is the material's `ShadingModel` setting; a material that computes its
+shading model leaves the override alone and drives the pin instead. A material that writes none of the
+attributes that move has nothing to bridge and is left as written.
+
+"Substrate on" is the built-in define `DS_SUBSTRATE`, which joins the build key of every material that
+says `Bridge` or `Native` — switching the project setting rebuilds exactly those.
+
+## In a 1.x source
+
+```c
+Shader(Name = "Materials/M_CoatedMetal")
+{
+    Outputs {
+        Base.FrontMaterial = Substrate.Layer(Clear * Coat, Body, 0.01);   // an expression, not a variable name
+    }
+    Graph {
+        Substrate Metal = Substrate.Slab(BaseColor = Tint.rgb, Metallic = 1.0, Roughness = 0.35);
+        Substrate Body  = lerp(Metal, RustS, saturate(Rust));
+        Substrate Clear = Substrate.Slab(IOR = 1.5, Roughness = 0.1);
+    }
+}
+```
+
+The right side of an `Outputs` binding is an expression of its own, read after the `Graph` has run; a
+`Shader` whose `Outputs` compute everything needs no `Graph` section.
