@@ -1,0 +1,74 @@
+---
+title: Migrating from 1.x
+description: dsc migrate rewrites .dsm, .dsf and .dsh sources as .dss — and proves, before it writes anything, that no comment is lost and the same graph comes out.
+---
+
+`dsc migrate` rewrites `.dsm`, `.dsf` and `.dsh` files as DreamShaderLang 2.0. Nothing forces a
+migration: the legacy front end keeps building 1.x sources through the same compiler, and a `.dsh` may
+hold both languages, so a project can move one file at a time.
+
+```powershell
+./dsc.ps1 migrate DShader/Materials/M_Foo.dsm -Check    # prove the rewrite, write nothing
+./dsc.ps1 migrate DShader/Materials/M_Foo.dsm           # write M_Foo.dss, move M_Foo.dsm away
+./dsc.ps1 migrate -All -Check                           # every 1.x source of the project's own root
+./dsc.ps1 migrate -Root MoonToon -Check                 # one source root, by its name or its plugin's
+```
+
+| Switch | Meaning |
+| :-- | :-- |
+| a file | one 1.x source. A header it imports is migrated with it only when nothing else includes that header. |
+| `-All` | every 1.x source under the **writable** source roots — the project's. A plugin's root is left out. |
+| `-Root` | every 1.x source of one root, named by the root's display name or its plugin's name |
+| `-Check` | do everything except write; the exit code says whether every file would migrate |
+| `-DryRun` | report what would be written |
+| `-Out` | write the `.dss` files under a directory, mirroring the source tree, and leave the 1.x files alone |
+| `-NoBackup` | delete the 1.x file instead of moving it to `Saved/DreamShader/Migrated/` |
+
+## What is proved before anything is written
+
+<Steps>
+<Step>
+**No comment is lost.** The comments of the source are counted against the comments of the result
+(`DSH9092`).
+</Step>
+<Step>
+**The text builds as 2.0.** It is parsed, bound and lowered by the 2.0 front end (`DSH9097`). A rejected
+text is kept under `Saved/DreamShader/Migrated/Rejected/`, and the diagnostics point into it.
+</Step>
+<Step>
+**It builds the same graph.** The IR of the 1.x file and the IR of the new text are compared from their
+roots (`DSH9098`, a warning naming the first node that differs). What is one asset written two ways does
+not count: a literal on a pin against its `Const*` twin, an identity swizzle, the spacing of Custom node
+code.
+</Step>
+<Step>
+**The asset stays where it is.** If the new file's place would name another asset path, the export gets
+the `/// @name` that keeps it.
+</Step>
+</Steps>
+
+A source with `#if` lines is refused (`DSH9090`): only the branch taken today would survive.
+
+## What the rewrite does
+
+| 1.x | `.dss` |
+| :-- | :-- |
+| `import "x.dsh";` | `#include "x.dsh"` |
+| `Shader(Name = "...")` with `Properties` / `Settings` / `Outputs` / `Graph` | `#pragma material(...)`, `uniform`s with `///` directives, one `export void M(inout material Base)` |
+| `ShaderFunction` inputs and outputs | parameters; a first output named `Result` is the return value, the others are `out` |
+| `Function` / `GraphFunction` | `/// @custom`, body verbatim |
+| `Namespace(Name = "N")` with `Function F` | `N_F`, with `/// @name N::F` so the Custom node keeps its title |
+| `VirtualFunction` | `/// @asset` + an `extern` prototype |
+| `mix`, `fract`, `mod`, `vec3` | `lerp`, `frac`, `fmod`, `float3` |
+| `opt float S;` | `float S = 0.0` |
+| `SAMPLERTYPE_Normal`, `PPI_SceneColor` | `Normal`, `SceneColor` |
+| a `float4` into a `float3` place | `.rgb` — 1.x cut it silently, 2.0 asks for the swizzle |
+| `x = value;` with `x` declared nowhere | `T x = value;` |
+
+Each of these is also a diagnostic on the 1.x source, so `dsc check` on a `.dsm` shows what a
+migration will change. Comments stay with the statement or declaration they stood by.
+
+<Callout type="info">
+Measured on the four source roots of the development project — 71 files: all 71 build as 2.0, 68
+compare equal, and the three warnings are true differences the rewrite made visible.
+</Callout>
