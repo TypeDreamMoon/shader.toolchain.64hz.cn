@@ -162,6 +162,24 @@ segment becomes `Folder<N>` and an empty asset segment becomes `Asset<N>`. Outpu
 BOM. `-Out` bypasses the computed destination entirely, creating the directory if needed. The full
 exporter behaviour is on [Decompiler](/en/docs/tools/decompiler).
 
+## The 2.0 verbs
+
+<Since v="2.0.0" /> One compiler builds both languages, and every verb below takes any compilable source —
+`.dss`, `.dsi`, `.dsm` or `.dsf`; a `.dsh` header is compiled through the sources that include it. Each
+ends with one summary line that finishes `RESULT=OK` or `RESULT=FAILED`, because a project's own
+commandlet exit code can be non-zero for reasons that have nothing to do with DreamShader.
+
+| Verb | Does |
+| :-- | :-- |
+| `check` | compiles as far as IR validation and writes **no asset** — the CI gate. `-Shaders` builds and saves the products and compiles their shaders, so an HLSL error in a `/// @custom` body fails here, mapped back to its source line |
+| `migrate` | rewrites 1.x sources as `.dss`, proving each rewrite first — see [Migrating from 1.x](/en/docs/language-v2/migrate) |
+| `decompile` | writes 2.0 text by default — a `.dss`, or a `.dsi` for a material instance; `-Format Legacy` keeps the 1.x exporter |
+| `fmt` | rewrites 2.0 sources in the printer's layout. It refuses to write a file it cannot vouch for — the formatted text has to parse, to the same declarations, with every comment, and format to itself. A file that uses `#if`, or still has 1.x declarations, is left as it is. `-All` takes the project's own source root; `-Check` writes nothing and fails when a file would change |
+| `list-generated` | names every asset the sources build, building none: `-As=Packages`, `Files`, `GitIgnore` or `Json`, `-Out=<file>` — see [Source control](/en/docs/generation/source-control) |
+| `dump-layout` | draws the IR graph layouts — `Blocks`, `SourceBands`, `Layered` — of every product as SVG, building nothing; `-Style` names one, `-Json` adds the coordinates |
+| `dump-ir` · `index` · `export-catalog` | the lowered IR · the symbol index a language service reads · the builtin node catalog as JSON. The editor writes the last two by itself: the index after every compile, the catalog once it has loaded |
+| `dump-graph` | one canonical JSON per generated asset — node classes, properties, connections, pin order — so two builds can be diffed |
+
 ## Argument syntax
 
 Shared by every command, and pinned by the automation test

@@ -150,6 +150,23 @@ DreamShader 源树解析，再按项目目录解析。
 输出是 UTF-8 无 BOM。`-Out` 完全绕过计算出来的目标，必要时创建目录。导出器的完整行为见
 [反编译导出](/docs/tools/decompiler)。
 
+## 2.0 的命令
+
+<Since v="2.0.0" /> 两门语言由同一个编译器构建，下面每个命令都接受任意可编译源文件 —— `.dss`、`.dsi`、`.dsm` 或 `.dsf`；
+`.dsh` 头文件通过 include 它的源文件被编译。每个命令都以一行汇总结束，结尾是 `RESULT=OK` 或 `RESULT=FAILED` ——
+因为工程自己的 commandlet 退出码可能因为与 DreamShader 无关的原因而非零。
+
+| 命令 | 作用 |
+| :-- | :-- |
+| `check` | 编到 IR 校验为止，**不写任何资产** —— CI 的闸门。`-Shaders` 会构建并保存产物、再编它们的 shader，于是 `/// @custom` 函数体里的 HLSL 错误会在这里失败，并映射回源码行 |
+| `migrate` | 把 1.x 源文件改写成 `.dss`，每次改写先证明 —— 见[从 1.x 迁移](/docs/language-v2/migrate) |
+| `decompile` | 默认写 2.0 文本 —— `.dss`，材质实例则是 `.dsi`；`-Format Legacy` 保留 1.x 导出器 |
+| `fmt` | 按打印器的排版重写 2.0 源文件。担保不了的文件一律不写 —— 格式化后的文本必须能解析、解析成同样的声明、注释一条不少、再格式化一次不变。用了 `#if` 或还带 1.x 声明的文件保持原样。`-All` 只取工程自己的源码根；`-Check` 什么都不写，有文件会变就失败 |
+| `list-generated` | 不构建任何东西，列出源码会生成的全部资产：`-As=Packages`、`Files`、`GitIgnore` 或 `Json`，`-Out=<file>` —— 见[版本控制](/docs/generation/source-control) |
+| `dump-layout` | 把每个产物的 IR 图布局 —— `Blocks`、`SourceBands`、`Layered` —— 画成 SVG，不构建任何东西；`-Style` 指定其中一种，`-Json` 同时写出坐标 |
+| `dump-ir` · `index` · `export-catalog` | 降级后的 IR · 语言服务读取的符号索引 · JSON 形式的内建节点目录。后两个编辑器会自己写：索引在每次编译之后，目录在加载完成之后 |
+| `dump-graph` | 每个生成资产一份规范化 JSON —— 节点类、属性、连线、引脚顺序 —— 用来 diff 两次构建 |
+
 ## 参数语法
 
 所有命令共用，并由自动化测试 `DreamShader.Commandlet.Args.SplitAndGet` 钉住。

@@ -412,6 +412,30 @@ A session example, client side:
 The renderer's own limits — `.dsm` only, the size clamp, the mesh fallback, the missing pitch clamp —
 are on [Editor Tools](/en/docs/tools/editor).
 
+## DreamShader 2.0 sources
+
+<Since v="2.0.0" /> `.dss` and `.dsi` files open as the language **DreamShader 2.0** (extension 2.0.0), with a
+grammar of their own, snippets, folding on `#pragma region` and `#if`, and `///` that continues on Enter.
+
+The extension does not read 2.0 text for meaning. 2.0 has overloads, implicit conversions and a binder
+that knows the engine's node classes; a second implementation of that in JavaScript would be wrong in
+exactly the places that matter. So the editor asks the compiler:
+
+| Feature | Answered from |
+| :-- | :-- |
+| Go to Definition · Find References · Hover · Outline · Signature Help · Rename | the **symbol index** the plugin writes after every compile: `Saved/DreamShader/Index/<root>/<file>.index.json` |
+| completion and hover for `UE.` and `Substrate.` — node names, pins, properties, the Substrate sugar arguments | the **builtin catalog** the plugin exports once the editor has loaded: `Saved/DreamShader/Bridge/dreamshader-builtin-catalog.json` |
+| diagnostics | the bridge, as for 1.x |
+
+Answers are as fresh as the last compile, and the plugin compiles on save. A position the text no longer
+matches is dropped rather than shown, and a rename refuses and asks for a compile. The index lists what a
+file declares at file scope, not the locals of a body, and records mentions by name — so only a name
+that is unique at file scope is renamed.
+
+**Reveal in Material Editor** sends the bridge's `reveal-node` request for the current line: the running
+editor opens the owning asset's material editor and selects the node that line became. The other
+direction is in the plugin — a generated node's context menu has *DreamShader ▸ Open Source Line*.
+
 ## VSCode commands
 
 Names are the extension's, not the plugin's, and are surfaced under the `DreamShaderLang` group.

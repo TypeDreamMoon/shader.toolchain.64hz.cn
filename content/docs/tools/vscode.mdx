@@ -385,6 +385,27 @@ UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5
 渲染器自身的限制 —— 只支持 `.dsm`、尺寸钳制、网格回退、没有 pitch 钳制 ——
 见[编辑器工具](/docs/tools/editor)。
 
+## DreamShader 2.0 源文件
+
+<Since v="2.0.0" /> `.dss` 与 `.dsi` 文件以语言 **DreamShader 2.0** 打开（扩展 2.0.0），有自己的语法高亮、代码片段、
+`#pragma region` 与 `#if` 的折叠，以及回车后自动续写的 `///`。
+
+扩展不自己去理解 2.0 的文本。2.0 有重载、隐式转换，还有一个认识引擎节点类的绑定器；用 JavaScript 再实现一遍，
+恰恰会在要紧的地方出错。所以编辑器去问编译器：
+
+| 功能 | 答案来自 |
+| :-- | :-- |
+| 转到定义 · 查找引用 · 悬停 · 大纲 · 签名帮助 · 重命名 | 插件每次编译后写出的**符号索引**：`Saved/DreamShader/Index/<根>/<文件>.index.json` |
+| `UE.` 与 `Substrate.` 的补全和悬停 —— 节点名、引脚、属性、Substrate 语法糖实参 | 编辑器加载完成后导出的**内建目录**：`Saved/DreamShader/Bridge/dreamshader-builtin-catalog.json` |
+| 诊断 | 与 1.x 一样，走 bridge |
+
+答案的新鲜度等于上一次编译，而插件在保存时就会编译。文本已经对不上的位置会被丢掉而不是照样显示；
+重命名则直接拒绝并提示先编译。索引只列文件作用域的声明、不列函数体里的局部变量，并且按名字记录提及 ——
+所以只有在文件作用域里唯一的名字才能重命名。
+
+**Reveal in Material Editor** 为当前行发出 bridge 的 `reveal-node` 请求：正在运行的编辑器会打开所属资产的材质编辑器，
+并选中这一行生成的节点。反方向在插件里 —— 生成节点的右键菜单有 *DreamShader ▸ Open Source Line*。
+
 ## VSCode 命令
 
 这些名字属于扩展，不属于插件，都在 `DreamShaderLang` 命令组下。
