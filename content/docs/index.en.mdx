@@ -11,12 +11,16 @@ assets — `UMaterial`, `UMaterialFunction`, `UMaterialFunctionMaterialLayer` an
 The source file is the authoring surface. The asset is build output, and can always be thrown away
 and regenerated.
 
+Since <Since v="2.0.0" /> the same compiler also reads `.dss`, HLSL with declarations, and `.dsi`
+material instances — see [DreamShaderLang 2.0](/en/docs/language-v2). This overview and the Language
+and Graph sections describe the 1.x syntax, which 2.0 still compiles.
+
 | | |
 | --- | --- |
-| Plugin version | `1.8.0` |
+| Plugin version | `2.0.0` |
 | Engines | Unreal Engine `5.3` – `5.8`, Win64 verified |
-| Modules | `DreamShader` (Runtime), `DreamShaderCompiler` (Runtime), `DreamShaderEditor` (Editor) |
-| Source extensions | `.dsm` · `.dsf` · `.dsh` |
+| Modules | `DreamShaderLang` (Runtime), `DreamShader` (Runtime), `DreamShaderCompiler` (Editor), `DreamShaderEditor` (Editor) |
+| Source extensions | `.dsm` · `.dsf` · `.dsh`, and `.dss` · `.dsi` <Since v="2.0.0" /> |
 | Project settings | *Project Settings ▸ DreamPlugin ▸ Dream Shader* |
 | License | MIT |
 
@@ -106,6 +110,9 @@ It generates material assets in the Unreal editor. That is the whole scope. Spec
   </Card>
   <Card title="Language" href="/en/docs/language/file-model">
     Source files, lexical rules, top-level blocks, sections, types, functions, imports, layout.
+  </Card>
+  <Card title="DreamShaderLang 2.0" href="/en/docs/language-v2">
+    `.dss` and `.dsi`: HLSL with declarations, Substrate sugar, material instances, migrating from 1.x.
   </Card>
   <Card title="The Graph Language" href="/en/docs/graph/overview">
     Statements, expressions, conversions, `if` / `else`, calls — and what Graph is not.

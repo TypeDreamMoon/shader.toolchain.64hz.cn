@@ -9,12 +9,15 @@ DreamShaderLang 是虚幻引擎材质的文本化语言。你写 `.dsm`、`.dsf`
 
 源文件才是你维护的东西。资产是生成产物，随时可以删掉重新生成。
 
+自 <Since v="2.0.0" /> 起，同一个编译器还能读 `.dss`（带声明的 HLSL）和 `.dsi`（材质实例）—— 见
+[DreamShaderLang 2.0](/docs/language-v2)。本页和「语言核心」「Graph 语言」两部分讲的是 1.x 语法，2.0 照样编译它。
+
 | | |
 | --- | --- |
-| 插件版本 | `1.8.0` |
+| 插件版本 | `2.0.0` |
 | 引擎 | Unreal Engine `5.3` – `5.8`，已在 Win64 验证 |
-| 模块 | `DreamShader`（Runtime）、`DreamShaderCompiler`（Runtime）、`DreamShaderEditor`（Editor） |
-| 源文件扩展名 | `.dsm` · `.dsf` · `.dsh` |
+| 模块 | `DreamShaderLang`（Runtime）、`DreamShader`（Runtime）、`DreamShaderCompiler`（Editor）、`DreamShaderEditor`（Editor） |
+| 源文件扩展名 | `.dsm` · `.dsf` · `.dsh`，以及 `.dss` · `.dsi` <Since v="2.0.0" /> |
 | 项目设置 | *Project Settings ▸ DreamPlugin ▸ Dream Shader* |
 | 许可证 | MIT |
 
@@ -101,6 +104,9 @@ Shader(Name="DreamMaterials/M_Minimal")
   </Card>
   <Card title="语言核心" href="/docs/language/file-model">
     源文件、词法规则、顶层块、Section、类型、函数、import、布局。
+  </Card>
+  <Card title="DreamShaderLang 2.0" href="/docs/language-v2">
+    `.dss` 与 `.dsi`：带声明的 HLSL、Substrate 语法糖、材质实例、从 1.x 迁移。
   </Card>
   <Card title="Graph 语言" href="/docs/graph/overview">
     语句、表达式、类型转换、`if` / `else`、调用，以及 Graph 不能做什么。

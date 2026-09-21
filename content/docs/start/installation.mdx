@@ -38,10 +38,10 @@ MyProject/
 
 在 *Edit ▸ Plugins* 中启用 **DreamShader**，然后重启编辑器。插件描述文件会自动启用
 `WebSocketNetworking` 和 `SQLiteCore` —— 前者用于实时预览的 WebSocket 服务，后者支撑编辑器桥接的
-`bridge.db`。两者都只被编辑器模块使用。
+`bridge.db`。两者都只被 `DreamShaderEditor` 使用。
 
-三个模块在 `Default` 阶段加载：`DreamShader` 和 `DreamShaderCompiler`（Runtime），以及
-`DreamShaderEditor`（Editor）。只有编辑器模块会生成资产。
+共四个模块：`DreamShaderLang` 和 `DreamShader`（Runtime，`PostConfigInit` 阶段加载），以及
+`DreamShaderCompiler` 和 `DreamShaderEditor`（Editor，`Default` 阶段）。只有两个 Editor 模块会生成资产。
 
 </Step>
 

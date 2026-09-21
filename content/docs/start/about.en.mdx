@@ -1,6 +1,6 @@
 ---
 title: About DreamShader
-description: What the plugin is, the three modules it ships, which engines it supports, and where the related repositories live.
+description: What the plugin is, the four modules it ships, which engines it supports, and where the related repositories live.
 ---
 
 DreamShader is an Unreal Engine plugin that compiles DreamShaderLang source files into standard
@@ -9,9 +9,9 @@ diagnostics, decompilation and the editor integration.
 
 | | |
 | --- | --- |
-| Version | `1.8.0` — descriptor `Version` `180`, `IsBetaVersion` `false` |
-| Engines | Unreal Engine `5.3` – `5.8`, Win64 verified with `RunUAT BuildPlugin` |
-| Modules | `DreamShader` (Runtime), `DreamShaderCompiler` (Runtime), `DreamShaderEditor` (Editor) |
+| Version | `2.0.0` — descriptor `Version` `200`, `IsBetaVersion` `false` |
+| Engines | Unreal Engine `5.3` – `5.8`, Win64 — what `2.0.0` was built against is under [Engine support](#engine-support) |
+| Modules | `DreamShaderLang` (Runtime), `DreamShader` (Runtime), `DreamShaderCompiler` (Editor), `DreamShaderEditor` (Editor) |
 | Plugin dependencies | `WebSocketNetworking`, `SQLiteCore` |
 | Descriptor flags | `EnabledByDefault`, `CanContainContent` |
 | License | MIT |
@@ -32,34 +32,46 @@ the repeatable parts into text:
 | Generated assets lose their provenance | `DreamShader.SourceFile` and `DreamShader.SourceHash` are stamped into package metadata |
 | A rebuild silently overwrote a hand-edited asset | the `DreamShader.OutputDigest` fingerprint stops that rebuild and offers Revert / Adopt / Detach <Since v="1.8.0" /> |
 | A plugin wants to ship its own material sources | every enabled plugin with a `DShader` folder contributes a source root <Since v="1.6.0" /> |
+| A graph wants real expressions and control flow | `.dss`: HLSL with declarations, one asset per `export` <Since v="2.0.0" /> |
+| Material instances are edited one checkbox at a time | `.dsi`: a parent and its overrides, as text <Since v="2.0.0" /> |
 
 It is not a replacement for the material editor, and not a shader pipeline. `Graph` is a node-graph
 builder with four operators and `if` / `else`; anything genuinely imperative belongs in a `Function`,
 whose body is real HLSL compiled into a `Custom` node. A one-off, highly visual graph is still faster
 to build in Unreal — and can be exported later if it stabilizes.
 
-## The three modules
+## The four modules
 
 | Module | Type | Public headers | Responsibility |
 | --- | --- | --- | --- |
-| `DreamShader` | Runtime | 6 | The log category, the canonical path helpers, the parsed-source data model, the parser, `UDreamShaderSettings`, `UDreamShaderMaterialInstance`, and the engine-version macros. |
-| `DreamShaderCompiler` | Runtime | 3 | A pure abstraction layer: the compile request/result structs, the `IDreamShaderCompiler` interface, and a thin service wrapper. No generation code. |
-| `DreamShaderEditor` | Editor | **0** | Everything that actually builds assets: the generator, the decompiler, the bridge, the preview, the Material Content Browser, the commandlet, the workspace exporter. |
+| `DreamShaderLang` <Since v="2.0.0" /> | Runtime | 27 | The language, depending on `Core` alone: the lexer, both parsers (2.0 and the 1.x front end), the preprocessor, the binder, the engine-free graph IR, the way back from IR to source, and the 1.x → 2.0 migrator. |
+| `DreamShader` | Runtime | 8 | The log category, the canonical path helpers, the 1.x source data model, the engine side of the define table, `UDreamShaderSettings`, `UDreamShaderMaterialInstance`, the engine-version macros, and the compile interface `IDreamShaderCompiler`. |
+| `DreamShaderCompiler` | Editor | 19 | The compiler's back half: the pipeline, the IR emitter, the asset layer, the builtin catalog read from reflection, the product index, the parent schemas of `.dsi`. Through `1.9.x` it was a Runtime module holding only the interface. |
+| `DreamShaderEditor` | Editor | **0** | Everything a user touches: the decompilers, `dsc migrate`, the commandlet, the bridge, the preview, the Material Content Browser, the provenance actions, the workspace exporter. |
 
-All three load at the `Default` phase.
+`DreamShaderLang` and `DreamShader` load at `PostConfigInit`, early enough that the settings object and
+the shader-directory mapping exist before anything asks for them; the two Editor modules load at `Default`.
 
 <Callout type="info">
   `DreamShaderEditor` exports nothing and cannot be linked against — it has no `Public/` folder at
-  all. The supported C++ extension point is `IDreamShaderCompiler` in `DreamShaderCompiler`.
-  Everything else is reachable through the editor UI, the commandlet, or the bridge files.
+  all. The supported C++ entry point is `IDreamShaderCompiler`, declared in `DreamShader`
+  (`DreamShaderCompilerInterface.h`) and reached through `GetDreamShaderCompiler()`;
+  `DreamShaderCompiler` implements it. Everything else is reachable through the editor UI, the
+  commandlet, or the bridge files.
 </Callout>
 
-The parser is engine-independent string processing: it creates no `UObject`s and loads no assets.
-Generation is the opposite — editor-only, game-thread, built on the material editing library.
+The language is engine-independent: `DreamShaderLang` depends on `Core` alone, creates no `UObject`s
+and loads no assets. Generation is the opposite — editor-only, game-thread, built on the material
+editing library.
 
 ## Engine support
 
-Verified with single-plugin `RunUAT BuildPlugin` on Win64 for `5.3`, `5.4`, `5.5`, `5.6`, `5.7` and `5.8`.
+`2.0.0` was verified with single-plugin `RunUAT BuildPlugin` on Win64 against `5.5`, `5.6` and `5.8`.
+`5.7` was last verified for `1.8.0`; every engine gate the 2.0 code added asks the engine's own headers
+or types instead of a version number, so 5.7 needs no answer of its own. `5.3` and `5.4` are
+source-compatible, but a recent MSVC toolchain cannot build those two engines at all — the failure is
+in an engine header, before any plugin code is reached.
+
 Feature availability differs, and the gate is **compile-time** — a binary built against 5.3 does not
 contain the Substrate code paths at all, so moving a project to a newer engine means rebuilding the
 plugin.
@@ -70,6 +82,7 @@ plugin.
 | **5.5** | the `periodicworld` transform basis · `UE.TransformPosition(PeriodicWorldTileSize=…)` |
 | **5.6** | the `firstperson` transform bases · `UE.TransformPosition(FirstPersonInterpolationAlpha=…)` · plugin-mount validation for `Root=` and `Path(…)` · `TextureSample.GatherMode` round-trip |
 | **5.7** | `Group` / `SortPriority` on collection parameters · `BlendInputRelevance` on layer-blend inputs · per-platform, per-quality material-resource diagnostics |
+| **5.8** — decided by the engine's own headers, so a 5.7 that has these members gets them too | `.dsi` overrides of parameter-collection parameters · a ThinCustom instance re-applying kept double-vector and static-component-mask overrides |
 
 Everything not listed behaves identically on every engine from 5.3 to 5.8. Where a feature is
 missing, most source-reachable surfaces report an explicit message ending
@@ -123,4 +136,4 @@ and the package store are documented in the extension repositories, not here.
 - [Installation](/en/docs/start/installation) — get it into a project
 - [Daily Workflow](/en/docs/start/workflow) — the compile loop
 - [Editor Tools](/en/docs/tools/editor) — the menus, the browser tab, the clean commands
-- [Changelog](/en/docs/changelog/dreamshader) — what changed in `1.8.0`
+- [Changelog](/en/docs/changelog/dreamshader) — what changed in `2.0.0`

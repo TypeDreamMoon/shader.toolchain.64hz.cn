@@ -40,10 +40,11 @@ documentation assume it.
 
 Enable **DreamShader** in *Edit ▸ Plugins*, then restart the editor. The plugin descriptor enables
 `WebSocketNetworking` and `SQLiteCore` for you — the first is the live-preview WebSocket server, the
-second backs the editor bridge's `bridge.db`. Both are used only by the editor module.
+second backs the editor bridge's `bridge.db`. Both are used only by `DreamShaderEditor`.
 
-Three modules load at the `Default` phase: `DreamShader` and `DreamShaderCompiler` (Runtime), and
-`DreamShaderEditor` (Editor). Only the editor module generates assets.
+Four modules load: `DreamShaderLang` and `DreamShader` (Runtime, at `PostConfigInit`), then
+`DreamShaderCompiler` and `DreamShaderEditor` (Editor, at `Default`). Only the two Editor modules build
+assets.
 
 </Step>
 
