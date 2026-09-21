@@ -5,6 +5,7 @@
     "asset-paths",
     "in-memory",
     "outputs",
-    "regeneration"
+    "regeneration",
+    "source-control"
   ]
 }

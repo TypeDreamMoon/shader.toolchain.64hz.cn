@@ -1,0 +1,107 @@
+---
+title: Source control
+description: Which generated assets have files since 2.0, the two workable ways to version them, and dsc list-generated — the list ignore rules and P4 typemaps are written from.
+---
+
+What to commit, what to ignore, and how to keep a team on one answer.
+
+| Aspect | Value |
+| :-- | :-- |
+| Always commit | every `.dss`, `.dsi`, `.dsh`, `.dsm` and `.dsf` — the sources are the material |
+| Never commit | `Intermediate/DreamShader/`, `Saved/DreamShader/` |
+| Your choice | the generated `.uasset` files — this page is about that choice |
+| Tool | `dsc list-generated` — every asset the sources build, without building any |
+| Since | <Since v="2.0.0" /> |
+
+## Why there is a choice to make
+
+Through 1.x the interactive editor kept generated assets in memory, so most projects never saw a
+generated `.uasset` outside a cook. Since 2.0 that is only true of one kind of product.
+
+| Product | On disk |
+| :-- | :-- |
+| `Graph`-backend material | **always** — every successful generation saves it |
+| material function, layer, layer blend | **always** |
+| material instance (`.dsi`) | **always** |
+| `ThinCustom`-backend material | only once [materialized](/en/docs/generation/in-memory); memory-only by default, and then it has no file at all |
+
+A `UMaterial` and a `UMaterialFunction` are stock engine classes with no way to stay out of asset
+enumeration, so they are saved the moment they are built — next to the assets people made by hand,
+where source control will offer to add them. Decide once, as a project. A repository where half the
+generated assets are committed and half are ignored is the one arrangement that does not work.
+
+<Callout type="info">
+A generated asset carries its provenance in **package metadata** (`DreamShader.SourceFile`,
+`DreamShader.SourceHash`, `DreamShader.OutputDigest`), not in an asset registry tag — a plugin cannot
+tag stock classes. Inside the editor the Material Content Browser filters by it; outside, ask the
+**sources**, which is what `list-generated` does.
+</Callout>
+
+## Listing the generated assets
+
+```powershell
+./dsc.ps1 list-generated -All                                             # package names
+./dsc.ps1 list-generated -All -ListAs Files     -Out generated-files.txt  # project-relative paths
+./dsc.ps1 list-generated -All -ListAs GitIgnore -Out generated.gitignore  # an anchored .gitignore block
+./dsc.ps1 list-generated -All -ListAs Json      -Out generated.json       # every field
+```
+
+The list is computed from the sources — front end, binder, destination rules — and nothing is built,
+loaded or saved. A memory-only material is left out unless `-IncludeEphemeral` asks for it: it has no
+file to ignore. A source that fails to compile still contributes the products established before the
+failure, and the run ends `RESULT=FAILED`, so a list is never silently short. A script should always
+pass `-Out` and read the file; the log is for reading.
+
+## Recipe A — sources in, assets out
+
+Generated assets are build output. Nobody commits them; every machine builds its own.
+
+- **Ignore them.** Refresh a marked block of `.gitignore` from `-ListAs GitIgnore`, or — simpler, when
+  generated assets live in folders of their own — one line per folder. `.p4ignore` takes the same paths.
+- **Build them.** A fresh checkout has no generated assets, and whatever references one resolves only
+  after they exist.
+
+| Moment | What builds them |
+| :-- | :-- |
+| after a sync or checkout | `./dsc.ps1 compile -All` — a post-checkout hook, or a sync step |
+| opening the editor | sources compile on startup and on save |
+| a cook | the cook director compiles and saves every project source first |
+| CI | `check -All` gates the sources; `compile -All` before anything that loads content |
+
+The cost: a hand edit of a generated asset exists on one machine only — which is the point. Use
+**Adopt Into Source** to move such an edit into the text before it is lost.
+
+## Recipe B — commit the generated assets
+
+Generated assets are derived binaries that happen to be versioned, the way a project versions a lightmap.
+
+- **Git** — treat them as any other `.uasset`.
+- **Perforce** — give them the type `binary+w`, so a compile can overwrite them without a checkout;
+  otherwise every save of a source fails on a read-only file. Do not add `+l`: an exclusive lock on a
+  file a tool rewrites for everyone is a queue.
+- **Keep them honest.** Make CI prove the committed assets match their sources:
+
+```powershell
+./dsc.ps1 compile -All              # unchanged sources are skipped by build key: no rewrite, no diff
+git status --porcelain -- Content   # must print nothing
+```
+
+The build key also covers the plugin version, the engine version and the defines a source read, so
+**upgrading DreamShader or the engine regenerates everything**. Do that in a commit of its own. A merge
+conflict in a generated asset is resolved by recompiling, never by picking a side.
+
+## Which one
+
+| | A — not committed | B — committed |
+| :-- | :-- | :-- |
+| Repository size | sources only | grows with every regeneration |
+| A fresh checkout opens | after a compile step | immediately |
+| People without the plugin's toolchain | cannot build — not viable | fine |
+| A stale asset | impossible | possible; the CI check catches it |
+| Plugin or engine upgrade | nothing to commit | one large regeneration commit |
+| Hand edits of generated assets | local until adopted | versioned, and flagged as diverged |
+
+Recipe A fits a team where everyone runs the editor with the plugin; Recipe B fits one where some
+people only consume the content. The ThinCustom backend narrows the question either way: a memory-only
+material has no file, so only its functions, its instances and whatever was materialized are left to
+decide about.
