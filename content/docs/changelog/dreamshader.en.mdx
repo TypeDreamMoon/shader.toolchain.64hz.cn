@@ -22,6 +22,10 @@ second front end of the same compiler, and the HLSL-shaped `.dss` language besid
 - **[DreamShaderLang 2.0](/en/docs/language-v2)** — `.dss` sources: `uniform`s, `///` directives,
   `#pragma material(...)`, one asset per `export`, real expressions and control flow, helpers that inline,
   `/// @custom` HLSL bodies, `extern` prototypes for assets that already exist.
+- **The Material Content Browser makes `.dss` sources.** *New ▾* has a DreamShaderLang 2.0 section —
+  **Material (.dss)**, **Material function (.dss)**, **Instance (.dsi)** — ahead of the three 1.x
+  templates; the name typed is the `export`'s, and so the asset's, and the folder decides where under
+  `/Game` it lands.
 - **One compiler, two front ends.** A `.dsm` / `.dsf` is read by a legacy front end into the same tree
   and built by the same emitter; measured against frozen 1.x graphs of four real source roots, every
   source rebuilds the same graph node for node. The 1.x generator and the 1.x parser are gone.

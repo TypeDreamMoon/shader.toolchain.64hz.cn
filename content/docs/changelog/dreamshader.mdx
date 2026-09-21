@@ -19,6 +19,9 @@ Unreal 插件的版本更新记录，新版本在前。这里记录会影响使�
 
 - **[DreamShaderLang 2.0](/docs/language-v2)** —— `.dss` 源文件：`uniform`、`///` 指令、`#pragma material(...)`、
   每个 `export` 一个资产、真正的表达式与控制流、会内联的 helper、`/// @custom` HLSL 函数体、给已存在资产用的 `extern` 原型。
+- **Material Content Browser 能新建 `.dss`。** *New ▾* 菜单多了 DreamShaderLang 2.0 一节 ——
+  **Material (.dss)**、**Material function (.dss)**、**Instance (.dsi)** —— 排在 1.x 的三个模板前面；
+  填的名字就是 `export` 的名字，也就是资产名，文件夹决定它落在 `/Game` 下的哪里。
 - **一个编译器，两个前端。** `.dsm` / `.dsf` 由 legacy 前端读成同一棵树、由同一个发射器构建；
   拿四个真实源码根的 1.x 冻结图对拍，每个源文件都逐节点重建出同一张图。1.x 的生成器与解析器已经删除。
 - **[把材质实例写成源码](/docs/language-v2/instances)** —— `.dsi`，对照父材质真实的参数表检查。
