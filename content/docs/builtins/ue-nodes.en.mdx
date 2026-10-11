@@ -1,49 +1,50 @@
 ---
 title: UE.* Nodes
-description: The registered UE.* builtins, their arguments, output widths and the Properties declaration form.
+description: The 27 UE.* names 1.x implemented itself and their argument lists, the bases of the two transform builtins, the three special-cased names, and the Properties declaration form.
 ---
 
-The `UE.` namespace is how DreamShaderLang creates Unreal material nodes. Twenty-seven names in it
-are **registered builtins**: DreamShader implements each one itself, mapping it to a single
-`UMaterialExpression` class with a fixed argument set. Three more names — `UE.StaticSwitchParameter`,
-`UE.CollectionParam` and `UE.SceneTexture` — are special-cased ahead of that table.
+The `UE.` namespace is how DreamShaderLang creates Unreal material nodes. Twenty-seven of its names are
+ones 1.x **implemented itself**, each with a fixed argument list; three more —
+`UE.StaticSwitchParameter`, `UE.CollectionParam` and `UE.SceneTexture` — are special-cased.
 
-Everything else in the namespace falls through to the generic reflected path,
-[`UE.Expression`](/en/docs/builtins/ue-expression), where `UE.<Name>` simply means "create
-`UMaterialExpression<Name>`". A name that is not on this page is therefore not an error — it is a
-different code path with different rules.
+<Since v="2.0.0" /> Every `UE.` name — these included — is a node of the **builtin catalog**: the
+material expression classes of the running engine, read by reflection (`dsc export-catalog` writes it
+out). What the 27 names keep is their 1.x argument lists, which the legacy front end applies to a
+`.dsm` / `.dsf` / `.dsh` before the binder sees the call. A name this page does not list works just
+the same — any engine class is called by its short name (the class name without
+`MaterialExpression`), by the rules of [Generic UE.Expression](/en/docs/builtins/ue-expression); a name
+the running engine has no class for is `DSH5210`.
 
-Both the namespace prefix and the builtin name are matched case-insensitively: `ue.texcoord()` is
-`UE.TexCoord()`. Argument names are matched case-insensitively after trimming, but are otherwise
-exact — `Un_Mirror_U` is not `UnMirrorU`.
+How names are matched:
 
-## Two rules to read before the catalogue
+| Part | Rule |
+| :-- | :-- |
+| `UE.` prefix | exact <Since v="2.0.0" /> — `ue.TexCoord()` reads `ue` as a variable and is `DSH4200` |
+| Builtin name | exact; in a 1.x source a name that matches only ignoring case is accepted with the warning `DSH5276` — `UE.texcoord()` is `UE.TexCoord()` |
+| Argument names | trimmed, then matched the same way; otherwise exact — `Un_Mirror_U` is not `UnMirrorU` |
+
+Each name is a class of the catalog: its short name, or one of the 1.x aliases the catalog carries —
+`TexCoord`, `ObjectPosition`, `CameraVector`, `CameraPosition`, `ReflectionVector`, `ViewportUV`,
+`TransformVector`.
+
+## Read these two things before the catalogue
 
 <Callout type="warn">
-**Registered builtins never validate their argument list.** Each one reads only the argument names
-listed in its entry below and drops everything else — unknown names, misspellings and positional
-arguments alike — with no diagnostic.
-
-`UE.TexCoord(Indx = 3)` silently produces UV channel 0. `UE.Panner(SpedX = 1)` silently pans at the
-node default speed. `UE.TexCoord(0)` compiles and gives channel 0 because the positional argument is
-dropped and the node default happens to be 0 — the right answer by accident, not by design.
-
-If an argument appears to have no effect, check its spelling against the entry. The only registered
-builtins that read a positional argument at all are `UE.TransformVector` and `UE.TransformPosition`
-(index 0 is `Input`) and `UE.StaticSwitchParameter` (indices 0 and 1 are `True` and `False`).
+**An argument a 1.x name did not read is dropped — with a warning now.** For the 27 names in the
+[full list](#full-list), the legacy front end keeps the argument list of each entry below and drops
+every other argument — an unknown or misspelled name, or a positional argument — with `DSH5254`
+<Since v="2.0.0" /> (1.x dropped them without a word). `UE.TexCoord(Indx = 3)` still produces UV channel
+0, and says why; `UE.Panner(SpedX = 1)` pans at the node default speed and says so. The only
+positional argument kept is position 0 of `UE.TransformVector` and `UE.TransformPosition` (→ `Input`);
+`UE.StaticSwitchParameter` reads `True` and `False` at positions 0 and 1. An argument that passes the
+filter is bound against the catalog like the argument of any node call.
 </Callout>
 
-<Callout type="warn">
-**A registered builtin creates a fresh node on every call.** These builtins consult no reuse cache,
-and neither do `UE.StaticSwitchParameter` and `UE.CollectionParam`. Writing `UE.TexCoord(Index = 0)`
-in five places produces five `TextureCoordinate` nodes.
-
-Only the generic [`UE.Expression`](/en/docs/builtins/ue-expression) path, the
-[`Substrate.*`](/en/docs/builtins/substrate) wrappers and the
-[math builtins](/en/docs/builtins/math) deduplicate identical calls. `UE.SceneTexture` desugars to a
-generic call, so it does take part.
-
-Assign the call to a `Graph` variable once and reuse the variable when you want one node.
+<Callout type="info">
+**Two identical calls are one node**, whichever builtin they are <Since v="2.0.0" />: the IR merges
+nodes with the same class, properties and inputs. 1.x merged only the generic and `Substrate.*` calls,
+so `UE.TexCoord(Index = 0)` written in five places made five nodes; it makes one now. See
+[Node reuse](/en/docs/graph/expressions#node-reuse).
 </Callout>
 
 ## Synopsis
@@ -62,27 +63,48 @@ UE.<Name> [ ( <key> = <value> [ , <key> = <value> ] … ) ] <property-name> ;
 ```
 </Synopsis>
 
-## The roster
+## Output widths
 
-All 27 registered builtins, in registration order. Class names are written without their
-`UMaterialExpression` prefix.
+The type of a call is the catalog's — the engine's own description of the class, on the running
+engine:
 
-| Builtin | `UMaterialExpression` class | Output | Arguments |
+- a masked output is as wide as its mask;
+- an unmasked output has the engine's value type, or, where the engine says only "a float", a width
+  DreamShader keeps for the class: 1 for `Time`, `PixelDepth`, `SceneDepth`, `ObjectRadius`,
+  `TwoSidedSign`, `PerInstanceRandom`, `PerInstanceFadeAmount`; 2 for `TextureCoordinate`, `Panner`; 3
+  for `ObjectPositionWS`, `ObjectBounds`, `CameraVectorWS`, `CameraPositionWS`, `ReflectionVectorWS`,
+  `VertexNormalWS`, `VertexTangentWS`, `PixelNormalWS`, `Transform`, `TransformPosition`;
+- an output the engine does not type at all is as wide as the place it is read into;
+- a node with several outputs is read by naming one (`UE.ScreenPosition().ViewportUV`), or used whole
+  where its first output — or the value its channel outputs make up (`float4 VC = UE.VertexColor();`) —
+  fits exactly. In a 1.x source a node whose first output has no fixed width is read as that output
+  (`DSH5287`), and so is any node passed straight to a pin — `UE.TransformPosition(UE.WorldPosition(), …)`
+  takes `XYZ`, as 1.x connected it <Since v="2.1.1" /> (2.0.0 – 2.1.0 refused one whose first output
+  has a fixed width with `DSH5201`).
+
+None of these builtins produces a texture object, a `MaterialAttributes` value or a Substrate value.
+
+## Full list
+
+All 27 1.x names, in 1.x registration order. The *Output* column is what the UE 5.8 catalog gives.
+Class names omit the `UMaterialExpression` prefix.
+
+| Builtin | `UMaterialExpression` class | Output | 1.x arguments |
 | :-- | :-- | :-- | :-- |
 | `UE.TexCoord` | `TextureCoordinate` | `float2` | `Index`, `UTiling`, `VTiling`, `UnMirrorU`, `UnMirrorV` |
 | `UE.Time` | `Time` | `float1` | `Period`, `IgnorePause` |
 | `UE.Panner` | `Panner` | `float2` | `Coordinate`, `Time`, `Speed`, `SpeedX`, `SpeedY`, `FractionalPart` |
-| `UE.WorldPosition` | `WorldPosition` | `float3` | none |
+| `UE.WorldPosition` | `WorldPosition` | `XYZ` (`float3`), also `XY`, `Z` | none |
 | `UE.ObjectPositionWS` | `ObjectPositionWS` | `float3` | none |
 | `UE.CameraVectorWS` | `CameraVectorWS` | `float3` | none |
 | `UE.VertexNormalWS` | `VertexNormalWS` | `float3` | none |
 | `UE.VertexTangentWS` | `VertexTangentWS` | `float3` | none |
-| `UE.ScreenPosition` | `ScreenPosition` | `float2` | none |
-| `UE.VertexColor` | `VertexColor` | `float4` | none |
+| `UE.ScreenPosition` | `ScreenPosition` | `ViewportUV`, `PixelPosition` | none |
+| `UE.VertexColor` | `VertexColor` | `RGB`, `R`, `G`, `B`, `A`; whole `float4` | none |
 | `UE.PixelDepth` | `PixelDepth` | `float1` | none |
 | `UE.SceneDepth` | `SceneDepth` | `float1` | none |
-| `UE.SceneColor` | `SceneColor` | `float4` | none |
-| `UE.TranslatedWorldPosition` | `WorldPosition`, camera-relative | `float3` | none |
+| `UE.SceneColor` | `SceneColor` | `RGB`, `A`; whole `float4` | none |
+| `UE.TranslatedWorldPosition` | `WorldPosition`, camera-relative | as `UE.WorldPosition` | none |
 | `UE.ObjectPosition` | `ObjectPositionWS` | `float3` | none |
 | `UE.ObjectRadius` | `ObjectRadius` | `float1` | none |
 | `UE.ObjectBounds` | `ObjectBounds` | `float3` | none |
@@ -93,40 +115,33 @@ All 27 registered builtins, in registration order. Class names are written witho
 | `UE.TwoSidedSign` | `TwoSidedSign` | `float1` | none |
 | `UE.PerInstanceRandom` | `PerInstanceRandom` | `float1` | none |
 | `UE.PerInstanceFadeAmount` | `PerInstanceFadeAmount` | `float1` | none |
-| `UE.ViewportUV` | `ScreenPosition` | `float2` | none |
+| `UE.ViewportUV` | `ScreenPosition` | as `UE.ScreenPosition` | none |
 | `UE.TransformVector` | `Transform` | `float3` | **`Input`**, `Source`, `Destination` |
 | `UE.TransformPosition` | `TransformPosition` | `float3` | **`Input`**, `Source`, `Destination`, `PeriodicWorldTileSize`, `FirstPersonInterpolationAlpha` |
 
-Every width above is **authoritative**, which makes any registered builtin a valid widening partner
-in a mixed-width binary operator. See
-[Expressions and conversions](/en/docs/graph/expressions). None of these builtins produces a texture
-object, a `MaterialAttributes` value or a Substrate value.
-
 <Callout type="info">
-**Four builtins are registered conditionally.** `UE.ObjectPositionWS`, `UE.ObjectPosition`,
-`UE.ScreenPosition` and `UE.ViewportUV` are added to the table only when their engine class resolves
-on the running editor — directly on UE 5.5+ for object position and UE 5.6+ for screen position, and
-below those versions by a name lookup of `/Script/Engine.MaterialExpressionObjectPositionWS` and
-`/Script/Engine.MaterialExpressionScreenPosition`.
-
-If the lookup fails the builtin is not registered at all, and the call falls through to the generic
-path, where it fails with `Unsupported UE builtin call '{Name}' in Graph. …` unless you supply an
-`OutputType`.
+1.x registered `UE.ObjectPositionWS`, `UE.ObjectPosition`, `UE.ScreenPosition` and `UE.ViewportUV`
+only where their class resolved on the running editor. The catalog lists every class the running
+engine has, so nothing is registered conditionally <Since v="2.0.0" />.
 </Callout>
 
 ### Aliases
 
-Four names in the roster are second spellings of an entry that is already there. Both spellings
-create the same node class.
+Four names in the list are second spellings of an existing entry and create the same node class.
 
 | Alias | Same as | Difference |
 | :-- | :-- | :-- |
 | `UE.ObjectPosition` | `UE.ObjectPositionWS` | none |
 | `UE.CameraVector` | `UE.CameraVectorWS` | none |
-| `UE.ViewportUV` | `UE.ScreenPosition` | none — the engine has no dedicated ViewportUV class; both read output 0 of `ScreenPosition`, which *is* the viewport UV |
-| `UE.TranslatedWorldPosition` | `UE.WorldPosition` | the camera-relative shader-offset mode is forced on, instead of the node's default absolute mode |
+| `UE.ViewportUV` | `UE.ScreenPosition` | none — the engine has no dedicated ViewportUV class; *ViewportUV* is `ScreenPosition`'s first output |
+| `UE.TranslatedWorldPosition` | `UE.WorldPosition` | the front end rewrites the call to `UE.WorldPosition(WorldPositionShaderOffset = CameraRelative)`, where the node's default is absolute world position; the catalog has no class of this name |
 
-## Builtins that take arguments
+<Callout type="info">
+2.0.0 – 2.1.0 wrote `UE.TranslatedWorldPosition`'s value as `WPT_CameraRelative` — the right value,
+but with a `DSH5278` warning at every call. It no longer warns <Since v="2.1.1" />.
+</Callout>
+
+## Builtins with arguments
 
 ### UE.TexCoord
 
@@ -137,15 +152,15 @@ float2 tiled = UE.TexCoord(Index = 0, UTiling = 2.0, VTiling = 2.0);
 
 | Argument | Kind | Default | Required |
 | :-- | :-- | :-- | :-- |
-| `Index` | integer literal | node default, UV channel 0 | no |
-| `UTiling` | numeric literal | node default | no |
-| `VTiling` | numeric literal | node default | no |
-| `UnMirrorU` | boolean literal | node default | no |
-| `UnMirrorV` | boolean literal | node default | no |
+| `Index` | constant — the property `CoordinateIndex` | node default, UV channel 0 | no |
+| `UTiling` | constant | node default | no |
+| `VTiling` | constant | node default | no |
+| `UnMirrorU` | constant `true` / `false` | node default | no |
+| `UnMirrorV` | constant `true` / `false` | node default | no |
 
-`CoordinateIndex` is **not** an accepted spelling here — it is accepted only by the
-[declaration form](#properties-declaration-form). A negative `Index` is accepted without a
-diagnostic in the expression form.
+`Index` is the catalog's alias of `CoordinateIndex`. `CoordinateIndex` itself is not on the 1.x list,
+so in this form it is dropped with `DSH5254`; the [declaration form](#properties-declaration-form) takes
+both. A negative `Index` is written through without a diagnostic.
 
 ### UE.Time
 
@@ -156,11 +171,12 @@ float looped = UE.Time(Period = 2.0, IgnorePause = true);
 
 | Argument | Kind | Default | Required |
 | :-- | :-- | :-- | :-- |
-| `Period` | numeric literal | absent — the node's period override stays off | no |
-| `IgnorePause` | boolean literal | node default | no |
+| `Period` | constant | absent — the node's period override stays off | no |
+| `IgnorePause` | constant `true` / `false` — the property `bIgnorePause` | node default | no |
 
-Supplying `Period` also turns the node's period override on. No range check is applied in a `Graph`:
-a negative `Period` is written through unchanged. The declaration form rejects it.
+Supplying `Period` also turns on the node's period override: the front end adds
+`bOverride_Period = true` to the call. No range check is applied: a negative `Period` is written
+through — in the declaration form too <Since v="2.0.0" />.
 
 ### UE.Panner
 
@@ -176,13 +192,33 @@ float2 panned = UE.Panner(Coordinate = UE.TexCoord(Index = 0),
 | `Coordinate` | input pin | unconnected | no |
 | `Time` | input pin | unconnected | no |
 | `Speed` | input pin | unconnected | no |
-| `SpeedX` | numeric literal | node default | no |
-| `SpeedY` | numeric literal | node default | no |
-| `FractionalPart` | boolean literal | node default | no |
+| `SpeedX` | constant | node default | no |
+| `SpeedY` | constant | node default | no |
+| `FractionalPart` | constant `true` / `false` — the property `bFractionalPart` | node default | no |
 
-`ConstCoordinate` is not accepted in the expression form. The declaration form accepts it, and the
-generic path can reach it as
-`UE.Expression(Class = "Panner", OutputType = "float2", ConstCoordinate = 1)`.
+`ConstCoordinate` is dropped with `DSH5254` in this form; the declaration form passes it through, and
+so does the class name: `UE.Expression(Class = "Panner", ConstCoordinate = 1)`.
+
+## Transform builtins
+
+The two builtins that change the basis of a value: `UE.TransformVector` for **directions** and
+`UE.TransformPosition` for **points**. Both output `float3`, and both require `Input`, given by name or
+at position 0.
+
+A basis is a value of the engine's enum, written without its prefix: `"World"`, or the bare word
+`World`. In a `.dss` it is matched exactly. In a 1.x source case, spaces, `_` and `-` are ignored and the
+enum's prefix or scope may be written, with the warning `DSH5278`: `"world"`, `" WORLD "` and
+`TRANSFORMSOURCE_World` are `World`. A value the enum does not have is `DSH5215`, whose message names the
+property that failed — `TransformSourceType` for `Source`, `TransformType` for `Destination`.
+
+<Callout type="warn">
+**Always name `Source` and `Destination` in full.** These names read only their 1.x arguments and drop
+anything else with `DSH5254`: `UE.TransformVector(V, Src = "World")` uses the default `Source`
+(`Tangent`), because the argument is spelled `Src`; a second positional argument —
+`UE.TransformVector(V, "World")` — is dropped too, since only position 0 is read. A call with no
+`Input`, by name or at position 0, is the warning `DSH5279` and leaves the pin unconnected
+<Since v="2.0.0" /> (1.x refused the call).
+</Callout>
 
 ### UE.TransformVector
 
@@ -195,32 +231,25 @@ vec3 worldNormal = UE.TransformVector(LocalNormal, Source = "Tangent", Destinati
 
 | Argument | Kind | Default | Required |
 | :-- | :-- | :-- | :-- |
-| **`Input`** | input pin; may also be given positionally at index 0 | — | **yes** |
-| `Source` | text literal | `"Tangent"` | no |
-| `Destination` | text literal | `"World"` | no |
+| **`Input`** | input pin; may be given at position 0 | — | **yes** |
+| `Source` | enum value — the property `TransformSourceType` | `Tangent` (the node's) | no |
+| `Destination` | enum value — the property `TransformType` | `World` (the node's) | no |
 
-Both basis arguments accept the same nine spellings, resolving to six engine values. Every spelling
-works on UE 5.3 – 5.8, and no spelling is accepted by one side and rejected by the other.
+Both sides take the same six spellings:
 
-| Spelling | Basis |
-| :-- | :-- |
-| `Tangent` | tangent space |
-| `Local` | local space |
-| `World` | absolute world space |
-| `AbsoluteWorld` | absolute world space — an alias of `World`, not a distinct basis |
-| `View` | view space |
-| `Camera` | camera space |
-| `Instance` | instance / particle space |
-| `Particle` | instance / particle space |
-| `InstanceParticle` | instance / particle space |
+| Spelling | `EMaterialVectorCoordTransformSource` | `EMaterialVectorCoordTransform` |
+| :-- | :-- | :-- |
+| `Tangent` | `TRANSFORMSOURCE_Tangent` | `TRANSFORM_Tangent` |
+| `Local` | `TRANSFORMSOURCE_Local` | `TRANSFORM_Local` |
+| `World` | `TRANSFORMSOURCE_World` | `TRANSFORM_World` |
+| `View` | `TRANSFORMSOURCE_View` | `TRANSFORM_View` |
+| `Camera` | `TRANSFORMSOURCE_Camera` | `TRANSFORM_Camera` |
+| `Instance` | `TRANSFORMSOURCE_Instance` | `TRANSFORM_Instance` |
 
-Basis names are matched case-insensitively after trimming, so `"world"`, `"World"` and `" WORLD "`
-are one token. Spaces, underscores and hyphens are **not** stripped: `"absolute world"` and
-`"absolute_world"` do not resolve — write `"AbsoluteWorld"`. A quoted string and a bare identifier
-are equivalent, so `Source = World` and `Source = "World"` are the same.
-
-Either token failing to resolve produces the single message
-`UE.TransformVector Source/Destination is invalid.` — it does not say which one.
+A 1.x source may also write `AbsoluteWorld` for `World`, and `Particle` or `InstanceParticle` for
+`Instance`, on either side, in any case: the front end writes the engine's name, with the warning
+`DSH5278` <Since v="2.1.1" /> (2.0.0 – 2.1.0 refused each with `DSH5215`). The engine's own
+`ParticleWorld` value is hidden, and the catalog leaves it out.
 
 ### UE.TransformPosition
 
@@ -234,67 +263,72 @@ vec3 viewP = UE.TransformPosition(UE.WorldPosition(),
 
 | Argument | Kind | Default | Required |
 | :-- | :-- | :-- | :-- |
-| **`Input`** | input pin; may also be given positionally at index 0 | — | **yes** |
-| `Source` | text literal | `"Local"` | no |
-| `Destination` | text literal | `"World"` | no |
-| `PeriodicWorldTileSize` <Since v="5.5" ue /> | input pin | unconnected | no |
-| `FirstPersonInterpolationAlpha` <Since v="5.6" ue /> | input pin | unconnected | no |
-
-Note that the default `Source` differs from `UE.TransformVector`: it is `"Local"` here and
-`"Tangent"` there.
-
-One resolver serves both `Source` and `Destination`, so the accepted set is identical for the two
-arguments. Thirteen spellings resolve to eight engine values.
-
-| Spelling | Basis | Requires |
-| :-- | :-- | :-- |
-| `Local` | local space | — |
-| `World` | absolute world space | — |
-| `AbsoluteWorld` | absolute world space | — |
-| `PeriodicWorld` | periodic world space | <Since v="5.5" ue /> |
-| `TranslatedWorld` | camera-relative world space | — |
-| `CameraRelativeWorld` | camera-relative world space | — |
-| `FirstPerson` | first-person translated world space | <Since v="5.6" ue /> |
-| `FirstPersonTranslatedWorld` | first-person translated world space | <Since v="5.6" ue /> |
-| `View` | view space | — |
-| `Camera` | camera space | — |
-| `Instance` | instance / particle space | — |
-| `Particle` | instance / particle space | — |
-| `InstanceParticle` | instance / particle space | — |
+| **`Input`** | input pin; may be given at position 0 | — | **yes** |
+| `Source` | enum value — the property `TransformSourceType` | `Local` (the node's) | no |
+| `Destination` | enum value — the property `TransformType` | `World`, as in 1.x — not the node's `Local` | no |
+| `PeriodicWorldTileSize` | input pin, where the engine's class has it | unconnected | no |
+| `FirstPersonInterpolationAlpha` | input pin, where the engine's class has it | unconnected | no |
 
 <Callout type="warn">
-**A version-gated spelling below its gate is reported as an invalid basis, not as a version error.**
-On UE 5.3 or 5.4, `UE.TransformPosition(P, Destination = "PeriodicWorld")` fails with
-`UE.TransformPosition Source/Destination is invalid.` — the same message a typo produces.
-
-The two version-gated *inputs* also disagree with each other. Below UE 5.5,
-`PeriodicWorldTileSize` is **silently dropped**: not applied, not validated, not diagnosed. Below UE
-5.6, `FirstPersonInterpolationAlpha` is a hard error
-(`UE.TransformPosition FirstPersonInterpolationAlpha requires Unreal Engine 5.6 or newer.`).
-
-To keep a source file portable across 5.3 – 5.8, guard the value on the authoring side rather than
-relying on the argument being rejected.
+**The node's own `Destination` is `Local`.** 1.x wrote `World`, and so does the front end
+<Since v="2.1.1" />: a call without `Destination` goes to world space, and
+[`dsc migrate`](/en/docs/language-v2/migrate) writes `Destination = World` out, because a `.dss` call
+gets the node's `Local`. 2.0.0 – 2.1.0 wrote no default, and such a call was a transform that changed
+nothing.
 </Callout>
 
-## Builtins that take no arguments
+One enum serves both `Source` and `Destination`:
 
-Twenty-two of the twenty-seven take nothing at all. Each creates its node with every input pin left
-unconnected.
+| Spelling | `EMaterialPositionTransformSource` |
+| :-- | :-- |
+| `Local` | `TRANSFORMPOSSOURCE_Local` |
+| `World` | `TRANSFORMPOSSOURCE_World` |
+| `PeriodicWorld` | `TRANSFORMPOSSOURCE_PeriodicWorld` — where the engine's enum has it |
+| `TranslatedWorld` | `TRANSFORMPOSSOURCE_TranslatedWorld` |
+| `FirstPersonTranslatedWorld` | `TRANSFORMPOSSOURCE_FirstPersonTranslatedWorld` — where the engine's enum has it |
+| `View` | `TRANSFORMPOSSOURCE_View` |
+| `Camera` | `TRANSFORMPOSSOURCE_Camera` |
+| `Instance` | `TRANSFORMPOSSOURCE_Instance` |
+
+A 1.x source may also write `AbsoluteWorld` (`World`), `CameraRelativeWorld` (`TranslatedWorld`),
+`FirstPerson` (`FirstPersonTranslatedWorld`), `Particle` and `InstanceParticle` (`Instance`), in any
+case: the front end writes the engine's name, with the warning `DSH5278` <Since v="2.1.1" />
+(2.0.0 – 2.1.0 refused each with `DSH5215`). The engine marks `FirstPersonTranslatedWorld` as no valid
+*Source*; DreamShader does not check that.
+
+<Callout type="warn">
+**A basis the running engine lacks is reported as an unknown value, not as a version error.** On an
+engine whose enum has no `PeriodicWorld`, `UE.TransformPosition(P, Destination = "PeriodicWorld")` is
+`DSH5215` — the code a typo gets.
+
+**The two optional pins follow the engine, both the same way.** On an engine whose class lacks
+`PeriodicWorldTileSize` or `FirstPersonInterpolationAlpha`, the argument is no pin of the node: a 1.x
+source keeps it with the info `DSH5291`, and building the node fails with `DSH8212` <Since v="2.0.0" />
+(1.x dropped the first silently and refused the second with an error of its own). To keep one source
+building across engine versions, guard the argument with `#if DS_ENGINE_MINOR >= …` — see
+[Preprocessor](/en/docs/language/lexical#preprocessor).
+</Callout>
+
+## Builtins without arguments
+
+Twenty-two of the 27 have no arguments of their own; an argument given is dropped with `DSH5254`, and
+every input pin of the node is left unconnected.
 
 ### Position and geometry
 
 | Call | Output | Notes |
 | :-- | :-- | :-- |
-| `UE.WorldPosition()` | `float3` | absolute world position; the node's shader-offset mode is left at its default |
-| `UE.TranslatedWorldPosition()` | `float3` | the same node with the camera-relative mode forced on; equivalent to `GetTranslatedWorldPosition(Parameters)` in HLSL |
-| `UE.ObjectPositionWS()` | `float3` | conditionally registered |
-| `UE.ObjectPosition()` | `float3` | alias of `UE.ObjectPositionWS`, conditionally registered on the same terms |
+| `UE.WorldPosition()` | `XYZ` (`float3`), also `XY`, `Z` | absolute world position; the node's shader-offset mode left at its default |
+| `UE.TranslatedWorldPosition()` | as above | the same node in camera-relative mode; equivalent to HLSL `GetTranslatedWorldPosition(Parameters)` |
+| `UE.ObjectPositionWS()` | `float3` | — |
+| `UE.ObjectPosition()` | `float3` | alias of `UE.ObjectPositionWS` |
 | `UE.ObjectRadius()` | `float1` | — |
 | `UE.ObjectBounds()` | `float3` | — |
 | `UE.CameraPosition()` | `float3` | `CameraPositionWS` |
 
-For the other shader-offset modes of `WorldPosition`, use the generic path:
-`UE.Expression(Class = "WorldPosition", OutputType = "float3", WorldPositionShaderOffset = …)`.
+The other shader-offset modes of `WorldPosition` are reached by class:
+`UE.Expression(Class = "WorldPosition", WorldPositionShaderOffset = …)`. The
+[declaration form](#properties-declaration-form) takes `ShaderOffsets`.
 
 ### Vectors and normals
 
@@ -312,39 +346,37 @@ For the other shader-offset modes of `WorldPosition`, use the generic path:
 
 | Call | Output | Notes |
 | :-- | :-- | :-- |
-| `UE.ScreenPosition()` | `float2` | conditionally registered; output 0 of the node is the viewport UV |
-| `UE.ViewportUV()` | `float2` | alias of `UE.ScreenPosition`, reading the same output |
+| `UE.ScreenPosition()` | `ViewportUV`, `PixelPosition` | the engine types neither output: `UE.ScreenPosition().ViewportUV` is as wide as the place it is read into. Used as a plain value in a 1.x source it is the first output, *ViewportUV* (`DSH5287`) |
+| `UE.ViewportUV()` | as `UE.ScreenPosition` | alias |
 | `UE.PixelDepth()` | `float1` | a scene read for the current pixel; no UV or offset input is wired |
 | `UE.SceneDepth()` | `float1` | the node's UV input is left unconnected |
-| `UE.SceneColor()` | `float4` | — |
+| `UE.SceneColor()` | `RGB`, `A`; whole `float4` | — |
 
-To wire a UV into a scene depth read, use the generic path:
-`UE.Expression(Class = "SceneDepth", OutputType = "float1", Input = <uv>)`.
-
-<Callout type="info">
-The two surfaces disagree about `ScreenPosition`. In a `Graph` the result is **2** components; as a
-[property declaration](#properties-declaration-form) the parser declares **4**. Nothing reconciles
-them — write the `Graph` form when the width matters.
-</Callout>
+To wire a UV into a scene-depth read, call the class: `UE.Expression(Class = "SceneDepth", Input = <uv>)`.
 
 ### Per-vertex and per-instance data
 
 | Call | Output |
 | :-- | :-- |
-| `UE.VertexColor()` | `float4` |
+| `UE.VertexColor()` | `RGB`, `R`, `G`, `B`, `A`; whole `float4` |
 | `UE.PerInstanceRandom()` | `float1` |
 | `UE.PerInstanceFadeAmount()` | `float1` |
 
+`VertexColor`'s outputs are channel views of one colour: `float4 c = UE.VertexColor();` is the whole
+colour, and `UE.VertexColor().a` is the `A` output.
+
 ## Special-cased builtins
 
-These three names are resolved *before* the registered table and do not follow its rules.
+`UE.StaticSwitchParameter` and `UE.SceneTexture` are rewritten by the legacy front end into
+`UE.Expression` calls before the binder sees them. `UE.CollectionParam` is not: the catalog knows it as
+a second name of `UE.CollectionParameter`.
 
 ### UE.StaticSwitchParameter
 
 <Since v="1.2.3" />
 
-Creates a static switch that shows up in the material instance editor, so an artist can flip a branch
-without touching the source.
+Creates a static switch that appears in the material instance editor, so an artist can flip branches
+without touching source.
 
 ```c
 vec3 color = UE.StaticSwitchParameter(Name        = "UseDetail",
@@ -357,26 +389,33 @@ vec3 color = UE.StaticSwitchParameter(Name        = "UseDetail",
 
 | Argument | Aliases | Kind | Default | Required |
 | :-- | :-- | :-- | :-- | :-- |
-| **`Name`** | `ParameterName` | text literal, non-blank after trimming | — | **yes** |
-| **`True`** | `A`, positional index 0 | value | — | **yes** |
-| **`False`** | `B`, positional index 1 | value | — | **yes** |
-| `Default` | `DefaultValue` | boolean literal | `false` | no |
-| `Group` | — | text literal | none | no |
-| `Description` | — | text literal | none | no |
-| `SortPriority` | — | integer literal | node default | no |
+| **`Name`** | `ParameterName` | a quoted string or a word, non-blank after trimming | — | **yes** |
+| **`True`** | `A`, position 0 | value | — | **yes** |
+| **`False`** | `B`, position 1 | value | — | **yes** |
+| `Default` | `DefaultValue` | `true` / `false` | `false` | no |
+| `Group` | — | a quoted string or a word | none | no |
+| `Description` | — | a quoted string or a word | none | no |
+| `SortPriority` | — | whole number | node default | no |
 
-The output takes its component count and its `MaterialAttributes` flag from the `True` branch. Both
-branches must agree: neither may be a texture object or a Substrate value, they may not mix
-`MaterialAttributes` with numeric values, and their component counts must be equal.
+The call becomes
 
-The parameter is registered on the generated **material** with an editor-only static-switch value.
-Inside a material function nothing is registered. A node already registered under the same property
-name is reused rather than duplicated.
+```c
+UE.Expression(Class = "StaticSwitchParameter", ParameterName = …, DefaultValue = …, Group = …,
+              Desc = …, SortPriority = …, A = <True>, B = <False>)
+```
+
+and any other argument is dropped with `DSH5254`.
+
+The output follows the branches: it is as wide as the wider numeric branch, or the Substrate or
+`MaterialAttributes` value a branch carries. The two branches are **not** compared with each other
+<Since v="2.0.0" />; a texture in either is `DSH5214`. The parameter is registered with an editor-only
+static-switch value on the generated material — or material function — so it appears in the instance
+editor. Two calls with the same arguments are one node.
 
 <Callout type="info">
-`Group` and `Description` are read with the tolerant text handler: if the value is not a text
-literal, the argument is **discarded without a diagnostic**. `SortPriority` and `Default` do report a
-malformed value.
+`Group` and `Description` are written to the node's `Group` and `Desc` properties; a value that is
+neither a quoted string nor a word is `DSH5224` <Since v="2.0.0" /> (1.x discarded it without a
+diagnostic).
 </Callout>
 
 ### UE.CollectionParam
@@ -384,50 +423,45 @@ malformed value.
 <Since v="1.2.3" />
 
 Reads a scalar or vector parameter out of a `UMaterialParameterCollection`.
-`UE.CollectionParameter` is an accepted second spelling.
 
 ```c
 float wind = UE.CollectionParam(Collection = Path(Game, "Collections/MPC_Wind"),
                                 Parameter  = "WindStrength");
 ```
 
+`UE.CollectionParam` and the engine's name, `UE.CollectionParameter`, are one class, in a `Graph` body
+and in the [declaration form](#properties-declaration-form) alike <Since v="2.1.1" />. 2.0.0 – 2.1.0
+refused `UE.CollectionParam` in a `Graph` body with `DSH5210`.
+
 | Argument | Aliases | Kind | Default | Required |
 | :-- | :-- | :-- | :-- | :-- |
-| **`Collection`** | `Asset` | `Path(…)` call or an Unreal object path | — | **yes** |
-| **`Parameter`** | `ParameterName` | text literal, non-blank | — | **yes** |
-| `Group` <Since v="5.7" ue /> | — | text literal | none | no |
-| `SortPriority` <Since v="5.7" ue /> | — | integer literal | node default | no |
-| `Description` | — | text literal | none | no |
+| **`Collection`** | `Asset` | `Path(…)` or an Unreal object path | — | **yes** |
+| **`Parameter`** | `ParameterName` | a quoted string or a word | — | **yes** |
+| `Group` | — | a quoted string or a word, where the engine's class has it | none | no |
+| `SortPriority` | — | whole number, where the engine's class has it | node default | no |
+| `Desc` | — | a quoted string or a word | none | no |
 
-The collection is loaded at generation time and the parameter is looked up by name in it. The output
-width follows what it finds:
+The collection is loaded and the parameter looked up when the node is built: a collection that does
+not resolve or load is `DSH8213`, a name that is neither a scalar nor a vector parameter of it is
+`DSH8254`. A call without `Collection` or `Parameter` is not checked <Since v="2.0.0" />. `Description`
+is not an argument of this call — the node's description property is `Desc` — and is `DSH5213`.
 
-| Parameter kind found in the collection | Output |
-| :-- | :-- |
-| vector | `float4` |
-| scalar | `float1` |
-| neither | error |
+The engine does not type the node's output, so the value is as wide as the place it is read into
+<Since v="2.0.0" /> (1.x read the width off the loaded collection: `float4` for a vector parameter,
+`float1` for a scalar). The declaration form declares it `float4` unless it says otherwise.
 
 <Callout type="warn">
-Below UE 5.7, `Group` and `SortPriority` are **silently dropped**. `SortPriority` is still parsed and
-still reports a non-integer value on every engine version — it simply has no effect. The node's
-`ExpressionGUID` is likewise only seeded on UE 5.7+. `Description` is written on every version.
+`Group` and `SortPriority` are taken only where the running engine's class has them. On an engine
+whose class lacks them, `Group` is `DSH5213`, and `SortPriority` — a number — is kept with `DSH5291` and
+fails with `DSH8212` when the node is built <Since v="2.0.0" /> (1.x dropped both silently below its
+version gate).
 </Callout>
 
-<Callout type="info">
-Unlike every builtin in the roster, this one's output width is **not** marked authoritative — and
-neither is `UE.StaticSwitchParameter`'s. Neither can act as the widening partner in a mixed-width
-binary operator.
-</Callout>
-
-`UE.CollectionParam` is also the only builtin placed at a negative canvas X (-520); the rest of the
-registered builtins land at 520 and the declaration form at -800.
-
-For `Path(…)` grammar and its accepted roots, see [Asset references](/en/docs/parameters/path).
+`Path(…)` grammar and its accepted roots: [Asset References](/en/docs/parameters/path).
 
 ### UE.SceneTexture
 
-Pure sugar, resolved before every other `UE.` name.
+Pure sugar.
 
 ```c
 float4 scene = UE.SceneTexture(Id = "PostProcessInput0");
@@ -435,30 +469,31 @@ float4 scene = UE.SceneTexture(Id = "PostProcessInput0");
 
 | Argument | Kind | Default | Required |
 | :-- | :-- | :-- | :-- |
-| **`Id`** | text literal | — | **yes** |
+| **`Id`** | enum value | — | **yes** |
 
-It rewrites the call to
+The front end rewrites the call to
 
 ```c
-UE.Expression(Class = "SceneTexture", OutputType = "float4", SceneTextureId = <Id>)
+UE.Expression(Class = "SceneTexture", SceneTextureId = <Id>)[0]
 ```
 
-and evaluates that, so the node is `UMaterialExpressionSceneTexture` with a `float4` output and every
-[generic-path rule](/en/docs/builtins/ue-expression) applies from there — including node reuse.
+— output 0 of `UMaterialExpressionSceneTexture`, *Color*, a `float4`. The call must have **exactly one**
+argument and it must be named `Id`; anything else, an output selector included, is `DSH5255`. The
+node's other properties and its `Size` / `InvSize` outputs need `UE.Expression(Class = "SceneTexture", …)`.
 
-The call must have **exactly one** argument and it must be named `Id`; anything else fails with
-`UE.SceneTexture expects exactly Id="..." (e.g. Id="PostProcessInput0").`
-
-The `Id` text goes through the reflected enum writer, which accepts the entry name with or without
-its enum prefix, the fully qualified name, and the display name — ignoring case and ignoring the
-space, `_`, `-`, `:`, `.` and `/` characters. All of `"PostProcessInput0"`,
-`"PPI_PostProcessInput0"` and `"ppi postprocessinput0"` select the same value.
+The `Id` is a value of `ESceneTextureId`, written without its prefix — `"PostProcessInput0"`. In a 1.x
+source the prefixed name (`"PPI_PostProcessInput0"`), the `ESceneTextureId::` scope and another case
+are accepted with `DSH5278`; a display name, or a spelling with spaces in it (`"ppi postprocessinput0"`),
+is `DSH5215` <Since v="2.0.0" />. See [Enum values](/en/docs/builtins/ue-expression#enum-values).
 
 ## Properties declaration form
 
-`UE.<Name>(…)` may also stand where a type token would, inside a
-[`Properties` section](/en/docs/language/sections). The node is created once at generation time and
-bound to a property name the `Graph` then reads.
+`UE.<Name>(…)` may also stand where a type token would in a
+[`Properties`](/en/docs/language/sections#properties) section. It declares no parameter: the legacy front
+end keeps the text and, in every `Graph` body that reads the property, declares a local of that name
+at the head of the body, initialised with the call — `float2 UV = UE.TexCoord(Index = 0);` — one per such
+body, in property order. A body that does not read the property gets no node. From there the call is an
+ordinary `UE.` call, bound against the catalog <Since v="2.0.0" />.
 
 ```c
 Properties {
@@ -471,152 +506,118 @@ Graph {
 }
 ```
 
-<Callout type="warn">
-This is a **separate implementation** with a smaller catalogue and different rules. Do not carry a
-rule across from the expression form.
-</Callout>
-
 | Rule | Declaration form | Expression form |
 | :-- | :-- | :-- |
-| Argument syntax | `Key=Value` text pairs; values unquoted and trimmed, keys lower-cased | full expressions, including nested calls |
-| Unknown argument name | **error** | silently ignored |
-| Duplicate argument name | **error** | last one wins |
-| Positional arguments | not expressible | accepted by three builtins |
-| Argument order | lost — arguments are stored in a map | preserved |
-| Inline default (`= …`) | **error** | not applicable |
-| Node canvas X | -800 | 520, or -520 for `UE.CollectionParam` |
-| Output width | from the parser's own table, or `OutputType` | from the node |
+| `UE` | any case | exact |
+| Argument syntax | `Key = Value` pairs split at top-level commas; a value is a quoted string, a number, `true` / `false`, a bare word (read as a name: another variable, or an enum value), or else kept as text, as `Path(…)` is | full expressions, including nested calls |
+| The 1.x argument filter (`DSH5254`) | not applied | applied to the 27 names |
+| Unknown argument | `DSH5213`; a number is kept with `DSH5291` and fails with `DSH8212` when the node is built | dropped with `DSH5254` on the 27 names |
+| Duplicate argument, or both spellings of one (`Index` and `CoordinateIndex`) | `DSH4215` | same |
+| A piece without `=`, an empty key or an empty value | skipped without a diagnostic | — |
+| Inline default (`= …`) | `DSH3259` | not applicable |
+| Metadata `[ … ]` | read and not applied | not applicable |
+| Renamed arguments | `Description` → `Desc`; on `CollectionParam` / `CollectionParameter` `Asset` → `Collection` and `Parameter` → `ParameterName`, and the call is `UE.CollectionParameter` | none |
+| `OutputType` / `ResultType` | the type of the local, not passed on — see [Declared output width](#declared-output-width) | see [OutputType](/en/docs/builtins/ue-expression#outputtype) |
 
-Inline defaults are the mistake to watch for. Put arguments inside the parentheses:
+The inline default is the one that bites. Put arguments inside the parentheses:
 
 ```c
 // correct
 UE.TexCoord(Index = 0) UV;
 
-// error: UE builtin property 'UV' does not support inline defaults.
+// wrong: DSH3259
 UE.TexCoord UV = 0;
 ```
 
-### Recognized names
+### Recognised names
 
-An argument outside its row is rejected with
-`UE.{Name} for property '{Property}' does not support argument '{Argument}'.`
-
-<Wide>
-
-| `UE.Name` | Node class | Accepted arguments | Differences from the expression form |
+| `UE.Name` | Node class | Arguments | Difference from the expression form |
 | :-- | :-- | :-- | :-- |
-| `TexCoord` | `TextureCoordinate` | `Index`, `CoordinateIndex`, `UTiling`, `VTiling`, `UnMirrorU`, `UnMirrorV` | `CoordinateIndex` is accepted; supplying both spellings is an error; a negative index is an error |
-| `Time` | `Time` | `Period`, `IgnorePause` | `Period` must be ≥ 0 |
-| `Panner` | `Panner` | `Coordinate`, `Time`, `Speed`, `SpeedX`, `SpeedY`, `ConstCoordinate`, `FractionalPart` | `ConstCoordinate` is accepted; `Coordinate` takes *either* an integer, written to `ConstCoordinate`, *or* a property reference |
-| `WorldPosition` | `WorldPosition` | `ShaderOffsets` | `ShaderOffsets` is accepted |
-| `ObjectPositionWS` | `ObjectPositionWS` | `Origin` | `Origin` is accepted |
-| `CameraVectorWS` | `CameraVectorWS` | none | any argument is an error rather than ignored |
-| `ScreenPosition` | `ScreenPosition` | none | declared as **4** components, not 2 |
-| `VertexColor` | `VertexColor` | none | any argument is an error |
-| `CollectionParam`, `CollectionParameter` | `CollectionParameter` | `Collection`, `Asset`, `Parameter`, `ParameterName`, `OutputType`, `ResultType` | no `Group` / `SortPriority` / `Description` |
-| *any other name* | resolved by reflection | requires `OutputType` or `ResultType` | see [`UE.Expression`](/en/docs/builtins/ue-expression) |
+| `TexCoord` | `TextureCoordinate` | `Index` or `CoordinateIndex`, `UTiling`, `VTiling`, `UnMirrorU`, `UnMirrorV` | `CoordinateIndex` is taken; a negative index is not checked <Since v="2.0.0" /> |
+| `Time` | `Time` | `Period`, `IgnorePause` | `Period` is not range-checked, and it does **not** turn on the period override — write `bOverride_Period = true` <Since v="2.0.0" /> |
+| `Panner` | `Panner` | `Coordinate`, `Time`, `Speed` (pins: a word is another variable, a number a constant on the pin), `ConstCoordinate`, `SpeedX`, `SpeedY`, `FractionalPart` | `ConstCoordinate` is taken |
+| `WorldPosition` | `WorldPosition` | `ShaderOffsets` — the property `WorldPositionShaderOffset` | `ShaderOffsets` is taken |
+| `ObjectPositionWS` | `ObjectPositionWS` | `Origin` — the property `OriginType` | `Origin` is taken |
+| `CameraVectorWS`, `ScreenPosition`, `VertexColor` | as named | none of their own | an argument is an unknown argument |
+| `CollectionParam`, `CollectionParameter` | `CollectionParameter` | `Collection` / `Asset`, `Parameter` / `ParameterName`, and `Group`, `SortPriority`, `Description` where the class has them | |
+| *any other name* | the class of that name | its pins and properties | needs no `OutputType` <Since v="2.0.0" /> |
 
-</Wide>
-
-`ShaderOffsets` vocabulary — lower-cased with spaces removed:
-
-| Token(s) | Meaning |
-| :-- | :-- |
-| `default`, `includingshaderoffsets`, `absolute` | absolute world position including shader offsets |
-| `excludeallshaderoffsets`, `excludingallshaderoffsets`, `nooffsets` | absolute world position, offsets excluded |
-| `camerarelative` | camera-relative world position |
-| `camerarelativenooffsets`, `camerarelativeexcludeoffsets` | camera-relative world position, offsets excluded |
-
-`Origin` vocabulary — lower-cased with spaces removed:
-
-| Token(s) | Meaning |
-| :-- | :-- |
-| `absolute`, `world` | absolute origin |
-| `camerarelative` | camera-relative origin |
+`ShaderOffsets` takes the values of `EWorldPositionIncludedOffsets` without their prefix — `Default`,
+`ExcludeAllShaderOffsets`, `CameraRelative`, `CameraRelativeNoOffsets` — and, in another case or with the
+`WPT_` prefix, with `DSH5278`. `Origin` takes `Absolute` and `CameraRelative`. The 1.x spellings that are
+no value of the enum (`IncludingShaderOffsets`, `Absolute` and `NoOffsets` for `ShaderOffsets`, `World`
+for `Origin`, …) are `DSH5215` <Since v="2.0.0" />.
 
 ### Declared output width
 
-The declared width comes from the first of these that resolves:
+The type of the local comes from the first of these that applies:
 
-1. an explicit `OutputType` or `ResultType` argument, from the
-   [reduced token set](/en/docs/builtins/ue-expression#outputtype);
-2. the parser's own name table, below;
-3. `CollectionParam` / `CollectionParameter`, which the parser records as a 1-component scalar — but the node is built at the collection parameter's **real** width, see below;
-4. otherwise the declaration is rejected.
+1. an `OutputType` or `ResultType` argument naming a type — see
+   [OutputType](/en/docs/builtins/ue-expression#outputtype);
+2. the name, compared ignoring case: `TexCoord`, `Panner` → `float2`; `Time` → `float`;
+   `WorldPosition`, `CameraVectorWS`, `ObjectPositionWS`, `VertexNormalWS`, `VertexTangentWS` → `float3`;
+3. every other name → `float4`: `ScreenPosition`, `VertexColor`, `CollectionParam` /
+   `CollectionParameter`, and any name outside the list <Since v="2.0.0" /> (1.x rejected such a name
+   without an `OutputType`).
 
-| Name(s) | Declared as |
-| :-- | :-- |
-| `TexCoord`, `Panner` | vector, 2 |
-| `Time` | scalar, 1 |
-| `WorldPosition`, `CameraVectorWS`, `ObjectPositionWS`, `VertexNormalWS`, `VertexTangentWS` | vector, 3 |
-| `ScreenPosition`, `VertexColor` | vector, 4 |
+The call initialises the local like any initializer: a scalar output is spread across the local's
+width, a wider one is cut down (`DSH5289`), and a narrower vector — a `float3` node under a name outside
+the list — is `DSH4228`. An output the engine does not type, such as a collection parameter's, takes the
+local's width. Give such a declaration an `OutputType`; a scalar collection parameter is
+`OutputType = float1`.
 
-<Callout type="warn">
-**`UE.CollectionParam(...) Name;` in `Properties` is as wide as the collection parameter**
-<Since v="1.8.0" />. The parser can only record the declaration form as a scalar — it cannot open the
-collection — and the generator used to take that width as-is, so a vector MPC parameter passed to a
-`float4` input was widened by three `AppendVector` splats and the material failed to compile with
-`Can't append float4 to float4`.
+A `const` in front of a `UE.*` declaration is read and ignored <Since v="2.0.0" /> (1.x rejected it).
 
-The width now comes from the loaded collection when the node is created (vector → 4, scalar → 1); an
-explicit `OutputType=` on the declaration still wins.
-</Callout>
+## Details worth knowing
 
-<Callout type="info">
-That table names ten builtins and it is **not** the expression-form roster, nor the same list as the
-recognized-names table above. `VertexNormalWS` and `VertexTangentWS` get a declared width here but
-have no node-creation branch, so — like `SceneColor`, `PixelDepth`, `TranslatedWorldPosition` and the
-rest of the 27 — they are only reachable as declarations through an explicit `OutputType`. Without
-one the declaration parses and then fails at generation with
-`This builtin is not implemented by the material generator yet. …`
-</Callout>
-
-A `const` qualifier is rejected on a `UE.*` property with
-`Const property '{Name}' must use a plain scalar, vector, or texture type instead of a parameter node or UE builtin declaration.`
-
-## Notes worth knowing
-
-- A `UE.*` call may be swizzled directly — `UE.TexCoord(Index = 0).x` is an ordinary postfix chain.
-  See [Expressions and conversions](/en/docs/graph/expressions).
-- `UE.*` names are resolved before user declarations, so a property or function named `TexCoord` does
-  not shadow `UE.TexCoord`. Nothing stops such a property from existing and being read as a bare
-  identifier, though. See [Calls](/en/docs/graph/calls).
-- A registered builtin never accepts `OutputType`, `Class`, `Output`, `OutputName` or `OutputIndex`.
-  Those are read only on the [generic path](/en/docs/builtins/ue-expression); on a registered builtin
-  they are silently discarded like any other unknown name.
-- Inside a [`GraphFunction`](/en/docs/language/functions), `UE.*` calls are lifted out of the HLSL
-  body and become generated input pins on the emitted Custom node.
+- A `UE.*` call may be swizzled directly — `UE.TexCoord(Index = 0).x` is an ordinary postfix chain. On a
+  node of channel outputs, a swizzle that one output publishes is that output (`UE.VertexColor().a`). See
+  [Operators and conversions](/en/docs/graph/expressions#swizzles).
+- A property, local or parameter named `TexCoord` does not shadow `UE.TexCoord`; one named `UE` does —
+  `UE.X(…)` is then a member call on that variable <Since v="2.0.0" />.
+- On the 27 names, `OutputType`, `ResultType` and `Class` are dropped with `DSH5254` like any argument the
+  name does not read. `Output`, `OutputName` and `OutputIndex` select an output of the node, as on every
+  call <Since v="2.0.0" />.
+- Inside a [`GraphFunction`](/en/docs/language/functions#graphfunction-and-ue-hoisting), `UE.*` calls are
+  lifted out of the HLSL body and become generated input pins on the emitted Custom node.
+- The plugin ships an HLSL header, `/Plugin/DreamShader/DreamShaderBuiltins.ush`, whose `DS_*` macros and
+  functions mirror most of the nodes on this page (`DS_TIME`, `DS_WorldPosition(Parameters)`, …). Nothing
+  in the plugin includes it; it is only useful inside a hand-written [`Function`](/en/docs/language/functions)
+  HLSL body, with the `#include` first in the body. `DS_TexCoord` and `DS_VertexColor` depend on
+  translator side effects nothing arranges any more — use `UE.TexCoord` and `UE.VertexColor` instead.
 
 ## Diagnostics
 
-`{Function}` is the builtin name **as the author spelled it**, casing preserved — with one exception,
-`Failed to create UE.{Function}.`, which prints the registered spelling instead.
-
 <Diag>
-  <D msg="UE.{Function} requires parameter: {Argument}" cause="A required input was given neither by name nor positionally — most often Input on UE.TransformVector or UE.TransformPosition." fix="Pass the value as Input = … or as the first positional argument." />
-  <D msg="UE.{Function} {Argument} must be an integer literal." cause="A non-integer value where an integer argument is expected." />
-  <D msg="UE.{Function} {Argument} must be a numeric literal." cause="A non-numeric value for a scalar argument." />
-  <D msg="UE.{Function} {Argument} must be a boolean literal." cause="A value other than true / false." />
-  <D msg="UE.{Function} {Argument} must be a text value." cause="A non-text value for a text argument." />
-  <D msg="UE.TransformVector Source/Destination is invalid." cause="Either basis token is not in the vector vocabulary. The message never says which side failed." fix="Check both spellings against the nine accepted vector bases." />
-  <D msg="UE.TransformPosition Source/Destination is invalid." cause="Either basis token is not in the position vocabulary, including a token gated above the running engine version." />
-  <D msg="UE.TransformPosition FirstPersonInterpolationAlpha requires Unreal Engine 5.6 or newer." cause="The argument was supplied on UE 5.3 – 5.5." />
-  <D msg={'UE.SceneTexture expects exactly Id="..." (e.g. Id="PostProcessInput0").'} cause="Not exactly one argument, or the argument is not named Id." />
-  <D msg="StaticSwitchParameter '{Name}' requires True=... and False=... inputs." cause="A branch is missing." />
-  <D msg="StaticSwitchParameter '{Name}' branches must have the same component count, got {Left} and {Right}." cause="The two branch widths differ. No widening is applied here." />
-  <D msg="StaticSwitchParameter '{Name}' cannot switch Texture object values." cause="A branch is a texture object." fix="Sample the texture first and switch the sampled value." />
-  <D msg="UE.CollectionParam collection '{Collection}' does not contain parameter '{Name}'." cause="The name is neither a scalar nor a vector parameter of that collection." />
-  <D msg="UE.CollectionParam could not load MaterialParameterCollection '{Path}'." cause="The asset loaded as something else, or not at all." />
-  <D msg="Failed to create UE.{Function}." cause="The material node could not be created." />
-  <D msg={'Unsupported UE builtin function \'{Function}\'. Use OutputType="float1/2/3/4/Texture2D/TextureCube/Texture2DArray/VolumeTexture" for generic MaterialExpression calls.'} cause="A property declaration whose name is outside the parser's table, with no OutputType." fix="Add OutputType, or move the call into the Graph block." href="/en/docs/builtins/ue-expression" />
-  <D msg="UE.{Function} for property '{Property}' does not support argument '{Argument}'." cause="An argument outside the builtin's accepted set in the declaration form." />
-  <D msg="UE builtin property '{Property}' does not support inline defaults. Put arguments inside UE.{Function}(...)." cause="A declaration written as UE.TexCoord(…) UV = 1;" />
+  <D msg="DSH5254: '{0}' takes no positional argument here; 1.x ignored it, so it is dropped." cause="Warning: an argument one of the 27 names does not read — unknown, misspelled or positional — is dropped." fix="Check the spelling against the entry." />
+  <D msg="DSH5276: '{0}' matches the engine name '{1}' only in case; 1.x matched engine names ignoring case, so this is '{1}', and a '.dss' needs the exact spelling." cause="Warning, 1.x only: a builtin, argument or output name matches only ignoring case." fix="Write the engine's spelling." />
+  <D msg="DSH4200: '{0}' is not declared; did you mean '{1}'? Names are case-sensitive." cause="The namespace is not spelled UE." />
+  <D msg="DSH5210: '{0}.{1}' is not a node; did you mean '{0}.{2}'? Node names are case-sensitive." cause="The name after UE. is no class of the running engine." href="/en/docs/builtins/ue-expression" />
+  <D msg="DSH5213: '{0}.{1}' has no pin or property called '{2}'." cause="An argument that passed the filter names no pin or property of the class; or Description on a CollectionParameter." />
+  <D msg="DSH5291: '{0}.{1}' lists no pin called '{2}'; it is connected by that name once the node exists, because a node may name its pins after its properties." cause="Info, 1.x only: such an argument carries a value, and is kept for the built node to connect by name." />
+  <D msg="DSH8212: '{0}' has no input pin named '{1}'." cause="The built node has no pin of a name kept with DSH5291 — say, PeriodicWorldTileSize on an engine whose class lacks it." fix="Guard the argument with #if DS_ENGINE_MINOR." />
+  <D msg="DSH5224: '{0}' takes a name or an asset path; write it as a quoted string." cause="A property is given something that is not a constant, or a text property something that is neither a quoted string nor a word." />
+  <D msg="DSH5215: '{0}' is not a value of '{1}' on '{2}'." cause="An enum value — a basis, a scene texture id — is no value of the engine's enum, a basis this engine lacks included." fix="Write the value's name without its prefix." />
+  <D msg="DSH5278: '{0}' is the 1.x name of the '{1}' space of '{2}'; a '.dss' writes '{1}'." cause="Warning: an enum value written the 1.x way — another case, the prefix, or a name only 1.x had, such as AbsoluteWorld." fix="Write the engine's name; dsc migrate does." />
+  <D msg="DSH5214: {0} expects {1}, and this is {2}." cause="A value does not fit the pin it feeds — a texture on a static switch branch, say." />
+  <D msg="DSH4215: The '{0}' argument of '{1}' is given twice." cause="A pin or property is given twice." />
+  <D msg="DSH5279: '{0}.{1}' leaves its required '{2}' pin unconnected, which 1.x allowed and the engine reports when the material compiles." cause="Warning: a required pin — the Input of a transform — is left unconnected." fix="Pass Input = … or a value at position 0." />
+  <D msg="DSH5287: '{0}' has more than one output and is read as its first, '{1}', which is what 1.x did; a '.dss' names the output." cause="Info, 1.x only: a node with several outputs used as a plain value is read as its first." />
+  <D msg="DSH5201: '{0}.{1}' has no output called '{2}'; its outputs are {3}." cause="The selected output name does not exist." />
+  <D msg="DSH5255: Expected 'UE.SceneTexture' to take exactly one argument, 'Id = ...', found {0} argument(s)." cause="UE.SceneTexture has not exactly one argument, Id." />
+  <D msg={'DSH5257: Expected \'UE.StaticSwitchParameter\' to name its parameter with \'Name = "..."\', found no name.'} cause="Neither Name nor ParameterName is given, or it is blank." />
+  <D msg="DSH5258: Expected the static switch '{0}' to be called with a 'True = ...' and a 'False = ...' input, found at most one of them." cause="A branch is missing, both branches are the same argument, or the call carries an output selector." />
+  <D msg="DSH5263: Expected 'Default' of 'UE.StaticSwitchParameter' to be true or false, found '{0}'." cause="Default / DefaultValue is not true or false." />
+  <D msg="DSH5264: Expected 'SortPriority' of 'UE.StaticSwitchParameter' to be a whole number, found '{0}'." cause="SortPriority is not a whole number." />
+  <D msg="DSH8213: '{0}' could not take '{1}' for its '{2}' property. {3}" cause="The node could not take a property value — a collection that does not resolve, does not load, or is not a MaterialParameterCollection included." href="/en/docs/parameters/path" />
+  <D msg="DSH8254: The material parameter collection '{0}' has no parameter called '{1}'." cause="The collection has no scalar or vector parameter of that name." />
+  <D msg="DSH8214: Failed to create a '{0}' node." cause="The node could not be created." />
+  <D msg="DSH3259: Expected ')' to close the arguments of 'UE.{0}', found {1}." cause="Declaration form: a default follows the property name, or the argument list is not closed." fix="Put the arguments inside UE.Name(…)." />
+  <D msg="DSH3250: Expected a property type and a name, found {0}." cause="Declaration form: no property name follows the builtin." />
+  <D msg="DSH4228: {0} expects {1}, and this is {2}." cause="Declaration form: the type of the local does not take the node's value — a narrower vector than the node makes." fix="Write an OutputType." />
 </Diag>
 
-Every generation-time message from the declaration form is additionally wrapped as
-`UE.{Function} for property '{Property}': {Message}`. The complete list lives in the
-[diagnostics index](/en/docs/diagnostics).
+The complete list lives in the [diagnostics index](/en/docs/diagnostics).
 
 ## Example
 
@@ -653,8 +654,8 @@ Shader(Name="Docs/M_UEBuiltins")
 Generated nodes:
 
 ```text
-TextureCoordinate  (Index 0)                  <- UV0        (Properties, X = -800)
-Panner             (Coordinate, Time, SpeedX) <- uv         (X = 520)
+TextureCoordinate  (CoordinateIndex 0)        <- UV0        (a local at the head of Graph)
+Panner             (Coordinate, Time, SpeedX) <- uv
 Time                                          <- Panner.Time
 WorldPosition      (camera-relative)          <- wp
 VertexNormalWS                                -> Transform
@@ -666,8 +667,8 @@ VertexColor                                   <- vcol
 ## Where to next
 
 <Cards>
-  <Card title="UE.Expression" href="/en/docs/builtins/ue-expression" description="Every UMaterialExpression that is not on this page." />
-  <Card title="Math Builtins" href="/en/docs/builtins/math" description="pow, lerp, saturate and the rest of the unprefixed call surface." />
-  <Card title="Substrate Nodes" href="/en/docs/builtins/substrate" description="The Substrate.* namespace, UE 5.4+." />
-  <Card title="Asset References" href="/en/docs/parameters/path" description="Path(...) syntax for UE.CollectionParam." />
+  <Card title="Generic UE.Expression" href="/en/docs/builtins/ue-expression" description="Any engine node by class, and OutputType, output selection and Custom nodes." />
+  <Card title="Math builtins" href="/en/docs/builtins/math" description="pow, lerp, saturate and the other unprefixed calls." />
+  <Card title="Substrate nodes" href="/en/docs/builtins/substrate" description="The Substrate.* namespace, UE 5.4+." />
+  <Card title="Asset references" href="/en/docs/parameters/path" description="The Path(...) syntax UE.CollectionParam uses." />
 </Cards>
