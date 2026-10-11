@@ -1,76 +1,76 @@
 ---
 title: import 与命名空间
-description: import 如何把多个文件拼成一个翻译单元 —— 识别规则、specifier 规范化、源码根与跨根限定、循环，以及源码行映射。
+description: import 如何让一个 .dsh header 的声明在当前文件里可见 —— 识别规则、specifier 规范化、源码根、header 怎么被读取，以及命名空间如何跨文件工作。
 ---
 
-`import` 把另一个 DreamShaderLang 源文件内联进当前翻译单元。它**不属于**任何一套语法：编辑器源加载器
-会在声明解析器被调用之前逐行剥掉它，所以解析器并不认识这个关键字。
+`import` 让一个 `.dsh` header 的声明在当前文件里可见。它是语言的一个 token、一条顶层声明，由 legacy 前端读取；
+绑定器通过 include 解析器找到这个 header，单独预处理、解析它，再把它的名字登记进当前文件 <Since v="2.0.0" />。
+1.9.x 及以前，编辑器的源加载器会在解析之前逐行剥掉 `import`，把 header 的文本粘贴进来。
 
 ```text
 <file>.dsm
   │
-  ├─ 编辑器源加载器         剥掉 `import` 行、深度优先内联目标，
-  │                         执行 .dsh / .dsf 内容规则
+  ├─ 预处理器              按行求值 #if；没选中的分支里的 import 根本不会被读取
   │
-  ├─ 声明解析器             块、section、语句  ->  定义树
+  ├─ legacy 前端           块、section、Graph 语句、import  ->  2.0 语法树
   │
-  └─ 材质生成器             Graph 表达式语法  ->  材质节点  ->  资产
+  ├─ 绑定器                解析每个 import；header 单独预处理、解析，
+  │                        它的声明登记进本文件
+  │
+  └─ IR / 发射器           材质节点  ->  资产
 ```
+
+`.dss` 把同一件事写成 `#include "…"`，也接受 `import "…";`。
 
 ## 语法
 
 <Synopsis>
 
 ```c
-import "<specifier>" [;] [// <comment>]
-import '<specifier>' [;] [// <comment>]
+import "<path>" [;]
+import '<path>' [;]          // 在 .dsm、.dsf 或 .dsh 里
 
-<specifier>      := [ <root-qualifier> ":" ] <path>
-<root-qualifier> := Project | Plugin.<PluginName> | Plugins.<PluginName>
+<path> := 指向一个 .dsh 的路径，相对本文件或它所属的源码根，
+          或者以 "/" 开头；".dsh" 可以省略
 ```
 
 </Synopsis>
 
-指令必须是所在行的第一个内容 —— 允许前导空白，其他一律不允许。闭合引号之后只能跟一个可选的 `;`
-<Since v="1.2.2" /> 和一个可选的 `//` 注释。`import` 本身按大小写不敏感匹配。
+`;` 是可选的 <Since v="1.2.2" />。`import` 是小写的；其他大小写读法相同，但给出警告 `DSH2253`。
 
 ```c
 import "Shared/Common";                                   // -> 自己所在根的 Shared/Common.dsh
 import '@typedreammoon/dream-noise/Library/Noise.dsh';    // -> <根>/Packages/@typedreammoon/…
-import "../Functions/F_Tint.dsf"                          // -> 相对导入方所在目录
-import "Plugin.MoonToon:Shared/Toon.dsh";                 // -> 跨根，见下 <Since v="1.6.0" />
+import "../Lib/Color.dsh"                                 // -> 相对导入方所在目录
+import "/Shared/Toon.dsh";                                // -> 先找自己的根，再找其他根（2.0.0 起）
 ```
 
-裸 `<path>` 在**导入方自己所在的源码根**里解析。`<root-qualifier>` 前缀 <Since v="1.6.0" /> 是让 import
-够到另一个根的唯一方式。
+### 识别
 
-### 识别规则
+`import` 是一个 token，解析器像读其他顶层声明一样读它 <Since v="2.0.0" />；1.x 那套在原始文本里逐行识别的规则
+已经没有了。
 
-每个物理行按顺序过一遍下列规则。任何一条不满足，这行就不是 import，原样交给解析器。
-
-| # | 规则 |
+| 规则 | |
 | :-- | :-- |
-| 1 | 去空白后的行不能以 `//` 开头 |
-| 2 | 去空白后的行必须以 `import` 开头，忽略大小写 |
-| 3 | `import` 之后的字符必须是空白，除非整行就是 `import` —— 这条规则用来拒绝 `importfoo` |
-| 4 | 剩余部分去空白后必须以 `"` 或 `'` 开头 |
-| 5 | 闭合引号必须与开引号一致；引号内的 `\` 会转义下一个字符 |
-| 6 | 引号未闭合时这行变成普通行，而不是报错 |
-| 7 | 闭合引号之后可以跟一个可选的 `;` |
-| 8 | 再之后，本行剩余部分必须为空或以 `//` 开头 |
-| 9 | 提取出的 specifier 去空白后必须非空 |
+| 位置 | 文件顶层、块与块之间 |
+| 注释 | 普通注释：写在 `/* … */` 里或 `//` 之后的 `import` 就是被注释掉了（1.x 的加载器照样执行 `/* … */` 里的 import） |
+| 路径 | 一个字符串：`"…"`，支持常规转义；在 1.x 文件和 `.dsh` 里也可以是同一行里的 `'…'` |
+| `;` | 可选 |
+| `#if` | 由 [预处理器](/docs/language/lexical#预处理器) 先处理：没选中的分支里的 `import` 不会被读取 |
 
-<Callout type="warn">
-
-规则 1 只认识 `//`。写在 `/* … */` 块注释里的 `import` 行**仍然生效** —— 加载器没有块注释的概念。用
-`/* … */` 注释掉一批 import，它们会被静默地继续导入。请在每行前面写 `//`。
-
-</Callout>
+| 被拒绝 | 诊断 |
+| :-- | :-- |
+| `import` 后面不是字符串 | `DSH2252` |
+| 路径指向 `.dsf` 或 `.dsm` —— 材质文件和函数文件各自单独编译，从不被包含 | `DSH2252` |
+| 带根限定的路径（`Project:Shared/Common.dsh`、`Plugin.X:…`） | `DSH2252` |
+| 解析到的文件不是 `.dsh`（或 `.dss`） | `DSH8295` |
 
 <Callout type="info">
 
-`import` 必须独占一行。`Shader(Name="X") import "Common.dsh";` 不会被识别，文本原样交给解析器 —— 那个
-多余的 `import` 随后失败于 `Unexpected token near index {Index}.`
+编辑器的**依赖扫描器**仍然把 `import` 行当文本读，用来判断保存一个 header 时该重新编译哪些源文件：去空白后以
+`import` 开头（忽略大小写）、然后是 `"…"` 或 `'…'` 路径、可选的 `;`、之后只有 `//` 注释的行。它读的是原始文件，
+`#if` 的所有分支都算，所以只有死分支导入的 header 改了，导入方照样会重建。这是有意的：多重建一次花几秒，漏重建
+一次就留下过期的资产。
 
 </Callout>
 
@@ -83,8 +83,7 @@ import "Plugin.MoonToon:Shared/Toon.dsh";                 // -> 跨根，见下 
 | 3 | 去掉**全部**前导 `./` |
 | 4 | 如果结果完全没有扩展名，追加 `.dsh` |
 
-所以 `import "Shared/Common"` 和 `import "Shared/Common.dsh"` 是同一条指令。导入 `.dsf` 或 `.dsm`
-因此**必须显式写扩展名**（`.dsf` <Since v="1.3.5" />）。
+所以 `import "Shared/Common"` 和 `import "Shared/Common.dsh"` 是同一条指令。
 
 <Callout type="info">
 
@@ -96,7 +95,13 @@ import "Plugin.MoonToon:Shared/Toon.dsh";                 // -> 跨根，见下 
 
 ## 解析
 
-按顺序尝试三个候选路径。每个候选都配一个**包含根**；解析结果落在根之外的候选会被跳过而不是报错，第一个
+| 路径 | 相对于 |
+| :-- | :-- |
+| 一个存在的绝对文件路径 | 那个文件 |
+| 以 `/` 开头 <Since v="2.0.0" />：`/Shared/Common.dsh` 或 `/Game/Shared/Common.dsh` | 去掉锚（`/` 或 `/Game/`），先找导入方自己的根 —— 源目录、再 packages 目录 —— 然后按根的顺序找其他每个根的这两个目录，第一个存在的文件胜出。永远不相对导入方文件 |
+| 其他 | 下面三个候选 |
+
+三个候选按顺序尝试。每个候选都配一个**包含根**；解析结果落在根之外的候选会被跳过而不是报错，第一个
 在磁盘上存在的候选胜出。
 
 | # | 候选 | 包含根 |
@@ -111,6 +116,8 @@ import "Plugin.MoonToon:Shared/Toon.dsh";                 // -> 跨根，见下 
 | 插件源目录 <Since v="1.6.0" /> | `<Plugin>/DShader` | *Scan Plugin Source Directories* |
 | Packages | `<源目录>/Packages` | 推导得到，不能单独配置 |
 
+哪里都解析不到是 `DSH8292`，消息里说明原因。
+
 ### 源码根
 
 <Since v="1.6.0" />
@@ -118,7 +125,7 @@ import "Plugin.MoonToon:Shared/Toon.dsh";                 // -> 跨根，见下 
 候选 2 和 3 属于导入方文件的**所属根** —— 也就是该文件所在的那个源码根。
 
 <Callout type="warn">
-**裸 specifier 永不跨根。** `Plugins/MoonToon/DShader` 下的一个 `.dsm` 写 `Shared/Common.dsh`
+**相对 specifier 永不跨根。** `Plugins/MoonToon/DShader` 下的一个 `.dsm` 写 `Shared/Common.dsh`
 够不到 `<Project>/DShader`，反过来也一样。
 
 这条规则的存在是为了让「装一个插件」不能改变一个既有 import 的含义。如果项目根是全局兜底，
@@ -130,47 +137,27 @@ packages 目录，也就是根这个概念存在之前每个文件的行为。
 
 ### 刻意跨根
 
-<Since v="1.6.0" />
+1.6.0 – 1.9.x 用根限定符加 `:` —— `Project:Shared/Common.dsh`、`Plugin.MoonToon:Shared/Toon.dsh` —— 让 import
+指向另一个根的源目录和 packages 目录。`import` 现在拒绝这种写法（`DSH2252`）<Since v="2.0.0" />。要用另一个根
+里的 header，有三种办法：
 
-给 specifier 加一个根限定符和一个 `:`。
-
-| Specifier | 解析到 |
-| :-- | :-- |
-| `Project:Shared/Common.dsh` | `<Project>/DShader/Shared/Common.dsh`，然后 `<Project>/DShader/Packages/…` |
-| `Plugin.MoonToon:Shared/Toon.dsh` | `<MoonToon>/DShader/Shared/Toon.dsh`，然后 `<MoonToon>/DShader/Packages/…` |
-| `Plugins.MoonToon:Shared/Toon.dsh` | 同上 —— `Plugin` / `Plugins`、`.` / `/` 拼的是同一个东西 |
-| `Plugin/MoonToon:Shared/Toon.dsh` | 同上 |
-
-限定符用的是 [`Root=`](/docs/generation/asset-paths) 已有的那套词汇（去掉只对 package 有意义的写法），
-大小写不敏感。`Project` 指的是项目根，无论 *Source Directory* 指到哪里。
-
-带限定的 specifier 按构造就是有根的，所以只尝试两个候选 —— 目标根的源目录、然后是它的 packages 目录 ——
-两者都同样做包含检查。**没有**相对导入方文件的候选，导入方自己的根也不会被查。
-
-<Callout type="info">
-那个 `:` 正是让这个形式无歧义的东西。没有它，`Plugin.MoonToon/Shared/Common.dsh` 就无法与「经过一个
-叫 `Plugin.MoonToon` 的文件夹的普通相对路径」区分开，解析器又要回去猜 —— 而同根规则的存在就是为了消灭猜测。
-`:` 在 Windows 上不能出现在路径段里，所以不会和任何真实 specifier 撞上。
-
-`:` 之前的文本**不匹配**限定符形状时，它完全不被当作限定符，整个 specifier 按普通路径解析 ——
-这正是让 `import "C:/Shared/Common.dsh"` 保持它一贯的失败方式、而不是报一个「未知源码根」的原因。
-形状匹配但名字指向一个不存在的根 —— `Plugin.NotInstalled:X.dsh` —— 有专门的诊断。
-</Callout>
+- 以 `/` 开头的路径：先找导入方自己的根、再找其他每个根，所以自己根里的同名文件胜出；
+- 把它复制到本根；
+- 通过 [package](/docs/tools/packages) 分发。
 
 <Callout type="warn">
-**一个把自己限定进 `Project:` 的插件不再是自包含的**：把它交付到另一个项目，这条 import 就悬空了。
-这个形式刻意写得啰嗦、方便 grep，就是为了这一点。
+**一个伸手到项目根里的插件不再是自包含的**：把它交付到另一个项目，这条 import 就悬空了。
 </Callout>
 
 包含比较在所有平台上都忽略大小写；至于候选最终能不能被找到，仍然遵循文件系统自身的大小写行为。
 
-包含检查正是阻止 specifier 爬出目录树的机制。`..` 段会在检查*之前*被解析掉，因此：
+包含检查正是阻止相对 specifier 爬出目录树的机制。`..` 段会在检查*之前*被解析掉，因此：
 
 - 对于直接位于 `DShader` 下的文件，`import "../Secret.dsh"` 解析到源目录之上，候选 1 被跳过；候选 2 和 3
   也会塌缩同样的 `..` 并落在各自的根之外，同样被跳过；
 - 对于位于 `DShader/Packages/@scope/pkg/` 下的文件，`..` 可以在 `DShader/Packages` 内任意穿行，因为那
   才是为它选定的包含根；
-- 对于两个目录都不属于的源文件，包含根就是它自己的目录，任何带 `..` 的 specifier 都解析不了。
+- 对于两个目录都不属于的源文件，包含根就是它自己的目录，任何带 `..` 的 specifier 都无法通过候选 1 解析。
 
 ### Package 风格路径
 
@@ -188,54 +175,32 @@ packages 目录，也就是根这个概念存在之前每个文件的行为。
 
 这套约定假定的目录布局见 [Package](/docs/tools/packages)。
 
-## 内联、循环与顺序
+## header 是怎么被读取的
 
-加载器深度优先遍历 import 图，产出交给解析器的一段扁平文本。
+什么都不内联 <Since v="2.0.0" />。每个 header 单独读取，它的声明加进导入方文件的声明里。
 
 | 行为 | 规则 |
 | :-- | :-- |
-| 顺序 | 一个 import 会在导入方文件的其余部分之前被完整内联，所以依赖总是排在被依赖方之前 |
-| 菱形依赖 | 本翻译单元里已经内联过的文件被静默跳过 —— 它的文本只出现一次 |
-| 循环 | 重新进入一个仍在内联中的文件会失败于 `DreamShader import cycle detected at '{Path}'.` |
-| 无法读取 | `DreamShader could not read '{Path}'.` |
-| 无法解析的 specifier | `DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved.` |
-| 限定符指向的根不存在 <Since v="1.6.0" /> | `DreamShader import '{Specifier}' referenced from '{Path}' names source root '{Qualifier}', which is not a DreamShader source root.` —— 插件名拼错、插件被禁用，或者它根本没带 `DShader` 目录 |
-
-每个文件的内容都被标记注释包起来，每一行 import 都被替换成**空行**，这样它下面各行的行号保持不变：
-
-```text
-// Begin DreamShader source: <Project>/DShader/Shared/Common.dsh
-Namespace(Name="Common")
-…
-// End DreamShader source: <Project>/DShader/Shared/Common.dsh
-
-// Begin DreamShader source: <Project>/DShader/Materials/M_Water.dsm
-                                     <- 原来 import 的位置留下空行
-Shader(Name="Materials/M_Water")
-…
-// End DreamShader source: <Project>/DShader/Materials/M_Water.dsm
-```
-
-<Callout type="warn">
-
-因为整个闭包变成一个解析单元，"最多一个 `Shader` 块"这条规则是**闭包范围**的。导入两个各自声明了
-`Shader` 的文件会失败于 `Only one top-level Shader block is currently supported.`，尽管这两个文件单独
-看都没违规。
-
-</Callout>
+| 预处理 | 每个 header **单独**对着这次编译的 define 表预处理：header 里的 `#define` 传不到导入它的文件。header 的 `#if` 出错是 `DSH8291` |
+| 解析 | 每个 header 用它自己的方言单独解析：`.dsh` 可以让 1.x 块和 2.0 声明并存，不管导入它的是哪种文件。header 的语法错误报在它自己的行上，随后这条 import 是 `DSH8294`；读不了是 `DSH8293` |
+| 名字 | header（以及它导入的 header）的每个声明在导入方文件里都可见。同一个名字在 header 和导入方、或两个 header 里都声明了，是 `DSH4210` |
+| 菱形依赖 | 被导入两次的 header 只登记一次 |
+| 循环 | 直接或经由别的 header 导入自己，是 `DSH4211` |
+| 资产 | 没有：header 不能放资产块（`DSH2249`），所以 import 只带来名字、永远不带来资产，一个文件也最多只有一个 `Shader`（`DSH2250`） |
+| 重建 | 这次编译读到的每个 header 的预处理后文本都计入该源文件的构建键；保存一个 header 会把导入它的每个源文件排进重编队列 |
 
 <Callout type="info">
 
-`.dsh` / `.dsf` 的内容规则作用于每个文件**自己**的文本，而不是拼装后的闭包。`.dsh` 可以导入一个声明了
-`ShaderFunction` 块的 `.dsf`，那些块也会作为翻译单元的一部分被编译。见
-[文件模型](/docs/language/file-model)。
+**1.9.x 及以前**，加载器在解析之前把整个 import 闭包粘贴成一段文本，所以"一个 `Shader`"的规则是闭包范围的，
+`.dsh` 可以导入 `.dsf` 并把它的 `ShaderFunction` 块作为导入方的一部分编译，每个位置都得从拼装后的文本映射回去。
+这些都不存在了。
 
 </Callout>
 
 ## 跨文件的命名空间
 
-`Namespace` 不是模块，和 `import` 没有关系。因为闭包是一段扁平文本，导入 header 里的命名空间无需任何
-额外声明就可见 —— 它们跨文件冲突的方式，也和在同一个文件里一模一样。
+`Namespace` 不是模块，和 `import` 没有关系。导入 header 里的命名空间登记进导入方文件之后无需任何额外声明就
+可见 —— 它们跨文件冲突的方式，也和在同一个文件里一模一样。
 
 ```c
 // DShader/Lib/Common.dsh
@@ -259,42 +224,25 @@ Graph = {
 | 规则 | 后果 |
 | :-- | :-- |
 | 重复打开是允许且不作检查的 | 两个导入 header 里的 `Namespace(Name="Common")` 都会加 `Common::` 前缀。 |
-| 成员只能通过限定名访问 | 没有 `using`，没有名字导入，也没有不限定的回退。 |
-| 在 `Namespace` 体内写 `import` 没有作用域效果 | 指令是逐行剥离的，目标被内联到整个文件之前。请把 import 写在文件作用域。 |
-| 限定名重复会被很晚才发现 | 不是在 import 时，而是在写出生成的 include 时。 |
+| 成员只能通过限定名（或压平后的 `Common_ApplyTint`）访问 | 没有 `using`，没有名字导入，也没有不限定的回退。 |
+| `import` 只能写在文件作用域 | 写在 `Namespace` 体内是 `DSH6310` <Since v="2.0.0" />。 |
+| 限定名重复在绑定时发现 | `DSH4210`，消息里点名两处声明所在的文件。 |
 
-声明规则、`::` 解析和函数体规范化的陷阱见 [函数](/docs/language/functions)。
+声明规则、`::` 解析和函数体规范化见 [函数](/docs/language/functions#namespace)。
 
 ## 源码行映射
 
-诊断会从拼装后的文本映射回你实际编写的那个文件。
-
-- 映射器在错误文本里找字面量 `near index `，读出后面的整数。**这是解析错误携带位置的唯一通道** ——
-  这也解释了为什么那么多消息以 `near index {Index}.` 结尾。
-- 然后它遍历拼装文本，跟踪当前的 `// Begin DreamShader source:` 文件和一个在每个标记处归零的按文件行
-  计数器。标记行本身不推进计数器。
-- 定位成功的消息格式是 `<file>(<line>,<column>): <message>`；映射失败时格式是 `<file>: <message>`。
-- `Graph` 错误单独锚定：解析器记录每个 `Graph` 体的起点，图内相对的行列再叠加到那个原点上。列偏移只对
-  函数体的第一行生效。
-
-<Callout type="info">
-
-报告的位置看起来不对时，有三个限制值得知道。
-
-1. section 体内抛出的错误携带的索引是相对**那段函数体**的，但映射器把每个索引都当成拼装文本里的偏移。
-   所以 section 内错误的位置并不可靠。
-2. 恰好落在某行第一个字符上的索引可能被归到上一行。
-3. 大多数语句级消息根本不带 `near index`，会被报成不含行列的 `<file>: <message>`。
-
-</Callout>
+没有什么需要映射的了 <Since v="2.0.0" />。诊断带着它所在的文件 —— header 里的错误就是 header —— 以及构造的行和
+列，打印成 `<file>(<line>,<column>): DSHnnnn: <message>`。1.9.x 的位置来自拼装文本里的 `near index` 偏移，在
+section 内部并不可靠；那套机制已经没有了。
 
 ## 组织一个项目
 
 | 变更 | 会重新编译什么 |
 | :-- | :-- |
-| 改了一个 `.dsm` | 那个材质，以及该文件声明的每个函数资产 |
+| 改了一个 `.dsm` | 那个材质，以及该文件里声明的每个函数资产 |
 | 改了一个 `.dsf` | 它声明的那些函数资产 |
-| 改了一个 `.dsh` | 直接或间接导入它的 `.dsm` / `.dsf` |
+| 改了一个 `.dsh` | 直接或间接导入它的 `.dsm` / `.dsf`（以及 `.dss`） |
 | 改了一个 package 文件 | 导入它的那些源文件 |
 
 给项目定一个稳定的入口 header，能让这张图保持很浅：
@@ -320,20 +268,22 @@ import "Shared/Common.dsh";
 ## 诊断
 
 <Diag>
-  <D msg="DreamShader import '{Specifier}' referenced from '{Path}' could not be resolved." cause="三个候选都不存在，或存在的候选全都落在包含根之外。" fix="检查扩展名：无后缀的 specifier 会补 .dsh，所以 .dsf 或 .dsm 必须写全。" />
-  <D msg="DreamShader import '{Specifier}' referenced from '{Path}' names source root '{Qualifier}', which is not a DreamShader source root." cause="带根限定的 import，限定符形状对但没有对应的活动源码根 —— 插件名拼错、插件被禁用，或者它没有 DShader 目录。" fix="核对插件名，并确认该插件已启用且带 DShader 目录。" />
-  <D msg="DreamShader import cycle detected at '{Path}'." cause="文件直接或间接导入了自己。" fix="把共享声明抽到两边都导入的第三个 header 里。" />
-  <D msg="DreamShader could not read '{Path}'." cause="解析出的文件读取失败。" />
-  <D msg="Only one top-level Shader block is currently supported." cause="闭包里出现了两个 Shader 块 —— 常常是被误导入的。" href="/docs/language/file-model" />
-  <D msg="Unexpected token near index {Index}." cause="一行 import 因为没有独占一行而进入了声明解析器。" />
-  <D msg="DreamShader header '{Path}' may only declare Function/Namespace/GraphFunction/VirtualFunction blocks and imports." cause="被导入的 .dsh 违反了它自己的内容规则。" href="/docs/language/file-model" />
-  <D msg="DreamShader function file '{Path}' may only declare imports, Function/Namespace/GraphFunction/VirtualFunction blocks, and ShaderFunction/ShaderLayer/ShaderLayerBlend blocks." cause="被导入的 .dsf 违反了它自己的内容规则。" href="/docs/language/file-model" />
+  <D msg="DSH2252: Expected a double-quoted path after 'import', found {0}." cause="前端不读的 import：import 后面不是带引号的路径；路径指向 .dsf 或 .dsm；或者是 1.6.0 的根限定写法（Project:…、Plugin.X:…）。" fix='写 import "Shared/Common.dsh";，路径相对本文件或它所属的源码根；够另一个根里的 header 用以 / 开头的路径，或复制过来、或通过 package。' />
+  <D msg="DSH2253: '{0}' is read as 'import'; write it in lower case." cause="import 写成了别的大小写（警告）。" fix="写小写的 import。" />
+  <D msg="DSH8292: '{0}', included from '{1}', could not be resolved: {2}." cause="没有任何源码根含有这个文件。没有扩展名的 specifier 会补 .dsh。" fix="检查拼写和扩展名；要从根锚定而不是相对导入方，路径以 / 开头。" />
+  <D msg="DSH8295: '{0}' is not a DreamShader header; an include names a '.dsh' (or a '.dss'), not a '{1}' file." cause="解析到的文件不是 header —— 比如一个 .dsm 或 .dsf。" fix="导入声明所在的 .dsh；要共享的声明挪进 .dsh。" />
+  <D msg="DSH8293: '{0}', included from '{1}', resolved but could not be read." cause="文件找到了但打不开 —— 权限或被别的工具独占锁定，不是拼写问题。" fix="确认文件可读。" />
+  <D msg="DSH8294: '{0}', included from '{1}', could not be parsed; its own errors are above." cause="被导入的 header 解析失败；它自己的错误已经先报出来了，报在 header 自己的行上。" fix="修正 header 自己的错误。" />
+  <D msg="DSH8291: '{0}' failed conditional compilation: {1}: {2}" cause="header 单独预处理时失败；消息里带预处理器自己的 DSH103x 码。" fix="看里面那个码；记住 #define 只在本文件有效。" href="/docs/language/lexical#预处理器" />
+  <D msg="DSH4211: Including '{0}' from '{1}' closes a cycle; a header may not include itself, directly or through another header." cause="沿着 import 走回到了一个正在读取的文件。" fix="把两边都需要的共享声明抽到第三个 header 里，两边都导入它。" />
+  <D msg="DSH4210: '{0}' is already declared in this file; one name declares one thing." cause="header 声明的名字在导入方文件或另一个 header 里又声明了一次；消息里点名两处所在的文件。" fix="给其中一个改名。" />
+  <D msg="DSH2249: Expected only Function, GraphFunction, Namespace and VirtualFunction blocks in a '.dsh' header, found the asset block '{0}', which belongs in a .dsm or .dsf file." cause="被导入的 .dsh 里有资产块。" fix="把这个块挪进它自己的 .dsm / .dsf。" href="/docs/language/file-model" />
 </Diag>
 
 ## 继续阅读
 
 <Cards>
-  <Card title="文件模型" href="/docs/language/file-model" description="作用在每个被导入文件上的内容规则。" />
+  <Card title="文件模型" href="/docs/language/file-model" description="每种文件允许放什么，以及源码根。" />
   <Card title="函数" href="/docs/language/functions" description="Namespace 的声明规则与限定调用。" />
   <Card title="Package" href="/docs/tools/packages" description="DShader/Packages 与 @scope/name 布局。" />
   <Card title="项目设置" href="/docs/settings/project" description="Source Directory，它会移动全部搜索根。" />
