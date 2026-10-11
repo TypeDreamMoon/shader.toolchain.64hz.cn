@@ -14,6 +14,24 @@ description: DreamShaderLang VSCode 扩展的版本更新记录，取自扩展�
 [DreamShader 插件](/docs/changelog/dreamshader)。
 </Callout>
 
+## 2.1.0 - 2026-10-04
+
+### Custom Pass 管线：`.dsp`
+
+- `.dsp` 以 **DreamShader Pipeline** 打开，语言 id 是 `dreamshader-dsp`（插件生成的工作区从 2.1.0 起把 `.dsp` 关联到它；
+  `dreamshaderlang` 与 `dreamshader-dss` 不变）。有 `#pragma pipeline`、`uniform`、`static const`、`buffer`、`pass`
+  及 pass 的各个键和 `read` / `write` / `param` 绑定的语法，以及管线、每种 pass、三种 HLSL 写法的代码片段。
+- **里面的 HLSL 按 HLSL 着色。** `.dsp` 的 `hlsl { }` 块（文件级和 pass 级）以及 `.dss` 里 `/// @custom` 函数体
+  都嵌入 VS Code 的 HLSL 语法，注释切换、括号匹配、片段也按 HLSL 走。块在与 `{` 配对的 `}` 处结束，注释、字符串、
+  `#` 行里的花括号不算 —— 与编译器的截取一致。`@custom` 体里的 `UE.` 调用保留 DreamShader 的颜色，因为编译器会把它提到图里。
+- **`.dsp` 的补全、悬停、转到定义和大纲来自编译器。** 键和取值（注入点、格式、pass 种类、模式、工程的 pass 层）及其说明
+  来自插件导出的 `pass-keys.json`；编辑器还没写过它的工程使用扩展自带的词表并给出提示。缓冲区、参数、常量、pass 在符号索引新增的
+  `pipeline` 一节里查。在 `hlsl` 块里，pass 的绑定名（`Source`、`SourceSize`、`SourceUVRect` 等）、编译器在入口语句周围写出的名字
+  （`Id`、`UV` 等）以及 `DP_*` 参数、`DreamPass*` 辅助函数都能补全、悬停、按语义着色，绑定名能跳到它的 `read` / `write` / `param`；
+  `Entry =` 列出文件级块里的函数。
+- **Bridge 功能支持 `.dsp`**：Recompile Current Source、Clean Generated Shaders 和 bridge 面板都能对管线使用；带 `DSHnnnn` 码的
+  bridge 诊断链接到插件文档的对应页。`pass-keys.json` 与管线索引需要 DreamShader 2.1.0；没有它们时语法、片段和基于文本的回答照常可用。
+
 ## 2.0.0 - 2026-09-21
 
 ### DreamShader 2.0：`.dss` 与 `.dsi`

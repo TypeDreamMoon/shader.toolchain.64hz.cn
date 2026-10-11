@@ -7,9 +7,115 @@ Unreal 插件的版本更新记录，新版本在前。这里记录会影响使�
 
 | | |
 | :-- | :-- |
-| 当前版本 | **2.0.0** |
-| 引擎 | Unreal Engine `5.3` 到 `5.8`，Win64 |
+| 当前版本 | **2.1.2** |
+| 引擎 | Unreal Engine `5.3` 到 `5.8`，Win64；Custom Pass 需要 `5.8` |
 | 记录来源 | 插件目录内自带的 `CHANGELOG.md` |
+
+## 2.1.2 - 2026-10-11
+
+一个修正语义的版本：几处常量折叠、三元表达式和默认参数的行为改成和图、和 HLSL 一致，所以**升级后每个生成资产会重建一次**。
+另外修好了两种会让 cook 中止的情况，发布包也终于带上了中文本地化。
+
+### 行为变化
+
+- **每个生成资产重建一次。** 构建键的格式标记升到 `DSK7`（2.1.1 是 `DSK4`）：下面几条修正会改变部分源文件生成的图，
+  所以旧版本写下的东西一律不再算最新。源码不用改。见[重新生成](/docs/generation/regeneration)。
+- **`round` 把正好一半的值舍入到偶数，不论参数是什么。** `round(0.5)` 是 0、`round(2.5)` 是 2，和 HLSL 一致。
+  原生 Round 节点对逐像素输入也是这样，但它的 preshader 对 uniform 输入向上舍入，常量折叠也是 —— 同一个值来路不同、
+  结果不同。内置函数现在生成一个 Custom 节点（反编译回 `round`）；要原生节点请写 `UE.Round(Input = x)`。
+  见[数学内置](/docs/builtins/math)。
+- **常量 `sin` / `cos` 按周期算，和图节点一致。** Sine / Cosine 节点默认 `Period = 1`，常量折叠却按弧度算，
+  `sin(0.25)` 和 `T = 0.25` 时的 `sin(T)` 结果不同。现在两者都是 1；`@custom` 函数体是 HLSL，仍按弧度。
+- **图里的 cast 在常量里也保值。** `(int)0.5` 和 `(bool)0.5` 是 0.5，和图里、经变量时一样；折叠不再截断它们
+  （截断会让常量条件翻转）。要截断请写 `trunc(...)` 或 `x != 0`。
+- **`c ? a : b` 只有被选中的一侧会写。** 条件是动态的时候，两侧的赋值、`++`、`out` / `inout` 写入都会传到后面的代码，
+  假分支的最后生效。现在每一侧都从条件之后的状态开始，只有选中的那一侧生效，和常量条件、和 `if` 一样。
+- **默认参数在被调用方求值。** `float F(float x, float y = x)` 调用 `F(7)` 得到 `y = 7`（过去读的是调用方的参数槽）。
+  互相引用的默认值按需求值，成环是 `DSH6224`。调用导出的或 `extern` 的材质函数时，省略的引脚留空，交给资产自己的默认值。
+- **Custom Pass 缓冲区只有一层 mip。** `Mips` 大于 1 过去被接受，但只写 mip 0、其余未定义；现在是 `DSH7308`，
+  已有的管线请把 `Mips` 改成 1。见 [Custom Pass 管线](/docs/language-v2/passes)。
+- **`dsc -CleanNew` 只删命令行自己保存的东西。** 过去它把运行期间 Content 里新出现的每个 `.uasset` 都当成自己的，
+  编辑器导入的也算。现在命令行记录它保存的每个包和 MD5，驱动脚本只删记录里有、内容没变的新文件；
+  没有有效记录时什么都不删、本来成功的运行以 1 退出。更新驱动时请一并重编插件。
+
+### 修复
+
+- **插件自带的 `DShader` 目录不再让宿主工程的 cook 失败。** 引擎或商城插件里写 `Root="Plugin.<Name>"` 的源文件，
+  在装了它的工程里无法生成（`DSH8090`），过去会让整个 cook 中止；现在记作
+  `[Cook] Not this project's to build (plugin '<Name>')` 并继续 —— 这些资产随插件一起发布。工程自己的源文件和
+  `<Project>/Plugins` 下插件的源文件，生成失败仍然中止 cook。见[内存材质](/docs/generation/in-memory)。
+- **干净工作区上的 cook 不再取决于文件顺序。** 材质用 `VirtualFunction` 调用另一个源文件生成的函数时，
+  如果材质路径排在前面，过去会以 `DSH8219` 失败并中止 cook。现在 cook 和 `compile -All` 共用一套批量编译：
+  先 `.dsf`，然后分轮编译，某个文件失败而同一轮里别的文件编成功了，下一轮就重试它；一轮下来没有新的成功，
+  剩下的才是真失败。函数链、`.dss` 导出的函数同样适用。见[命令行](/docs/tools/commandlet)。
+- **发布包带上 `Content/`，也就带上了 `zh-Hans` 翻译。** 从 1.6.0 到 2.1.1 的发布 zip 都缺这个目录，
+  装出来的编辑器界面只有英文。旧安装可以从对应 tag 把 `Content/Localization/` 拷进去。
+- **生成的材质实例重新加载后不再被当成手改。** UE 在加载时会给参数覆盖补上 `ExpressionGUID`，指纹过去把它算进去，
+  `.dsi` 实例第一次重载后就读作 `Diverged`、拒绝重建、cook 也停在它上面。现在指纹不含这个 GUID，其余字段照算；
+  格式仍是 `DSD4`。感谢 [@Yu2erer](https://github.com/Yu2erer)（PR [#38](https://github.com/TypeDreamMoon/DreamShader/pull/38)）。
+- **一次对 2.1.1 的审查修掉三十处问题**（PR [#49](https://github.com/TypeDreamMoon/DreamShader/pull/49)，每处带回归测试）：
+  链式 swizzle 写入 `v.zyx.x = 1` 写对分量；嵌套 `if` 各分支都 return 后仍可达的外层 return 被保留；
+  保存被 include 的 `.dss` 会重建包含它的源文件；编译实例会刷新过期的祖先；`TextureCollection`、`double4`、
+  Cube / Volume / Array 纹理在实例、反编译和 Adopt 里不再丢；第二个打开同一工程的编辑器不再改写持有 bridge 的那个编辑器的文件；
+  Custom Pass 的池化材质实例不再带着上一个 pass 的参数、Nanite 模板过滤的 `AND` 不再当成 `OR`、`Depth32` 缓冲按配置的值清除；
+  预览放大窗口不再让 D3D12 崩溃。
+- 在 UE `5.5`、`5.6`、`5.8` 上单独构建插件（`RunUAT BuildPlugin`）验证通过。
+
+## 2.1.1 - 2026-10-04
+
+1.x 语言的文档和行为对齐到真正在构建 1.x 源文件的 2.0 编译器，外加一批 1.x 文本兼容修复。
+
+- **1.x 各页描述的是现在的编译器。** 2.0.0 起 `.dsm` / `.dsf` / `.dsh` 由 legacy 前端读、由 2.0 编译器构建，
+  但语言、图、内置、参数、设置、生成和工具各页仍在引用已删除的 1.x 生成器的消息和行为。现在每页都写出报告该情况的
+  `DSHnnnn` 码和今天的实际行为；[诊断](/docs/diagnostics)一页改成讲诊断出现在哪里、怎么读，并把常见的 1.x 消息对到错误码。
+- **构建键不再取决于工程放在哪里。** 指纹过去按绝对路径记录源文件和头文件，同事或 CI 换个目录检出就会重建、重存每个生成资产；
+  现在按工程相对路径记录。格式是 `DSK4`，升级后每个资产重建一次。
+- **重编一个材质不再清掉别的材质在共享头文件上的诊断。** 一条诊断记录属于产生它的源文件和那一次运行；
+  编译成功时的警告在材质 shader 编译完后也会保留。
+- **命令行布尔开关带值也能读。** `-Force=true`、`-Check=1`、`-DryRun=yes` 过去被当成没写 ——
+  `migrate -Check=true` 会真的改写文件。现在 `true` / `1` / `yes` / `on` 为开，`false` / `0` / `no` / `off` 为关，
+  其他值（包括空的 `-Force=`）是 `DSH9110`，命令什么都不做、以 1 退出。不属于任何文件的错误不再显示成假位置。
+- **1.x 文本兼容：**
+  `Function SelfContained`（以及旧写法 `Inline`）重新把被调用的函数嵌进 Custom 节点；
+  `UE.CollectionParam` 重新可用，1.x 才有的变换空间（`AbsoluteWorld` 等）写成引擎的名字并警告 `DSH5278`，
+  没写 `Destination` 的 `UE.TransformPosition` 变换到 `World`；
+  块属性列表 `)` 前的逗号、`Properties` 默认值的指数写法（`1e3`）重新可读；
+  1.x `Graph` 里 `7 / 2` 重新是 3.5（只有两侧都是整数构造调用才是整数除法）；
+  多输出节点直接传给引脚时取第一个输出（`DSH5287`）。
+- **`.dsm` 能同时构建 `Shader` 和旁边的函数、层块**，材质按名字调用它们，函数资产先建；`.dsf` 里的 `Shader` 现在是 `DSH2259`。
+- **Agent 技能写 2.0 源文件**，并新增 `dream-shader-migrate`。
+
+## 2.1.0 - 2026-10-04
+
+- **Custom Pass：用 `.dsp` 管线写你自己的渲染 pass（UE 5.8）。** 一个 `.dsp` 声明具名缓冲区和一串有序的 pass，
+  每个 pass 挂在渲染器的某个注入点上 —— 从什么都还没画的 `BeginView`，经过 `AfterBasePass`、`AfterOpaque`、
+  `BeforePostProcess`，到后处理链内部的各点和 `EndOfView`；编译成 `UDreamPassPipeline` 资产，也能反编译回 `.dsp`。
+  pass 可以是全屏后处理材质（写在 `.dss` 里，通过 `UE.UserSceneTexture` 读缓冲区）、写在 `.dsp` 或工程 `.usf` 里的
+  全屏 / 计算 HLSL、按模板值 / pass 层 / 具名列表挑选图元的网格 pass，或者清除、拷贝。缓冲区可以跨帧保留历史；
+  导出的缓冲区是普通材质（`UE.DreamPassBuffer`）、蓝图、UMG、Niagara 都能读的渲染目标。管线由工程设置、
+  `ADreamPassVolume`、`UDreamPassComponent` 或蓝图 / C++ API 激活，参数覆盖像后处理体积那样混合。
+  见 [Custom Pass 管线](/docs/language-v2/passes)、[运行时](/docs/runtime)和[示例](/docs/examples/custom-pass)。
+- **pass 的 HLSL 可以直接写在 `.dsp` 里**（`hlsl { }` 块）：写整个函数，或者只写入口的语句、由编译器补上函数；
+  文件级的 `hlsl { }` 放所有 pass 共用的代码。预检错误报在 `.dsp` 的对应行。见 [HLSL pass](/docs/runtime/hlsl)。
+- **生成的 VS Code 工作区认识 2.0 源文件**：`.dss` / `.dsi` 关联到 `dreamshader-dss`，`.dsp` 关联到 `dreamshader-dsp`（扩展 2.1.0）。
+- **修复：** 给没有滑条的参数写滑条范围（1.x `vec3` 属性的 `Slider`、`float3` / `bool` uniform 的 `@slider`）
+  现在是一条 `DSH7233` 警告、报在范围那里，范围被丢弃；编译成功时的警告也会写进 `diagnostics.json`，扩展里看得到。
+
+## 2.0.2 - 2026-10-02
+
+- **反编译器按名字写出每个 Substrate 节点。** 过去 Transmittance-To-MFP、Coverage Weight、Add、Horizontal Mixing
+  会被写成语法糖（`Slab * w`、`+`、`lerp`），图是对的，但在文本里搜不到图上那个节点。现在它们是各自的调用，
+  如 `Substrate.Weight(A = ..., Weight = ...)`；语法糖只在可读形式（`-Readable`）里出现。用语法糖写的源文件照常编译。
+- **修复：** 带具名分支的 Switch 反编译回 Switch 节点本身（分支未命名时仍是分支链，并以 `DSH9073` 提示命名）；
+  未连线引脚的常量写在该引脚自己的位置；Landscape 层混合、Grass 输出、物理材质输出带着引脚反编译
+  （`Layer_Grass = ...`、`Height_Rock = ...`）。
+
+## 2.0.1 - 2026-09-27
+
+- **修复反编译器的几处遗漏：** Convert（Make / Break FloatN）按它实际计算的通道写回（`DXY.xy`、`float3(Gain, 0.25, 0.75)`）；
+  Switch 写成它的分支链；读 VertexInterpolator 的材质能反编译（`UE.VertexInterpolator(Input = ...)`）；
+  `SetMaterialAttributes` 上目录不认识的引脚会点名（`DSH9072`）。
+- **`Substrate.ShadingModels` 有了 `ShadingModel` 引脚**，`Substrate = Bridge` 下算出来的着色模型能接上去。
 
 ## 2.0.0 - 2026-09-21
 

@@ -8,9 +8,150 @@ language surface, the generator, the editor tooling and engine compatibility.
 
 | | |
 | :-- | :-- |
-| Current release | **2.0.0** |
-| Engines | Unreal Engine `5.3` through `5.8`, Win64 |
+| Current release | **2.1.2** |
+| Engines | Unreal Engine `5.3` through `5.8`, Win64; Custom Pass needs `5.8` |
 | Source of record | the plugin's own `CHANGELOG.md`, shipped in the plugin folder |
+
+## 2.1.2 - 2026-10-11
+
+A release that corrects semantics: constant folding, the conditional operator and default arguments now
+behave as the graph and HLSL do, so **every generated asset rebuilds once after the upgrade**. It also fixes
+two ways a cook could abort, and the release archive finally carries the Chinese translation.
+
+### Changed
+
+- **Every generated asset is rebuilt once.** The build key's format tag is `DSK7` (`DSK4` in 2.1.1): the
+  corrections below change what some sources generate, so nothing an earlier version wrote counts as current.
+  No source needs touching. See [Regeneration](/en/docs/generation/regeneration).
+- **`round` rounds a halfway value to even, whatever its argument.** `round(0.5)` is 0 and `round(2.5)` is 2,
+  as in HLSL. The native Round node agrees for a varying input, but its preshader rounds a uniform one up, as
+  constant folding did — the same value rounded differently depending on where it came from. The builtin now
+  lowers to a generated Custom node, which decompiles back to `round`; `UE.Round(Input = x)` keeps the native node.
+  See [Math builtins](/en/docs/builtins/math).
+- **Constant `sin` and `cos` take cycles, as the graph nodes do.** The Sine and Cosine nodes keep their default
+  `Period = 1`, but constant folding took radians, so `sin(0.25)` and `sin(T)` with `T = 0.25` disagreed. Both are
+  1 now; an `@custom` body is HLSL and takes radians.
+- **A graph cast keeps its value in constants too.** `(int)0.5` and `(bool)0.5` are 0.5, as they already were in
+  the graph and through a variable; folding no longer truncates them, which could flip a constant condition.
+  Use `trunc(...)` or `x != 0`.
+- **Only the chosen arm of `c ? a : b` writes.** With a dynamic condition, both arms' assignments, `++` and
+  `out` / `inout` writes reached the code after it, the false arm's last. Each arm now starts from the state after
+  the condition and only the selected one takes effect, as with a constant condition or an `if`.
+- **A default argument is evaluated in the callee.** `float F(float x, float y = x)` called as `F(7)` gives
+  `y = 7`; it used to read the caller's parameter slot. Defaults that read each other resolve as they are needed,
+  and a cycle is `DSH6224`. A call to an exported or `extern` material function leaves an omitted pin open for the
+  asset's own default.
+- **A Custom Pass buffer has one mip.** `Mips` above 1 was accepted, but only mip 0 was ever written and the rest
+  were undefined; it is `DSH7308` now. Set existing pipelines' `Mips` to 1.
+  See [Custom Pass pipelines](/en/docs/language-v2/passes).
+- **`dsc -CleanNew` deletes only what the commandlet saved.** It took every `.uasset` that appeared in Content
+  during the run for its own, an editor's import as well. The commandlet now records each package it saves and its
+  MD5, and the driver deletes a new file only when that record names it and its content is unchanged; without a
+  valid record nothing is deleted and an otherwise successful run exits 1. Rebuild the plugin when updating the driver.
+
+### Fixed
+
+- **A plugin that ships its own `DShader` folder no longer fails a host project's cook.** An engine or
+  marketplace plugin's sources that write `Root="Plugin.<Name>"` cannot generate in a project that merely
+  installed it (`DSH8090`), and used to abort the whole cook. Such a failure is now logged as
+  `[Cook] Not this project's to build (plugin '<Name>')` and the cook goes on — those assets ship with the plugin.
+  The project's own sources, and those of plugins under `<Project>/Plugins`, still abort a cook they cannot generate.
+  See [In-memory materials](/en/docs/generation/in-memory).
+- **A cook on a clean workspace no longer depends on file order.** A material whose `VirtualFunction` names a
+  function another source generates failed with `DSH8219` when its path sorted first, and the cook aborted. The cook
+  and `compile -All` now share one batch: `.dsf` first, then passes in which a failure is retried while the pass
+  before it built something else; what still fails once a pass builds nothing new is a real failure. Chains of
+  functions and `.dss` exported functions work the same way. See [Commandlet](/en/docs/tools/commandlet).
+- **The release archive ships `Content/`, and with it the `zh-Hans` translation.** Every zip from 1.6.0 to 2.1.1
+  lacked it, so an install showed English editor text only. Older installs can copy `Content/Localization/` in from
+  the matching tag.
+- **A generated material instance is not a hand edit after it is reloaded.** UE fills in each parameter override's
+  `ExpressionGUID` on load, and the output digest counted it, so a `.dsi` instance read as `Diverged` after its first
+  reload, its next compile was refused and the cook stopped on it. The digest leaves the GUID out now and every other
+  field still counts; the format stays `DSD4`. Thanks to [@Yu2erer](https://github.com/Yu2erer) —
+  PR [#38](https://github.com/TypeDreamMoon/DreamShader/pull/38).
+- **Thirty findings of a review of 2.1.1** (PR [#49](https://github.com/TypeDreamMoon/DreamShader/pull/49), each
+  with a regression test): a chained swizzle write such as `v.zyx.x = 1` writes the component it names; an outer
+  return still reachable after a nested `if` whose branches all return is kept; saving an included `.dss` rebuilds
+  what includes it; compiling an instance refreshes its stale ancestors; `TextureCollection`, `double4`, and Cube,
+  Volume and Array textures survive instances, decompile and Adopt; a second editor on the project no longer
+  rewrites the owning editor's bridge files; a pooled Custom Pass material instance no longer carries a previous
+  pass's parameters, a Nanite stencil filter's `AND` is not an `OR`, a `Depth32` buffer clears to its configured
+  value; enlarging the preview window no longer crashes D3D12.
+- The plugin builds on its own (`RunUAT BuildPlugin`) on UE `5.5`, `5.6` and `5.8`.
+
+## 2.1.1 - 2026-10-04
+
+The 1.x language's documentation and behaviour line up with the 2.0 compiler that actually builds 1.x
+sources, plus a set of 1.x text-compatibility fixes.
+
+- **The 1.x pages describe the compiler that builds 1.x sources.** Since 2.0.0 a `.dsm`, `.dsf` or `.dsh` is read
+  by the legacy front end and built by the 2.0 compiler, yet the language, graph, builtin, parameter, settings,
+  generation and tool pages still quoted the deleted 1.x generator's messages and behaviour. Each page now names the
+  `DSHnnnn` code that reports a condition and says what happens today; [Diagnostics](/en/docs/diagnostics) says where
+  diagnostics appear and how to read one, and maps the common 1.x messages to their codes.
+- **A build key no longer depends on where the project is checked out.** The digest named sources and headers by
+  absolute path, so a teammate's or a CI agent's checkout rebuilt and re-saved every generated asset. It names them
+  project-relative now. The key format is `DSK4`, so every asset rebuilds once after upgrading.
+- **Recompiling one material leaves another's diagnostics for a shared header alone.** A record belongs to the
+  source whose run filed it and to that run; a successful compile's warnings also survive its material's shader
+  compile.
+- **A commandlet flag written with a value is read.** `-Force=true`, `-Check=1` or `-DryRun=yes` read as absent —
+  `migrate -Check=true` migrated the file. Now `true` / `1` / `yes` / `on` are on, `false` / `0` / `no` / `off` are
+  off, and any other value, an empty `-Force=` included, is `DSH9110`, after which the command does nothing and exits
+  `1`. An error that belongs to no file is no longer printed with a made-up location.
+- **1.x text compatibility:** `Function SelfContained` (and its old spelling `Inline`) embeds the functions it
+  calls again; `UE.CollectionParam` works again, the transform spaces only 1.x had (`AbsoluteWorld` and the rest)
+  are written as the engine's names with the warning `DSH5278`, and `UE.TransformPosition` without a `Destination`
+  goes to `World`; a comma before the `)` of a block's attribute list and an exponent in a `Properties` default
+  (`1e3`) read again; `7 / 2` in a 1.x `Graph` is 3.5 again (integer division only when both sides are integer
+  constructor calls); a node with several outputs passed straight to a pin is its first output (`DSH5287`).
+- **A `.dsm` builds its `Shader` and the function and layer blocks beside it**; the material calls them by name and
+  the function assets are built first. A `Shader` block in a `.dsf` is `DSH2259`.
+- **The agent skills write 2.0 sources**, and there is a sixth, `dream-shader-migrate`.
+
+## 2.1.0 - 2026-10-04
+
+- **Custom Pass: render passes of your own, written as `.dsp` pipelines (UE 5.8).** A `.dsp` file declares named
+  buffers and an ordered list of passes, each at an injection point of the renderer — from `BeginView` before
+  anything is drawn, through `AfterBasePass`, `AfterOpaque` and `BeforePostProcess`, to the points inside the
+  post-process chain and `EndOfView` — and compiles to a `UDreamPassPipeline` asset, which decompiles back to `.dsp`.
+  A pass is a fullscreen Post Process material (written in a `.dss`, reading the pass's buffers through
+  `UE.UserSceneTexture`), fullscreen or compute HLSL written in the `.dsp` or in a `.usf` of your project, a mesh pass
+  that draws the primitives a stencil value, a pass layer or a named list selects, or a clear or a copy. Buffers can
+  keep their history across frames, and an exported buffer is a render target that ordinary materials
+  (`UE.DreamPassBuffer`), Blueprints, UMG and Niagara read. Pipelines are activated by the project settings,
+  `ADreamPassVolume`, `UDreamPassComponent` or the Blueprint / C++ API, which blend their parameter overrides as
+  post-process volumes do. See [Custom Pass pipelines](/en/docs/language-v2/passes),
+  [Runtime](/en/docs/runtime) and the [example](/en/docs/examples/custom-pass).
+- **A pass's HLSL can be written in its `.dsp`** (`hlsl { }`): whole functions, or just the entry's statements with
+  the function written for you; the file-level `hlsl { }` holds code every such pass shares. A pre-check error is
+  reported at its line of the `.dsp`. See [HLSL passes](/en/docs/runtime/hlsl).
+- **The generated VS Code workspace knows the 2.0 sources**: `.dss` and `.dsi` map to `dreamshader-dss`, `.dsp` to
+  `dreamshader-dsp` (extension 2.1.0).
+- **Fixed:** a slider range on a parameter that has none (`Slider` on a 1.x `vec3` property, `@slider` on a
+  `float3` or `bool` uniform) is one warning, `DSH7233`, at the range, and the range is dropped; a successful
+  compile's warnings reach `diagnostics.json`, so the extension shows them.
+
+## 2.0.2 - 2026-10-02
+
+- **The decompiler writes every Substrate node by name.** A Transmittance-To-MFP, a Coverage Weight, an Add or a
+  Horizontal Mixing came back as sugar (`Slab * w`, `+`, `lerp`) — graph-exact, but a search of the text for the node
+  the graph shows found nothing. They are now the calls they are, such as `Substrate.Weight(A = ..., Weight = ...)`;
+  the sugar appears only in the readable form (`-Readable`). Sources written with the sugar compile as before.
+- **Fixed:** a Switch whose cases are named decompiles as the Switch itself (one with an unnamed case is still the
+  chain of branches, and `DSH9073` says to name the cases); an unwired pin's constant is written in the pin's place;
+  the Landscape layer blend, grass output and physical-material output decompile with their pins
+  (`Layer_Grass = ...`, `Height_Rock = ...`).
+
+## 2.0.1 - 2026-09-27
+
+- **Fixed decompiler gaps:** a Convert (Make / Break FloatN) is written back as the channels it computes
+  (`DXY.xy`, `float3(Gain, 0.25, 0.75)`); a Switch as its branches; a material that reads a VertexInterpolator
+  decompiles (`UE.VertexInterpolator(Input = ...)`); a SetMaterialAttributes pin the catalog does not know is
+  named (`DSH9072`).
+- **`Substrate.ShadingModels` has its `ShadingModel` pin**, so a computed shading model under `Substrate = Bridge`
+  is wired to it.
 
 ## 2.0.0 - 2026-09-21
 
