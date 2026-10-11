@@ -5,6 +5,26 @@ description: shader.toolchain.64hz.cn 文档站的更新记录 —— 信息架�
 
 这里记录 `shader.toolchain.64hz.cn` 文档站本身的信息架构、部署和内容更新。
 
+## 2026-10-12
+
+### 同步到插件 2.1.2
+
+站点的 1.x 各页上次同步停在 `1.8.0`，`language-v2` 停在 `2.0.0`。这一次按插件 `2.1.2` 的手册整站对照重写。
+
+- **Custom Pass** 上站（插件 `2.1.0`，UE 5.8）：新增 [Custom Pass 管线](/docs/language-v2/passes)（`.dsp` 语言）、
+  [Custom Pass 运行时](/docs/runtime)一组（激活、混合、蓝图 / C++ 入口、导出缓冲区，以及 [HLSL pass](/docs/runtime/hlsl)）、
+  [`UE.DreamPass*` 内置](/docs/builtins/dream-pass)和 [Custom Pass 示例](/docs/examples/custom-pass)。
+- **1.x 各页描述今天的编译器。** 语言、Graph、内置、参数、设置、生成和工具各页不再引用已删除的 1.x 生成器的消息和行为：
+  每条诊断写成 `DSHnnnn` 码和现在的消息，行为按 legacy 前端 + 2.0 编译器的现状写，`2.0.0` 之后的变化带版本标记。
+  插件里拆得更细的主题（字面量、swizzle、转换、名字解析、预处理器、缓存、手改检测、资产改名同步等）并入最相近的现有页。
+- **1.9.x 的内容补齐：** [预处理器](/docs/language/lexical#预处理器)（`#if` / `#define`、工程设置 *Preprocessor Defines*）、
+  `Expression(…){…}` 输出块、Graph 断点、新版 Material Content Browser、资产改名同步、*Graph Layout Style*。
+- [诊断](/docs/diagnostics)整页重写：诊断出现在哪里、三档严重级别、怎么读一条、错误码分段（链到插件仓库的逐码页）、
+  常见诊断速查，以及 1.x 消息到错误码的对照。[已知限制](/docs/diagnostics/limitations)更新到 `2.1.2`。
+- [示例](/docs/examples/patterns)和[配方](/docs/examples/recipes)在 1.x 写法旁给出 `.dss` 写法；入门、安装、概览改成 `2.1.2`：
+  五个模块、六种源文件、发布包内容、实际验证过的引擎。
+- [插件更新记录](/docs/changelog/dreamshader)补齐 `2.0.1` – `2.1.2`；[扩展更新记录](/docs/changelog/vscode-extension)新增 `2.1.0`。
+
 ## 2026-09-21
 
 ### DreamShader 2.0

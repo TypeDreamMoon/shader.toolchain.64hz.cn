@@ -6,6 +6,34 @@ description: Update history for the shader.toolchain.64hz.cn documentation site 
 Changes to the `shader.toolchain.64hz.cn` documentation site itself: information architecture, deployment and
 content.
 
+## 2026-10-12
+
+### Synced to plugin 2.1.2
+
+The site's 1.x pages were last synced at `1.8.0`, and `language-v2` at `2.0.0`. This pass rewrites the site
+against the plugin's `2.1.2` manual throughout.
+
+- **Custom Pass** arrives (plugin `2.1.0`, UE 5.8): [Custom Pass pipelines](/en/docs/language-v2/passes) (the `.dsp`
+  language), a [Custom Pass runtime](/en/docs/runtime) section (activation, blending, Blueprint / C++ entry points,
+  exported buffers, and [HLSL passes](/en/docs/runtime/hlsl)), the [`UE.DreamPass*` builtins](/en/docs/builtins/dream-pass)
+  and the [Custom Pass examples](/en/docs/examples/custom-pass).
+- **The 1.x pages describe today's compiler.** The language, Graph, builtin, parameter, settings, generation and tool
+  pages no longer quote the deleted 1.x generator's messages and behaviour: every diagnostic is its `DSHnnnn` code and
+  current message, behaviour is what the legacy front end and the 2.0 compiler do, and changes since `2.0.0` carry a
+  version marker. Topics the plugin splits finer (literals, swizzles, conversions, name resolution, the preprocessor,
+  caching, divergence, asset rename sync and others) are folded into the nearest existing page.
+- **1.9.x catches up:** the [preprocessor](/en/docs/language/lexical#preprocessor) (`#if` / `#define`, the
+  *Preprocessor Defines* setting), `Expression(…){…}` output blocks, Graph breakpoints, the new Material Content
+  Browser, asset rename sync and *Graph Layout Style*.
+- [Diagnostics](/en/docs/diagnostics) is rewritten: where diagnostics appear, the three severities, how to read one,
+  the code ranges (linked to the plugin repository's per-code pages), a quick reference of common diagnostics, and a
+  map from 1.x messages to codes. [Limitations](/en/docs/diagnostics/limitations) is current to `2.1.2`.
+- The [patterns](/en/docs/examples/patterns) and [recipes](/en/docs/examples/recipes) show the `.dss` form beside the
+  1.x one; getting started, installation and the overview say `2.1.2`: five modules, six source kinds, the release
+  archive's contents and the engines actually verified.
+- The [plugin release notes](/en/docs/changelog/dreamshader) gain `2.0.1` – `2.1.2`; the
+  [extension release notes](/en/docs/changelog/vscode-extension) gain `2.1.0`.
+
 ## 2026-09-21
 
 ### DreamShader 2.0
