@@ -7,10 +7,10 @@ What to commit, what to ignore, and how to keep a team on one answer.
 
 | Aspect | Value |
 | :-- | :-- |
-| Always commit | every `.dss`, `.dsi`, `.dsh`, `.dsm` and `.dsf` — the sources are the material |
+| Always commit | every `.dss`, `.dsi`, `.dsp`, `.dsh`, `.dsm` and `.dsf` — the sources are the material — and `DShader/.dreampass/` when a `.dsp` has an HLSL pass <Since v="2.1.0" /> |
 | Never commit | `Intermediate/DreamShader/`, `Saved/DreamShader/` |
 | Your choice | the generated `.uasset` files — this page is about that choice |
-| Tool | `dsc list-generated` — every asset the sources build, without building any |
+| Tool | [`dsc list-generated`](/en/docs/tools/commandlet#list-generated) — every asset the sources build, without building any |
 | Since | <Since v="2.0.0" /> |
 
 ## Why there is a choice to make
@@ -23,7 +23,9 @@ generated `.uasset` outside a cook. Since 2.0 that is only true of one kind of p
 | `Graph`-backend material | **always** — every successful generation saves it |
 | material function, layer, layer blend | **always** |
 | material instance (`.dsi`) | **always** |
-| `ThinCustom`-backend material | only once [materialized](/en/docs/generation/in-memory); memory-only by default, and then it has no file at all |
+| Custom Pass pipeline (`UDreamPassPipeline`, from a `.dsp`) <Since v="2.1.0" /> | **always** |
+| an exported buffer's render target (`<Pipeline>_<Buffer>`) <Since v="2.1.0" /> | **always** |
+| `ThinCustom`-backend material | only once [Materialized](/en/docs/generation/in-memory); Ephemeral by default, and then it has no file at all |
 
 A `UMaterial` and a `UMaterialFunction` are stock engine classes with no way to stay out of asset
 enumeration, so they are saved the moment they are built — next to the assets people made by hand,
@@ -47,10 +49,13 @@ tag stock classes. Inside the editor the Material Content Browser filters by it;
 ```
 
 The list is computed from the sources — front end, binder, destination rules — and nothing is built,
-loaded or saved. A memory-only material is left out unless `-IncludeEphemeral` asks for it: it has no
+loaded or saved. An Ephemeral material is left out unless `-IncludeEphemeral` asks for it: it has no
 file to ignore. A source that fails to compile still contributes the products established before the
 failure, and the run ends `RESULT=FAILED`, so a list is never silently short. A script should always
-pass `-Out` and read the file; the log is for reading.
+pass `-Out` and read the file; the log is for reading. `-ListAs Files` and `GitIgnore` write paths
+relative to the project directory; a generated asset outside it — the content of an **engine**-level
+plugin — has no such path, the run says how many were left out (`DSH9049`), and `Packages` or `Json`
+lists them.
 
 ## Recipe A — sources in, assets out
 
@@ -90,6 +95,13 @@ The build key also covers the plugin version, the engine version and the defines
 **upgrading DreamShader or the engine regenerates everything**. Do that in a commit of its own. A merge
 conflict in a generated asset is resolved by recompiling, never by picking a side.
 
+<Callout type="info">
+The key names each source and header by its path **relative to the project directory**
+<Since v="2.1.1" />, so a CI agent that checks out somewhere else gets the same keys and the check holds
+there too. Through 2.1.0 the key used the **absolute** path, and such an agent rebuilt and re-saved every
+asset. See [Regeneration](/en/docs/generation/regeneration#what-is-hashed).
+</Callout>
+
 ## Which one
 
 | | A — not committed | B — committed |
@@ -102,6 +114,29 @@ conflict in a generated asset is resolved by recompiling, never by picking a sid
 | Hand edits of generated assets | local until adopted | versioned, and flagged as diverged |
 
 Recipe A fits a team where everyone runs the editor with the plugin; Recipe B fits one where some
-people only consume the content. The ThinCustom backend narrows the question either way: a memory-only
-material has no file, so only its functions, its instances and whatever was materialized are left to
+people only consume the content. The ThinCustom backend narrows the question either way: an Ephemeral
+material has no file, so only its functions, its instances and whatever was Materialized are left to
 decide about.
+
+## Notes
+
+- **`DShader/.dreampass/` is source, under either recipe** <Since v="2.1.0" />. It holds the snapshots of
+  the `.usf` files the `.dsp` pipelines' HLSL passes use, and the slot registry the global shaders are
+  built from; those shaders compile from the snapshots, never from the files being edited, so the
+  snapshots are what a teammate's editor and the cook run. Commit the folder with the `.dsp` and `.usf`
+  change that produced it; a conflict in it is resolved by taking either side and compiling the `.dsp`
+  files again, never by hand. See [Custom Pass (.dsp)](/en/docs/language-v2/passes) and
+  [`pass-registry`](/en/docs/tools/commandlet#dsp-sources).
+- **`Intermediate/DreamShader/GeneratedShaders/*.ush`** is what 1.x wrote for `Function` blocks; no compile
+  writes there since 2.0. Never commit it; Unreal's stock ignore rules already cover `Intermediate/`.
+- **`Saved/DreamShader/`** holds dumps, indices, backups of migrated sources and the bridge's state.
+  `Saved/DreamShader/Migrated/` is the one folder worth a look before a clean — it is where
+  [`dsc migrate`](/en/docs/language-v2/migrate) moves the 1.x originals.
+- **A plugin that ships DreamShader sources** has the same choice for its own `Content/`. Shipping the
+  generated assets (Recipe B) is what lets a project use the plugin without compiling it; `-All` covers
+  plugin source roots too, so one list serves both.
+- **Renaming a source moves its assets.** Under Recipe B commit the rename, the new assets and the deletion
+  of the old ones together; [asset rename sync](/en/docs/tools/editor#asset-rename-sync) keeps references
+  pointed at the new path.
+- **`list-generated` lists what the sources build, not what is lying around.** A generated asset whose
+  source was deleted is an orphan and is not in the list; the Material Content Browser shows those.

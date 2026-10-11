@@ -7,10 +7,10 @@ description: 2.0 起哪些生成资产会落盘、给它们做版本管理的两
 
 | 项目 | 值 |
 | :-- | :-- |
-| 永远提交 | 每一个 `.dss`、`.dsi`、`.dsh`、`.dsm`、`.dsf` —— 源码才是材质本身 |
+| 永远提交 | 每一个 `.dss`、`.dsi`、`.dsp`、`.dsh`、`.dsm`、`.dsf` —— 源码才是材质本身；`.dsp` 有 HLSL pass 时还有 `DShader/.dreampass/` <Since v="2.1.0" /> |
 | 永远不提交 | `Intermediate/DreamShader/`、`Saved/DreamShader/` |
 | 由你决定 | 生成出来的 `.uasset` —— 这一页讲的就是这个决定 |
-| 工具 | `dsc list-generated` —— 不构建任何东西，列出源码会生成的全部资产 |
+| 工具 | [`dsc list-generated`](/docs/tools/commandlet#list-generated) —— 不构建任何东西，列出源码会生成的全部资产 |
 | 起始版本 | <Since v="2.0.0" /> |
 
 ## 为什么这里有一个选择
@@ -23,7 +23,9 @@ description: 2.0 起哪些生成资产会落盘、给它们做版本管理的两
 | `Graph` 后端的材质 | **总是** —— 每次成功生成都会保存 |
 | 材质函数、层、层混合 | **总是** |
 | 材质实例（`.dsi`） | **总是** |
-| `ThinCustom` 后端的材质 | 只有[物化](/docs/generation/in-memory)之后才有；默认是纯内存的，此时根本没有文件 |
+| Custom Pass 管线（`UDreamPassPipeline`，来自 `.dsp`）<Since v="2.1.0" /> | **总是** |
+| 导出 buffer 的 render target（`<Pipeline>_<Buffer>`）<Since v="2.1.0" /> | **总是** |
+| `ThinCustom` 后端的材质 | 只有 [Materialized](/docs/generation/in-memory) 之后才有；默认是 Ephemeral 的，此时根本没有文件 |
 
 `UMaterial` 和 `UMaterialFunction` 是引擎自带的类，没有办法让自己不被资产枚举到，所以一生成就保存 ——
 就落在大家手工做的资产旁边，版本控制工具会提示你把它们加进去。请以工程为单位做一次决定。
@@ -45,8 +47,10 @@ description: 2.0 起哪些生成资产会落盘、给它们做版本管理的两
 ```
 
 清单是从源码算出来的 —— 前端、绑定器、资产去向规则 —— 不构建、不加载、不保存任何东西。
-纯内存的材质默认不列（它没有文件可忽略），除非加 `-IncludeEphemeral`。编不过的源文件仍然会贡献失败之前已经确定的产物，
+Ephemeral 材质默认不列（它没有文件可忽略），除非加 `-IncludeEphemeral`。编不过的源文件仍然会贡献失败之前已经确定的产物，
 并且整次运行以 `RESULT=FAILED` 结束，所以清单不会悄悄变短。脚本请始终传 `-Out` 再读文件；日志是给人看的。
+`-ListAs Files` 和 `GitIgnore` 写的是相对工程目录的路径；工程目录之外的生成资产（**引擎级**插件的内容）没有这样的路径，
+运行会说明有几个被略过（`DSH9049`），`Packages` 或 `Json` 会列出它们。
 
 ## 做法 A —— 源码入库，资产不入库
 
@@ -83,6 +87,12 @@ git status --porcelain -- Content   # 必须什么都不输出
 build key 还覆盖插件版本、引擎版本，以及源码读过的宏，所以**升级 DreamShader 或引擎会让一切重新生成**。
 请把它单独放进一个提交。生成资产的合并冲突靠重新编译解决，永远不要二选一。
 
+<Callout type="info">
+build key 用**相对工程目录**的路径给每个源文件和头文件命名 <Since v="2.1.1" />，所以在别处检出的 CI agent 得到同样的键，
+上面的检查在那里也成立。到 2.1.0 为止键用的是**绝对**路径，那样的 agent 会重建并重存每一个资产。见
+[重新生成](/docs/generation/regeneration#哈希覆盖什么)。
+</Callout>
+
 ## 选哪个
 
 | | A —— 不入库 | B —— 入库 |
@@ -95,4 +105,21 @@ build key 还覆盖插件版本、引擎版本，以及源码读过的宏，所�
 | 手改过的生成资产 | 在被 adopt 之前只在本地 | 被纳入版本管理，并被标记为已分歧 |
 
 做法 A 适合人人都开着带插件的编辑器的团队；做法 B 适合有人只消费内容的团队。不管选哪个，ThinCustom 后端都让问题变小：
-纯内存的材质没有文件，需要做决定的只剩它的函数、它的实例，以及被物化过的那些。
+Ephemeral 材质没有文件，需要做决定的只剩它的函数、它的实例，以及被 Materialize 过的那些。
+
+## 说明
+
+- **`DShader/.dreampass/` 在两种做法下都是源码** <Since v="2.1.0" />。它装着 `.dsp` 管线的 HLSL pass 所用 `.usf` 的快照，以及
+  全局 shader 据以构建的 slot 注册表；那些 shader 是从快照而不是从正在编辑的文件编译的，所以队友的编辑器和 cook 跑的就是快照。
+  把这个文件夹和产生它的 `.dsp` / `.usf` 改动一起提交；它里面的冲突靠任取一边、再重编 `.dsp` 解决，永远不要手改。见
+  [Custom Pass（.dsp）](/docs/language-v2/passes)和 [`pass-registry`](/docs/tools/commandlet#dsp-源文件)。
+- **`Intermediate/DreamShader/GeneratedShaders/*.ush`** 是 1.x 为 `Function` 块写的东西，2.0 起没有编译再往那里写。永远不要提交它；
+  Unreal 自带的忽略规则本来就覆盖 `Intermediate/`。
+- **`Saved/DreamShader/`** 装着 dump、索引、迁移前源文件的备份和 bridge 的状态。清理之前值得看一眼的只有
+  `Saved/DreamShader/Migrated/` —— [`dsc migrate`](/docs/language-v2/migrate) 把 1.x 原件挪到那里。
+- **自带 DreamShader 源文件的插件**对自己的 `Content/` 面临同样的选择。随插件发布生成资产（做法 B），工程才能不编译就用这个插件；
+  `-All` 也覆盖插件源码根，一份清单两边都够用。
+- **给源文件改名会挪动它的资产。** 在做法 B 下，把改名、新资产和旧资产的删除放进同一个提交；
+  [资产改名同步](/docs/tools/editor#资产改名同步)会让引用指向新路径。
+- **`list-generated` 列的是源码会构建的东西，不是磁盘上躺着的东西。** 源文件被删掉的生成资产是孤儿，不在清单里；
+  Material Content Browser 会显示它们。
