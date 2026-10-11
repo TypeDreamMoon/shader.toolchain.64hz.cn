@@ -4,7 +4,7 @@ description: UE.DreamPassOutput 写 mesh pass 画出的数据，UE.DreamPassBuff
 ---
 
 DreamShaderPass 模块的两个材质表达式，在 `.dss` 里和别的表达式一样用 `UE.<Name>` 调用：一个写 [mesh pass](/docs/language-v2/passes#mesh) 画出的数据，
-另一个让普通材质读一个[导出的缓冲区](/docs/runtime#导出的缓冲区)。
+另一个让普通材质读一个[导出的缓冲区](/docs/custom-pass#导出的缓冲区)。
 
 | 项目 | 值 |
 | :-- | :-- |
@@ -57,7 +57,7 @@ export void M_Ground(inout material m)
 
 - 在顶点着色器里（World Position Offset）采样 mip 0。
 - 管线不存在、管线没有这个缓冲区或没导出它、内置缓冲区、整数或深度缓冲区，都是错误 —— `.dss` 编译时在 DreamShader 里报，在材质编辑器里也报。
-- 读到的是本帧还是上一帧的画面，取决于缓冲区最后一个写者何时运行；见[导出的缓冲区](/docs/runtime#导出的缓冲区)里的表。
+- 读到的是本帧还是上一帧的画面，取决于缓冲区最后一个写者何时运行；见[导出的缓冲区](/docs/custom-pass#导出的缓冲区)里的表。
 - 材质依赖 `.dsp`：改了缓冲区的导出会让它重编。
 - 材质编辑器的预览显示渲染目标最后装的内容。
 
@@ -70,6 +70,6 @@ export void M_Ground(inout material m)
 
 <Cards>
   <Card title="Custom Pass 管线" href="/docs/language-v2/passes" description=".dsp 的写法：缓冲区、pass、注入点、参数。" />
-  <Card title="Custom Pass 运行时" href="/docs/runtime" description="激活、内置与导出的缓冲区、视图、调试、限制。" />
+  <Card title="Custom Pass 运行时" href="/docs/custom-pass" description="激活、内置与导出的缓冲区、视图、调试、限制。" />
   <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" description="反射表达式是怎么调用的。" />
 </Cards>

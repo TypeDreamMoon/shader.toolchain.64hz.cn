@@ -3,7 +3,7 @@ title: Custom Pass 示例
 description: 七条完整的 .dsp 管线，连同它们用到的 .dss 材质 —— 高亮描边、UI 毛玻璃、X 光、风场、扫描脉冲、老式 CRT、带标记的物体。需要 UE 5.8。
 ---
 
-几条完整的管线，各自带着用到的 `.dss` 材质；HLSL pass 的代码都直接写在 `.dsp` 里，用的是 [HLSL pass](/docs/runtime/hlsl#代码写在哪) 讲的三种写法。
+几条完整的管线，各自带着用到的 `.dss` 材质；HLSL pass 的代码都直接写在 `.dsp` 里，用的是 [HLSL pass](/docs/custom-pass/hlsl#代码写在哪) 讲的三种写法。
 每一条都在测试宿主的演示关卡里跑过 —— 从这些源码构建、在游戏视口里渲染（`Tools/TestHost/PassDemo`）。
 材质浏览器 **New Source** 的管线模板有两个是它们的精简版 —— 描边的 mesh 遮罩和风场；后处理模板是一个自己的柔光。
 
@@ -511,7 +511,7 @@ export void PP_TaggedComposite(inout material m)
 
 <Cards>
   <Card title="Custom Pass 管线" href="/docs/language-v2/passes" description=".dsp 的写法：缓冲区、pass、注入点、参数。" />
-  <Card title="Custom Pass 运行时" href="/docs/runtime" description="激活、内置与导出的缓冲区、视图、调试、限制。" />
-  <Card title="HLSL pass" href="/docs/runtime/hlsl" description="hlsl 块、.usf、绑定名、DreamPass.ush、槽位与预检。" />
+  <Card title="Custom Pass 运行时" href="/docs/custom-pass" description="激活、内置与导出的缓冲区、视图、调试、限制。" />
+  <Card title="HLSL pass" href="/docs/custom-pass/hlsl" description="hlsl 块、.usf、绑定名、DreamPass.ush、槽位与预检。" />
   <Card title="Custom Pass 材质节点" href="/docs/builtins/dream-pass" description="UE.DreamPassOutput 与 UE.DreamPassBuffer。" />
 </Cards>

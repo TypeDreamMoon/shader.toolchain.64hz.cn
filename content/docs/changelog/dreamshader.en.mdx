@@ -123,10 +123,10 @@ sources, plus a set of 1.x text-compatibility fixes.
   (`UE.DreamPassBuffer`), Blueprints, UMG and Niagara read. Pipelines are activated by the project settings,
   `ADreamPassVolume`, `UDreamPassComponent` or the Blueprint / C++ API, which blend their parameter overrides as
   post-process volumes do. See [Custom Pass pipelines](/en/docs/language-v2/passes),
-  [Runtime](/en/docs/runtime) and the [example](/en/docs/examples/custom-pass).
+  [Runtime](/en/docs/custom-pass) and the [example](/en/docs/examples/custom-pass).
 - **A pass's HLSL can be written in its `.dsp`** (`hlsl { }`): whole functions, or just the entry's statements with
   the function written for you; the file-level `hlsl { }` holds code every such pass shares. A pre-check error is
-  reported at its line of the `.dsp`. See [HLSL passes](/en/docs/runtime/hlsl).
+  reported at its line of the `.dsp`. See [HLSL passes](/en/docs/custom-pass/hlsl).
 - **The generated VS Code workspace knows the 2.0 sources**: `.dss` and `.dsi` map to `dreamshader-dss`, `.dsp` to
   `dreamshader-dsp` (extension 2.1.0).
 - **Fixed:** a slider range on a parameter that has none (`Slider` on a 1.x `vec3` property, `@slider` on a

@@ -94,9 +94,9 @@ Unreal 插件的版本更新记录，新版本在前。这里记录会影响使�
   全屏 / 计算 HLSL、按模板值 / pass 层 / 具名列表挑选图元的网格 pass，或者清除、拷贝。缓冲区可以跨帧保留历史；
   导出的缓冲区是普通材质（`UE.DreamPassBuffer`）、蓝图、UMG、Niagara 都能读的渲染目标。管线由工程设置、
   `ADreamPassVolume`、`UDreamPassComponent` 或蓝图 / C++ API 激活，参数覆盖像后处理体积那样混合。
-  见 [Custom Pass 管线](/docs/language-v2/passes)、[运行时](/docs/runtime)和[示例](/docs/examples/custom-pass)。
+  见 [Custom Pass 管线](/docs/language-v2/passes)、[运行时](/docs/custom-pass)和[示例](/docs/examples/custom-pass)。
 - **pass 的 HLSL 可以直接写在 `.dsp` 里**（`hlsl { }` 块）：写整个函数，或者只写入口的语句、由编译器补上函数；
-  文件级的 `hlsl { }` 放所有 pass 共用的代码。预检错误报在 `.dsp` 的对应行。见 [HLSL pass](/docs/runtime/hlsl)。
+  文件级的 `hlsl { }` 放所有 pass 共用的代码。预检错误报在 `.dsp` 的对应行。见 [HLSL pass](/docs/custom-pass/hlsl)。
 - **生成的 VS Code 工作区认识 2.0 源文件**：`.dss` / `.dsi` 关联到 `dreamshader-dss`，`.dsp` 关联到 `dreamshader-dsp`（扩展 2.1.0）。
 - **修复：** 给没有滑条的参数写滑条范围（1.x `vec3` 属性的 `Slider`、`float3` / `bool` uniform 的 `@slider`）
   现在是一条 `DSH7233` 警告、报在范围那里，范围被丢弃；编译成功时的警告也会写进 `diagnostics.json`，扩展里看得到。
