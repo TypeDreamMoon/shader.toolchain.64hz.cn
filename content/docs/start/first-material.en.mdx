@@ -1,23 +1,64 @@
 ---
 title: Your First Material
-description: Write a UI Unlit material from scratch, generate it, and find the result the editor deliberately hides.
+description: Write a UI Unlit material from scratch — once as a .dss and once in 1.x syntax — generate it, and find the result the editor deliberately hides.
 ---
 
-This page builds a UI-domain, Unlit material with two parameters, then explains where the generated
-material actually is — which is the part that surprises everybody the first time.
+This page writes a UI-domain, Unlit material with two parameters, then explains where the generated material actually
+is — the thing that trips up everybody the first time. Write new sources as `.dss`; a project that already has `.dsm`
+files can keep writing 1.x syntax, and the same compiler builds both.
 
 ## Create the file
 
 ```text
-<Project>/DShader/Materials/M_DreamPulse.dsm
+<Project>/DShader/Materials/M_DreamPulse.dss
 ```
 
+```hlsl
+#pragma material(Domain = UI, ShadingModel = Unlit)
+
+/// @group Color   @desc Main tint
+uniform float3 Tint = float3(0.2, 0.6, 1.0);
+/// @group Color   @slider 0 4
+uniform float Strength = 1.0;
+
+export void M_DreamPulse(inout material m)
+{
+    float t = UE.Time();
+    float pulse = UE.Sine(Input = t);
+    m.EmissiveColor = Tint * (pulse * 0.5 + 0.5) * Strength;
+}
+```
+
+Save it. With *Auto Compile On Save* on, DreamShader compiles the file after a short debounce and generates:
+
+```text
+/Game/Materials/M_DreamPulse
+```
+
+Or skip the typing: *Material Content Browser ▸ New ▾ ▸ Material (.dss)* writes the same shape from a template.
+
+## What each part does
+
+| Piece | Purpose | Reference |
+| --- | --- | --- |
+| `#pragma material(…)` | sets properties on the generated material — domain, shading model, blend mode, and any `UMaterial` property | [Material Settings](/en/docs/settings/material), [Enum values](/en/docs/settings/enums) |
+| `///` lines and `uniform` | material parameters and their metadata: group, description, slider range | [DreamShaderLang 2.0](/en/docs/language-v2#parameters) |
+| `export void M_DreamPulse(inout material m)` | the entry: the one function that makes the file a material. The asset is named after it | [DreamShaderLang 2.0](/en/docs/language-v2#a-material) |
+| `m.EmissiveColor = …` | a material output, checked against the engine's attribute list (a misspelling is `DSH5200`) | [Output Bindings](/en/docs/generation/outputs) |
+| `UE.Sine(Input = t)` | one material node, called by its engine class name; `UE.Expression(Class = "Sine", …)` is the same path | [UE.Expression](/en/docs/builtins/ue-expression) |
+
+The asset lands under `/Game` at the file's folder relative to the source root, named after the `export` function. A
+`/// @name` above the entry names it otherwise — see [Asset Paths](/en/docs/generation/asset-paths).
+
+## The same material in 1.x syntax
+
 ```c
-Shader(Name="DreamMaterials/M_DreamPulse")
+// <Project>/DShader/Materials/M_DreamPulse.dsm
+Shader(Name="Materials/M_DreamPulse")
 {
     Properties = {
-        vec3 Tint = vec3(0.2, 0.6, 1.0);
-        float Strength = 1.0;
+        vec3 Tint = vec3(0.2, 0.6, 1.0) [Group="Color"; Description="Main tint"];
+        float Strength = 1.0 [Group="Color"; Slider(0, 4)];
     }
 
     Settings = {
@@ -32,126 +73,117 @@ Shader(Name="DreamMaterials/M_DreamPulse")
 
     Graph = {
         float t = UE.Time();
-        float pulse = UE.Expression(
-            Class="Sine",
-            OutputType="float1",
-            Input=t);
+        float pulse = UE.Expression(Class="Sine", Input=t);
 
         Color = Tint * (pulse * 0.5 + 0.5) * Strength;
     }
 }
 ```
 
-Save it. With *Auto Compile On Save* on, DreamShader parses the file after a short debounce and
-generates:
-
-```text
-/Game/DreamMaterials/M_DreamPulse
-```
-
-## What each part does
-
-| Area | Role |
+| Section | Purpose |
 | --- | --- |
-| `Shader(Name="…")` | Declares the asset to generate. `Root` is optional and defaults to `Game`. |
-| `Properties` | Generates material parameter nodes — here a vector and a scalar. |
-| `Settings` | Sets properties on the generated material. |
-| `Outputs` | Declares graph output variables and binds one to `Base.EmissiveColor`. |
-| `Graph` | Creates material nodes and assigns the final value to `Color`. |
+| `Shader(Name="…")` | declares the asset to generate. `Name` is the asset path relative to the root; `Root` is optional and defaults to `Game`. |
+| `Properties` | creates material parameter nodes — a vector and a scalar here, with their metadata in `[ … ]`. |
+| `Settings` | sets properties on the generated material. |
+| `Outputs` | declares graph output variables and binds one to `Base.EmissiveColor`. |
+| `Graph` | creates material nodes and assigns the final value to `Color`. |
 
-`UE.Expression(Class="Sine", …)` is the generic reflected call: it creates any loaded, non-abstract
-`UMaterialExpression` subclass by name. `Class` defaults to the function name, so the shorter
-`UE.Sine(OutputType="float1", Input=t)` is the identical call. `OutputType` is required on this path.
+Both files build the same `/Game/Materials/M_DreamPulse` — keep one. [`dsc migrate`](/en/docs/language-v2/migrate)
+rewrites a 1.x file as `.dss` and proves both build the same graph before it writes.
 
-<Callout type="warn">
-  Class resolution compares against the **reflected** class name, which carries no `U` prefix.
-  `Sine`, `sine` and `MaterialExpressionSine` all resolve to `UMaterialExpressionSine`;
-  `Class="UMaterialExpressionSine"` never does. See
-  [UE.Expression](/en/docs/builtins/ue-expression).
-</Callout>
+`UE.Expression(Class="Sine", …)` is the generic reflected call: it creates any material expression class of the running
+engine by name. `Class` defaults to the function name, so the shorter `UE.Sine(Input=t)` is the identical call.
+<Since v="2.0.0" /> `OutputType` is no longer required — the node catalog types the node — and `Sine`,
+`MaterialExpressionSine`, `UMaterialExpressionSine` and `/Script/Engine.MaterialExpressionSine` all resolve. Class names
+are case-sensitive; one that does not resolve is `DSH5212`.
 
 ## Finding the generated material
 
-Look in the Content Browser and you will not find it. This is not a failure.
+Looking in the Content Browser will not find it. That is not a failure.
 
-Under the default `ThinCustom` backend a compile produces live `UObject`s and **no `.uasset` on
-disk**:
+Under the default `ThinCustom` backend a compile produces live `UObject`s and **no `.uasset` on disk** — the state is
+called **Ephemeral**:
 
 ```text
-UDreamShaderMaterialInstance          "M_DreamPulse"                       <- the asset you reference
-  └─ UMaterial (subobject, hidden)    "MB_DreamThinBase_DreamMaterials_M_DreamPulse"
+UDreamShaderMaterialInstance          "M_DreamPulse"                              <- the asset you reference
+  └─ parent: UMaterial (hidden, transient) "MB_DreamThinBase__Game_Materials_M_DreamPulse"
        └─ the generated node graph
 ```
 
-The node graph — every `Properties` node, every `Graph` statement, every `Outputs` binding — is built
-on the hidden base. The instance is a thin wrapper carrying the parameter values, the provenance
-metadata and the compiled shader map. While the material is memory-only its `IsAsset()` returns
-`false`, so it is hidden from the Content Browser, from asset pickers and from save pickers, and its
-package is marked non-dirty so *Save All* cannot persist it by accident.
+The node graph — every parameter, every statement, every output — is built on that hidden base. The instance is a thin
+wrapper that carries parameter values, provenance metadata and the compiled shader map. While the material is
+Ephemeral, its `IsAsset()` returns `false`, so it hides from the Content Browser, asset pickers and save lists; its
+package is marked not-dirty at the end of generation, so *Save All* does not sweep it to disk either.
 
-The design intent: the `.dsm` is the authoring surface, and a `.uasset` on disk would shadow it.
+The intent is deliberate: the source file is the thing you maintain. A `Backend = Graph` material is an ordinary
+`UMaterial` instead, saved on every build, with no Ephemeral state.
 
-There are three ways to reach the material.
+There are three ways to get at an Ephemeral material.
 
 ### 1. The Material Content Browser
 
-*Tools ▸ DreamShader ▸ Material Content Browser*, then the **Dream Shader Gen** page. It lists every
-source file under `DShader/` with its compile status and a thumbnail of the generated material:
+*Tools ▸ DreamShader ▸ Material Content Browser*. Sources mode lists every source file under every source root, with
+its compile status, its diagnostics and the asset it built:
 
 | Status | Meaning |
 | --- | --- |
-| `● up to date` | the asset exists and its stored source hash matches the current source |
-| `● stale` | the asset exists but the stored hash differs |
-| `○ not compiled` | nothing exists at the resolved object path |
-| `▲ compile error` | the compile failed, or `diagnostics.json` reports an error for this file |
-| `◆ function / header` | the item is a `.dsf` or `.dsh` |
-| `▲ unresolved` | the source could not be read or parsed, or declares no top-level `Shader` |
+| `●` **up to date** | the asset exists and its recorded build key matches the current source |
+| `●` **stale** | the asset exists, but the recorded build key differs |
+| `○` **not compiled** | nothing at the resolved object path |
+| `▲` **compile error** | the compile failed, or the bridge's diagnostics hold an error |
+| `◆` **function / header** | the entry is a `.dsf` or `.dsh` |
+| `▲` **unresolved** | what the source builds cannot be worked out: it has errors, or declares nothing |
 
-Selecting an item gives you **Compile**, **Create instance**, **Open material**, **Materialize** and
-**Open source**. This is the normal way to work with generated materials.
+With an entry selected you get **Compile**, **Create instance**, **Open**, **Materialize** and **Open source**; the
+inspector shows every diagnostic, the imports and dependents, the inheritance chain and a live preview. This is the
+normal way to work with generated materials. See [Editor tools](/en/docs/tools/editor#material-content-browser).
 
 ### 2. Make them visible
 
-*Tools ▸ DreamShader ▸ Show In-Memory Materials*, or the same setting at *Project Settings ▸
-DreamPlugin ▸ Dream Shader ▸ Compiler ▸ Show In-Memory Materials In Content Browser*. Toggling it
-immediately broadcasts asset-created or asset-deleted for every live memory-only instance, so tiles
-appear and disappear without a rescan.
+*Tools ▸ DreamShader ▸ Show Ephemeral Materials*, or the same setting at *Project Settings ▸ DreamPlugin ▸ Dream Shader ▸
+Compiler ▸ Show Ephemeral Materials*. Toggling it broadcasts asset-created / asset-removed events for every live
+Ephemeral instance at once, so tiles appear or vanish without a rescan.
 
-You need this when picking a generated material as a material instance parent, or referencing one
-from a details panel.
+You need it on when picking the generated material as a material instance's Parent, or referencing it from a details
+panel.
 
 <Callout type="warn">
-  While the toggle is on, a memory-only material is an ordinary-looking tile — and an explicit
-  **Save** on it writes a real `.uasset`. That saved asset then *shadows* in-memory regeneration for
-  that path, and the compiler starts logging `In-memory material mode: '…' already exists as a saved
-  asset, which shadows in-memory regeneration.` Use *Materialize*, not *Save*. To recover, run
-  *Tools ▸ DreamShader ▸ Clean Persisted Generated Assets*, which deletes only assets carrying
-  DreamShader provenance metadata.
+  With the toggle on, an Ephemeral material looks like any other tile — and an explicit **Save** on it really does write
+  a `.uasset`, materializing it. A product with a package on disk stays on disk: a compile rebuilds it and saves it,
+  logging `'…' exists as a saved asset, so it is rebuilt and saved on disk rather than in memory.`. When you want a file,
+  use *Materialize*; to go back to Ephemeral, run *Tools ▸ DreamShader ▸ Make Ephemeral*, which deletes only ThinCustom
+  products carrying DreamShader provenance metadata.
 </Callout>
 
 ### 3. Materialize it
 
-**Materialize** writes the material and its hidden base to disk as one `.uasset`: it re-runs
-generation for that source file with persistence on and forcing enabled, then reloads the object at
-its resolved path. It is available from the Gen page, the details panel, and the Content Browser
-context menu.
+**Materialize** writes the material and its hidden base to disk as one `.uasset`: it reruns the source's generation
+Materialized and forced, then reloads the object at the resolved path. The button is in the Material Content Browser,
+the details panel and the Content Browser context menu.
 
 ```text
-on disk   <Project>/Content/DreamMaterials/M_DreamPulse.uasset
+on disk  <Project>/Content/Materials/M_DreamPulse.uasset
   export  M_DreamPulse                        UDreamShaderMaterialInstance
-  export  MB_DreamThinBase_M_DreamPulse       UMaterial (hidden, same package)
+  export  MB_DreamThinBase_M_DreamPulse       UMaterial (hidden, a subobject in the same package)
 ```
 
-Creating a child material instance of a memory-only material materializes the parent first, because
-a transient base cannot be a parent import. Cooking materializes everything automatically — the cook
-director generates every project source as a persistent asset before the commandlet's `Main` runs.
-
-Full detail: [In-memory Materials](/en/docs/generation/in-memory).
+Creating a child instance of an Ephemeral material, or compiling a `.dsi` whose parent it is, materializes the parent
+first, because a transient base cannot be imported as a parent. Cook and the commandlet materialize automatically. The
+full story is on [In-memory Materials](/en/docs/generation/in-memory).
 
 ## Controlling the parameter panel
 
-`float` and `vec3` are enough to get started. When you want groups, ordering and tooltips in the
-Unreal parameter panel, declare explicit parameter nodes and add a metadata block:
+In a `.dss`, `///` tags above a `uniform` write the group, sort order, description and range on Unreal's parameter
+panel:
+
+```hlsl
+/// @group Color   @sort 10   @desc Main tint
+uniform float4 Tint = float4(0.2, 0.6, 1.0, 1.0);
+/// @group Color   @sort 20   @slider 0 4
+uniform float Strength = 1.0;
+```
+
+In 1.x, switch to the explicit parameter nodes and add a metadata block:
 
 ```c
 Properties = {
@@ -167,26 +199,28 @@ Properties = {
 }
 ```
 
-`Group`, `SortPriority` and `Description` (which writes the node's `Desc`) are recognized keys; any
-other key is written straight to a reflected UPROPERTY of the generated node's class.
-`Slider(min, max)` <Since v="1.5.0" /> expands to `SliderMin` / `SliderMax`. See
-[Metadata and Groups](/en/docs/parameters/metadata).
+`Group`, `SortPriority` and `Description` (written to the node's `Desc`) are recognised keys; any other key is written
+straight to a reflected UPROPERTY of the generated node's class. `Slider(min, max)` <Since v="1.5.0" /> expands to
+`SliderMin` / `SliderMax`; on a vector or switch parameter it is the warning `DSH7233` and the range is dropped. See
+[Metadata](/en/docs/parameters/metadata).
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
-| Nothing appears in the Content Browser | Expected. The material is memory-only — use the Material Content Browser, the visibility toggle, or *Materialize*. |
-| No material generated at all | The file is under *Source Directory*, has a `.dsm` extension, declares a top-level `Shader`, and *Auto Compile On Save* is on. |
-| Saving a `.dsh` generates nothing | Correct — a header never generates directly. Compile the dependent `.dsm` / `.dsf`. |
-| The output is black | `Outputs` needs a `Base.* = …` binding; a declared output that is never assigned contributes nothing. |
-| `UE.Expression` fails to resolve | `Class` must name a **loaded**, non-abstract `UMaterialExpression` subclass, compared without the `U` prefix. `OutputType` is required. |
-| A material function's callers break | Renaming an input or output is a breaking change — pin identities are restored by name. |
-| Anything else | Output Log (`LogDreamShader`), or the error line on the Gen page. Look the message up in [Diagnostics](/en/docs/diagnostics). |
+| Nothing in the Content Browser | Expected. The material is Ephemeral — use the Material Content Browser, *Show Ephemeral Materials*, or *Materialize*. |
+| No material generated at all | Make sure the file is under *Source Directory*, has a `.dss` / `.dsm` extension, and *Auto Compile On Save* is on; a `.dss` needs an `export` entry, a `.dsm` a top-level `Shader`. |
+| Saving a `.dsh` generates nothing | Correct — headers never generate assets; saving one queues every source that imports it. |
+| The output is black | A `.dss` writes members of `m`; 1.x `Outputs` need a `Base.* = …` binding (no `Outputs` at all is the warning `DSH2256`). |
+| A name is not found (`DSH4200`) | 2.0 names are case-sensitive; in a 1.x source a name that differs only in case still resolves, with the warning `DSH5275`. |
+| A node class does not resolve (`DSH5210` / `DSH5212`) | Class names are case-sensitive and must be a class the running engine has. |
+| A material function's callers disconnected | Renaming an input or output is a breaking change — pin identity is restored by name. |
+| Anything else | Read the Output Log (`LogDreamShader`), or the error on the row in the Material Content Browser. Every message carries a `DSHnnnn` code — look it up on [Diagnostics](/en/docs/diagnostics). |
 
 ## Next
 
-- [Project Layout](/en/docs/start/project-layout) — where files go as the project grows
-- [Daily Workflow](/en/docs/start/workflow) — what triggers a rebuild, and what does not
-- [The Graph Language](/en/docs/graph/overview) — what you can write inside `Graph = { … }`
-- [Property Types](/en/docs/parameters/properties) — the full `Properties` catalogue
+- [Project layout](/en/docs/start/project-layout) — where files go once the project grows
+- [Daily workflow](/en/docs/start/workflow) — what triggers a rebuild and what does not
+- [DreamShaderLang 2.0](/en/docs/language-v2) — what a `.dss` can say
+- [Patterns](/en/docs/examples/patterns) — every building block in `.dss` and 1.x form
+- [Graph language](/en/docs/graph/overview) — what a 1.x `Graph = { … }` accepts
