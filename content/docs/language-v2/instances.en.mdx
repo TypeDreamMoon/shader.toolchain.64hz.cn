@@ -37,8 +37,8 @@ under the same source root — or an **object path** (`/Game/Materials/M_Skin`) 
 instance, DreamShader's or not.
 
 A parent that comes from a source is compiled first when its asset is missing or older than that
-source, so building an instance never sees a stale parameter list. Instances of instances work; a
-chain that loops is refused.
+source, so building an instance never sees a stale parameter list — the whole chain of ancestors since
+<Since v="2.1.2" />. Instances of instances work; a chain that loops is refused.
 
 ## Overrides
 
@@ -48,10 +48,10 @@ is set to.
 | Parent parameter | Override |
 | :-- | :-- |
 | scalar | `uniform float Gain = 2.0;` — `int` and `bool` parameters are scalars too |
-| vector | `uniform float3 Tint = float3(0, 1, 0);` — a `float3` keeps the parent's alpha, a `float4` sets all four |
+| vector | `uniform float3 Tint = float3(0, 1, 0);` — a `float3` keeps the parent's alpha, a `float4` sets all four; a parent change reaches the components not overridden <Since v="2.1.2" /> |
 | static switch | `/// @static` + `uniform bool UseDetail = false;` |
 | static component mask | `/// @static` + `uniform bool4 Mask = bool4(true, false, false, false);` |
-| texture | `/// @default <asset>` + `uniform Texture2D Albedo;` — no initializer; `/// @default None` clears it |
+| texture | `/// @default <asset>` + `uniform Texture2D Albedo;` — no initializer; `/// @default None` clears it. Cube, volume and array textures are `TextureCube`, `Texture3D`, `Texture2DArray` |
 | font, runtime virtual texture, sparse volume texture, texture / parameter collection | `/// @default <asset>` + a `uniform` of that type |
 
 | Mistake | Code |
@@ -72,4 +72,10 @@ build: the instance is rebuilt from the file, not patched.
 - `dsc decompile /Game/Materials/MI_Steel_Worn` writes a `.dsi` holding only what differs from the parent.
 - A generated instance that was edited by hand is an ordinary
   [divergence](/en/docs/generation/regeneration); **Adopt Into Source** rewrites the `.dsi` value by
-  value, so comments and order survive.
+  value, so comments and order survive. A scalar declared as `bool`, `int` or `uint` becomes `float` when its
+  current value does not fit that type; a value that fits keeps the declaration <Since v="2.1.2" />.
+- <Since v="2.1.2" /> Decompile and Adopt keep what they used to drop: `TextureCollection` references, `double4`
+  precision, and cube, volume and array textures.
+- <Since v="2.1.2" /> A generated instance is no longer a hand edit after it is reloaded: the `ExpressionGUID` the
+  engine fills into each override at load is left out of the digest, and every other field — a value, a texture —
+  still counts, so a changed value is still a hand edit.

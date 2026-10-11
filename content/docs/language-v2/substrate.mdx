@@ -4,7 +4,7 @@ description: Substrate 值上的运算符与 lerp、Slab 上的旧参数化实�
 ---
 
 给 Substrate 图准备的更短的写法。每一条都**只是拼写**：它绑定到一组固定的 `Substrate.*` 节点模式上，
-生成的图和长写法完全一样，反编译器还会把短写法写回来。两门语言都有 —— `.dsm` 和 `.dss` 一视同仁。
+生成的图和长写法完全一样。反编译器默认写长写法，只在要可读形式时才把短写法写回来（见[反编译](#反编译)）。两门语言都有 —— `.dsm` 和 `.dss` 一视同仁。
 
 | 项目 | 值 |
 | :-- | :-- |
@@ -144,8 +144,29 @@ export void MLB_Wet(material Bottom, material Top, float Alpha, inout material R
 节点的 `ShadingModelOverride` 取材质的 `ShadingModel` 设置；自己计算着色模型的材质不动 override，改为驱动那个引脚。
 一个材质如果没有写任何「会被移走」的属性，就没有可桥接的东西，保持原样。
 
+`ShadingModel` 引脚 <Since v="2.0.1" /> 起才接得上：引擎把它声明成材质自身引脚的类型，之前的目录不认它，
+`Bridge` 会把计算出来的着色模型（`m.ShadingModel = UE.ShadingModel(...)`）漏在节点外面。
+这个引脚不是必需的 —— 没接时节点读自己的 `ShadingModelOverride`。
+
 「开了 Substrate」就是内建宏 `DS_SUBSTRATE`；凡是写了 `Bridge` 或 `Native` 的材质，它都会进入 build key ——
 切换工程设置时，恰好重建这些材质。
+
+## 反编译
+
+<Since v="2.0.2" /> 反编译器把每个 Substrate 节点都写成它本来的调用，名字用源码里的写法 —— `Substrate.Slab`，
+而不是反射出来的 `SubstrateSlabBSDF`。Coverage Weight 写成 `Substrate.Weight(A = …, Weight = …)`，
+slab 前面的 Transmittance-To-MFP 写成 `SSSMFP = Substrate.TransmittanceToMFP(…).MFP`：图里看得到的节点，在文本里搜得到。
+
+语法糖只在**可读形式**里写回（命令行的 `-Readable`、bridge 的 `readable`），而且只在与图完全一致的地方：
+
+| 图里是 | 可读文本写成 |
+| :-- | :-- |
+| 每个引脚都接了、没设任何属性的 `SubstrateAdd` / `SubstrateWeight` / `SubstrateHorizontalMixing` | `A + B`、`A * w`、`lerp(A, B, t)`，放在以节点命名的局部变量里（`SubstrateWeight`） |
+| 输出只接一个 BSDF、自身什么都没设的转换节点 | 那个 BSDF 上的 `BaseColor = …`、`Metallic = …`、`Haziness = …`、`Transmittance = …` |
+
+两种形式都会写出 `#pragma material(Substrate = …)`（产物记着 `Bridge` 或 `Native` 时）。`IOR` 不会被读回 ——
+常量 `F0` 说明不了它曾是折射率；折过的 `Bridge` 材质反编译成它变成的那个 `Substrate.ShadingModels` 调用。
+用语法糖写的源码照旧编译。见[反编译器](/docs/tools/decompiler)。
 
 ## 在 1.x 源码里
 

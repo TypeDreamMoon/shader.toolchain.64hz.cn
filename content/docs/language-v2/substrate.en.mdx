@@ -4,8 +4,9 @@ description: Operators and lerp over Substrate values, legacy parameters on a sl
 ---
 
 Shorter spellings for Substrate graphs. Each one is a spelling and nothing else: it binds to a fixed
-pattern of `Substrate.*` nodes, the graph is the one the long form makes, and the decompiler writes the
-short form back. Both languages have it — a `.dsm` as much as a `.dss`.
+pattern of `Substrate.*` nodes, and the graph is the one the long form makes. The decompiler writes the
+long form, and the short form only when it is asked for the readable one (see [Decompiling](#decompiling)).
+Both languages have it — a `.dsm` as much as a `.dss`.
 
 | Aspect | Value |
 | :-- | :-- |
@@ -153,8 +154,33 @@ The node's `ShadingModelOverride` is the material's `ShadingModel` setting; a ma
 shading model leaves the override alone and drives the pin instead. A material that writes none of the
 attributes that move has nothing to bridge and is left as written.
 
+The `ShadingModel` pin can be wired <Since v="2.0.1" />: the engine declares it with the type of the material's own
+pins, which the catalog did not take for a pin before, so `Bridge` left a computed shading model
+(`m.ShadingModel = UE.ShadingModel(...)`) off the node. The pin is not required — with nothing wired the node reads
+its `ShadingModelOverride`.
+
 "Substrate on" is the built-in define `DS_SUBSTRATE`, which joins the build key of every material that
 says `Bridge` or `Native` — switching the project setting rebuilds exactly those.
+
+## Decompiling
+
+<Since v="2.0.2" /> The decompiler writes every Substrate node as the call it is, under the name sources use —
+`Substrate.Slab`, not the reflected `SubstrateSlabBSDF`. A Coverage Weight is `Substrate.Weight(A = …, Weight = …)`,
+and a Transmittance-To-MFP in front of a slab is `SSSMFP = Substrate.TransmittanceToMFP(…).MFP`: a node the graph
+shows is a node a search of the text finds.
+
+The sugar is written back only for the **readable form** (the commandlet's `-Readable`, the bridge's `readable`),
+and there only where it is graph-exact:
+
+| The graph has | The readable text says |
+| :-- | :-- |
+| `SubstrateAdd` / `SubstrateWeight` / `SubstrateHorizontalMixing` with every pin wired and no property set | `A + B`, `A * w`, `lerp(A, B, t)`, in a local named after the node (`SubstrateWeight`) |
+| a conversion node whose outputs feed one BSDF and nothing else, with nothing set on it | `BaseColor = …`, `Metallic = …`, `Haziness = …`, `Transmittance = …` on that BSDF |
+
+Both forms write `#pragma material(Substrate = …)` for a material whose product says `Bridge` or `Native`. `IOR` is
+not read back — a constant `F0` does not say it was an index of refraction — and a folded `Bridge` material decompiles
+to the `Substrate.ShadingModels` call it became. Sources written with the sugar compile as before. See
+[Decompiler](/en/docs/tools/decompiler).
 
 ## In a 1.x source
 

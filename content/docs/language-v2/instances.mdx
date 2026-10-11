@@ -34,8 +34,8 @@ uniform float BaseColorBoost = 1.2;
 `Parent` 要么是一个**裸名字** —— 同一个源码根下由某个 DreamShader 源文件生成的材质或另一个实例 ——
 要么是一个**对象路径**（`/Game/Materials/M_Skin`），指向任意材质或实例，不论是不是 DreamShader 生成的。
 
-来自源码的父材质，如果资产不存在或比源码旧，会先被编译，所以构建实例时永远不会看到过期的参数表。
-实例的实例可以用；成环的链会被拒绝。
+来自源码的父材质，如果资产不存在或比源码旧，会先被编译，所以构建实例时永远不会看到过期的参数表 ——
+<Since v="2.1.2" /> 起整条祖先链都这样刷新。实例的实例可以用；成环的链会被拒绝。
 
 ## 覆盖
 
@@ -44,10 +44,10 @@ uniform float BaseColorBoost = 1.2;
 | 父参数 | 覆盖写法 |
 | :-- | :-- |
 | 标量 | `uniform float Gain = 2.0;` —— `int` 与 `bool` 参数也是标量 |
-| 向量 | `uniform float3 Tint = float3(0, 1, 0);` —— `float3` 保留父材质的 alpha，`float4` 四个分量都设 |
+| 向量 | `uniform float3 Tint = float3(0, 1, 0);` —— `float3` 保留父材质的 alpha，`float4` 四个分量都设；父材质改了，没覆盖的分量跟着变 <Since v="2.1.2" /> |
 | 静态开关 | `/// @static` + `uniform bool UseDetail = false;` |
 | 静态分量遮罩 | `/// @static` + `uniform bool4 Mask = bool4(true, false, false, false);` |
-| 纹理 | `/// @default <资产>` + `uniform Texture2D Albedo;` —— 不写初始值；`/// @default None` 表示清空 |
+| 纹理 | `/// @default <资产>` + `uniform Texture2D Albedo;` —— 不写初始值；`/// @default None` 表示清空。立方体、体积、数组纹理写 `TextureCube`、`Texture3D`、`Texture2DArray` |
 | 字体、Runtime Virtual Texture、Sparse Volume Texture、纹理 / 参数集合 | `/// @default <资产>` + 对应类型的 `uniform` |
 
 | 写错了什么 | 诊断码 |
@@ -66,4 +66,8 @@ uniform float BaseColorBoost = 1.2;
 - Material Content Browser 的 **New Instance** 会在父材质源文件旁边写出一个 `.dsi`。
 - `dsc decompile /Game/Materials/MI_Steel_Worn` 写出的 `.dsi` 只包含与父材质不同的部分。
 - 被手改过的生成实例就是一次普通的[手改分歧](/docs/generation/regeneration)；**Adopt Into Source**
-  会逐个值地改写 `.dsi`，注释和顺序都保留。
+  会逐个值地改写 `.dsi`，注释和顺序都保留。声明成 `bool`、`int` 或 `uint` 的标量，当前值装不下时改写成 `float`，
+  装得下就保留原声明 <Since v="2.1.2" />。
+- <Since v="2.1.2" /> 反编译与 Adopt 不再丢东西：`TextureCollection` 引用、`double4` 的精度、立方体 / 体积 / 数组纹理都原样保留。
+- <Since v="2.1.2" /> 生成的实例重新加载之后不再被当成手改：引擎加载时补上的覆盖项 `ExpressionGUID` 不计入摘要，
+  其余字段（值、纹理）照旧计入，改了值仍然是手改。

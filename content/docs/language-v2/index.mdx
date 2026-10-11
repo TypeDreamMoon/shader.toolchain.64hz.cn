@@ -8,8 +8,8 @@ DreamShader 2.0 在 1.x 语言旁边加了第二门语言。材质被写成它�
 
 | 项目 | 值 |
 | :-- | :-- |
-| 文件 | `.dss` —— 编译单元 · `.dsi` —— [材质实例](/docs/language-v2/instances) · `.dsh` —— 共享头文件，可以同时装两种语言 |
-| 产物 | 每个文件至多一个材质；其余每个 `export` 各出一个材质函数、层或层混合 |
+| 文件 | `.dss` —— 编译单元 · `.dsi` —— [材质实例](/docs/language-v2/instances) · `.dsp` —— [Custom Pass 管线](/docs/language-v2/passes)（UE 5.8） · `.dsh` —— 共享头文件，可以同时装两种语言 |
+| 产物 | 每个文件至多一个材质；其余每个 `export` 各出一个材质函数、层或层混合；一个 `.dsp` 出一条 `UDreamPassPipeline` |
 | 编译器 | 和编 `.dsm` / `.dsf` 的是同一个：两个前端、一份图 IR、一个发射器 |
 | 起始版本 | <Since v="2.0.0" /> |
 
@@ -67,6 +67,11 @@ export float2 MF_ToonUV(float UVChannel = 0.0, float4 ScaleOffset = float4(1, 1,
 
 形参就是输入，带默认值的形参是可选输入，返回值是第一个输出，`out` 形参是其余输出。
 
+默认值在**被调用方**求值 <Since v="2.1.2" />：`float F(float x, float y = x)` 写成 `F(7)` 时 `y = 7`，
+调用写在另一个函数里也一样。显式实参先在调用方求值；互相引用的默认值按需解析，成环且没有显式值是 `DSH6224`。
+helper 的 `out` 可以由默认值初始化，`@custom` 函数的输出不行（同样是 `DSH6224`）—— 初值要从另一个输入引脚传进来。
+调用 `export` 或 `extern` 材质函数时，省略的引脚留空，由资产自己的默认值生效，不会在调用方求原型上的默认值。
+
 ## 函数是什么
 
 | 声明 | 变成 |
@@ -78,6 +83,8 @@ export float2 MF_ToonUV(float UVChannel = 0.0, float4 ScaleOffset = float4(1, 1,
 | `T Helper(...)` —— 不带链接关键字 | 自己不产出任何东西：内联进每个调用者的图 |
 | `/// @custom` + 函数 | 一个 Custom 节点；函数体是 HLSL，原样交给 shader 编译器 |
 | `/// @asset <path>` + `extern T F(...);` | 对一个已存在的材质函数资产的调用 |
+
+`#include "x.dss"`（或 `.dsh`）把另一个文件的声明带进来。保存一个被包含的 `.dss` 时，包含它的源文件会一起重建 <Since v="2.1.2" />。
 
 ## 参数
 
@@ -109,9 +116,20 @@ m.FrontMaterial = Substrate.Slab(BaseColor = Tex.rgb, Metallic = 1.0, Roughness 
 
 引擎和已加载插件里的每一个 `UMaterialExpression` 类都能写成 `UE.<Name>`；Substrate 节点在 `Substrate.` 之下，
 并且有[自己的语法糖](/docs/language-v2/substrate)。两次相同的调用是同一个节点，所以在用到值的地方直接写调用没有任何代价。
+引脚按节点各自命名的类，用节点上显示的名字传参 —— 例如 `UE.LandscapeLayerBlend(Layer_Grass = ...)`，名字取自它的 `Layers` <Since v="2.0.2" />。
 
 条件是 `/// @static` uniform 的 `if` 是 StaticSwitch；其他 `if` 按变量逐个走运行时选择。
 `material` 是一个带字段的值 —— `m.BaseColor = ...` —— 没人赋值的字段就是没人连的引脚。
+
+### 几条求值规则
+
+| 写法 | 行为 |
+| :-- | :-- |
+| `c ? a : b` | 条件只求一次；只有被选中那一侧的赋值、`++` 与 `out` / `inout` 写入生效，两侧都从条件之后的状态出发，和 `if` 一样 <Since v="2.1.2" />。`@custom` 函数体照引擎的 HLSL 规则 |
+| `(int)x`、`(bool)x` | 图里的强制转换不改值，常量也一样：`(int)0.5` 与 `(bool)0.5` 都是 0.5 <Since v="2.1.2" />。要截断写 `trunc(x)`，要真假写 `x != 0` |
+| `v.zyx.x = 1` | 链式 swizzle / 下标写入，写的是它最终指到的分量（这里是 `v.z`）<Since v="2.1.2" /> |
+| 嵌套 `if` 的每个分支都 `return` | 外层之后仍然可达的 `return` 会保留 <Since v="2.1.2" /> |
+| `round`、`sin`、`cos` | `round` 半数取偶（`round(2.5)` 是 2），`sin` / `cos` 是 `Period = 1` 的节点、按周期而不是弧度，常量折叠也一样（`sin(0.25)` 是 1）<Since v="2.1.2" />；`@custom` 函数体是 HLSL，仍按弧度。见[数学内置](/docs/builtins/math#round) |
 
 ## Region 与布局
 
@@ -136,12 +154,19 @@ region 是围住其中语句所生成节点的注释框。`#pragma layout(...)` 
 | `switch`、逗号运算符、`let` / `auto` | `if` 链；把类型写出来 |
 | 材质层**堆栈** | `@layer` 与 `@layerblend` 产出两种函数；堆栈在编辑器里组装 |
 
+## Custom Pass 管线
+
+<Since v="2.1.0" /> `.dsp` 是第三种源文件：一个文件就是一条 Custom Pass 管线 —— 具名缓冲区，加上一串在渲染器注入点运行的 pass
+（全屏材质或 HLSL、compute、mesh、clear、copy），编译成 `UDreamPassPipeline` 资产，并能反编译回 `.dsp`。
+它只在 **UE 5.8** 及以上运行；更老的引擎上照样能解析、格式化和绑定，编译会被拒绝。
+写法见 [Custom Pass 管线](/docs/language-v2/passes)，激活与运行见 [Custom Pass 运行时](/docs/runtime)。
+
 ## 工具
 
 | 工具 | 2.0 |
 | :-- | :-- |
 | [`dsc check`](/docs/tools/commandlet) | 编到 IR 校验为止、不写任何资产 —— CI 的闸门；`-Shaders` 还会编 shader，并把 HLSL 错误映射回源码行 |
 | [`dsc fmt`](/docs/tools/commandlet) | 语言自己的打印器当格式化器，担保不了的文件一律不写 |
-| [`dsc decompile`](/docs/tools/decompiler) | 把编译器倒着跑一遍，写出 `.dss`（实例则是 `.dsi`） |
+| [`dsc decompile`](/docs/tools/decompiler) | 把编译器倒着跑一遍，写出 `.dss`（实例是 `.dsi`，管线是 `.dsp`） |
 | [VS Code](/docs/tools/vscode) | 高亮与代码片段；跳转、悬停、重命名与节点补全由编译器自己的索引回答 |
 | 编辑器 | 节点 ↔ 源码行双向跳转，手改过的资产可以 *Adopt Into Source* |

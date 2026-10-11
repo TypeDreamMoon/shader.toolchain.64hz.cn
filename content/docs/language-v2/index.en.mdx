@@ -9,8 +9,8 @@ metadata, `#pragma material(...)` holds the settings, and one exported function 
 
 | Aspect | Value |
 | :-- | :-- |
-| Files | `.dss` — a compilation unit · `.dsi` — a [material instance](/en/docs/language-v2/instances) · `.dsh` — a shared header, which may hold both languages |
-| Produces | one material per file at most, and one material function, layer or layer blend per other `export` |
+| Files | `.dss` — a compilation unit · `.dsi` — a [material instance](/en/docs/language-v2/instances) · `.dsp` — a [Custom Pass pipeline](/en/docs/language-v2/passes) (UE 5.8) · `.dsh` — a shared header, which may hold both languages |
+| Produces | one material per file at most, and one material function, layer or layer blend per other `export`; one `UDreamPassPipeline` per `.dsp` |
 | Compiler | the same one that builds `.dsm` / `.dsf`: two front ends, one graph IR, one emitter |
 | Since | <Since v="2.0.0" /> |
 
@@ -70,6 +70,13 @@ export float2 MF_ToonUV(float UVChannel = 0.0, float4 ScaleOffset = float4(1, 1,
 Inputs are parameters, a default argument is an optional input, the return value is the first output
 and `out` parameters are the others.
 
+A default is evaluated **in the callee** <Since v="2.1.2" />: `float F(float x, float y = x)` called as `F(7)` gets
+`y = 7`, also when the call stands in another function. Explicit arguments are evaluated in the caller first;
+defaults that read each other resolve as needed, and a cycle without an explicit value is `DSH6224`.
+A default may initialize a helper's `out`, but not an `@custom` function's output (`DSH6224` as well) — pass the
+initial value through another input pin. A call to an `export` or `extern` material function leaves an omitted
+pin open for the asset's own default; it does not evaluate the prototype's default in the caller.
+
 ## What a function is
 
 | Declaration | Becomes |
@@ -81,6 +88,9 @@ and `out` parameters are the others.
 | `T Helper(...)` — no linkage keyword | nothing of its own: inlined into every caller's graph |
 | `/// @custom` + a function | a Custom node; the body is HLSL, handed to the shader compiler verbatim |
 | `/// @asset <path>` + `extern T F(...);` | a call to a material function asset that already exists |
+
+`#include "x.dss"` (or a `.dsh`) brings another file's declarations in. Saving an included `.dss` rebuilds the
+sources that include it <Since v="2.1.2" />.
 
 ## Parameters
 
@@ -114,10 +124,22 @@ m.FrontMaterial = Substrate.Slab(BaseColor = Tex.rgb, Metallic = 1.0, Roughness 
 Every `UMaterialExpression` class the engine and the loaded plugins have is callable as `UE.<Name>`;
 the Substrate nodes live under `Substrate.` and have [sugar of their own](/en/docs/language-v2/substrate).
 Two equal calls are one node, so writing a call where its value is read costs nothing.
+A class whose nodes name their pins one by one takes the names the node shows — `UE.LandscapeLayerBlend(Layer_Grass = ...)`,
+after its `Layers` <Since v="2.0.2" />.
 
 An `if` whose condition is a `/// @static` uniform is a StaticSwitch; any other `if` assigns through
 a run-time select, per variable. A `material` is a value with fields — `m.BaseColor = ...` — and a
 field nobody assigns is a pin nobody connects.
+
+### A few evaluation rules
+
+| Written | Behaviour |
+| :-- | :-- |
+| `c ? a : b` | the condition is evaluated once; only the chosen arm's assignments, `++` and `out` / `inout` writes take effect, and both arms start from the state after the condition, as with an `if` <Since v="2.1.2" />. An `@custom` body follows the engine's HLSL rules |
+| `(int)x`, `(bool)x` | a graph cast keeps the value, in constants too: `(int)0.5` and `(bool)0.5` are 0.5 <Since v="2.1.2" />. Write `trunc(x)` to truncate, `x != 0` for a truth value |
+| `v.zyx.x = 1` | a chained swizzle or index write writes the component it finally names (`v.z` here) <Since v="2.1.2" /> |
+| a nested `if` whose branches all `return` | an outer `return` still reachable after it is kept <Since v="2.1.2" /> |
+| `round`, `sin`, `cos` | `round` rounds a halfway value to even (`round(2.5)` is 2), and `sin` / `cos` are nodes with `Period = 1` that take cycles, not radians, in constant folding too (`sin(0.25)` is 1) <Since v="2.1.2" />; an `@custom` body is HLSL and takes radians. See [math builtins](/en/docs/builtins/math#round) |
 
 ## Regions and layout
 
@@ -144,12 +166,21 @@ any source, without building anything.
 | `switch`, the comma operator, `let` / `auto` | `if` chains; declare the type |
 | a material layer *stack* | `@layer` and `@layerblend` produce the two function kinds; the stack is assembled in the editor |
 
+## Custom Pass pipelines
+
+<Since v="2.1.0" /> A `.dsp` is the third kind of source: one file is one Custom Pass pipeline — named buffers and a
+list of passes that run at injection points of the renderer (a fullscreen material or HLSL, compute, mesh, clear,
+copy) — compiled to a `UDreamPassPipeline` asset, and decompiled back to `.dsp`. It runs on **UE 5.8** and later;
+an older engine still parses, formats and binds it, and refuses to compile it.
+See [Custom Pass pipelines](/en/docs/language-v2/passes) for the language and [Custom Pass runtime](/en/docs/runtime)
+for activation and what happens in the frame.
+
 ## Tooling
 
 | Tool | 2.0 |
 | :-- | :-- |
 | [`dsc check`](/en/docs/tools/commandlet) | compiles as far as IR validation and writes no asset — the CI gate; `-Shaders` also compiles the shaders and maps HLSL errors back to source lines |
 | [`dsc fmt`](/en/docs/tools/commandlet) | the language's own printer as a formatter, which refuses any file it cannot vouch for |
-| [`dsc decompile`](/en/docs/tools/decompiler) | writes `.dss` (and `.dsi` for an instance) by running the compiler backwards |
+| [`dsc decompile`](/en/docs/tools/decompiler) | writes `.dss` (`.dsi` for an instance, `.dsp` for a pipeline) by running the compiler backwards |
 | [VS Code](/en/docs/tools/vscode) | highlighting and snippets; navigation, hover, rename and node completion answered by the compiler's own index |
 | Editor | node ↔ source line navigation both ways, *Adopt Into Source* for hand-edited assets |
