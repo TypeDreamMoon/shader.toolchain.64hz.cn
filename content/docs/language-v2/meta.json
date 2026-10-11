@@ -4,6 +4,7 @@
     "index",
     "substrate",
     "instances",
+    "passes",
     "migrate"
   ]
 }

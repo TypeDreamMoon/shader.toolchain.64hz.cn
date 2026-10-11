@@ -5,6 +5,7 @@
     "start",
     "language",
     "language-v2",
+    "runtime",
     "graph",
     "builtins",
     "parameters",
