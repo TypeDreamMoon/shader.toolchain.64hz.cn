@@ -1,16 +1,18 @@
 ---
 title: GLSL 简介
-description: 写给 DreamShaderLang 作者的 GLSL 背景 —— 哪些 GLSL 写法是一等 token、哪些会在 Function 体内被改写，以及哪些根本没有对应物。
+description: 写给 DreamShaderLang 作者的 GLSL 背景 —— 1.x 源文件里哪些 GLSL 写法是一等 token、哪些会在 Function 体内被改写、哪些带警告，.dss 为什么只认 HLSL，以及哪些根本没有对应物。
 ---
 
 网上大多数着色器示例都是 GLSL 写的。DreamShaderLang 不是 GLSL 编译器，也从不输出 GLSL ——
-它的目标是 Unreal 的材质图和 HLSL。但语言对 GLSL 写法是刻意照顾的，而且照顾方式有两种，
-分清这两种就是本页的全部要点。
+它的目标是 Unreal 的材质图和 HLSL。1.x 语法对 GLSL 写法是刻意照顾的，照顾方式有三种；`.dss` 则只认 HLSL。
+分清这几种就是本页的全部要点。
 
 | 机制 | 位置 | 发生了什么 |
 | :-- | :-- | :-- |
-| **一等 token** | `Properties`、`Inputs`、`Outputs`、`Graph` 声明、`Graph` 构造器 | `vec3` *就是*一个类型 token。什么都不改写，存下来和报出来都是你写的样子 |
-| **标识符改写** | `Function` / `GraphFunction` 的签名和函数体 | 在输出 HLSL 之前按整标识符替换，于是 `vec3` 变成 `float3`、`mix` 变成 `lerp` |
+| **一等 token** | 1.x 的 `Properties`、`Inputs`、`Outputs`、`Graph` 声明、`Graph` 构造器 | `vec3` *就是*一个类型 token，读作 `float3`；没有诊断 |
+| **标识符改写** | 1.x `Function` / `GraphFunction` 的签名和函数体 | 在输出 HLSL 之前按整标识符替换，于是 `vec3` 变成 `float3`、`mix` 变成 `lerp`；没有诊断 |
+| **带警告的 legacy 规则** <Since v="2.0.0" /> | 1.x `Graph` 里的 `mix`、`fract`、`mod`、`inversesqrt` | 读作 `lerp`、`frac`、`fmod`、`rsqrt`，并给出 warning `DSH5277` |
+| **只认 HLSL** | `.dss` | 没有 GLSL 写法：`mix` 这类函数名是错误 `DSH4250`，`vec3` 不是类型（`DSH4201`） |
 
 ```glsl
 // GLSL
@@ -30,7 +32,8 @@ Function vec3 ApplyTint(in vec3 color, in vec3 tint) {
 
 ## GLSL 类型别名
 
-这些是真正的 token，凡是接受对应 `float` / `int` / `uint` / `bool` 写法的地方都接受它们。
+在 1.x 源文件里，这些是真正的 token，凡是接受对应 `float` / `int` / `uint` / `bool` 写法的地方都接受它们，读作右边那个写法。
+`.dss` 不认它们 —— 写 HLSL 拼写；[`dsc migrate`](/docs/language-v2/migrate) 迁移时会替你改写。
 
 | GLSL 写法 | 等价于 |
 | :-- | :-- |
@@ -68,7 +71,8 @@ Function vec3 ApplyTint(in vec3 color, in vec3 tint) {
 | `mod` | `fmod` | ✘ | ✔ |
 
 签名别名 15 条；函数体别名 18 条。改写能识别注释和字符串，并且**只**作用于 `Function` 和
-`GraphFunction` 体 —— `Graph` 块、`Shader` 体和 `ShaderFunction` 体都不做规范化。
+`GraphFunction` 体 —— `Graph` 块、`Shader` 体和 `ShaderFunction` 体都不做规范化。函数体里的改写不给诊断；`DSH5277`
+只针对 `Graph` 文本。
 
 <Callout type="warn">
 函数体改写按整标识符匹配、不区分大小写。`Function` 或 `GraphFunction` 体里名为 `Mix`、`Mod`、
@@ -76,28 +80,30 @@ Function vec3 ApplyTint(in vec3 color, in vec3 tint) {
 `frac`、`float3`、`float4x4`。没有任何诊断；故障表现为 HLSL 编译错误，或者悄悄算错。请改名。
 </Callout>
 
-注意 `mat2` / `mat3` / `mat4` 改写得很干净，但落到的是语言不支持的类型。声明能解析，
-失败发生在**调用**时 —— `… input 'basis' uses unsupported type 'float3x3'.` 见
-[HLSL 简介](/docs/shader-languages/hlsl)中的矩阵一节。
+注意 `mat2` / `mat3` / `mat4` 改写得很干净，但图里没有矩阵值。声明能解析，失败发生在**调用**时：
+`Graph` 调用把矩阵传进 pin 是 `DSH4361`。见 [HLSL 简介](/docs/shader-languages/hlsl#矩阵)中的矩阵一节。
 
 ## `Graph` 块里的 GLSL 函数名
 
-`Graph` 块里什么都不改写，所以 GLSL 写法必须本身就是真正的内置 —— 其中三个确实是：
+数学内置按**精确**的 HLSL 名字匹配 <Since v="2.0.0" />。四个 GLSL 拼写在 1.x `Graph` 里仍然可用，作为一条把它说出来的
+legacy 规则：
 
-| GLSL 名字 | 在 `Graph` 块中 | 在 `Function` 体中 |
-| :-- | :-- | :-- |
-| `mix` | 真正的内置，`lerp` 的别名 | 改写成 `lerp` |
-| `fract` | 真正的内置 <Since v="1.5.0" />，与 `frac` 同一节点 | 改写成 `frac` |
-| `mod` | 真正的内置 <Since v="1.5.0" />，与 `fmod` 同一节点 | 改写成 `fmod` |
-| `clamp`、`dot`、`min`、`max`、`pow`、`sqrt`、`abs`、`floor`、`ceil`、`sin`、`cos`、`normalize` | 两种语言拼写相同 —— 都是真正的内置 | HLSL 内建函数 |
-| `smoothstep`、`step`、`length`、`cross`、`reflect`、`refract` | 真正的内置 <Since v="1.6.0" /> —— 两种语言拼写相同 | HLSL 内建函数 |
-| `distance`、`exp`、`log` | **不是内置** —— 走 `UE.Expression(Class = …)` 或写进 `Function` 体 | HLSL 内建函数，可直接使用 |
+| GLSL 名字 | 在 1.x `Graph` 块中 | 在 `.dss` 中 | 在 1.x `Function` 体中 |
+| :-- | :-- | :-- | :-- |
+| `mix` | 读作 `lerp`，warning `DSH5277` | 错误 `DSH4250` —— 写 `lerp` | 改写成 `lerp` |
+| `fract` | 读作 `frac`，warning `DSH5277` | 错误 `DSH4250` —— 写 `frac` | 改写成 `frac` |
+| `mod` | 读作 `fmod`，warning `DSH5277` | 错误 `DSH4250` —— 写 `fmod` | 改写成 `fmod` |
+| `inversesqrt` | 读作 `rsqrt`，warning `DSH5277` | 错误 `DSH4250` —— 写 `rsqrt` | HLSL 里没有这个名字 |
+| `clamp`、`dot`、`min`、`max`、`pow`、`sqrt`、`abs`、`floor`、`ceil`、`sin`、`cos`、`normalize` | 两种语言拼写相同 —— 都是真正的内置 | 同左 | HLSL 内建函数 |
+| `smoothstep`、`step`、`length`、`cross`、`reflect`、`refract` | 真正的内置 <Since v="1.6.0" /> —— 两种语言拼写相同 | 同左 | HLSL 内建函数 |
+| `distance`、`exp`、`exp2`、`log`、`log2` | 真正的内置 <Since v="2.0.0" /> | 同左 | HLSL 内建函数 |
 
+注意 `sin` / `cos` 建出的 `Sine` / `Cosine` 节点按**周期**计（`Period = 1`），不按弧度 —— 函数体里的 HLSL `sin` 才按弧度。
 完整的内置目录见[数学内置](/docs/builtins/math)。
 
 ## 构造器与 swizzle
 
-两者都能原样带过来，GLSL 写法保留。
+在 1.x 源文件里两者都能原样带过来；`.dss` 里把类型写成 HLSL 拼写（`float3(…)`），swizzle 规则相同。
 
 ```c
 Graph = {
@@ -109,10 +115,9 @@ Graph = {
 ```
 
 - 构造器名跟随类型 token，所以 `vec2(…)`、`vec3(…)`、`vec4(…)`、`ivec3(…)` 等在 `Graph` 块里都能用。
-- swizzle 接受一到四个通道字符，来自 `xyzw` 或 `rgba` 两个集合，不区分大小写。重排和重复都允许。
-  没有 `stpq` 集合，也没有 `uv` 集合 —— `.uv` 会失败。
-- swizzle 只能收窄或重排。对标量写 `Roughness.yz` 是硬错误，**不是**广播：
-  `Swizzle 'yz' is invalid for a value with 1 components.` 请重复通道 0（`.xx`）或改用构造器。
+- swizzle 接受一到四个通道字符，来自 `xyzw` 或 `rgba` 两个集合。重排和重复读取都允许；一个 swizzle 里混用两个集合
+  （`.xg`）是 `DSH4230` <Since v="2.0.0" />。没有 `stpq` 集合，也没有 `uv` 集合 —— `.uv` 是 `DSH4230`。
+- swizzle 只能收窄或重排。对标量写 `Roughness.yz` 是 `DSH4230`，**不是**广播。请重复通道 0（`.xx`）或改用构造器。
 
 细节见[运算符与转换](/docs/graph/expressions)。
 
@@ -120,18 +125,19 @@ Graph = {
 
 | GLSL 习惯 | 在 DreamShaderLang 中 |
 | :-- | :-- |
-| `void main() { … }` | 没有 —— 用带 `Outputs` 绑定的 `Shader` 块描述材质 |
-| `uniform float x;` | 写成 `Properties` 声明；节点会变成真正的材质参数 |
+| `void main() { … }` | `.dss` 的入口 `export void M(inout material m)`；1.x 用带 `Outputs` 绑定的 `Shader` 块 |
+| `uniform float x;` | `.dss` 里就是 `uniform float x;`，加 `///` 标签；1.x 写成 `Properties` 声明。两者都变成真正的材质参数 |
 | 文件作用域的 `in` / `out` / `varying` / `attribute` | 没有 —— 输入来自 `UE.*` 节点和参数 |
-| `sampler2D` + `texture(s, uv)` | 纹理 property 加 `SampleTexture2D(tex, uv)`，或者用 `TextureSampleParameter2D` 调用 `Tex(Coordinates = uv)` |
+| `sampler2D` + `texture(s, uv)` | `.dss` 里 `uniform Texture2D Tex;` 加 `Tex.Sample(uv)`；1.x 用纹理 property 加 `SampleTexture2D(tex, uv)`，或者用 `TextureSampleParameter2D` 调用 `Tex(Coordinates = uv)` |
 | `layout(…)`、`lowp` / `mediump` / `highp` | 没有 |
-| `mat3 m; m * v` | 没有矩阵类型 —— 用 `UE.TransformVector` / `UE.TransformPosition` |
-| `#version`、`#extension` | 没有 |
-| `discard` | 只在 `Function` 的 HLSL 体内部有效 |
+| `mat3 m; m * v` | 图里没有矩阵值（`DSH4361`）—— 用 `UE.TransformVector` / `UE.TransformPosition`，或者在 `/// @custom` / `Function` 体里算 |
+| `#version`、`#extension` | 没有；预处理器只有 [`#if` / `#define`](/docs/language/lexical#预处理器) 那一组 |
+| `for`、`while` | `.dss` 有（次数在运行时才知道的循环要写进 `/// @custom` 函数）；1.x `Graph` 没有（`DSH2208`） |
+| `discard` | 只在 `/// @custom` / `Function` 的 HLSL 体内部有效 |
 
 ## 移植一段片段
 
-一段典型的 GLSL 片段，以及落地的两种方式。
+一段典型的 GLSL 片段，以及落地的几种方式。
 
 ```glsl
 float ring(vec2 uv, float t)
@@ -142,7 +148,20 @@ float ring(vec2 uv, float t)
 }
 ```
 
-写成 `Function`，函数体是 HLSL，别名由语言替你改写：
+写成 `.dss` 代码，改成 HLSL 拼写，每个调用都是真实的节点：
+
+```hlsl
+float Ring(float2 uv, float t)
+{
+    float2 p = uv - 0.5;
+    float  d = length(p);
+    return frac(sin(t) * 0.5 + d * 4.0);    // 注意：图里的 sin 按周期计
+}
+```
+
+函数前面加一行 `/// @custom`，它的函数体就原样成为一个 Custom 节点里的 HLSL（`sin` 按弧度）。
+
+写成 1.x `Function`，函数体是 HLSL，别名由语言替你改写：
 
 ```c
 Function float Ring(in vec2 uv, in float t)
@@ -153,14 +172,14 @@ Function float Ring(in vec2 uv, in float t)
 }
 ```
 
-写成 `Graph` 语句，这里什么都不改写 —— 但 `length` 和 `fract` 都是内置：
+写成 1.x `Graph` 语句，`length` 和 `frac` 都是内置；写 `fract` 也能编译，但会得到 warning `DSH5277`：
 
 ```c
 Graph = {
     vec2  uv = UE.TexCoord(Index = 0);
     vec2  p  = uv - 0.5;
-    float d  = length(p);                          // 内置 <Since v="1.6.0" />
-    float r  = fract(sin(UE.Time()) * 0.5 + d * 4.0);
+    float d  = length(p);                          // 内置，自 1.6.0
+    float r  = frac(sin(UE.Time()) * 0.5 + d * 4.0);
 }
 ```
 
@@ -169,12 +188,13 @@ Graph = {
 只是不再必要。
 </Callout>
 
-`Function` 版本更短；`Graph` 版本产出可以在材质图里查看、也可以接参数的真实节点。按场景选择 ——
-见[函数](/docs/language/functions)。
+`/// @custom` / `Function` 版本是一个 Custom 节点；图代码版本产出可以在材质图里查看、也可以接参数的真实节点。按场景选择 ——
+见[函数](/docs/language/functions)和 [DreamShaderLang 2.0](/docs/language-v2#函数是什么)。
 
 ## GLSL 常见关键字
 
-仅作参考。除上文明确说明的以外，这张表里的东西都不属于 DreamShaderLang 语法。
+仅作参考。除上文明确说明的以外，这张表里的东西都不属于 DreamShaderLang 语法（`.dss` 里的 `if`、`for`、`while`、`return`、
+`in` / `out` / `inout`、`const`、`uniform` 是 HLSL 的同名关键字）。
 
 | 分类 | 关键字 |
 | :-- | :-- |
@@ -191,6 +211,6 @@ Graph = {
   <Card title="HLSL 简介" href="/docs/shader-languages/hlsl" description="HLSL 在哪里运行，以及自带的 helper 头文件。" />
   <Card title="关键字速查" href="/docs/shader-languages/keywords-cheatsheet" description="三套词汇并排对照。" />
   <Card title="类型与值" href="/docs/language/types-and-values" description="封闭的 token 集合及其有效性矩阵。" />
-  <Card title="数学内置" href="/docs/builtins/math" description="Graph 块认得的 29 个名字。" />
+  <Card title="数学内置" href="/docs/builtins/math" description="图代码认得的每个数学名字，以及 GLSL 拼写的处理。" />
   <Card title="运算符与转换" href="/docs/graph/expressions" description="运算符、构造器、swizzle 与加宽。" />
 </Cards>

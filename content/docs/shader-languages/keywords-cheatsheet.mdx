@@ -1,24 +1,62 @@
 ---
 title: 关键字速查
-description: DreamShaderLang 语法特殊对待的每一个词，以及供移植代码时对照的 HLSL 与 GLSL 词汇表。
+description: DreamShaderLang 语法特殊对待的每一个词 —— 1.x 的块、section、限定符与上下文关键字，.dss 的声明、#pragma 与 /// 标签，保留字 —— 以及供移植代码时对照的 HLSL 与 GLSL 词汇表。
 ---
 
-一张查阅用的页面。DreamShaderLang 的几张表是穷尽的：块关键字、section 名、限定符、上下文关键字和
-保留名就是语法认得的全部集合。HLSL 和 GLSL 两张表是给从那两门语言过来的读者做参考的。
+一张查阅用的页面。DreamShaderLang 的几张表是穷尽的：1.x 的块关键字、section 名、限定符、上下文关键字，`.dss` 的声明形式、
+`#pragma` 和 `///` 标签，以及保留字，就是语法认得的全部集合。HLSL 和 GLSL 两张表是给从那两门语言过来的读者做参考的。
 
 <Callout type="info">
-**没有任何关键字对标识符是保留的。** property、输出变量、参数或函数都可以叫 `Shader`、`Graph`、
-`Layout` 或 `float`；解析器从不会因为一个标识符和关键字撞名就拒绝它。关键字只在语法期待它们的位置
-才被识别。
-
-例外根本不是关键字 —— 是[数学内置](/docs/builtins/math)和构造器的名字，它们在 `Graph` 块的名称
-解析中胜出，会静默遮蔽用户声明。
+**块关键字、section 名和类型名不对标识符保留。** property、输出变量、参数或函数都可以叫 `Shader`、`Graph`、`Layout`；它们只在
+语法期待的位置才被识别。例外是一小组[保留字](#保留字) <Since v="2.0.0" />。数学内置和构造器的名字也不能拿来命名函数 ——
+那是 `DSH6206`，报在声明处（1.9.x 及以前会静默遮蔽）。
 </Callout>
 
-## 顶层块关键字
+## `.dss` 的声明形式
 
-**区分大小写**，且只在下一个字符不是字母、数字或 `_` 时才匹配 —— 正是这条边界规则让
-`ShaderFunction` 不会被当成 `Shader`。
+<Since v="2.0.0" /> `.dss` 是带声明的 HLSL：文件级只有下面这些形式。完整语法见 [DreamShaderLang 2.0](/docs/language-v2)。
+
+<Wide>
+
+| 形式 | 含义 |
+| :-- | :-- |
+| `uniform <Type> Name = <init>;` | 材质参数。`uniform bool` 默认是动态标量；`/// @static` 让它成为静态开关 |
+| `static const <Type> Name = <init>;` | 编译期常量 |
+| `<Type> Name(params) { … }` | 文件内 helper，没有链接关键字 |
+| `export <Type> Name(params) { … }` | 产出一个资产：`void (inout material)` 是材质，其他是材质函数 |
+| `extern <Type> Name(params);` | 通过 `/// @asset` 绑定到一个已有资产的原型，没有函数体 |
+| `struct Name { … };` | 字段可以带自己的 `///` 块和数组维度；没有方法，不能嵌套 |
+| `#include "path"` · `import "path";` | 同一回事；路径必须用双引号 |
+| `#pragma material(Key = Value, …)` | 文件级材质设置；同一个键设两次是 `DSH7200` |
+| `#pragma layout(Node\|Comment, Key = Value, …)` | 节点坐标与注释框，反编译器写出 |
+| `#pragma region Name` · `#pragma endregion` | 1.x `#Region` 注释框的 2.0 写法 |
+
+</Wide>
+
+`#pragma` 的名字还有 `instance`（`.dsi`）和 `pipeline`（`.dsp`）。`.dss` 特有的类型：`material`（材质属性集，入口参数
+`inout material m`）、`void`，以及用户 `struct`。
+
+### `///` 标签
+
+声明上方的 `///` 行是它的文档块：每行 `@key value @key value …`，键不区分大小写。
+
+| 标签 | 用在 | 含义 |
+| :-- | :-- | :-- |
+| `@group`、`@sort`、`@desc` | `uniform` | 参数面板里的分组、排序和说明 |
+| `@slider min max` | 标量 `uniform` | 滑条范围；放在向量或开关上是 warning `DSH7233` |
+| `@default /Game/…` | 纹理 `uniform` | 默认资产 |
+| `@sampler` | 纹理 `uniform` | 采样器类型 |
+| `@static` | `uniform bool` | 静态开关 |
+| `@name` | `export` 函数、`@custom` 函数 | 资产名（或对象路径）、节点标题 |
+| `@asset` | `extern` 原型 | 绑定的已有资产 |
+| `@library`、`@param` | 导出的材质函数 | 库分类；某个输入的说明 |
+| `@layer`、`@layerblend` | 导出函数 | 产出材质图层 / 图层混合函数 |
+| `@custom` | 函数 | 函数体原样捕获，每次调用一个 Custom 节点 |
+
+## 1.x 顶层块关键字
+
+**区分大小写**，按整词匹配 —— `ShaderFunction` 是它自己这个词，永远不是 `Shader` 加点什么。大小写写错的（`shader(…)`）不是块：
+`DSH2240`。
 
 <Wide>
 
@@ -28,27 +66,27 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 | `ShaderFunction` | `ShaderFunction(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunction` |
 | `ShaderLayer` <Since v="1.3.0" /> | `ShaderLayer(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayer` |
 | `ShaderLayerBlend` <Since v="1.3.0" /> | `ShaderLayerBlend(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayerBlend` |
-| `MaterialLayer`（1.3.0 起弃用） | `MaterialLayer(Name = "…")` | `Name` | 同 `ShaderLayer` |
-| `MaterialLayerBlend`（1.3.0 起弃用） | `MaterialLayerBlend(Name = "…")` | `Name` | 同 `ShaderLayerBlend` |
+| `MaterialLayer`（1.3.0 起弃用） | `MaterialLayer(Name = "…"[, Root = "…"])` | `Name` | 同 `ShaderLayer` |
+| `MaterialLayerBlend`（1.3.0 起弃用） | `MaterialLayerBlend(Name = "…"[, Root = "…"])` | `Name` | 同 `ShaderLayerBlend` |
 | `VirtualFunction` <Since v="1.2.0" /> | `VirtualFunction(Name = "…"[, Asset = "…"])` | `Name`，外加来自 `Asset =` 或 `Options.Asset` 的资产 | 不生成 —— 声明一个已有资产 |
 | `Namespace` | `Namespace(Name = "…")` | `Name` | 不生成 —— helper 的作用域 |
-| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | 一个名字，至少一个输出 | 一个 HLSL helper |
+| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | 一个名字，至少一个输出 | 一个 HLSL helper —— 每次调用一个 Custom 节点 |
 | `GraphFunction` <Since v="1.3.1" /> | `GraphFunction [<ret>] <Name>( … ) { <HLSL> }` | 一个名字，至少一个输出 | 带节点输入的 HLSL helper |
 
 </Wide>
 
-`Shader` 在整个翻译单元（即整个 import 闭包）中**只能有一个**。其余每种块都可以重复。
-`Function` 和 `GraphFunction` 还可以嵌在 `Namespace` 里，此时它们的名字变成 `<Namespace>::<Name>`。
+`Shader` 每个**文件**只能有一个（`DSH2250`），而 `.dsh` 头文件里根本不能有资产块（`DSH2249`），所以 `import` 加不出第二个。
+其余每种块都可以重复。`Function` 和 `GraphFunction` 还可以嵌在 `Namespace` 里，此时它们的名字变成 `<Namespace>::<Name>`。
 
 <Deprecated since="1.3.0" use="ShaderLayer" />
 
-`MaterialLayer` 和 `MaterialLayerBlend` 仍然能解析、生成的资产也相同，但各自会发出
-`MaterialLayer is deprecated; use ShaderLayer instead.` /
-`MaterialLayerBlend is deprecated; use ShaderLayerBlend instead.` 之后的诊断都报现代写法。
+`MaterialLayer` 和 `MaterialLayerBlend` 仍然能解析、生成的资产也相同，带 warning `DSH2251`。之后的诊断和生成的元数据都报现代写法。
 
-## Section 名
+## 1.x Section 名
 
-不区分大小写。块前的 `=` 可省 <Since v="1.5.0" />，块后的 `;` 也可省。section 顺序任意，可以重复。
+不区分大小写。块前的 `=` 可省 <Since v="1.5.0" />，块后的 `;` 也可省。section 顺序任意，可以重复：`Properties`、`Inputs`
+和 `Outputs` 追加，`Settings` 按键合并，第二个 `Graph` 或 `Layout` **替换**第一个并给出 warning `DSH2258`。块不接受的名字是
+`DSH2245`。
 
 <Wide>
 
@@ -61,39 +99,39 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 | `Outputs` | `Shader` | 输出声明与绑定 —— **另一套语法** |
 | `Results` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend`、`VirtualFunction` | `Outputs` 的别名 |
 | `Settings` | `Shader` | 材质设置 —— 特殊键加上反射到 `UMaterial` 的属性 |
-| `Settings` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 材质函数的四个键 |
+| `Settings` | `ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 材质函数的设置键 |
 | `Settings` | `VirtualFunction` | `Options` 的别名 |
 | `Options` | `VirtualFunction` | 声明的资产及其他存储键 |
-| `Graph` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 节点图主体，原样存储 |
-| `Code` | — | **到处都被拒绝**；请用 `Graph` |
-| `Layout` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | `Node` / `Comment` 摆放；第二个 `Layout` 会**替换**第一个 |
+| `Graph` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | 节点图主体 |
+| `Code` | — | **到处都被拒绝**（`DSH2246`；`VirtualFunction` 里 `Graph` 和 `Code` 都是 `DSH2247`）；请用 `Graph` |
+| `Layout` | `Shader`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` | `Node` / `Comment` 摆放 |
 
 </Wide>
 
 `Function` 和 `GraphFunction` 完全没有 section —— 它们的 `{ … }` 是裸 HLSL。
 
-## 声明限定符
+## 1.x 声明限定符
 
 | 限定符 | 位置 | 效果 |
 | :-- | :-- | :-- |
-| `const` <Since v="1.2.6" /> | `Properties` 声明中类型之前 | 产出常量节点而不是参数；在参数节点和 `UE.*` 声明上被拒绝 |
-| `opt` <Since v="1.2.3" /> | `Inputs` 声明中类型之前 | 在 Unreal 里把该函数输入标记为可选；后面必须跟一个字面空格 |
-| `in` | `Function` / `GraphFunction` 参数类型之前 | 输入参数；参数只有两个 token 时的默认值 |
-| `out` | `Function` / `GraphFunction` 参数类型之前 | 输出参数；除非声明了返回类型，否则至少要有一个 |
-| `SelfContained` | `Function` 之后 | 把函数体自包含地嵌进每个调用方的 Custom 节点；**不接受用在 `GraphFunction` 上** |
-| `Inline` | `Function` 之后 | `SelfContained` 的完全别名 |
+| `const` <Since v="1.2.6" /> | `Properties` 声明中类型之前 | 产出常量节点而不是参数；多数参数节点 token 上被拒绝（`DSH3253`） |
+| `opt` <Since v="1.2.3" /> | `Inputs` 声明中类型之前 | 在 Unreal 里把该函数输入标记为可选；后面跟着类型和名字时才被识别 |
+| `in` | `Function` / `GraphFunction` 参数类型之前 | 输入参数；参数只有两个词时的默认值 |
+| `out` | `Function` / `GraphFunction` 参数类型之前 | 输出参数；除非声明了返回类型，否则至少要有一个，且不能和返回类型并存（`DSH6305`、`DSH6304`） |
+| `SelfContained` | `Function` 之后 | 读取后忽略：每个 `Function` 节点本来就嵌入它函数体调用的函数 <Since v="2.0.0" />；**不接受用在 `GraphFunction` 上**（`DSH6307`） |
+| `Inline` | `Function` 之后 | `SelfContained` 的旧拼写，带 warning `DSH6306` |
 
-函数参数上只接受 `in` 和 `out` 两个限定符。`inout` 不存在，会被拒绝。
+函数参数上只接受 `in` 和 `out` 两个限定符（不区分大小写）；其他的，包括 `inout`，是 `DSH6302`。
 
-## 上下文关键字
+## 1.x 上下文关键字
 
-只在列出的位置被识别，且总是不区分大小写。
+只在列出的位置被识别，除非该行另有说明，否则不区分大小写。
 
 <Wide>
 
 | 关键字 | 位置 | 含义 |
 | :-- | :-- | :-- |
-| `import` | 源文件任意位置，独占一行的第一个 token | 内联另一个源文件 |
+| `import` | 顶层，块之间 | 把一个 `.dsh` 头文件的名字声明进本文件 <Since v="2.0.0" />（1.x 把文件贴进来）；小写 —— 别的大小写也能读，带 warning `DSH2253` |
 | `Group("…") { … }` <Since v="1.5.0" /> | `Properties` 内的语句位置 | 把参数组名盖到内部每条声明上；可嵌套，用 `\|` 拼接 |
 | `Slider(min, max)` <Since v="1.5.0" /> | `[ … ]` 元数据块内的条目 | 设置标量参数的 UI 范围 |
 | `Path( … )` | 纹理或资产型声明的默认值 | 带根写法的资产引用 |
@@ -103,37 +141,50 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 | `Node( … )` | `Layout` 内的语句 | 钉住某个变量的节点位置 |
 | `Comment( … )` | `Layout` 内的语句 | 放置一个注释框 |
 | `#Region` / `#EndRegion` | `Graph` 体内独占一行 | 给图的一段命名；可嵌套 |
-| `UE.` | `Properties` 的类型位置、`Graph` 的调用位置 | 内置材质节点命名空间 |
-| `Substrate.` | `Graph` 的调用位置 | Substrate BSDF 命名空间，<Since v="5.4" ue /> |
-| `true` / `false` | 默认值 | 布尔字面量；期待标量的位置会转成 `1.0` / `0.0` |
-| `default` <Since v="1.2.3" /> | `Graph` 中的调用实参 | 使用该参数声明的默认值 |
+| `#if` / `#elif` / `#else` / `#endif` <Since v="1.9.0" /> | 独占一行，`Function` / `GraphFunction` 的 HLSL 体之外的任何位置 | 在解析前剪掉没走的分支；**只认小写** |
+| `#ifdef` / `#ifndef` <Since v="1.9.0" /> | 同上 | `#if defined(NAME)` 和 `#if !defined(NAME)` 的糖 |
+| `#define` / `#undef` <Since v="1.9.0" /> | 同上 | 定义或删除一个名字，**只在本文件有效** |
+| `defined` <Since v="1.9.0" /> | `#if` / `#elif` 表达式里 | 名字已定义为 `1`，否则 `0` |
+| `UE.` | `Properties` 的类型位置、`Graph` 的调用位置 | 内置材质节点命名空间；在 `Graph` 调用里必须恰好写成 `UE` <Since v="2.0.0" /> |
+| `Substrate.` | `Graph` 的调用位置 | Substrate 节点命名空间，<Since v="5.4" ue /> |
+| `true` / `false` | 默认值、`Graph` 表达式 | 布尔字面量；期待标量的位置会转成 `1.0` / `0.0` |
+| `default` <Since v="1.2.3" /> | `Graph` 中的调用实参 | 不连这个输入，让函数自己的默认值生效；只认小写 <Since v="2.0.0" /> |
 
 </Wide>
+
+预处理器在 `.dss` 里同样可用，规则见[词法与大小写 ▸ 预处理器](/docs/language/lexical#预处理器)。
+
+## 保留字
+
+<Since v="2.0.0" /> 所有文件由同一个词法器读取，它的关键字在 1.x 文件里也保留（小写）：`uniform` `static` `const` `extern`
+`export` `in` `out` `inout` `struct` `if` `else` `for` `while` `do` `return` `break` `continue` `discard` `true` `false`
+`import`。它们都不能用来命名 property、输出、输入或 `Graph` 变量。别的大小写是普通的词：在 1.x 语法期待 `const` 和 `in` 的地方，
+`Const` 和 `IN` 照样读作它们，`True` 读作 `true`。见[词法与大小写 ▸ 保留字](/docs/language/lexical#保留字)。
 
 ## 保留名
 
 | 名称 | 位置 | 规则 |
 | :-- | :-- | :-- |
-| `__return` | `Function` / `GraphFunction` 参数名 | 为返回类型降级保留；声明的返回类型会变成叫这个名字的 `out` 参数 |
-| `return` | `Shader` 的 `Outputs` 声明 | 不能用作输出变量名；作为绑定源时只能喂给 `Base.*` 目标 |
+| `__return` | `Function` / `GraphFunction` 参数名 | 任何大小写都保留；这样命名的参数是 `DSH6303` |
+| `return` | 到处 | 一个保留字：不能命名输出变量，也不能作绑定源 <Since v="2.0.0" /> |
+| `DS_…` <Since v="1.9.0" /> | 预处理器 define 名 | 整个 `DS_` **前缀**归 DreamShader：`#define` 或 `#undef` 这样的名字是 `DSH1039`，其他 define 层会丢掉它并给出警告 |
 
-`Function` 体里的 `return` 是语句，不是保留名：顶层的 `return <expr>;` 会被改写成对 `__return`
-的赋值。
+`Function` 体里的 `return` 是 HLSL，<Since v="2.0.0" /> 起保持原样；声明了返回类型的函数里裸写 `return;` 是 `DSH6308`。
 
 ## 类型 token
 
-完整集合共 44 个 token，在每个上下文中都**不区分大小写**匹配。逐上下文的有效性见
-[类型与值](/docs/language/types-and-values)。
+完整集合共 52 个 token。逐上下文的有效性见[类型与值](/docs/language/types-and-values)。
 
 | 族 | Token | 个数 |
 | :-- | :-- | --: |
-| 标量（1 分量） | `float` `float1` `half` `half1` `int` `uint` `bool` | 7 |
-| 向量（2 / 3 / 4 分量） | `float2..4` `half2..4` `vec2..4` `int2..4` `uint2..4` `bool2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 27 |
+| 标量（1 分量） | `float` `half` `double` `int` `uint` `bool`，以及各自带 `1` 后缀的写法（`float1`…） | 12 |
+| 向量（2 / 3 / 4 分量） | `float2..4` `half2..4` `double2..4` `int2..4` `uint2..4` `bool2..4` `vec2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 30 |
 | 纹理 | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` | 5 |
 | 不透明及其他 | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
 
-**没有矩阵类型**：`mat2` / `mat3` / `mat4` 和 `float2x2` / `float3x3` / `float4x4` 在每个声明位置
-都被拒绝。有三个 token 已被移除，现在会落到各自上下文通用的"不支持的类型"诊断上：
+`vec*` / `ivec*` / `uvec*` / `bvec*` 只在 1.x 源文件里是类型；`.dss` 写 HLSL 拼写，并另有 `material`、`void` 和用户 `struct`。
+图里**没有矩阵值**：`mat2` / `mat3` / `mat4` 和 `float2x2` / `float3x3` / `float4x4` 在 `Properties` 里是 `DSH3252`，变成节点或
+pin 的位置是 `DSH4361`。有三个 token 已被移除：
 
 | 已移除的 token | 替代 |
 | :-- | :-- |
@@ -141,14 +192,13 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 | `Color` | `float4` / `vec4` |
 | `Vector` | `float2` … `float4` / `vec2` … `vec4` |
 
-`Properties` 声明还可以使用 22 个显式 `*Parameter` 节点 token（`ScalarParameter`、
-`TextureSampleParameter2D`、`ChannelMaskParameter` …）。它们收录在
-[Properties 类型](/docs/parameters/properties)。
+1.x 的 `Properties` 声明还可以使用显式的 `*Parameter` 节点 token（`ScalarParameter`、`TextureSampleParameter2D`、
+`ChannelMaskParameter`……），收录在 [Properties 类型](/docs/parameters/properties)。
 
 ## 标识符改写
 
-只在 `Function` 和 `GraphFunction` 声明内部、输出 HLSL 之前应用。匹配不区分大小写、按整标识符进行；
-字符串和注释被跳过，`::` 限定名绕过该表。
+只在 1.x `Function` 和 `GraphFunction` 声明内部、输出 HLSL 之前应用。匹配不区分大小写、按整标识符进行；字符串和注释被跳过，
+`::` 限定名不查这张表 —— 它被拍平成 `<Namespace>_<Name>`。`.dss` 的 `/// @custom` 体不做这层改写。
 
 | 写的 | 改写为 | 作用于 |
 | :-- | :-- | :-- |
@@ -163,7 +213,8 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 
 ## HLSL 关键字
 
-参考 —— HLSL 自己的词汇，在 `Function` 体里有效。
+参考 —— HLSL 自己的词汇，在 `/// @custom` 和 `Function` 体里有效；`.dss` 的图代码认其中的大部分，见
+[HLSL 简介](/docs/shader-languages/hlsl#hlsl-常见关键字)。
 
 | 分类 | 关键字 |
 | :-- | :-- |
@@ -177,8 +228,8 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 
 ## GLSL 关键字
 
-参考 —— 除 `vec*` / `ivec*` / `uvec*` / `bvec*` 类型别名（它们是一等 token）之外，
-这里的内容都不属于 DreamShaderLang 语法。
+参考 —— 除 1.x 里的 `vec*` / `ivec*` / `uvec*` / `bvec*` 类型别名（它们是一等 token）之外，这里的内容都不属于 DreamShaderLang
+语法。
 
 | 分类 | 关键字 |
 | :-- | :-- |
@@ -193,23 +244,23 @@ description: DreamShaderLang 语法特殊对待的每一个词，以及供移植
 
 | 原本的习惯 | 在 DreamShaderLang 中 |
 | :-- | :-- |
-| `vec3` | 继续写 —— `vec3` 是真正的 token；只有在生成 HLSL 时才变成 `float3` |
-| `mix(a, b, t)` | 两处都能用：在 `Graph` 里是真正的内置，在 `Function` 体里被改写成 `lerp` |
-| `fract(x)`、`mod(a, b)` | 同上 —— 在 `Graph` 里是真正的内置 <Since v="1.5.0" />，在函数体里被改写 |
-| `length(v)` | 不是内置 —— 写 `sqrt(dot(v, v))`、走 `UE.Expression(Class = …)`，或写进 `Function` 体 |
-| `main()` | 不需要；用带 `Outputs` 绑定的 `Shader` 块描述材质 |
-| `uniform` | 写成 `Properties` 声明 |
-| `sampler2D` + `texture(s, uv)` | 纹理对象用 `SampleTexture2D(tex, uv)`；`TextureSampleParameter*` 用 `Tex(Coordinates = uv)` |
-| HLSL `Custom` 节点函数体 | 用 `Function`；函数体需要 `UE.*` 值时用 `GraphFunction` |
+| `vec3` | `.dss` 写 `float3`；1.x 里 `vec3` 是真正的 token，读作 `float3` |
+| `mix(a, b, t)`、`fract(x)`、`mod(a, b)` | 写 `lerp`、`frac`、`fmod`。1.x `Graph` 里 GLSL 拼写仍能编译，带 warning `DSH5277`；`.dss` 里是错误 `DSH4250`；1.x `Function` 体里被改写 |
+| `length(v)`、`distance`、`exp`、`log` | 都是内置 —— 两种语言拼写相同 |
+| `main()` | `.dss` 的入口 `export void M(inout material m)`；1.x 用带 `Outputs` 绑定的 `Shader` 块 |
+| `uniform` | `.dss` 里就是 `uniform`，加 `///` 标签；1.x 写成 `Properties` 声明 |
+| `sampler2D` + `texture(s, uv)` | `.dss`：`Tex.Sample(uv)`；1.x：纹理对象用 `SampleTexture2D(tex, uv)`，`TextureSampleParameter*` 用 `Tex(Coordinates = uv)` |
+| HLSL `Custom` 节点函数体 | `.dss` 用 `/// @custom` 函数；1.x 用 `Function`，函数体需要 `UE.*` 值时用 `GraphFunction` |
 | 可视化材质节点 | 用具体的 `UE.*` 内置，或 `UE.Expression(Class = "…")` |
-| 共享 include 文件 | 用 `.dsh` 头文件加 `import` |
+| 共享 include 文件 | `.dsh` 头文件加 `#include`（`.dss`）或 `import`（1.x） |
 
 ## 接下来
 
 <Cards>
   <Card title="HLSL 简介" href="/docs/shader-languages/hlsl" description="HLSL 在哪里运行，以及自带的 helper 头文件。" />
   <Card title="GLSL 简介" href="/docs/shader-languages/glsl" description="别名、改写，以及没有对应物的东西。" />
-  <Card title="顶层块" href="/docs/language/blocks" description="每个块关键字的完整说明。" />
+  <Card title="DreamShaderLang 2.0" href="/docs/language-v2" description=".dss 的声明、参数与 /// 标签。" />
+  <Card title="顶层块" href="/docs/language/blocks" description="每个 1.x 块关键字的完整说明。" />
   <Card title="Section" href="/docs/language/sections" description="这些名字所属的 section 语法。" />
-  <Card title="词法与大小写" href="/docs/language/lexical" description="本页背后的大小写敏感性矩阵。" />
+  <Card title="词法与大小写" href="/docs/language/lexical" description="大小写敏感性、保留字与预处理器。" />
 </Cards>

@@ -1,26 +1,66 @@
 ---
 title: Keyword Cheatsheet
-description: Every word the DreamShaderLang grammar treats specially, plus the HLSL and GLSL vocabularies side by side for readers porting code.
+description: Every word DreamShaderLang's grammar treats specially — the 1.x blocks, sections, qualifiers and contextual keywords, the .dss declarations, #pragmas and /// tags, the reserved words — plus the HLSL and GLSL vocabularies for reference when porting.
 ---
 
-A lookup page. The DreamShaderLang tables are exhaustive: block keywords, section names, qualifiers,
-contextual keywords and reserved names are the complete set the grammar recognises. The HLSL and
-GLSL tables are reference material for readers arriving from those languages.
+A lookup page. The DreamShaderLang tables are exhaustive: the 1.x block keywords, section names, qualifiers and
+contextual keywords, the `.dss` declaration forms, `#pragma`s and `///` tags, and the reserved words are the complete
+sets the grammar recognises. The HLSL and GLSL tables are for reference when arriving from those languages.
 
 <Callout type="info">
-**No keyword is reserved against identifiers.** A property, output variable, parameter or function
-may be named `Shader`, `Graph`, `Layout` or `float`; the parser never rejects an identifier because
-it collides with a keyword. Keywords are recognised only where the grammar expects them.
-
-The exceptions are not keywords at all — they are the [math builtin](/en/docs/builtins/math) and
-constructor names, which win name resolution in a `Graph` block and silently shadow a user
-declaration.
+**Block keywords, section names and type names are not reserved against identifiers.** A property, output variable,
+parameter or function may be named `Shader`, `Graph` or `Layout`; they are recognised only where the grammar expects
+them. The exception is a small set of [reserved words](#reserved-words) <Since v="2.0.0" />. The names of math
+builtins and constructors cannot name a function either — that is `DSH6206` at the declaration (through 1.9.x it
+silently shadowed).
 </Callout>
 
-## Top-level block keywords
+## `.dss` declaration forms
 
-Matched **case-sensitively**, and only when the next character is not a letter, a digit or `_` —
-that boundary rule is what keeps `ShaderFunction` from matching as `Shader`.
+<Since v="2.0.0" /> A `.dss` is HLSL with declarations: these are the only forms at file scope. The full grammar is on
+[DreamShaderLang 2.0](/en/docs/language-v2).
+
+<Wide>
+
+| Form | Meaning |
+| :-- | :-- |
+| `uniform <Type> Name = <init>;` | a material parameter. `uniform bool` is a dynamic scalar by default; `/// @static` makes it a static switch |
+| `static const <Type> Name = <init>;` | a compile-time constant |
+| `<Type> Name(params) { … }` | a file-local helper; no linkage keyword |
+| `export <Type> Name(params) { … }` | produces an asset: `void (inout material)` is a material, anything else a material function |
+| `extern <Type> Name(params);` | a prototype bound to an existing asset through `/// @asset`; no body |
+| `struct Name { … };` | fields may carry their own `///` block and array dimensions; no methods, no nesting |
+| `#include "path"` · `import "path";` | the same thing; the path must be double-quoted |
+| `#pragma material(Key = Value, …)` | file-level material settings; a key set twice is `DSH7200` |
+| `#pragma layout(Node\|Comment, Key = Value, …)` | node coordinates and comment boxes, written by the decompiler |
+| `#pragma region Name` · `#pragma endregion` | the 2.0 spelling of the 1.x `#Region` comment box |
+
+</Wide>
+
+The other `#pragma` names are `instance` (`.dsi`) and `pipeline` (`.dsp`). Types particular to a `.dss`: `material` (a
+material attribute set; the entry's parameter is `inout material m`), `void`, and user `struct`s.
+
+### `///` tags
+
+The `///` lines above a declaration are its doc block: `@key value @key value …` per line, keys case-insensitive.
+
+| Tag | On | Meaning |
+| :-- | :-- | :-- |
+| `@group`, `@sort`, `@desc` | a `uniform` | group, sort order and description on the parameter panel |
+| `@slider min max` | a scalar `uniform` | slider range; on a vector or a switch it is the warning `DSH7233` |
+| `@default /Game/…` | a texture `uniform` | the default asset |
+| `@sampler` | a texture `uniform` | the sampler type |
+| `@static` | a `uniform bool` | a static switch |
+| `@name` | an `export` function, a `@custom` function | the asset name (or object path); the node title |
+| `@asset` | an `extern` prototype | the existing asset it binds to |
+| `@library`, `@param` | an exported material function | the library category; the description of an input |
+| `@layer`, `@layerblend` | an exported function | produces a material layer / layer blend function |
+| `@custom` | a function | the body is captured verbatim, one Custom node per call |
+
+## 1.x top-level block keywords
+
+**Case-sensitive**, matched as a whole word — `ShaderFunction` is its own word, never `Shader` followed by something. A
+mis-cased one (`shader(…)`) is no block: `DSH2240`.
 
 <Wide>
 
@@ -30,29 +70,29 @@ that boundary rule is what keeps `ShaderFunction` from matching as `Shader`.
 | `ShaderFunction` | `ShaderFunction(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunction` |
 | `ShaderLayer` <Since v="1.3.0" /> | `ShaderLayer(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayer` |
 | `ShaderLayerBlend` <Since v="1.3.0" /> | `ShaderLayerBlend(Name = "…"[, Root = "…"])` | `Name` | `UMaterialFunctionMaterialLayerBlend` |
-| `MaterialLayer` *(deprecated in 1.3.0)* | `MaterialLayer(Name = "…")` | `Name` | as `ShaderLayer` |
-| `MaterialLayerBlend` *(deprecated in 1.3.0)* | `MaterialLayerBlend(Name = "…")` | `Name` | as `ShaderLayerBlend` |
-| `VirtualFunction` <Since v="1.2.0" /> | `VirtualFunction(Name = "…"[, Asset = "…"])` | `Name`, plus an asset from `Asset =` or `Options.Asset` | nothing — declares an existing asset |
+| `MaterialLayer` (deprecated in 1.3.0) | `MaterialLayer(Name = "…"[, Root = "…"])` | `Name` | as `ShaderLayer` |
+| `MaterialLayerBlend` (deprecated in 1.3.0) | `MaterialLayerBlend(Name = "…"[, Root = "…"])` | `Name` | as `ShaderLayerBlend` |
+| `VirtualFunction` <Since v="1.2.0" /> | `VirtualFunction(Name = "…"[, Asset = "…"])` | `Name`, and an asset from `Asset =` or `Options.Asset` | nothing — declares an existing asset |
 | `Namespace` | `Namespace(Name = "…")` | `Name` | nothing — a scope for helpers |
-| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | a name, at least one output | an HLSL helper |
+| `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | a name, at least one output | an HLSL helper — one Custom node per call |
 | `GraphFunction` <Since v="1.3.1" /> | `GraphFunction [<ret>] <Name>( … ) { <HLSL> }` | a name, at least one output | an HLSL helper with node inputs |
 
 </Wide>
 
-`Shader` is limited to **one per translation unit**, across the whole import closure. Every other
-block may be repeated. `Function` and `GraphFunction` may also appear nested inside a `Namespace`,
-where their names become `<Namespace>::<Name>`.
+`Shader` is limited to **one per file** (`DSH2250`), and a `.dsh` header holds no asset block at all (`DSH2249`), so an
+`import` cannot add a second one. Every other block may repeat. `Function` and `GraphFunction` may also appear nested
+inside `Namespace`, where their names become `<Namespace>::<Name>`.
 
 <Deprecated since="1.3.0" use="ShaderLayer" />
 
-`MaterialLayer` and `MaterialLayerBlend` still parse and generate the same assets, but each emits
-`MaterialLayer is deprecated; use ShaderLayer instead.` / `MaterialLayerBlend is deprecated; use
-ShaderLayerBlend instead.` Later diagnostics report the modern spelling.
+`MaterialLayer` and `MaterialLayerBlend` still parse and generate identical assets, with the warning `DSH2251`. Later
+diagnostics and generated metadata report the modern spelling.
 
-## Section names
+## 1.x section names
 
-Matched case-insensitively. The `=` before the block is optional <Since v="1.5.0" />, as is the `;`
-after it. Sections may appear in any order and may repeat.
+Case-insensitive. The `=` before the block is optional <Since v="1.5.0" />, as is the `;` after it. Sections may appear
+in any order and repeat: `Properties`, `Inputs` and `Outputs` append, `Settings` merges key by key, and a second `Graph`
+or `Layout` **replaces** the first with the warning `DSH2258`. A name the block does not take is `DSH2245`.
 
 <Wide>
 
@@ -65,41 +105,41 @@ after it. Sections may appear in any order and may repeat.
 | `Outputs` | `Shader` | output declarations and bindings — **a different grammar** |
 | `Results` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | alias for `Outputs` |
 | `Settings` | `Shader` | material settings — special keys plus reflected `UMaterial` properties |
-| `Settings` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | the four material-function keys |
+| `Settings` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | the material-function keys |
 | `Settings` | `VirtualFunction` | alias for `Options` |
 | `Options` | `VirtualFunction` | the declared asset and other stored keys |
-| `Graph` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | the node-graph body, stored verbatim |
-| `Code` | — | **rejected everywhere**; use `Graph` |
-| `Layout` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | `Node` / `Comment` placement; a second `Layout` **replaces** the first |
+| `Graph` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | the node-graph body |
+| `Code` | — | **rejected everywhere** (`DSH2246`; in a `VirtualFunction` both `Graph` and `Code` are `DSH2247`); use `Graph` |
+| `Layout` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | `Node` / `Comment` placement |
 
 </Wide>
 
 `Function` and `GraphFunction` have no sections at all — their `{ … }` is raw HLSL.
 
-## Declaration qualifiers
+## 1.x declaration qualifiers
 
 | Qualifier | Position | Effect |
 | :-- | :-- | :-- |
-| `const` <Since v="1.2.6" /> | before the type in a `Properties` declaration | emits a constant node instead of a parameter; rejected on parameter-node and `UE.*` declarations |
-| `opt` <Since v="1.2.3" /> | before the type in an `Inputs` declaration | marks the function input optional in Unreal; must be followed by a literal space |
-| `in` | before a `Function` / `GraphFunction` parameter type | input parameter; the default when a parameter has only two tokens |
-| `out` | before a `Function` / `GraphFunction` parameter type | output parameter; at least one is required unless a return type is declared |
-| `SelfContained` | after `Function` | emits the body self-contained inside each caller's Custom node; **not accepted on `GraphFunction`** |
-| `Inline` | after `Function` | exact alias of `SelfContained` |
+| `const` <Since v="1.2.6" /> | before the type in a `Properties` declaration | emits a constant node instead of a parameter; refused on most parameter-node tokens (`DSH3253`) |
+| `opt` <Since v="1.2.3" /> | before the type in an `Inputs` declaration | marks the function input optional in Unreal; recognised when a type and a name follow it |
+| `in` | before a `Function` / `GraphFunction` parameter type | input parameter; the default when a parameter has only two words |
+| `out` | before a `Function` / `GraphFunction` parameter type | output parameter; at least one is required unless a return type is declared, and none may stand beside one (`DSH6305`, `DSH6304`) |
+| `SelfContained` | after `Function` | read and ignored: every `Function` node already embeds what its body calls <Since v="2.0.0" />; **not accepted on `GraphFunction`** (`DSH6307`) |
+| `Inline` | after `Function` | the old spelling of `SelfContained`, with the warning `DSH6306` |
 
-`in` and `out` are the only accepted qualifiers on a function parameter. `inout` does not exist and
-is rejected.
+`in` and `out` are the only qualifiers accepted on a function parameter, in any case; anything else, `inout` included,
+is `DSH6302`.
 
-## Contextual keywords
+## 1.x contextual keywords
 
-Recognised only in the position listed, always case-insensitively.
+Recognised only in the position listed, and case-insensitively unless the row says otherwise.
 
 <Wide>
 
 | Keyword | Position | Meaning |
 | :-- | :-- | :-- |
-| `import` | first token of its own line, anywhere in a source file | inlines another source file |
-| `Group("…") { … }` <Since v="1.5.0" /> | statement position inside `Properties` | scopes a parameter group onto every declaration it contains; nests, composing with `\|` |
+| `import` | top level, between blocks | declares the names of a `.dsh` header into this file <Since v="2.0.0" /> (1.x pasted the file in); lower case — another case reads the same, with the warning `DSH2253` |
+| `Group("…") { … }` <Since v="1.5.0" /> | statement position inside `Properties` | scopes a parameter group onto every declaration inside; nests, composing with `\|` |
 | `Slider(min, max)` <Since v="1.5.0" /> | entry inside a `[ … ]` metadata block | sets a scalar parameter's UI range |
 | `Path( … )` | default value of a texture or asset-valued declaration | asset reference with a root spelling |
 | `Base.` | start of an `Outputs` binding target | binds to a material property |
@@ -108,38 +148,53 @@ Recognised only in the position listed, always case-insensitively.
 | `Node( … )` | statement inside `Layout` | pins a variable's node position |
 | `Comment( … )` | statement inside `Layout` | places a comment box |
 | `#Region` / `#EndRegion` | own line inside a `Graph` body | names a region of the graph; nests |
-| `UE.` | type position in `Properties`, call position in `Graph` | builtin material-node namespace |
-| `Substrate.` | call position in `Graph` | Substrate BSDF namespace, <Since v="5.4" ue /> |
-| `true` / `false` | default values | boolean literal; converts to `1.0` / `0.0` where a scalar is expected |
-| `default` <Since v="1.2.3" /> | call argument in `Graph` | use the parameter's declared default |
+| `#if` / `#elif` / `#else` / `#endif` <Since v="1.9.0" /> | own line, anywhere except a `Function` / `GraphFunction` HLSL body | cuts the untaken branch out of the text before parsing; **lowercase only** |
+| `#ifdef` / `#ifndef` <Since v="1.9.0" /> | own line, same positions | sugar for `#if defined(NAME)` and `#if !defined(NAME)` |
+| `#define` / `#undef` <Since v="1.9.0" /> | own line, same positions | defines or removes a name, **for that file only** |
+| `defined` <Since v="1.9.0" /> | inside a `#if` / `#elif` expression | `1` when the name is defined, `0` otherwise |
+| `UE.` | type position in `Properties`, call position in `Graph` | builtin material-node namespace; in a `Graph` call written exactly `UE` <Since v="2.0.0" /> |
+| `Substrate.` | call position in `Graph` | the Substrate node namespace, <Since v="5.4" ue /> |
+| `true` / `false` | default values, `Graph` expressions | boolean literal; converts to `1.0` / `0.0` where a scalar is expected |
+| `default` <Since v="1.2.3" /> | call argument in `Graph` | leaves that input unconnected, so the function's own default applies; lower case only <Since v="2.0.0" /> |
 
 </Wide>
+
+The preprocessor works in a `.dss` too; see [Lexical rules ▸ Preprocessor](/en/docs/language/lexical#preprocessor).
+
+## Reserved words
+
+<Since v="2.0.0" /> One lexer reads every file, and its keywords are reserved in a 1.x file too, in lower case:
+`uniform` `static` `const` `extern` `export` `in` `out` `inout` `struct` `if` `else` `for` `while` `do` `return` `break`
+`continue` `discard` `true` `false` `import`. None of them can name a property, an output, an input or a `Graph`
+variable. Another case is an ordinary word: `Const` and `IN` are read as `const` and `in` where the 1.x grammar expects
+those, and `True` as `true`. See [Lexical rules ▸ Reserved words](/en/docs/language/lexical#reserved-words).
 
 ## Reserved names
 
 | Name | Where | Rule |
 | :-- | :-- | :-- |
-| `__return` | `Function` / `GraphFunction` parameter names | reserved for return-type lowering; a declared return type becomes an `out` parameter with this name |
-| `return` | `Shader` `Outputs` declarations | may not be used as an output-variable name, and as a binding source it may only feed `Base.*` targets |
+| `__return` | `Function` / `GraphFunction` parameter names | reserved in any case; a parameter of that name is `DSH6303` |
+| `return` | everywhere | a reserved word: it cannot name an output variable, and is no binding source <Since v="2.0.0" /> |
+| `DS_…` <Since v="1.9.0" /> | preprocessor define names | the whole `DS_` **prefix** is DreamShader's: `#define` or `#undef` of such a name is `DSH1039`, and the other define tiers drop it with a warning |
 
-`return` inside a `Function` body is a statement, not a reserved name: a top-level `return <expr>;`
-is rewritten to an assignment to `__return`.
+`return` inside a `Function` body is HLSL, kept as written <Since v="2.0.0" />; a bare `return;` in a function that
+declares a return type is `DSH6308`.
 
 ## Type tokens
 
-The complete set is 44 tokens, matched **case-insensitively** in every context. Per-context validity
-is on [Types and Values](/en/docs/language/types-and-values).
+The complete set is 52 tokens. Per-context validity is on [Types and Values](/en/docs/language/types-and-values).
 
 | Family | Tokens | Count |
 | :-- | :-- | --: |
-| Scalar (1 component) | `float` `float1` `half` `half1` `int` `uint` `bool` | 7 |
-| Vector (2 / 3 / 4 components) | `float2..4` `half2..4` `vec2..4` `int2..4` `uint2..4` `bool2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 27 |
+| Scalar (1 component) | `float` `half` `double` `int` `uint` `bool`, and each with a `1` suffix (`float1` …) | 12 |
+| Vector (2 / 3 / 4 components) | `float2..4` `half2..4` `double2..4` `int2..4` `uint2..4` `bool2..4` `vec2..4` `ivec2..4` `uvec2..4` `bvec2..4` | 30 |
 | Texture | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` | 5 |
-| Opaque and other | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
+| Opaque / other | `SamplerState` `MaterialAttributes` `Substrate` `StaticBool` `StaticBoolParameter` | 5 |
 
-There are **no matrix types**: `mat2` / `mat3` / `mat4` and `float2x2` / `float3x3` / `float4x4` are
-rejected by every declaration position. Three tokens were removed and now fall through to the generic
-"unsupported type" diagnostic:
+`vec*` / `ivec*` / `uvec*` / `bvec*` are types in a 1.x source only; a `.dss` writes the HLSL spelling, and adds
+`material`, `void` and user `struct`s. A graph has **no matrix values**: `mat2` / `mat3` / `mat4` and `float2x2` /
+`float3x3` / `float4x4` are `DSH3252` in `Properties` and `DSH4361` where they would become a node or a pin. Three tokens
+have been removed:
 
 | Removed token | Replacement |
 | :-- | :-- |
@@ -147,15 +202,14 @@ rejected by every declaration position. Three tokens were removed and now fall t
 | `Color` | `float4` / `vec4` |
 | `Vector` | `float2` … `float4` / `vec2` … `vec4` |
 
-A `Properties` declaration may additionally use one of 22 explicit `*Parameter` node tokens
-(`ScalarParameter`, `TextureSampleParameter2D`, `ChannelMaskParameter`, …). Those are catalogued on
-[Property Types](/en/docs/parameters/properties).
+1.x `Properties` declarations can also use the explicit `*Parameter` node tokens (`ScalarParameter`,
+`TextureSampleParameter2D`, `ChannelMaskParameter`, …), catalogued on [Property types](/en/docs/parameters/properties).
 
 ## Identifier rewrites
 
-Applied inside `Function` and `GraphFunction` declarations only, before HLSL is emitted. Matching is
-case-insensitive and whole-identifier; strings and comments are skipped, and a `::`-qualified name
-bypasses the table.
+Applied only inside 1.x `Function` and `GraphFunction` declarations, before HLSL is emitted. Matching is case-insensitive
+and whole-identifier; strings and comments are skipped, and a `::`-qualified name bypasses the table — it is flattened
+to `<Namespace>_<Name>`. A `.dss` `/// @custom` body is not rewritten.
 
 | Written | Rewritten to | Applies to |
 | :-- | :-- | :-- |
@@ -170,7 +224,8 @@ bypasses the table.
 
 ## HLSL keywords
 
-Reference — HLSL's own vocabulary, valid inside a `Function` body.
+For reference — HLSL's own vocabulary, valid inside a `/// @custom` or `Function` body; `.dss` graph code understands
+most of it, see [HLSL Overview](/en/docs/shader-languages/hlsl#common-hlsl-keywords).
 
 | Category | Keywords |
 | :-- | :-- |
@@ -184,8 +239,8 @@ Reference — HLSL's own vocabulary, valid inside a `Function` body.
 
 ## GLSL keywords
 
-Reference — nothing here is DreamShaderLang grammar, except the `vec*` / `ivec*` / `uvec*` / `bvec*`
-type aliases, which are first-class tokens.
+For reference — nothing here is part of the DreamShaderLang grammar except the `vec*` / `ivec*` / `uvec*` / `bvec*` type
+aliases of a 1.x source, which are first-class tokens.
 
 | Category | Keywords |
 | :-- | :-- |
@@ -198,25 +253,25 @@ type aliases, which are first-class tokens.
 
 ## Migration reminders
 
-| Source habit | In DreamShaderLang |
+| Habit | In DreamShaderLang |
 | :-- | :-- |
-| `vec3` | keep it — `vec3` is a real token; it becomes `float3` only in generated HLSL |
-| `mix(a, b, t)` | works in both places: a real builtin in `Graph`, rewritten to `lerp` in a `Function` body |
-| `fract(x)`, `mod(a, b)` | the same — real builtins <Since v="1.5.0" /> in `Graph`, rewritten in a body |
-| `length(v)` | not a builtin — `sqrt(dot(v, v))`, `UE.Expression(Class = …)`, or a `Function` body |
-| `main()` | not needed; a `Shader` block with `Outputs` bindings describes the material |
-| `uniform` | a `Properties` declaration |
-| `sampler2D` + `texture(s, uv)` | `SampleTexture2D(tex, uv)` for a texture object, or `Tex(Coordinates = uv)` for a `TextureSampleParameter*` |
-| An HLSL `Custom` node body | a `Function`, or a `GraphFunction` when the body needs `UE.*` values |
-| A visual material node | a specific `UE.*` builtin, or `UE.Expression(Class = "…")` |
-| A shared include file | a `.dsh` header plus `import` |
+| `vec3` | write `float3` in a `.dss`; in 1.x `vec3` is a real token, read as `float3` |
+| `mix(a, b, t)`, `fract(x)`, `mod(a, b)` | write `lerp`, `frac`, `fmod`. In a 1.x `Graph` the GLSL spellings still compile, with the warning `DSH5277`; in a `.dss` they are the error `DSH4250`; in a 1.x `Function` body they are rewritten |
+| `length(v)`, `distance`, `exp`, `log` | all builtins — spelled the same in both languages |
+| `main()` | a `.dss` entry, `export void M(inout material m)`; in 1.x a `Shader` block with `Outputs` bindings |
+| `uniform` | in a `.dss` it is `uniform`, with `///` tags; in 1.x a `Properties` declaration |
+| `sampler2D` + `texture(s, uv)` | `.dss`: `Tex.Sample(uv)`; 1.x: `SampleTexture2D(tex, uv)` for a texture object, `Tex(Coordinates = uv)` for a `TextureSampleParameter*` |
+| HLSL `Custom` node bodies | a `/// @custom` function in a `.dss`; in 1.x a `Function`, or a `GraphFunction` when the body needs `UE.*` values |
+| Visual material nodes | the specific `UE.*` builtin, or `UE.Expression(Class = "…")` |
+| Shared include files | a `.dsh` header with `#include` (`.dss`) or `import` (1.x) |
 
 ## Where to next
 
 <Cards>
   <Card title="HLSL Overview" href="/en/docs/shader-languages/hlsl" description="Where HLSL runs, and the shipped helper header." />
-  <Card title="GLSL Overview" href="/en/docs/shader-languages/glsl" description="Aliases, rewrites and what has no equivalent." />
-  <Card title="Top-level Blocks" href="/en/docs/language/blocks" description="Every block keyword in detail." />
+  <Card title="GLSL Overview" href="/en/docs/shader-languages/glsl" description="Aliases, rewrites, and what has no equivalent." />
+  <Card title="DreamShaderLang 2.0" href="/en/docs/language-v2" description="The .dss declarations, parameters and /// tags." />
+  <Card title="Top-level Blocks" href="/en/docs/language/blocks" description="Every 1.x block keyword in full." />
   <Card title="Sections" href="/en/docs/language/sections" description="The section grammar these names belong to." />
-  <Card title="Lexical Elements" href="/en/docs/language/lexical" description="The case-sensitivity matrix behind this page." />
+  <Card title="Lexical Rules" href="/en/docs/language/lexical" description="Case sensitivity, reserved words and the preprocessor." />
 </Cards>
