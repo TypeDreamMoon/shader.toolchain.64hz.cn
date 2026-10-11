@@ -1,20 +1,22 @@
 ---
 title: 语句与声明
-description: Graph 块体里的全部语句形式——声明、赋值、成员写入、调用——以及切分、分类顺序和作用域。
+description: Graph 块体里的全部语句形式——声明、赋值、成员写入、调用——以及结束规则、分类顺序、MaterialAttributes 与作用域。
 ---
 
-`Graph` 块体是一串扁平的语句。一共十种形式，用 `;` 分隔，解析器靠一串固定的文本测试来判断一段文本属于
-哪一种——不是靠关键字。理解这个分类顺序，就能解释本语言里大多数令人意外的诊断信息。
+`Graph` 块体是一串语句。一共十种形式，除 `if` 外都以 `;` 结束。<Since v="2.0.0" /> 起块体由 2.0 的语句
+解析器逐个记号读入，不再按文本在 `;` 处切分；1.x 没有的写法会被识别出来并带码拒绝，而不是被误读成一个
+类型写错的声明。
 
 ## 语法概要
 
 <Synopsis>
 ```c
 graph-statement :=
-      [ <type> ] <name> [ = <expression> ] ;                      // declaration / assignment
+      <type> <name> [ = <expression> ] ;                          // declaration
     | <type> <name> [ = <init> ] , <name> [ = <init> ] … ;        // comma declarators
-    | <name> = { <expression> , … } ;                             // brace initializer
-    | <name> . <member> = { <expression> | { <expression> , … } } ;
+    | <type> <name> = { <expression> , … } ;                      // brace initializer
+    | <name> = <expression> ;                                     // assignment
+    | <name> . <member> = <expression> ;                          // member write
     | <call-expression> ;                                         // statement-form call
     | if ( <condition> ) { <graph-statement> … }
       [ else { <graph-statement> … } | else if ( … ) { … } … ]
@@ -31,62 +33,59 @@ graph-statement :=
 | 2 | 声明 + 表达式初始值 | `float3 c = A * K;` | `;` |
 | 3 | 声明 + 花括号初始值 | `vec4 v = {rgb, 1.0};` | `;` |
 | 4 | 赋值给已有变量或输出变量 | `Color = Tint;` | `;` |
-| 5 | 赋值 + 花括号初始值 | `Color = {r, g, b};` | `;` |
+| 5 | 赋值 + 花括号初始值 | `Color = {r, g, b};` | **拒绝**——`DSH2162` <Since v="2.0.0" />；请写 `Color = float3(r, g, b);` |
 | 6 | `MaterialAttributes` 成员写入 | `Attrs.BaseColor = Tint;` | `;` |
-| 7 | 成员写入 + 花括号初始值 | `Attrs.BaseColor = {1, 0, 0};` | `;` |
+| 7 | 成员写入 + 花括号初始值 | `Attrs.BaseColor = {1, 0, 0};` | **拒绝**——`DSH2162` <Since v="2.0.0" />；请写构造器 |
 | 8 | 逗号分隔声明 | `float a = 1, b, c = 3;` | `;` |
 | 9 | 语句形式调用 | `F_Split(Src, OutA, OutB);` | `;` |
-| 10 | `if` / `else` / `else if` | `if (m > .5) { … } else { … }` | 无——靠花括号配对 |
+| 10 | `if` / `else` / `else if` | `if (m > .5) { … } else { … }` | 无——以最后一个块体的 `}` 结束 |
 
-形式 8 会展开成每个声明子一条语句。它们全部共用**第一个**声明子的类型 token，并且全部报告**同一个**
-源码行列。
+形式 8 会展开成每个声明子一个变量。它们全部共用**第一个**声明子的类型 token，每个声明子报告自己的行列。
 
-## 块体如何切分
+## 结束与切分
 
 | 规则 | 行为 |
 | :-- | :-- |
-| 分隔符 | 只有顶层的 `;`。圆括号、花括号、方括号深度和字符串状态都被跟踪，所以 `( )`、`{ }`、`[ ]` 或 `"…"` 内部的 `;` 不切分语句。 |
-| 连续 `;` | 连续的 `;` 会被合并；空语句被丢弃且不产生诊断 |
-| 结尾 `;` | 块体**最后一条**语句可以省略 `;` |
-| `if` 语句 | 在 `;` 扫描*之前*就被识别，靠花括号配对界定，所以 `if` 后面不需要 `;`，其块体内的 `;` 也不会切分它 |
-| 前导空白 | 会被跳过；每条语句记录相对块的 1 起始行列 |
-| 嵌套块体 | `if` / `else` 块体走同一个切分器，所以上面每一种形式在分支里都合法，包括嵌套 `if` |
+| 分隔符 | 除 `if` 外每条语句都以 `;` 结束；缺了是 `DSH2154`，报在语句之后的第一个记号上 |
+| 连续 `;` | 多出来的 `;` 是空语句，直接丢弃，不产生诊断 |
+| 结尾 `;` | 块体**最后一条**语句也**必须**有 `;`：缺了是 `DSH2154` <Since v="2.0.0" /> |
+| `if` 语句 | 以最后一个块体的 `}` 结束，所以 `if` 后面不需要 `;` |
+| 位置 | 每条语句、每个表达式都带自己的行列 |
+| 嵌套块体 | `if` / `else` 块体是同一文法的块，所以上面每一种形式在分支里都合法，包括嵌套 `if` |
 
 ```c
 Graph = {
-    float a = 1.0;;;             // ; 之间的空语句被丢弃
-    if (a > 0.5) { a = 0.0; }    // 不需要 ;，内部的 ; 也不会切分这个 if
-    float b = a * 2.0            // 最后一条语句，省略 ;
+    float a = 1.0;;;             // 空语句被丢弃
+    if (a > 0.5) { a = 0.0; }    // } 之后不需要 ;
+    float b = a * 2.0;           // 最后一条语句也要 ;（缺了是 DSH2154）
 }
 ```
 
+解析失败的语句会被跳到它所在层级的下一个 `;`，解析器接着读下一条；一次构建会报出块体里的全部错误。
+
 ## 分类顺序
 
-拿到一条语句的文本后，解析器按顺序测试下列规则，第一条匹配的胜出。
+解析器按语句开头的记号判断它是哪种形式，第一条匹配的规则胜出。
 
-| 顺序 | 测试 | 结果 |
+| 顺序 | 语句开头 | 结果 |
 | --: | :-- | :-- |
-| 1 | 以关键字 `if` 开头（区分大小写，按标识符边界判定） | 形式 10 |
-| 2 | 按顶层 `,` 切分得到多于一段，**且**第一段去掉 `= …` 后能切成类型和名字 | 形式 8 |
-| 3 | 没有顶层 `=`，且文本能切成类型和名字 | 形式 1 |
-| 4 | 没有顶层 `=`，且切不出来 | 形式 9 |
-| 5 | 有顶层 `=`，且左侧能切成类型和名字 | 形式 2；右侧是 `{ … }` 时为形式 3 |
-| 6 | 有顶层 `=`，且左侧切不出来 | 形式 4/5；目标含 `.` 时为形式 6/7 |
-
-"能切成类型和名字"的含义是：在**最后一个**顶层空白字符处切开，过程中跟踪 `( )` 深度和字符串状态，两半
-都必须非空。这就是 `UE.Panner(Speed = 0.1) P;` 是一条声明的原因——参数表内部的空格不在顶层。
+| 1 | 关键字 `if`（**区分大小写**） | 形式 10 |
+| 2 | `for`、`while`、`do`、`return`、`break`、`continue`、`discard` | 能解析，随后被拒绝：`DSH2208` |
+| 3 | `switch`、`case`、`default` | `DSH2160` |
+| 4 | `{` | 裸块：`DSH2220` |
+| 5 | `;` | 空语句 |
+| 6 | `#Region` / `#EndRegion` 行 | 区域；见 [Layout 与 #Region](/docs/language/layout) |
+| 7 | 连续两个名字（`float3 c`），前面可带 `static` / `const` | 声明：形式 1–3 和 8。存储关键字是 `DSH2212` |
+| 8 | 其他 | 表达式：赋值（形式 4–7）、调用（形式 9），或无人接收的值 `DSH2211` |
 
 <Callout type="warn">
-规则 1 的关键字探测区分大小写，而且是语句文法里**唯一**区分大小写的构造。`If (x) { … }` 不是 `if` 语句：
-它落到规则 3，被切成类型 `If (x)` 和名字 `{ … }`，报错 `Unsupported Graph variable type 'If (x)'.`——
-一条完全没提到 `if` 的信息。这也是为什么几乎所有不支持的写法都被报告成无法解析的*变量类型*，见
-[不支持的写法](/docs/graph/unsupported)。
+关键字区分大小写。`If (x) { … }` 不是 `if` 语句：`If` 是一个名字，`If (x)` 是一次调用，本该放调用语句
+`;` 的位置出现了 `{`，于是报 `DSH2154`。见[不支持的写法](/docs/graph/unsupported#大小写写错的关键字)。
 </Callout>
 
 <Callout type="info">
-规则 3 和 5 中的名字那一半只要求非空——它不会被当作标识符校验。所以 `float3 A.B = x;` 声明的是一个名字
-字面为 `A.B` 的变量，它**不是**成员写入。成员写入只能经由规则 6 到达，而规则 6 要求左侧*切不出*类型和
-名字。形式 8 中第一个之后的声明子**会**做标识符校验。
+声明的名字是一个标识符。`float3 A.B = x;` 在 `.` 处报 `DSH2154` <Since v="2.0.0" />；1.x 会声明一个
+名字字面为 `A.B` 的变量。成员写入前面不带类型：`Attrs.BaseColor = x;`。
 </Callout>
 
 ## 声明
@@ -108,57 +107,62 @@ brace-initializer := { [ <expression> [ , <expression> ] … ] }
 | `float2` `half2` `vec2` `int2` `uint2` `bool2` `ivec2` `uvec2` `bvec2` | 2 | |
 | `float3` `half3` `vec3` `int3` `uint3` `bool3` `ivec3` `uvec3` `bvec3` | 3 | |
 | `float4` `half4` `vec4` `int4` `uint4` `bool4` `ivec4` `uvec4` `bvec4` | 4 | |
-| `MaterialAttributes` | 0 | 见[下文](#materialattributes-成员写入) |
-| `Substrate` | 0 | <Since v="5.4" ue /> 必须带初始值 |
-| `StaticBool` `StaticBoolParameter` | 1 | <Since v="1.5.0" /> |
-| `Texture2D` `SamplerState` | 0 | 维度为 `Texture2D` 的纹理对象；必须带初始值 |
-| `TextureCube` | 0 | 必须带初始值 |
-| `Texture2DArray` | 0 | 必须带初始值 |
-| `Texture3D` `VolumeTexture` | 0 | 维度为 `VolumeTexture`；必须带初始值 |
+| `MaterialAttributes` | —— | 见[下文](#materialattributes-成员写入) |
+| `Substrate` | —— | <Since v="5.4" ue /> 必须带初始值 |
+| `StaticBool` `StaticBoolParameter` | 1 | 一个 `bool` 变量 <Since v="1.6.0" /> |
+| `Texture2D` | —— | 必须带初始值 |
+| `TextureCube` | —— | 必须带初始值 |
+| `Texture2DArray` | —— | 必须带初始值 |
+| `Texture3D` `VolumeTexture` | —— | 必须带初始值 |
+| `SamplerState` | —— | 独立的采样器类型，不再等同 `Texture2D` <Since v="2.0.0" />；必须带初始值 |
 
-比较不区分大小写。对数值行、`MaterialAttributes` 和 `Substrate`，匹配前会移除 token 内部所有空格，所以
-`float 3` 解析为 `float3`，`Material Attributes` 解析为 `MaterialAttributes`。纹理行和 `StaticBool`
-按原样匹配，所以 `Texture 2D` **不能**解析。
+每一行都不区分大小写（`Float3`、`VEC3`、`materialattributes`）。类型 token 是**一个**记号
+<Since v="2.0.0" />：`float 3` 和 `Material Attributes` 不再被读成类型。`vec*`、`ivec*`、`uvec*`、`bvec*`
+分别读作 `float*`、`int*`、`uint*`、`bool*`。
 
-`int`、`uint`、`bool` 和 `half` 只是同样浮点宽度的另一种拼法——token 只固定分量数，别的什么都不改。
-完整的按上下文分类目录见[类型与值](/docs/language/types-and-values)。
+`int`、`uint`、`bool` 和 `half` 对编译器是各自的种类——两个整数构造器之间的 `/` 是 `DSH4243`，条件是一个
+`bool`——但在生成图里全是浮点。矩阵拼法（`mat3`、`float3x3`）能解析，可图里没有矩阵值：`DSH4361`。完整
+目录见[类型与值](/docs/language/types-and-values)。
 
 ### 不带初始值的声明
 
-| 声明类型 | 结果 |
+1.x 把未设置的变量当作零，所以 legacy 前端会给 `<type> <name>;` 补一个初始值：
+
+| 声明类型 | 初始值 |
 | :-- | :-- |
-| 标量（1 分量） | 一个 `R = 0` 的 `Constant` 节点 |
-| 向量（2–4 分量） | **同一个**零 `Constant` 经 `AppendVector` 追加 N 次——1 个常量节点加 N−1 个 append 节点 |
-| `MaterialAttributes` | 一个 `MakeMaterialAttributes` 节点，分量数 0 |
-| `Substrate` | 报错——`Graph variable type '{Type}' requires an explicit initializer.` |
-| 任意纹理类型、`SamplerState` | 同一条错误 |
-| 无法解析的 token | 报错——`Unsupported Graph variable type '{Type}'.` |
+| 标量（1 分量） | `0`（`bool` 为 `false`） |
+| 向量（2–4 分量） | `floatN(0, …)`——每个分量一个零，种类同声明 |
+| `MaterialAttributes` | 一个空属性集（`MakeMaterialAttributes`） |
+| `Substrate` | 无——`DSH2215` |
+| 任意纹理类型、`SamplerState` | 无——`DSH2215` |
+| 无法解析的 token | `DSH4201` |
 
 ```c
-float3 c;              // Constant(0) -> AppendVector -> AppendVector
-MaterialAttributes A;  // MakeMaterialAttributes，可以直接写成员
-Texture2D T;           // 错误：必须带初始值
+float3 c;              // float3(0, 0, 0)
+MaterialAttributes A;  // 空属性集，可以直接写成员
+Texture2D T;           // DSH2215：必须带初始值
 ```
 
 ### 带初始值的声明
 
-先对初始值求值，再给声明定型：
+先对初始值求值，再转换到声明类型：
 
 | 顺序 | 步骤 |
 | --: | :-- |
-| 1 | 类型 token 必须能解析，否则 `Unsupported Graph variable type '{Type}' for '{Name}'.` |
-| 2 | 若该值带有**权威**分量数、两边都是纯数值、且分量数不同——原样存储，不做转换，不产生任何诊断 |
-| 3 | 否则把值转换到声明类型；失败时 `Graph variable '{Name}' is declared as '{Type}' but assigned an incompatible value. {Detail}` |
+| 1 | 类型 token 必须能解析，否则 `DSH4201` |
+| 2 | 标量广播到向量类型的每个分量 |
+| 3 | 更宽的向量取它的**前导**分量——legacy 规则 L22，给出提示 `DSH5289` |
+| 4 | 其他放不进去的——更窄的向量、把纹理放进数——是 `DSH4228` |
+
+步骤 4 意味着 2 分量值永远不会被加宽成 3 分量。见[转换](/docs/graph/expressions#转换)。
 
 <Callout type="warn">
-步骤 2 意味着声明宽度可能被**忽略**。`float2 dir = UE.CameraVectorWS();` 存的是 3 分量值，且什么都不报；
-不匹配会在第一个无法调和它的运算符或绑定处才浮现。真想要窄一点的值时，请显式写 swizzle
-（`UE.CameraVectorWS().xy`）。完整规则和权威值清单见
-[运算符与转换](/docs/graph/expressions#权威分量数)。
+**声明宽度不再被"权威宽度"覆盖** <Since v="2.0.0" />。1.x 让某些值（`UE.TexCoord`、`UE.CameraVectorWS`、
+常量折叠的构造器、`dot`……）无视声明保持自己的宽度，于是 `float2 dir = UE.CameraVectorWS();` 静默地让
+`dir` 有三个分量。现在声明类型就是变量的类型：`dir` 是 `float2`，取值的前两个分量，并给出 `DSH5289`。
+依赖过这种覆盖的 1.x 源文件，构建出的图会和 1.9.x 不同，而且没有任何东西会报告这一点——请重新构建这类
+材质并检查结果。
 </Callout>
-
-步骤 3 的转换会通过前缀 `r` / `rg` / `rgb` 掩码**静默收窄**更宽的值，并把标量 splat 到声明宽度。
-它绝不会把 2 分量加宽到 3 分量。
 
 ### 逗号分隔声明
 
@@ -168,41 +172,29 @@ float a = 1, b, c = 3;
 
 | 规则 | 行为 |
 | :-- | :-- |
-| 识别条件 | 只有按顶层 `,` 切分得到多于一段，**且**第一段去掉 `= …` 后能切成类型和名字时才成立 |
-| 共用类型 | 所有声明子都用**第一个**声明子的类型 token；后面的声明子上再写类型 token 不被接受 |
-| 声明子名字 | 必须是裸标识符——`[A-Za-z_][A-Za-z0-9_]*` |
+| 识别条件 | 一个声明的声明子后面跟着 `,` 和另一个名字 |
+| 共用类型 | 所有声明子都用**第一个**声明子的类型；`,` 后面再写类型 token 会被读成下一个声明子的名字，其后的内容是 `DSH2154` |
+| 声明子名字 | 必须是标识符，否则 `DSH2163` |
 | 初始值 | 每个声明子可以有自己的 `= <expression>` 或 `= { … }`，也可以没有 |
-| 源码位置 | 展开出的所有语句报告与整条列表相同的行列 |
+| 源码位置 | 每个声明子报告自己的行列 <Since v="2.0.0" /> |
 
-上例声明了三个 1 分量值：`a` 初始化为 `1`，`b` 默认为 `0`，`c` 初始化为 `3`。声明子不是裸标识符时报
-`In Graph statement '{Text}': '{Declarator}' is not a valid declarator in a comma-separated declaration.`
+上例声明了三个 1 分量值：`a` 初始化为 `1`，`b` 为 `0`，`c` 为 `3`。
 
 ### 花括号初始值
 
-右侧文本去空白后长度至少为 2、以 `{` 开头、以 `}` 结尾时，就是花括号初始值。它会被重新序列化为
-`<TargetType>( <inner> )` 并按普通构造器调用求值，因此继承构造器的**全部**规则：只能用位置参数、单个
-标量会 splat 到所有通道、多个参数的分量数必须正好等于目标宽度。见
-[构造器](/docs/graph/expressions#构造器)。
+声明的花括号初始值会被改写成声明类型的构造器调用：`T x = { a, b };` 就是 `T x = T(a, b);`。所以它**完全
+就是**构造器调用，继承[构造器](/docs/graph/expressions#构造器)的全部规则：只能用位置参数（`DSH4225`）、
+单个标量会广播到所有分量、多个参数的分量数之和必须正好等于类型宽度（`DSH4222`）。
 
-`{}` 是特例：它产生目标类型的默认值，效果等同于不写初始值。
+`{}` 是特例：它等于没有初始值，变量得到该类型的零值。
 
-目标类型按以下顺序确定：
-
-| 顺序 | 情况 | 目标类型 |
-| --: | :-- | :-- |
-| 1 | 该语句是声明 | 声明的类型 token |
-| 2 | 目标是 `MaterialAttributes` 成员 | 该属性自身的类型 |
-| 3 | 目标是已有变量 | 由其分量数推出：0 → `MaterialAttributes`，1 → `float`，2 → `float2`，3 → `float3`，4 → `float4` |
-| 4 | 目标匹配某个 `Outputs` 声明 | 同样的分量数映射 |
-| 5 | 以上都不是 | 报错——`Brace initializer assignment for '{Name}' requires a declared scalar or vector target type.` |
-
-步骤 3 和 4 会拒绝纹理和 `Substrate` 目标。
+目标类型永远是声明的类型 token。其他任何位置的花括号列表——赋值或成员写入的右侧、调用参数——都是
+`DSH2162` <Since v="2.0.0" />。纹理、`Substrate` 和 `MaterialAttributes` 没有构造器：
+`Texture2D t = {x};` 是 `DSH4223`。
 
 <Callout type="warn">
-花括号初始值不能嵌套。`float4 m = {{1,2},{3,4}};` 会被重新序列化成 `float4({1,2},{3,4})`，而 `{` 不是
-表达式词法器认识的记号，于是报错
-`Invalid brace initializer for type 'float4'. Unexpected token '{' in Graph expression.`
-请改写成 `float4(float2(1,2), float2(3,4))`。
+花括号初始值不能嵌套。`float4 m = {{1,2},{3,4}};` 是 `DSH2214`；请写
+`float4(float2(1, 2), float2(3, 4))`。
 </Callout>
 
 ```c
@@ -218,18 +210,22 @@ Graph = {
 
 ### 重复声明
 
-名字已经绑定过的声明会失败，报 `Graph variable '{Name}' is declared more than once.`
-查找先比对精确拼写，再退化为不区分大小写扫描，所以 `float a = 1; float A = 2;` 是重复声明错误——
-而在其他所有地方 `A` 和 `a` 指的是同一个值。要给已有名字重新绑定，请省略类型 token，写成赋值。
+在同一个块里声明一个已经声明过的名字是 `DSH4220`。在 `if` / `else` 块体里声明外层块体已经声明过的名字，
+以及在 `Shader` 里声明名为 `Base`（材质本身）的变量，也是 `DSH4220`。
+
+比较是**精确**的 <Since v="2.0.0" />：`float a = 1; float A = 2;` 声明了两个变量，而 1.x 会报重复声明。
+读 `a` 或 `A` 各自找到自己的变量；写成两者都不精确匹配的大小写时，只有唯一的不区分大小写匹配才会被采用，
+并带警告 `DSH5275`。
+
+给已有名字赋值不是重复声明——省略类型 token 就是重新赋值。
 
 ## 赋值
 
-形式 4 和 5。目标是顶层 `=` 的左侧，去空白后原样取用。
+形式 4 和 6。目标是一个名字或 `name.member`；其他任何东西——成员的 swizzle、下标、调用——都是 `DSH2206`。
 
 <Synopsis>
 ```c
 <target> = <expression> ;
-<target> = { <expression> , … } ;
 ```
 </Synopsis>
 
@@ -237,195 +233,221 @@ Graph = {
 
 | 顺序 | 目标 | 行为 |
 | --: | :-- | :-- |
-| 1 | 含 `.` 且能切成两个非空半边的名字 | `MaterialAttributes` 成员写入 |
-| 2 | 已存在的 `Graph` 值 | 值被转换到**已有**绑定的形状：分量数、纹理标志、纹理类型、`Substrate` 标志 |
-| 3 | 所在块的某个 `Outputs` 声明 | 值被转换到**声明的**类型 |
-| 4 | 还不存在 | 创建一个新变量，带上该值自身的形状——不需要类型 token |
+| 1 | `name.member` | `MaterialAttributes` 成员写入——见[下文](#materialattributes-成员写入) |
+| 2 | Graph 变量、`Shader` 的 `Outputs` 声明、函数类块的输出 | 值被转换到该变量的声明类型 |
+| 3 | 属性 | `DSH4229`：属性是输入，请先复制到变量里 |
+| 4 | 什么都不是 | 在这里以值自身的类型声明——legacy 规则 L26，给出提示 `DSH5292` |
 
-规则 2 和 3 的查找不区分大小写。
+名字先精确查找，再不区分大小写；另一种大小写的唯一匹配会被采用，并带警告 `DSH5275`——它**就是**那个
+声明，而不是第二个变量 <Since v="2.0.0" />。
 
-规则 4 意味着 `=` 左侧出现未声明的名字并不是错误：
+规则 4 意味着 `=` 左侧出现未声明的名字不是错误：
 
 ```c
 Graph = {
-    vec3 Base = Tint * 2.0;
-    Scratch   = Base.rgb;    // 合法：创建 3 分量的 'Scratch'
-    Color     = Scratch;     // 'Color' 是 Outputs 声明 -> 转换到它的类型
+    vec3 Boost = Tint * 2.0;
+    Scratch    = Boost;      // DSH5292：把 'Scratch' 声明为 float3
+    Color      = Scratch;    // 'Color' 是 Outputs 声明 -> 转换到它的类型
 }
 ```
 
-<Callout type="warn">
-规则 2 和 3 的转换会**静默收窄**。把 `float4` 赋给 `float3` 目标会丢掉 alpha 通道，没有警告，也不产生
-节点开销。如果生成材质里少了某个通道，请检查所有右侧比目标更宽的赋值。见
+规则 2 的转换会取更宽值的**前导分量**并给出提示 `DSH5289`（legacy 规则 L22），也会把标量广播到更宽的
+目标。它绝不会把 2 分量加宽到 3 分量：那种情况以及其他放不进去的值都是 `DSH4228`。见
 [转换](/docs/graph/expressions#转换)。
-</Callout>
 
 ## 表达式语句
 
-形式 9。既不是声明也不是赋值的语句会按表达式求值，且只有它是**调用**时才被接受：
+形式 9。既不是声明也不是赋值的语句必须是一个**调用**，其他表达式都是 `DSH2211`。
 
-| 要求 | 不满足时的诊断 |
-| :-- | :-- |
-| 表达式是一个调用 | `Graph expression statements currently support only Function calls with explicit out arguments.` |
-| 被调方能拍平成一个名字 | `Graph expression statements must call a named Function.` |
-| 该名字恰好解析到一个 `Function`、`GraphFunction`、`ShaderFunction`、`ShaderLayer`、`ShaderLayerBlend` 或 `VirtualFunction` | `Graph expression statement '{Text}' is unsupported. Only DreamShader Function, GraphFunction, ShaderFunction, ShaderLayer, ShaderLayerBlend, or VirtualFunction calls may use statement syntax.` |
-| 恰好一个，不能是多个 | `Graph expression statement '{Text}' is ambiguous because multiple callable definitions exist.` |
+语句形式下，函数的输出由末尾的参数接收，每个输出一个变量名，按声明顺序。调用任何东西都可以：一个没人
+接收其值的调用——内置、构造器、参数——会被接受，它产生的节点因为没人读而被剪掉 <Since v="2.0.0" />。
+完整参数规则、out 目标约束和值形式见[调用](/docs/graph/calls)。
 
-语句形式下，参数是先声明的输入，然后**每个输出对应一个普通变量名**，按声明顺序排列。对所有被调方种类，
-语句调用都只支持位置参数。完整参数规则见[调用](/docs/graph/calls)。
+多输出 `ShaderFunction` / `VirtualFunction` 的语句调用自 <Since v="1.3.5" /> 起可用；单输出
+`Function` / `GraphFunction` 的值调用自 <Since v="1.3.1" /> 起可用。
 
 ## `MaterialAttributes` 成员写入
 
-形式 6 和 7 写入 `MaterialAttributes` 值的一个属性。这是一个类似结构体的 Graph 值类型，分量数为 `0`
-<Since v="1.2.5" />，它把整个材质的属性集合当作一条连线携带。
+形式 6 写入 `MaterialAttributes` 值的一个属性。这是一个类似结构体的 Graph 值类型 <Since v="1.2.5" />，
+它把整个材质的属性集合当作一条连线携带。它自成一种类型，不是标量也不是向量；参与算术和作为构造器参数都是
+`DSH4226`，只能从另一个 `MaterialAttributes` 值赋值，其他都是 `DSH4228`。
+
+| 写法 | 效果 |
+| :-- | :-- |
+| `MaterialAttributes Attrs;` | 空集：一个所有输入都未连接的 `MakeMaterialAttributes`。与 `Texture2D`、`Substrate` 不同，它**不**需要初始值 |
+| `MaterialAttributes Attrs = {};` | 与上一行完全相同 |
+| `MaterialAttributes B = A;` | `B` 取 `A` 的值，不产生节点。这是值拷贝，不是别名：之后的 `B.Roughness = r;` 只改 `B` |
+| `MaterialAttributes Attrs = F_Layer(uv);` | 任何值为 `MaterialAttributes` 的表达式——函数调用、`StaticSwitchParameter` 调用 |
+
+<Callout type="warn">
+**在 `Shader` 里，`Outputs` 声明会创建变量** <Since v="2.0.0" />。每个 `Outputs` 声明都在材质函数体开头
+声明，`MaterialAttributes` 输出从空集开始，所以不在 `Graph` 里声明也能直接写 `Attrs.BaseColor = Tint;`。
+`Graph` 里的 `MaterialAttributes Attrs;` 指的是同一个变量，不增加任何东西。在函数类块里，
+`MaterialAttributes` 输出就是函数的输出：写给它的属性组成它的集合，读一个从没写过的属性是 `DSH4370`。
 
 ```c
 Outputs = { MaterialAttributes Attrs; Base.MaterialAttributes = Attrs; }
-Graph   = {
-    MaterialAttributes Attrs;      // Outputs 声明并不会创建它
-    Attrs.BaseColor = Tint;
-    Attrs.Roughness = {0.35};
-    float Rough = Attrs.Roughness; // 读取：BreakMaterialAttributes
-}
+Graph   = { Attrs.BaseColor = Tint; Attrs.Roughness = 0.35; }
 ```
-
-<Callout type="warn">
-`Outputs` 声明不会创建 Graph 变量。只有带初始值的输出声明才会变成合成语句。对一个只存在于
-`Outputs { MaterialAttributes Attrs; }` 的名字写成员会失败，报
-`Unknown MaterialAttributes variable 'Attrs'.` 请在 `Graph` 块里也声明一次——两处声明不会冲突，因为重复
-声明检查只看 Graph 变量。
 </Callout>
-
-每次成员写入都会在变量当前值上链接一个**新的** `SetMaterialAttributes` 节点并把变量重新绑定过去；
-*N* 次写入产生 *N* 个节点。每次成员读取都会创建一个**新的** `BreakMaterialAttributes` 节点——读取不去重。
 
 ### 成员列表
 
-成员名在读写两侧都不区分大小写。别名是完全等价的同义词。
+属性表来自引擎 <Since v="2.0.0" />：本引擎没有的属性是 `DSH5200`。成员名先精确匹配（名字或别名），再不区分
+大小写，后者带警告 `DSH5276`。别名是完全等价的同义词。
 
-| 成员 | 别名 | 分量数 | 旧版 Break 索引 |
-| :-- | :-- | --: | --: |
-| `BaseColor` | — | 3 | 0 |
-| `Metallic` | — | 1 | 1 |
-| `Specular` | — | 1 | 2 |
-| `Roughness` | — | 1 | 3 |
-| `Anisotropy` | — | 1 | 4 |
-| `EmissiveColor` | `Emissive` | 3 | 5 |
-| `Opacity` | — | 1 | 6 |
-| `OpacityMask` | — | 1 | 7 |
-| `Normal` | — | 3 | 8 |
-| `Tangent` | — | 3 | 9 |
-| `WorldPositionOffset` | `WPO` | 3 | 10 |
-| `SubsurfaceColor` | — | 3 | 11 |
-| `CustomData0` | `ClearCoat` | 1 | 12 |
-| `CustomData1` | `ClearCoatRoughness` | 1 | 13 |
-| `AmbientOcclusion` | `AO` | 1 | 14 |
-| `Refraction` | — | 3 | 15 |
-| `CustomizedUV0` | `CustomizedUVs0` | 2 | 16 |
-| `CustomizedUV1` | `CustomizedUVs1` | 2 | 17 |
-| `CustomizedUV2` | `CustomizedUVs2` | 2 | 18 |
-| `CustomizedUV3` | `CustomizedUVs3` | 2 | 19 |
-| `CustomizedUV4` | `CustomizedUVs4` | 2 | 20 |
-| `CustomizedUV5` | `CustomizedUVs5` | 2 | 21 |
-| `CustomizedUV6` | `CustomizedUVs6` | 2 | 22 |
-| `CustomizedUV7` | `CustomizedUVs7` | 2 | 23 |
-| `PixelDepthOffset` | `PDO` | 1 | 24 |
-| `Displacement` | — | 1 | 26 |
-| `DiffuseColor` | — | 3 | 无 |
-| `SpecularColor` | — | 3 | 无 |
-| `SurfaceThickness` | — | 1 | 无 |
-| `FrontMaterial` <Since v="5.4" ue /> | — | 1 | 无 |
+| 成员 | 别名 | 分量数 |
+| :-- | :-- | :-- |
+| `BaseColor` | —— | 3 |
+| `Metallic` | —— | 1 |
+| `Specular` | —— | 1 |
+| `Roughness` | —— | 1 |
+| `Anisotropy` | —— | 1 |
+| `EmissiveColor` | `Emissive` | 3 |
+| `Opacity` | —— | 1 |
+| `OpacityMask` | —— | 1 |
+| `Normal` | —— | 3 |
+| `Tangent` | —— | 3 |
+| `WorldPositionOffset` | `WPO` | 3 |
+| `SubsurfaceColor` | —— | 3 |
+| `CustomData0` | `ClearCoat` | 1 |
+| `CustomData1` | `ClearCoatRoughness` | 1 |
+| `AmbientOcclusion` | `AO` | 1 |
+| `Refraction` | —— | 3 |
+| `CustomizedUV0` … `CustomizedUV7` | —— | 2 |
+| `PixelDepthOffset` | `PDO` | 1 |
+| `Displacement` | —— | 1 |
+| `DiffuseColor` | —— | 3 |
+| `SpecularColor` | —— | 3 |
+| `SurfaceThickness` | —— | 1 |
+| `FrontMaterial` <Since v="5.4" ue /> | —— | 一个 `Substrate` 值 <Since v="2.0.0" /> |
+| `MaterialAttributes` | `Attributes` | 整个集合 |
 
-`MaterialAttributes` 及其别名 `Attributes` 能作为材质属性解析出来，但被显式拒绝作为成员使用。任何无法
-识别的名字都报 `Unsupported MaterialAttributes member '{Member}'.`
+1.x 的别名 `CustomizedUVs0` … `CustomizedUVs7` 不在别名表里 <Since v="2.0.0" />，请写 `CustomizedUV0` …
+`CustomizedUV7`。`MaterialAttributes`（别名 `Attributes`）可以作为成员解析 <Since v="2.0.0" />：它就是整个
+集合，也是绑定 `Base.MaterialAttributes = Attrs;` 写的东西。要替换一个 Graph 变量的整个集合，直接给变量
+赋值：`Attrs = Other;`。
 
-读取时先**按名字**挑选 Break 输出——把属性的显示名与节点上每个输出名做不区分大小写比较——只有名字都不
-匹配时才退回旧版索引。
+### 读取成员
 
-<Callout type="warn">
-最后四个成员没有旧版索引，所以只有当引擎构建的 `BreakMaterialAttributes` 节点暴露了同名输出时才能读取，
-否则读取失败并报 `BreakMaterialAttributes does not expose member '{Member}'.` 尤其是
-`SurfaceThickness`，并非每个构建都会暴露它。写入不受影响——只有读取会经过 `BreakMaterialAttributes`。
-</Callout>
+读取本值里块体已经写过的属性，得到的就是写进去的值，不产生节点。其他读取来自每个值一个、被该值所有读取
+共享的 `BreakMaterialAttributes` <Since v="2.0.0" />（1.x 每次读取一个 Break 节点）。必须经过 Break 节点的
+读取，要求引擎的 Break 节点发布了该属性，否则是 `DSH8216`——这取决于引擎构建。没有任何东西可读的值——函数
+的 `MaterialAttributes` 输出在写入之前——是 `DSH4370`。
 
-### 成员写入规则
+读取结果是一个带成员分量数的普通数值，所以可以再 swizzle：`Attrs.BaseColor.r` 是属性读取后跟通道选择。
 
-| 规则 | 失败信息 |
+### 写入成员
+
+成员写入记录该属性的值，之后对同一属性的写入会替换它。节点在值被**使用**的地方才产生——传给函数或引脚、
+赋给输出、绑定到材质：在该值的集合之上一个 `SetMaterialAttributes`，每个写过的属性一个引脚
+<Since v="2.0.0" />（1.x 每次写入链接一个 Set 节点）。底下没有集合的值——函数的输出——改为一个带写入引脚的
+`MakeMaterialAttributes`。
+
+| 规则 | 失败时的码 |
 | :-- | :-- |
-| 目标按**第一个** `.` 切分，两半都必须非空 | `Invalid MaterialAttributes member assignment target '{Target}'.` |
-| 基名必须已经是 Graph 变量 | `Unknown MaterialAttributes variable '{Base}'.` |
-| 基变量必须持有 `MaterialAttributes` 值 | `Graph variable '{Base}' is not a MaterialAttributes value.` |
-| 成员名必须能解析，且不能是 `MaterialAttributes` | `Unsupported MaterialAttributes member '{Member}'.` |
-| 值必须能转换到该成员的分量数 | `MaterialAttributes member '{Member}' expects {Count} component(s). {Detail}` |
-| 语句必须有右侧 | `MaterialAttributes member assignment '{Target}' requires a value.` |
+| 目标是 `name.member`；成员的成员不是目标 | `DSH2206` |
+| 基名必须已声明 | `DSH4200` |
+| 基变量必须持有 `MaterialAttributes` 值 | 数值上的成员按 swizzle 读，`DSH4230`；纹理上 `DSH4206`；`Substrate` 值上 `DSH4207` |
+| 成员名必须能解析 | `DSH5200` |
+| 值必须放得进成员的类型 | `DSH4228`；更宽的向量取前导分量并给出提示 `DSH5289` |
 
 <Callout type="info">
-因为切分用的是**第一个** `.`，`Attrs.BaseColor.r = 1.0;` 会被读成基名 `Attrs`、成员 `BaseColor.r`，
-并报 `Unsupported MaterialAttributes member 'BaseColor.r'.` 这里没有按通道写属性的写法——请先构建出完整
-的值。属性值同样拒绝算术、构造器和 swizzle；属性值上的 `.member` 永远是属性读取，绝不是通道掩码。
+`Attrs.BaseColor.r = 1.0;` 是 `DSH2206`。1.x Graph 里没有按通道写属性的写法——请先构建出完整的值。
+`Attrs.BaseColor = {1.0, 0.35, 0.1};` 是 `DSH2162` <Since v="2.0.0" />：请写
+`Attrs.BaseColor = float3(1.0, 0.35, 0.1);`。
 </Callout>
+
+### 传递属性值
+
+| 场合 | 行为 |
+| :-- | :-- |
+| `Base.MaterialAttributes = Attrs;` | 把值绑定到材质，并打开 *Use Material Attributes* |
+| `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` / `VirtualFunction` 的输入输出 | 接受。参数本身必须已经是 `MaterialAttributes` 值，不做转换（输入是 `DSH4226`，其他类型的输出变量是 `DSH4218`） |
+| `GraphFunction` 结果类型 | 接受 |
+| `if` / `else` | 逐属性合并：两个分支不一致的每个属性一个条件节点。两个分支各赋一个不同的**整个**集合是 `DSH4375`——见 [if / else](/docs/graph/control-flow#哪些值不能被选择) |
+| `StaticSwitchParameter` 调用分支 | 两个分支都是属性值时接受 |
+
+`Substrate` 是另一种值类型，不是属性集，需要 UE 5.4+；两者永远不会互相转换（`DSH4228`）。`Attrs.FrontMaterial`
+在 UE 5.4+ 上能解析，类型是 **`Substrate`** <Since v="2.0.0" />（1.x 把它当作一个数）。同一个 `Shader` 里同时
+绑定 `Base.MaterialAttributes` 和 `Base.FrontMaterial` 不再被拒绝 <Since v="2.0.0" />：两者都会接上，而前者
+打开的 *Use Material Attributes* 让材质读属性集而不是各个引脚。见 [Substrate](/docs/builtins/substrate)。
 
 ## 作用域
 
-**没有块作用域。** 每个构建器只有一张值表——每个 `Shader` 一张，每个生成的材质函数一张——所有声明都写进
-这张表。
-
-分支在所在值表的**副本**上执行，之后再把副本合并回来：
+每个 `if` 和 `else` 块体都是有自己作用域的块 <Since v="2.0.0" />；1.x 整个块体只有一张值表。
 
 | 情况 | 结果 |
 | :-- | :-- |
-| 名字在**两个**分支里都声明且形状相同 | 经 `UMaterialExpressionIf` 合并后写入外层表——`if` 之后可见 |
-| 名字在**两个**分支里都声明但形状不同 | 报错——`Graph if branches assign variable '{Name}' with inconsistent types` |
-| 名字**只在一个**分支里声明 | 报错——`Graph if statement could not resolve both branch values for '{Name}'.` |
-| 名字是纹理或 `Substrate` 值 | 报错——`Graph if statement cannot select texture value '{Name}'.` / `… cannot select Substrate value '{Name}'.` |
+| 在块体层声明 | 对块体剩余部分可见。在 `Shader` 里这个块体还包含排在 `Graph` 语句之前的 `Outputs` 声明 |
+| 在 `if` 之**前**声明、在分支里赋值 | 两个值合并成一个条件节点，`if` 之后变量持有合并后的值 |
+| 在分支**内部**声明 | 分支结束即丢弃；不参与合并，`if` 之后再读是 `DSH4200` |
+| 分支声明了外层块体已声明的名字 | `DSH4220` |
+| 在分支里读取属性 | 属性是文件作用域的输入，永远不是分支值 |
 
 <Callout type="warn">
-分支内的临时变量并不是局部的。只在一个分支里声明辅助变量是错误，而不是"名字被丢弃"。请把声明提到 `if`
-之前，或者在两个分支里用同样的宽度各声明一次。另外，合并后的名字会成为外层表的普通条目，所以在 `if`
-*之后*再声明同名变量就是重复声明错误。完整合并算法见
+1.x 会合并两个分支里都声明了的名字，并允许在 `if` 之后读取它。现在这样的名字只属于各自的分支。请在 `if`
+**之前**声明变量，在每个分支里赋值：
+
+```c
+float3 Blend = float3(0.0, 0.0, 0.0);
+if (Mask > 0.5) { Blend = float3(1.0, 0.0, 0.0); }
+else            { Blend = float3(0.25, 0.25, 0.25); }
+Color = Blend;
+```
+
+分支局部的名字可以在 `if` 之后再次声明：它的作用域已经结束了。完整合并规则见
 [if / else](/docs/graph/control-flow#合并)。
 </Callout>
 
 ## 合成语句
 
-所在块中每个带默认值的 `Outputs` 声明都会被转成一条声明语句，并**插到** `Graph` 块体第一条语句之前。
-这些语句没有源码位置，所以它们的诊断不带可用的行号。
+`Shader` 的每个 `Outputs` 声明都会成为材质函数体开头声明的变量，排在第一条 `Graph` 语句之前
+<Since v="2.0.0" />。有初始值就用它，没有就用该类型的零值（`MaterialAttributes` 为空集）；没有初始值的纹理或
+`Substrate` 输出起初没有值。这些声明带着它们来源的那一行 `Outputs` 的位置。
 
-| 信息 | 原因 |
+在 `Graph` 顶层用相同大小写再声明一个输出的名字，不会声明第二个变量：带初始值时变成对输出的赋值，不带时
+直接丢弃。
+
+| 码 | 何时 |
 | :-- | :-- |
-| `Output declaration initializer requires a type and name.` | 合成声明的类型或名字为空 |
-| `Output declaration '{Name}' has an empty initializer.` | `Outputs` 默认值文本为空 |
+| `DSH3270` | `Outputs` 声明有 `=` 但后面什么都没有 |
+| `DSH3266` | `Outputs` 声明后面既不是 `;` 也不是 section 的闭合 `}` |
 
-这也是 `Graph = { }` 对 `Shader` 合法的原因：带初始值的输出声明*就是*块体。见
+`Outputs` section 声明或绑定了东西的 `Shader` 不需要 `Graph` section；两者都没有是 `DSH2255`。见
 [输出绑定](/docs/generation/outputs)。
 
 ## 诊断
 
 <Diag>
-  <D msg="In Graph statement '{Text}': {Detail}" cause="语句内部的任何解析失败；{Detail} 是内层信息。" />
-  <D msg="In Graph statement '{Text}': '{Declarator}' is not a valid declarator in a comma-separated declaration." cause="第一个之后的某个声明子不是裸标识符。" fix="只写一个类型 token，后面用裸名字：float a = 1, b, c;" />
-  <D msg="Encountered an invalid empty Graph statement." cause="既无表达式、又无声明、也无花括号初始值的语句。" />
-  <D msg="Encountered a Graph assignment without a target variable." cause="= 左侧为空，例如 = 5;" />
-  <D msg="Failed to evaluate Graph assignment for '{Name}'. {Detail}" cause="右侧求值失败。" />
-  <D msg="Failed to assign Graph member '{Name}'. {Detail}" cause="MaterialAttributes 成员写入失败。" href="/docs/graph/statements" />
-  <D msg="Graph variable '{Name}' is declared more than once." cause="重复声明；检查不区分大小写。" fix="去掉类型 token 改成赋值，而不是再声明一次。" />
-  <D msg="Graph variable '{Name}' was previously assigned an incompatible value. {Detail}" cause="赋给已有变量的值无法转换到它的形状。" href="/docs/graph/expressions" />
-  <D msg="Graph output variable '{Name}' was assigned an incompatible value. {Detail}" cause="赋给 Outputs 名字的值无法转换到它的声明类型。" href="/docs/generation/outputs" />
-  <D msg="Unsupported Graph variable type '{Type}'." cause="无初始值的声明，其类型 token 无法解析——几乎所有不支持的写法也报这条。" href="/docs/graph/unsupported" />
-  <D msg="Unsupported Graph variable type '{Type}' for '{Name}'." cause="带初始值的声明，其类型 token 无法解析。" href="/docs/graph/unsupported" />
-  <D msg="Graph variable type '{Type}' requires an explicit initializer." cause="纹理、SamplerState 或 Substrate 声明没有写 =。" />
-  <D msg="Graph variable '{Name}' uses Substrate, which requires Unreal Engine 5.4 or newer." cause="在 UE 5.3 上声明了 Substrate。" href="/docs/builtins/substrate" />
-  <D msg="Graph builder is not initialized." cause="内部保护；构建器在没有目标材质的情况下运行。" />
+  <D msg="DSH2154: Expected ';' after a variable declaration, found {1}." cause="语句没有以 ; 结束——包括块体最后一条语句、大小写写错的 If，以及名字不是单个标识符的声明。报告的位置是下一行的第一个记号。" fix="补上 ;；错误在报告位置的上一行。" />
+  <D msg="DSH2151: Expected an expression, found {0}." cause="该出现值的地方出现了不能开始一个值的记号，例如 = 5;。" fix="补上操作数，或删掉多余的记号。" />
+  <D msg="DSH2163: Expected a variable name, found {1}." cause="逗号声明里 , 之后的声明子不是名字。" fix="只写一个类型 token，后面跟名字：float a = 1, b, c;" />
+  <D msg="DSH2162: An initializer list is only allowed as a variable initializer, not as a general expression." cause="花括号列表出现在声明初始值以外的地方——赋值或成员写入的右侧、调用参数（形式 5 和 7）。" fix="改写成构造器：float3(r, g, b)。" href="/docs/graph/expressions#构造器" />
+  <D msg="DSH2214: Expected an expression as a 1.x Graph initializer, found an initializer list; use a constructor such as 'float3(a, b, c)'." cause="花括号初始值里嵌套了花括号列表。" fix="写构造器：float4(float2(1, 2), float2(3, 4))。" />
+  <D msg="DSH2206: Expected a variable or 'variable.member' on the left of a 1.x Graph assignment, found '{0}'." cause="= 左侧既不是名字也不是 name.member——例如 Attrs.BaseColor.r = 1.0;。" fix="给普通变量赋值，在右侧用构造器拼出完整的值。" />
+  <D msg="DSH2212: Expected no storage keyword on a 1.x Graph variable, found '{0}'; move this code to a .dss file." cause="Graph 变量上写了 static、const 或 uniform。" fix="去掉关键字，或把值声明到 Properties 里。" />
+  <D msg="DSH2213: Expected a single value in a 1.x Graph declaration, found the array declarator '{0}'; move this code to a .dss file." cause="数组声明子，例如 float w[4];。" fix="改用多个变量，或把代码移到 Function 或 .dss。" />
+  <D msg="DSH2215: Expected an initializer on the 1.x Graph variable '{0}' of type '{1}', found none, and 1.x had no zero value for that type." cause="纹理、SamplerState 或 Substrate 变量没有初始值。" fix="给变量一个初始值。" />
+  <D msg="DSH4201: '{0}' is not a type; did you mean '{1}'? Type names are case-sensitive." cause="声明的类型 token 无法解析。" href="/docs/language/types-and-values" />
+  <D msg="DSH4220: '{0}' is already declared in this block." cause="同一块里重复声明；分支声明了外层块体已声明的名字；或在 Shader 里声明 Base。" fix="去掉类型 token 改成赋值，或换一个名字。" />
+  <D msg="DSH4228: {0} expects {1}, and this is {2}." cause="赋值或初始值放不进目标类型——例如把 float2 加宽成 float3，或把纹理放进数。" fix="用 swizzle 或构造器调整宽度：float3(v, 0.0)。" href="/docs/graph/expressions#转换" />
+  <D msg="DSH4229: A 'uniform' is an input and a 'static const' is a constant; neither can be assigned to. Copy it into a local first." cause="赋值目标是一个属性。" fix="先把属性复制到 Graph 变量里。" />
+  <D msg="DSH5289: {0} expects {1}, and this is {2}: its leading components are taken, which is what 1.x did; a '.dss' writes the swizzle." cause="提示（legacy 规则 L22）：更宽的值被截成目标的前导分量。" fix="不必改；显式写出 swizzle（Tint.rgb）可以消除提示。" />
+  <D msg="DSH5292: '{0}' is not declared, and as in 1.x this assignment declares it, as a local of type {1}." cause="提示（legacy 规则 L26）：赋值声明了一个任何地方都没声明过的名字。" fix="不必改；dsc migrate 会写出声明。" />
+  <D msg="DSH5275: '{0}' matches '{1}' only in case; a 1.x source is read ignoring case, so this is '{1}', and a '.dss' needs the exact spelling." cause="警告（legacy 规则 L19）：名字只在忽略大小写时匹配到某个声明。" fix="按声明的拼写写名字。" />
+  <D msg="DSH4200: '{0}' is not declared; did you mean '{1}'? Names are case-sensitive." cause="名字匹配不到任何声明，或忽略大小写时匹配到多个；也包括在 if 之后读取分支局部变量。" />
+  <D msg="DSH5200: A material has no '{0}' pin; did you mean '{1}'? Attribute names are case-sensitive." cause="MaterialAttributes 成员名不是本引擎的属性。" fix="使用引擎拼写；1.x 的 CustomizedUVsN 请改写成 CustomizedUVN。" />
+  <D msg="DSH4370: '{0}' is read before anything wrote it; a material attribute has no value until this function assigns one." cause="从一个还没有任何可读内容的值读取成员——例如函数输出在写入之前。" fix="先写属性再读。" />
+  <D msg="DSH8216: BreakMaterialAttributes does not publish the attribute '{0}', so it cannot be read from a material that came through a pin." cause="读取要经过 Break 节点，而本引擎的 Break 节点没有发布该属性（如 FrontMaterial、SurfaceThickness）。" fix="在值还在构建时读取，或把值和材质一起传过去。" />
+  <D msg="DSH2255: Expected a Graph section in the Shader '{0}', found none." cause="Shader 既没有 Graph，Outputs 也没有声明或绑定任何东西。" fix="加上 Graph = { ... }。" />
 </Diag>
-
-语句执行期间的进度文本为 `Building DreamShader graph nodes ({N} statements)...` 和
-`Evaluating DreamShader graph statement {I} of {N}...`。语句数超过 512 时，只有每第 64 条语句才更新文本。
 
 跨阶段的完整清单见[错误速查](/docs/diagnostics)。
 
 ## 示例
 
-一个块体里写全所有语句形式：
+一个块体里写全所有被接受的语句形式：
 
 ```c
 ShaderFunction(Name="Functions/F_AllForms")
@@ -435,14 +457,14 @@ ShaderFunction(Name="Functions/F_AllForms")
     Outputs    = { MaterialAttributes Attrs; vec3 Debug; }
 
     Graph = {
-        MaterialAttributes Attrs;              //    Outputs 声明不会创建它
+        MaterialAttributes Attrs;              //    指的就是输出，不会声明第二个变量
         float3 c;                              // 1  声明，无初始值
         float3 scaled = Tint * K;              // 2  声明 + 表达式
         vec4   packed = {scaled, 1.0};         // 3  声明 + 花括号初始值
         c = packed.rgb;                        // 4  赋值
-        Debug = {0.0, 0.0, 0.0};               // 5  赋值 + 花括号初始值
+        Debug = float3(0.0, 0.0, 0.0);         //    （形式 5 被拒绝：请写构造器）
         Attrs.BaseColor = c;                   // 6  成员写入
-        Attrs.Roughness = {0.35};              // 7  成员写入 + 花括号初始值
+        Attrs.Roughness = 0.35;                //    （形式 7 被拒绝：直接写值）
         float a = 1, b, d = 3;                 // 8  逗号分隔声明
 
         if (K > 1.0) {                         // 10 if / else
@@ -458,7 +480,8 @@ ShaderFunction(Name="Functions/F_AllForms")
 
 ## 参见
 
-- [运算符与转换](/docs/graph/expressions) —— `=` 右侧可以写什么
+- [运算符与转换](/docs/graph/expressions) —— `=` 右侧可以写什么，以及赋值处的转换
 - [if / else](/docs/graph/control-flow) —— 形式 10 的完整规则与合并
 - [调用](/docs/graph/calls) —— 形式 9、out 目标与参数规则
-- [不支持的写法](/docs/graph/unsupported) —— 为什么 `return`、`for`、`+=` 报的是变量类型错误
+- [不支持的写法](/docs/graph/unsupported) —— `return`、`for`、`+=` 及它们的码
+- [输出绑定](/docs/generation/outputs) —— `Outputs` 声明与初始值
