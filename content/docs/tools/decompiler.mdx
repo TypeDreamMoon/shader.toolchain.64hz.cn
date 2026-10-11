@@ -1,20 +1,27 @@
 ---
 title: 反编译导出
-description: 把已有的 UMaterial 或 UMaterialFunction 导出成 .dsm / .dsf —— 什么能忠实还原、什么会退化成 UE.Expression、什么会直接丢失。
+description: 把已有的材质资产导出成源文件 —— 默认的 2.0 反编译器（.dss / .dsi / .dsp），以及保留下来的 1.x 导出器（.dsm / .dsf）能还原什么、会丢什么。
 ---
 
 反编译器会遍历一个已有的 `UMaterial` 或 `UMaterialFunction` 节点图，写出等价的 DreamShaderLang 源文件。
 这是把一个已经存在的材质迁进这门语言的办法 —— 不用手工重搭。
 
+<Callout type="info">
+**有两个反编译器。** <Since v="2.0.0" /> 默认的是 **2.0 反编译器**：它把资产的图读进编译器自己的 IR，打印成 `.dss` ——
+材质实例则是 [`.dsi`](/docs/language-v2/instances) —— 而且输出是**被证明过的**：文本会被重新编译、两份 IR 互相比较。
+没有图的 Custom Pass 管线回来的是 [`.dsp`](/docs/language-v2/passes) <Since v="2.1.0" />。见本页末尾的
+[2.0 反编译器](#20-反编译器)。本页前面几节描述的是 **1.x 导出器**，它写 `.dsm` / `.dsf`，留在 `-Format=Legacy` 后面。
+</Callout>
+
 | 项目 | 值 |
 | :-- | :-- |
-| 接受 | `UMaterial` · `UMaterialFunction` · `UMaterialFunctionMaterialLayer` · `UMaterialFunctionMaterialLayerBlend` |
-| 产出 | 一个 `.dsm` 或 `.dsf` 文件，UTF-8 无 BOM |
+| 接受 | `UMaterial` · `UMaterialFunction` · `UMaterialFunctionMaterialLayer` · `UMaterialFunctionMaterialLayerBlend`；2.0 反编译器还接受 `UMaterialInstanceConstant` 和 `UDreamPassPipeline` |
+| 产出 | 2.0：`.dss` / `.dsi` / `.dsp`；1.x 导出器：`.dsm` 或 `.dsf`。UTF-8 无 BOM |
 | 写到 | `<SourceDirectory>/Decompiled/…`，除非显式给了输出路径 |
 | 起始版本 | <Since v="1.3.5" /> Content Browser 操作 |
 
 <Callout type="warn">
-**这是迁移的起点，不是往返保证。** 导出器会还原图的结构，以及它能表达的那部分节点状态，
+**1.x 导出器是迁移的起点，不是往返保证。** 它会还原图的结构，以及它能表达的那部分节点状态，
 其余的留下一条 `// Warning:` 注释。删掉原资产之前先读[已知缺口](#已知缺口) ——
 有好几类节点状态是被丢掉的，而且完全没有针对具体属性的警告。
 </Callout>
@@ -23,17 +30,21 @@ description: 把已有的 UMaterial 或 UMaterialFunction 导出成 .dsm / .dsf 
 
 | 入口 | 位置 | 产出 |
 | :-- | :-- | :-- |
-| Content Browser | 右键 `UMaterial` ▸ *DreamShader* ▸ **Export DSM** | `.dsm` |
-| Content Browser | 右键 `UMaterialFunction`、`UMaterialFunctionMaterialLayer` 或 `UMaterialFunctionMaterialLayerBlend` ▸ *DreamShader* ▸ **Export DSF** | `.dsf` |
-| 材质编辑器 | **DreamShader** 工具栏组合按钮 ▸ **Export DSM** / **Export DSF** | 同上 |
-| 命令行 | `-run=DreamShader decompile -Asset=<object path> [-Out=<file>]` | 同上 |
+| Content Browser | 右键 `UMaterial` ▸ *DreamShader* ▸ **Export Legacy .dsm**（2.0.0 之前叫 **Export DSM**） | `.dsm` |
+| Content Browser | 右键 `UMaterialFunction`、`UMaterialFunctionMaterialLayer` 或 `UMaterialFunctionMaterialLayerBlend` ▸ *DreamShader* ▸ **Export Legacy .dsf**（2.0.0 之前叫 **Export DSF**） | `.dsf` |
+| 材质编辑器 | **DreamShader** 工具栏组合按钮 ▸ **Export Legacy .dsm** / **Export Legacy .dsf** | 同上 |
+| 命令行 | `-run=DreamShader decompile -Asset=<object path> -Format=Legacy [-Out=<file>]`，或以 `.dsm` / `.dsf` 结尾的 `-Out` | 同上 |
 | Content Browser | 右键一个**生成的**资产 ▸ *DreamShader* ▸ **Adopt Into Source** <Since v="1.8.0" /> | 就地改写该资产自己的 `.dsm` / `.dsf`，旧文件先备份成 `<source>.bak` |
 
+不写 `-Format=Legacy`（也没有 `.dsm` / `.dsf` 的 `-Out`）时，命令行跑的是 [2.0 反编译器](#20-反编译器)；每个 legacy 菜单项旁边的
+**Export .dss** 在编辑器里做同样的事 <Since v="2.0.0" />。
+
 <Callout type="info">
-**Adopt Into Source** 用的就是这个导出器，只不过写的是该资产自己的源文件，而不是 `Decompiled/` 下的新文件 ——
+对 `.dsm` / `.dsf` 源文件，**Adopt Into Source** 用的就是这个导出器，只不过写的是该资产自己的源文件，而不是 `Decompiled/` 下的新文件 ——
 它是[手改检测](/docs/generation/regeneration)的「资产才是对的」那个出口。因此本页的已知缺口同样适用：
 adopt 会把导出器还原不了的东西一起丢掉。源文件声明了不止一个资产时它会**拒绝执行**，因为导出器发射的是
-一个块而不是一个翻译单元，从这种文件里 adopt 一个资产会静默删掉其余的 —— 这种情况请用 **Export DSM** 再手工合并。
+一个块而不是一个翻译单元，从这种文件里 adopt 一个资产会静默删掉其余的 —— 这种情况请用 **Export Legacy .dsm** 再手工合并。
+含预处理指令的源文件同样拒绝（`DSH8149`）<Since v="1.9.0" />，见[手改检测](/docs/generation/regeneration#三个出口)。
 </Callout>
 
 两个编辑器入口都要求**恰好选中一个**资产，写完文件后用你偏好的编辑器打开它 —— 见
@@ -131,6 +142,22 @@ FrontMaterial        (UE 5.4 及以上)
 ```
 
 未连接的属性整条跳过。
+
+### 终端输出节点
+
+`UMaterialExpressionCustomOutput`（`ThinTranslucentMaterialOutput`、`ClearCoatNormalCustomOutput`、
+`VolumetricAdvancedMaterialOutput`、`VertexInterpolator`……）没有输出 pin，材质根节点够不到它 —— 所以它从节点列表里导出，写成
+[`Expression( … )` 输出绑定](/docs/generation/outputs#expression--pini-目标)。每个**已连接**的输入 pin 声明一个以 pin 命名的
+`Outputs` 变量，pin 的整棵输入子树写进 `Graph`。写成哪种形式取决于连了几个 pin：
+
+| 已连接的 pin | 写成 |
+| :-- | :-- |
+| 1 | 语句形式，`Expression(Class="…").Pin[<i>] = <var>;` |
+| 2 个或更多 | [块形式](/docs/generation/outputs#块形式)，`Expression(Class="…") { Pin[<i>] = <var>; … }` <Since v="1.9.0" /> |
+| 0 | 什么都不写 —— 节点被丢掉 |
+
+两种写法重新生成的都是同一个节点。`Class=` 写的是**反射**类名（`MaterialExpressionThinTranslucentMaterialOutput`，不带 `U`）。
+输出目标节点按类加参数列表去重，所以一个材质里有**两个**同类的这种节点就无法往返：导出器只导出第一个，并记一条警告。
 
 ## 能忠实还原的部分
 
@@ -252,7 +279,7 @@ FrontMaterial        (UE 5.4 及以上)
 </Callout>
 
 `OutputType` 总是写出，按真实输出索引解析。存在具名输出选择器（`Output=` / `OutputName=`）时，
-`OutputIndex` 会被抑制，因为生成器拒绝同时带两者的调用。参数超过三个、或长度超过 120 字符的调用会拆成多行。
+`OutputIndex` 会被抑制，因为同时带两者的调用是 `DSH5252`。参数超过三个、或长度超过 120 字符的调用会拆成多行。
 
 ## Layout 导出
 
@@ -289,6 +316,7 @@ FrontMaterial        (UE 5.4 及以上)
 | `Detected a recursive reroute dependency while decompiling node '{Node}'; emitted a default literal to avoid stack overflow.` | 经由普通 reroute 的环 |
 | `Detected a recursive named reroute dependency for '{Node}'; emitted a default literal to avoid stack overflow.` | 经由具名 reroute 的环 |
 | `Append node '{Node}' resolved to {A} + {B} components, which cannot fit a float4; masked its inputs down to {A2} + {B2}. Review the emitted swizzle.` | 操作数分量数之和超过四的 append |
+| `Material has more than one '{Class}' node; output targets are de-duplicated by class, so only the first was exported.` | 两个同类的[终端输出节点](#终端输出节点) |
 
 ### 导出失败
 
@@ -297,7 +325,7 @@ FrontMaterial        (UE 5.4 及以上)
   <D msg="No MaterialFunction asset was provided." cause="一个空函数进到了反编译器。" />
   <D msg="No asset was provided." cause="一个空资产进到了服务层。" />
   <D msg="MaterialFunction '{Name}' does not expose any outputs." cause="该函数没有声明输出。" fix="给资产加一个输出，或者改为导出调用它的那个材质。" />
-  <D msg="DreamShader decompile supports Material and MaterialFunction assets only: {Path}" cause="任何其他资产类 —— 包括 UMaterialInstanceConstant。" fix="导出父级 UMaterial，然后重新创建实例。" />
+  <D msg="DreamShader decompile supports Material and MaterialFunction assets only: {Path}" cause="1.x 导出器遇到任何其他资产类 —— 包括 UMaterialInstanceConstant。" fix="去掉 -Format=Legacy，用 2.0 反编译器（它把实例写成 .dsi）。" />
   <D msg="Decompile did not produce source text." cause="反编译报告失败但没有消息。" />
   <D msg="DreamShader failed to resolve an output file path." cause="算出来的输出路径为空。" />
   <D msg="DreamShader failed to create output directory '{Directory}'." cause="目录创建失败。" />
@@ -306,20 +334,22 @@ FrontMaterial        (UE 5.4 及以上)
 
 ### 编辑器 toast
 
+每个 *Export* 菜单项弹的是同一组 toast，2.0 的那几个也一样 <Since v="2.0.0" />：
+
 | Toast | 原因 |
 | :-- | :-- |
 | `DreamShader could not find the selected Material.` / `…Material Function.` | 从右键到点击之间资产被卸载了 |
-| `DreamShader failed to export DSM: {Error}` / `DreamShader failed to export DSF: {Error}` | 反编译失败 |
+| `DreamShader failed to export '{Asset}': {Reason}` | 反编译失败 |
 | *（原始写入错误）* | 文件保存失败 |
-| `Exported DSM but could not open it: {File}` | 写出来了，但编辑器启动不了 |
-| `Exported DSM: {File}` / `Exported DSF: {File}` | 成功 |
+| `Exported '{File}' but could not open it.` | 写出来了，但编辑器启动不了 |
+| `Exported '{File}'.` | 成功 |
 
-日志：Display 级的 `Exported Material '{Asset}' to DSM '{File}'.`，以及 Warning 级的
-`Failed to export Material '{Asset}' to DSM: {Error}`。
+日志：Display 级的 `Exported '{Asset}' to '{File}'.`，以及 Warning 级的
+`Failed to export '{Asset}' to a DreamShader source: {Reason}`。
 
 ## 已知缺口
 
-**1.5.0** 的实测行为。每一行都是导出文件还原不了的东西。把源文件当作事实来源之前，
+1.x 导出器在 **1.5.0** 的实测行为。每一行都是导出文件还原不了的东西。把源文件当作事实来源之前，
 先核对与你的资产相关的那几行。
 
 <Wide>
@@ -336,12 +366,12 @@ FrontMaterial        (UE 5.4 及以上)
 | 没有指定函数的 `MaterialFunctionCall` 变成 `0.0` | 该分支被静默常量折叠 | 在原资产里重新指定函数再导出 |
 | 环会写出一个默认字面量 | 成环的那条分支求值成常量 | 在原图里打断这个环 |
 | 宽度超过四分量的 append 会被掩码收窄 | 分量被丢掉 | 检查写出的 swizzle |
-| 不支持材质**实例** | `UMaterialInstanceConstant` 会被直接拒绝 | 导出父级 `UMaterial`，再重新创建实例 |
+| 1.x 导出器不支持材质**实例** | `UMaterialInstanceConstant` 会被直接拒绝 | 用 [2.0 反编译器](#20-反编译器)，它写 `.dsi` |
 | 纹理采样的 `GatherMode` 只在 UE 5.6 及以上往返 | 更老的引擎上该属性被省略 | 无 |
 | `bHasPixelAnimation` 只在 UE 5.4 及以上进入写出的 flag 集合 | 更老的引擎上该 flag 被省略 | 无 |
 | `Base.FrontMaterial` 和 `Substrate` 这个 shading-model 写法只存在于 <Since v="5.4" ue /> | 5.4 以下无法有意义地导出 Substrate 材质 | 无 |
 | 生成的 `Name=` 指向 `Decompiled/…` | 重新编译会创建第二个资产，而不是替换原件 | 确认源文件可信之后改 `Name=` / `Root=` |
-| 大图在生成时会跳过自动布局 | 没有 `Layout` 块时，重新生成的大图回来可能视觉上毫无秩序 | 保持 layout 导出开启 |
+| `Classic` 布局风格下大图会跳过自动布局 | 没有 `Layout` 块时，1200 个节点以上的重新生成的图回来可能视觉上毫无秩序；IR 风格（`Blocks`，2.0.0 起的默认）总是布局 | 保持 layout 导出开启，或用 IR 风格 —— 见 [Layout 与 #Region](/docs/language/layout) |
 
 </Wide>
 
@@ -351,13 +381,13 @@ FrontMaterial        (UE 5.4 及以上)
 
 ```powershell
 & "$Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "I:\Project\Project.uproject" `
-    -run=DreamShader decompile -Asset="/Game/Materials/M_Steel" `
+    -run=DreamShader decompile -Asset="/Game/Materials/M_Steel" -Format=Legacy `
     -unattended -nopause -nosplash -stdout -log
 ```
 
 ```text
 DreamShader decompiled '/Game/Materials/M_Steel.M_Steel' to
-'I:/Project/DShader/Decompiled/Materials/Game/Materials/M_Steel.dsm'.
+'I:/Project/DShader/Decompiled/Materials/Game/Materials/M_Steel.dsm' (legacy).
 ```
 
 写出的文件：
@@ -403,11 +433,72 @@ Shader(Name="Decompiled/Materials/Game/Materials/M_Steel")
 但这个标识符在本文件里已经被占用了，于是声明被唯一化成 `Roughness_0`，真实参数名作为元数据保留下来 ——
 否则重新生成的材质会以错误的名字暴露参数。见[元数据与分组](/docs/parameters/metadata)。
 
+## 2.0 反编译器
+
+<Since v="2.0.0" />
+
+```powershell
+./dsc.ps1 decompile /Game/Materials/M_Steel                  # writes DShader/Decompiled/.../M_Steel.dss
+./dsc.ps1 decompile /Game/Materials/MI_Steel_Worn            # a material instance: MI_Steel_Worn.dsi
+./dsc.ps1 decompile -SourceFile DShader/Functions/Lib.dss    # every asset that source builds, in one file
+./dsc.ps1 decompile /Game/Materials/M_Steel -Format Legacy   # the 1.x text described above
+```
+
+它就是把编译器倒着跑：**图 → IR → AST → 打印器**。编辑器里每个 legacy 导出项旁边的 **Export .dss**（材质实例上是
+**Export .dsi**）做同样的事；输出路径规则与上面相同，默认目录是 `<SourceDirectory>/Decompiled/…`，文件名换成 `.dss` / `.dsi`。
+
+1. **导入。** 每个表达式读回成发射器为它写下的那个 IR 操作；其余的是基于内建目录的反射 `UE.<Class>(...)` 调用。
+   内联 pin mask 按发射器自己的规则变回 swizzle，注释框变成 `#pragma region`，节点位置变成 `#pragma layout` 提示。
+2. **提升。** 没人读的节点被剪掉，发射器手工降级的形状被读回来（static bool 上的 StaticSwitch 是 `if` / `?:`，Set-attributes 链是
+   `m.X = ...`）。
+3. **书写。** 按显示顺序写 uniform，读了两次或被语句命名的值写成局部变量，从节点代码里恢复 custom 函数及其 helper，layer 和 blend
+   用它们自己的签名，图里调用的每个函数资产写一个 `extern` 原型。
+4. **证明。** 打印出的文本会被再解析一次（不行是 `DSH9089`），往返测试会编译它并比较 IR。
+
+语言表达不了的东西一律**点名**，从不静默丢掉：导入阶段是 `DSH9060`–`DSH9074`（缺失的函数资产、目录外的类……），书写阶段是
+`DSH9075`–`DSH9084`（改了名的标识符、内联值的位置……），写在文件头部，形如 `// Warning: DSHnnnn: …`。
+`-KeepAssetPath` 写一行 `/// @name` 让重新构建接管原资产的路径，`-Readable` 优先 HLSL 语法糖而不是精确到类的节点调用 —— 见
+[命令行](/docs/tools/commandlet#decompile--export)。
+
+### 数组里的 pin
+
+有些引擎类把 pin 或输出放在调用写不出名字的数组里。这几种被读回成它们计算的东西：
+
+| 类 | 写成 |
+| :-- | :-- |
+| **Convert**（Make / Break FloatN）<Since v="2.0.1" /> | 每个输出写成拼出它的那些通道 —— `DXY.xy`、`DXY.zw`、`float3(Gain, 0.25, 0.75)` —— 重建成 ComponentMask 和 AppendVector 节点（`DSH9073`）；引擎拒绝的映射被点名（`DSH9063`）。在此之前回来的是一个不带参数的 `UE.Convert()` |
+| **Switch**，有未命名的 case <Since v="2.0.1" /> | 引擎为它造出的那条分支链：`0.0 == floor(s) ? a : 1.0 == floor(s) ? b : default`；SwitchValue 没连时，就是它的数字选中的那一个输入（`DSH9069`）。`DSH9073` 会提示给 case 起名以保住节点 |
+| **Switch**，所有已连接的 case 都有名字 <Since v="2.0.2" /> | Switch 本身：`UE.Switch(SwitchValue = s, Dry = a, Wet = b, Inputs = "((InputName=\"Dry\"),(InputName=\"Wet\"))")` |
+| **VertexInterpolator** <Since v="2.0.1" /> | 任何读它的地方都是 `UE.VertexInterpolator(Input = ...)`；读一个根本没有输出的节点是一个零加 `DSH9072`，而不是反编译失败 |
+| **LandscapeLayerBlend**、**LandscapeGrassOutput**、**LandscapePhysicalMaterialOutput** <Since v="2.0.2" /> | 数组写成详情面板粘贴的那种文本（不含 pin），每个 pin 用节点上显示的名字的标识符形式：`UE.LandscapeLayerBlend(Layer_Grass = g, Height_Rock = h, Layers = "((LayerName=\"Grass\"),...)")`。名字为空、是关键字或与别的 pin 冲突的 pin 仍然以 `DSH9070` 丢掉 |
+
+仍然留在数组里、文本没有写法的：`MaterialCache` 的属性 pin 和输出、`LayerStack`（实验性）的层输入、`Operator`（只在新翻译器里）
+的每个输入及其常量。这些节点回来是一个缺了那些连线（`DSH9070`）或状态（`DSH9068`）的反射调用，需要手工补完。
+
+两处小改动：未连接、读自己 `Const*` 孪生属性的 pin，常量写在 pin **自己的位置**上 <Since v="2.0.2" /> ——
+`UE.LinearInterpolate(A = 0.0, B = x, Alpha = t)` 而不是排在所有已连接 pin 之后；catalog 不认识的 `SetMaterialAttributes` pin
+现在也会被点名（`DSH9072`），和 `MakeMaterialAttributes` 一样 <Since v="2.0.1" />。
+
+### Substrate
+
+<Since v="2.0.2" /> **每个 Substrate 节点都按名字写出**，文本里搜得到图上显示的那个节点：Transmittance-To-MFP 写成
+`SSSMFP = Substrate.TransmittanceToMFP(TransmittanceColor = ..., Thickness = ...).MFP`，Coverage Weight 写成
+`Substrate.Weight(A = ..., Weight = ...)`，名字用源码用的那个（`Substrate.Slab(...)`，目录给这个类列出的第一个别名）而不是反射名
+`SubstrateSlabBSDF`。只有可读形式（`-Readable`）才把 [Substrate 语法糖](/docs/language-v2/substrate)读回来 —— 在图上精确等价的地方：
+什么都没设置的 `SubstrateAdd` / `SubstrateWeight` / `SubstrateHorizontalMixing` 是 `A + B`、`A * w` 和 `lerp(A, B, t)`，
+只喂一个 BSDF 的转换节点变成那个 BSDF 上的 `BaseColor = ...` / `Haziness = ...` / `Transmittance = ...`。
+
+### 材质实例与管线
+
+普通的 `UMaterialInstanceConstant` 写成 `.dsi`：父材质、它覆盖的 `#pragma instance` 键，以及与父材质不同的参数 —— 见
+[材质实例（.dsi）](/docs/language-v2/instances)。`UDreamPassPipeline` 没有图可导入，它的字段被读回成 `.dsp` 绑定的数据、打印成 `.dsp`
+<Since v="2.1.0" />；只有命令行和 bridge 能反编译管线，Content Browser 里没有对应菜单项。见 [Custom Pass（.dsp）](/docs/language-v2/passes)。
+
 ## 继续阅读
 
 <Cards>
-  <Card title="编辑器工具" href="/docs/tools/editor" description="Export DSM / Export DSF 两个菜单项。" />
-  <Card title="命令行" href="/docs/tools/commandlet" description="decompile -Asset、-Out 和退出码。" />
+  <Card title="编辑器工具" href="/docs/tools/editor" description="Export .dss / .dsi 与两个 Export Legacy 菜单项。" />
+  <Card title="命令行" href="/docs/tools/commandlet" description="decompile -Asset、-SourceFile、-Format、-Out 和退出码。" />
   <Card title="通用 UE.Expression" href="/docs/builtins/ue-expression" description="回退路径写出的那种通用调用。" />
   <Card title="材质 Settings" href="/docs/settings/material" description="导出器能写进 Settings 的和写不进的。" />
   <Card title="Layout 与 #Region" href="/docs/language/layout" description="Node 和 Comment 指令，以及 region。" />

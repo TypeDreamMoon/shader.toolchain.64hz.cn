@@ -4,7 +4,8 @@ description: DShader/Packages —— 插件实现的 import 根、扩展实现�
 ---
 
 Package 就是一个可复用的 DreamShaderLang 库：`.dsh` 头文件、`.dsf` 函数文件、示例、README。
-Package 安装在 `DShader/Packages` 下，通过 `import` 触达。
+Package 安装在 `DShader/Packages` 下，1.x 文件通过 `import`、`.dss` 通过 `#include` 触达 <Since v="2.0.0" />。
+每个源码根都有自己的一个：工程的那个，以及带源码根的插件的 `<Plugin>/DShader/Packages`。
 
 | 项目 | 值 |
 | :-- | :-- |
@@ -50,8 +51,8 @@ manifest、锁文件、商店和安装命令，都是**编辑器扩展**实现�
 | 路径 | 插件会编译吗？ |
 | :-- | :-- |
 | `DShader/Materials/M_Sample.dsm` | 会 —— 普通源文件 |
-| `DShader/Packages/**/Library/*.dsh` | 从不直接编译；**可以被 import**，并被内联进 import 它的文件 |
-| `DShader/Packages/**/*.dsf` | 见 [`.dsf` 缺口](#源文件枚举) —— 交互式会，无头不会 |
+| `DShader/Packages/**/Library/*.dsh` | 从不直接编译；**可以被 import**，它的声明被声明进 import 它的文件 |
+| `DShader/Packages/**/*.dsf`（以及 `.dss` / `.dsi` / `.dsp`） | 见[枚举缺口](#源文件枚举) —— 交互式会，无头不会 |
 | `DShader/Packages/**/Examples/*.dsm` | **任何路径下都不会** |
 | `DShader/dreamshader.lock.json` | 插件根本不读 |
 
@@ -66,7 +67,7 @@ manifest、锁文件、商店和安装命令，都是**编辑器扩展**实现�
 | 方面 | 实现方 |
 | :-- | :-- |
 | 启动时创建 `<SourceDirectory>/Packages` | **插件** |
-| 把 `<SourceDirectory>/Packages` 作为第三个 `import` 解析根 | **插件** |
+| 把 `<SourceDirectory>/Packages` 作为第三个 `import` / `#include` 解析根 | **插件** |
 | 把 package 文件排除出源文件枚举 | **插件** |
 | `dreamshader.package.json` —— 存在性、字段、校验 | 扩展 |
 | `dreamshader.lock.json` —— 存在性、内容、更新 | 扩展 |
@@ -82,8 +83,9 @@ manifest、锁文件、商店和安装命令，都是**编辑器扩展**实现�
 
 ## Import 解析
 
-`import` 说明符先被归一化，然后按顺序试三个候选根。第一个既待在自己根内部、又在磁盘上存在的候选胜出。
-这个解析器由编译器的 import 内联器和编辑器的依赖扫描器共用，所以两边结论一致。
+`import` 说明符 —— 或者 `.dss` 里 `#include` 的路径 —— 先被归一化，然后按顺序试三个候选根。第一个既待在自己根内部、
+又在磁盘上存在的候选胜出。这个解析器由编译器的 include 解析器和编辑器的依赖扫描器共用，所以两边结论一致。
+<Since v="2.0.0" /> 编译器把找到的头文件单独读取、把它的名字声明进 include 它的文件；不会把任何东西当文本贴进来。
 
 ### 说明符归一化
 
@@ -95,22 +97,23 @@ manifest、锁文件、商店和安装命令，都是**编辑器扩展**实现�
 | 4 | 结果没有扩展名时，追加 `.dsh` |
 
 第 4 步意味着 `import "@scope/pkg/Library/Noise"` 和 `import "@scope/pkg/Library/Noise.dsh"` 是同一个 import。
-因此不带扩展名的说明符**永远**解析不到 `.dsf`。
+只有头文件能被 import <Since v="2.0.0" />：指向 `.dsf` 或 `.dsm` 的 `import` 是 `DSH2252`，解析到 `.dsh`（或 `.dss`）之外的 include 是 `DSH8295`。
 
 ### 候选根
 
 | 顺序 | 候选路径 | 必须待在的根 |
 | :-- | :-- | :-- |
-| 1 | `<发起 import 的文件所在目录>/<specifier>` | 该文件自己的 import 根 —— `<SourceDirectory>` 和 `<SourceDirectory>/Packages` 中包含它的那个（取最长匹配），两者都不包含时取文件自己所在目录 |
-| 2 | `<SourceDirectory>/<specifier>` | `<SourceDirectory>` |
-| 3 | `<SourceDirectory>/Packages/<specifier>` | `<SourceDirectory>/Packages` |
+| 1 | `<发起 import 的文件所在目录>/<specifier>` | 该文件自己的 import 根 —— 任何一个根的源目录或 packages 目录中包含它的那个（取最长匹配），都不包含时取文件自己所在目录 |
+| 2 | `<所属根的源目录>/<specifier>` | 那个源目录 |
+| 3 | `<所属根的源目录>/Packages/<specifier>` | 那个 packages 目录 |
+
+所属根就是发起 import 的文件所在的源码根 —— 工程文件是 `<SourceDirectory>` —— 所以插件的源文件按插件自己的 `Packages` 解析。
 
 对住在 package 里的文件来说，候选 1 的根是 `Packages`，所以 package 内的 `.dsh` 可以用相对说明符触达兄弟文件，
 但**爬不出 package 树** —— 用 `../` 时逃逸守卫会否掉这个候选，解析继续落到根 2 和根 3。
 
-任何根下都解析不到的说明符会产生
-`DreamShader import '{Specifier}' referenced from '{File}' could not be resolved.`
-完整的语法、环处理和行号映射见 [import 与命名空间](/docs/language/imports)。
+任何根下都解析不到的说明符是 `DSH8292`。完整的语法、头文件怎么被读取以及环处理，见
+[import 与命名空间](/docs/language/imports)。
 
 ## 源文件枚举
 
@@ -118,33 +121,35 @@ manifest、锁文件、商店和安装命令，都是**编辑器扩展**实现�
 
 | 枚举器 | 扫描的扩展名 | 排除 | 排序 |
 | :-- | :-- | :-- | :-- |
-| 全量源枚举 | `.dsm`、`.dsh`、`.dsf` | `<SourceDirectory>/Packages` 下的**一切** | 是 |
-| 材质源枚举 | `.dsm`、`.dsf` | 只排除 `<SourceDirectory>/Packages` 下的 `.dsm` | 否 |
+| 全量源枚举 | `.dsm`、`.dsh`、`.dsf`、`.dss`、`.dsi`、`.dsp` | 任何根的 `Packages` 下的**一切** | 是 |
+| 材质源枚举 | `.dsm`、`.dsf`、`.dss`、`.dsi`、`.dsp` —— 从不含 `.dsh` | 只排除任何根的 `Packages` 下的 `.dsm` | 否 |
 
 排除判定是与 package 目录做大小写不敏感的路径前缀比较，既命中 package 目录本身，也命中它下面任意深度的一切。
+带 `-All` 的[命令行](/docs/tools/commandlet)命令 <Since v="2.0.0" /> 用的是各自的扫描，它们全都丢掉 `Packages` 下的一切。
 
-| 特性 | 枚举器 | 看得到 package `.dsm` | 看得到 package `.dsf` / `.dsh` |
-| :-- | :-- | :-- | :-- |
-| 启动时的内存生成 | 全量 | 否 | 否 |
-| [命令行](/docs/tools/commandlet) `compile -All` | 全量 | 否 | 否 |
-| Cook 期落盘 | 全量 | 否 | 否 |
-| Material Content Browser 的 Gen 页列表 | 全量 | 否 | 否 |
-| VirtualFunction 声明同步 | 全量 | 否 | 否 |
-| *Recompile DSM* / 全量重扫队列 | 材质 | 否 | **`.dsf` 是** |
-| 依赖图重建 | 材质 | 否 | **`.dsf` 是** |
+| 特性 | 枚举器 | 看得到 package `.dsm` | 看得到 package `.dsf`、`.dss`、`.dsi`、`.dsp` | 看得到 package `.dsh` |
+| :-- | :-- | :-- | :-- | :-- |
+| 启动时的 Ephemeral 生成 | 全量 | 否 | 否 | 否 |
+| [命令行](/docs/tools/commandlet) `compile -All` | 全量，去掉头文件 | 否 | 否 | 否 |
+| Cook 期落盘 | 全量 | 否 | 否 | 否 |
+| Material Content Browser 的源文件列表 | 全量 | 否 | 否 | 否 |
+| VirtualFunction 声明同步 | 全量 | 否 | 否 | 否 |
+| *Recompile DSM* / 全量重扫队列 | 材质 | 否 | **是** | 否 |
+| 依赖图重建 | 材质 | 否 | **是** | 只作为依赖 |
+| 文件 watcher，保存时 | 自己的判定 | 否 | **是** | 重编 import 它的源文件 |
 
 <Callout type="warn">
-**`Packages` 排除对 `.dsm` 是完整的，对 `.dsf` 只是部分的。** 自动编译路径判定的是"`Packages` 下的一个 `.dsm`"，
-而任何 `.dsf` 都不满足这个条件 —— 于是 package 里的 `.dsf` 会被 *Recompile DSM* 排入队列、
-在文件 watcher 看到它被保存时重新编译、并参与依赖图，同时对 `compile -All`、cook、Gen 页和
+**`Packages` 排除对 `.dsm` 是完整的，对其他每种会构建东西的文件只是部分的。** 自动编译路径判定的是"`Packages` 下的一个 `.dsm`"，
+而别的文件都不满足这个条件 —— 于是 package 里的 `.dsf`、`.dss`、`.dsi` 或 `.dsp` 会被 *Recompile DSM* 排入队列、
+在文件 watcher 看到它被保存时重新编译、并参与依赖图，同时对启动生成、`compile -All`、cook、Material Content Browser 和
 VirtualFunction 同步保持不可见。
 
-因此，一个附带 `.dsf` 函数资产的 package 会在交互式编辑器会话里生成那些资产，
-而在无头构建里**不会**。请把库代码以 `.dsh` 头文件形式发布，或者把 `.dsf` 从 `Packages` 复制到项目自己的源树里。
+因此，一个附带这类源文件的 package 会在交互式编辑器会话里生成它们的资产，
+而在无头构建里**不会**。请把库代码以 `.dsh` 头文件形式发布，或者把源文件从 `Packages` 复制到项目自己的源树里。
 </Callout>
 
 <Callout type="warn">
-package 里的 `Examples/**/*.dsm` **在任何路径下都不会被编译**，也不会出现在 Material Content Browser 的 Gen 页。
+package 里的 `Examples/**/*.dsm` **在任何路径下都不会被编译**，也不会出现在 Material Content Browser 里。
 要用某个示例，把它从 `DShader/Packages` 复制到 `DShader/` 或它下面任何不叫 `Packages` 的子目录。
 </Callout>
 
@@ -319,7 +324,7 @@ Shader(Name="Materials/M_Noise")
 | :-- | :-- |
 | 公共 helper 放进 namespace | 包名和项目名不会冲突 |
 | 导出稳定的入口头文件 | 材质不该依赖你内部的文件布局 |
-| 库代码用 `.dsh` 发布，不要用 `.dsf` | package 里的 `.dsf` 对无头构建不可见 —— 见[上文](#源文件枚举) |
+| 库代码用 `.dsh` 发布，不要用 `.dsf` | package 里的 `.dsf`（以及 `.dss` / `.dsi` / `.dsp`）对无头构建不可见 —— 见[上文](#源文件枚举) |
 | 示例放 `Examples/` | 既说明用法，又不会被编译 |
 | 不要写项目专属资产路径 | package 应该能原样在项目之间搬 |
 | README 里写清 import 那一行 | 那是每个用户唯一必须知道的东西 |

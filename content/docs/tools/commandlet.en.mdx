@@ -11,17 +11,18 @@ bridge running.
 | :-- | :-- |
 | Class | `UDreamShaderCommandlet`, in the `DreamShaderEditor` module |
 | Invocation | `-run=DreamShader`, equivalently `-run=DreamShaderCommandlet` |
-| Commands | `compile`, `generate`, `decompile`, `export` |
+| Commands | `compile`, `generate`, `decompile`, `export`, `dump-graph` <Since v="1.9.0" />; `migrate`, `check`, `dump-ir`, `dump-layout`, `index`, `export-catalog`, `fmt`, `list-generated` <Since v="2.0.0" />; `pass-registry` <Since v="2.1.0" /> |
 | Exit codes | `0` success, `1` failure |
 | Log category | `LogDreamShader` |
 | Commandlet flags | `IsClient = false`, `IsEditor = true`, `IsServer = false`, `LogToConsole = true` |
 
 <Callout type="warn">
-**The commandlet writes real packages.** Compilation runs with the transient flag off, so `/Game/…`
-`.uasset` files are created and saved on disk. The interactive editor does the opposite — every
-compile there is memory-only. This is the intended way to materialize a whole project's sources in
-CI, and it is also how a commandlet run can leave assets that shadow the editor's in-memory
-materials. See [In-memory Materials](/en/docs/generation/in-memory).
+**The commandlet writes real packages.** `compile` asks for every ThinCustom product Materialized, so
+`/Game/…` `.uasset` files are created and saved on disk. The interactive editor keeps a ThinCustom
+product Ephemeral (in memory only) unless it is already saved; a `Graph` material and a material function
+are saved by both. This is the intended way to materialize a whole project's sources in CI, and it is also
+how a commandlet run can leave assets on disk in place of the editor's Ephemeral materials —
+*Tools ▸ DreamShader ▸ Make Ephemeral* removes them. See [In-memory Materials](/en/docs/generation/in-memory).
 </Callout>
 
 ## Synopsis
@@ -32,49 +33,86 @@ materials. See [In-memory Materials](/en/docs/generation/in-memory).
 ```text
 UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
 
-<command> ::= { compile | generate | decompile | export }
+<command> ::= { compile | generate | decompile | export | migrate | dump-graph
+              | check | dump-ir | dump-layout | index | export-catalog | fmt | list-generated
+              | pass-registry }
 
 -run=DreamShader { compile | generate } { -Source=<path> | -File=<path> | -All } [-Force]
--run=DreamShader { decompile | export } -Asset=<object-path> [{ -Out | -Output }=<path>]
+                                        [-Define=<NAME>[=<value>]]…
+-run=DreamShader { decompile | export } { -Asset=<object-path> | -SourceFile=<path> }
+                                        [{ -Out | -Output }=<path>] [-Format={ Dss | Legacy | Auto }]
+                                        [-KeepAssetPath] [-Readable] [-DiagnosticsOut=<file>]
+-run=DreamShader migrate { -Source=<path> | -All | -Root=<source root> }
+                                        [-Check] [-DryRun] [-Out=<dir>] [-NoBackup]
+-run=DreamShader dump-graph { -Source=<path> | -File=<path> | -All } [{ -Out | -Output }=<dir>]
+                                        [-Define=<NAME>[=<value>]]…
+-run=DreamShader check { -Source=<path> | -All } [-Shaders] [-Platform=<list>] [-Quality=<list>]
+                                        [-Timeout=<seconds>] [-DiagnosticsOut=<file>]
+-run=DreamShader dump-ir { -Source=<path> | -All } [-Out=<dir>] [-Json]
+-run=DreamShader dump-layout { -Source=<path> | -All } [-Style={ Blocks | SourceBands | Layered | All }]
+                                        [-Out=<dir>] [-Json]
+-run=DreamShader index { -Source=<path> | -All } [-Out=<dir>]
+-run=DreamShader export-catalog [-Out=<file>]
+-run=DreamShader fmt { -Source=<path> | -All } [-Check] [-Out=<dir>]
+-run=DreamShader list-generated { -Source=<path> | -All } [-As={ Packages | Files | GitIgnore | Json }]
+                                        [-Out=<file>] [-IncludeEphemeral]
+-run=DreamShader pass-registry [-Gc | -Rebuild]
 ```
 </Synopsis>
 
+`compile`, `dump-graph`, `check`, `dump-ir`, `dump-layout`, `index` and `list-generated` take **every
+compilable source**: `.dss`, `.dsi`, `.dsp`, `.dsm` and `.dsf` <Since v="2.0.0" />. There is one compiler;
+a 1.x source is read by the legacy front end and a `.dsh` header is compiled through the sources that
+include it. `fmt` takes 2.0 text only. What each verb does with a
+[Custom Pass pipeline](/en/docs/language-v2/passes) is under [`.dsp` sources](#dsp-sources).
+
 ## Commands
 
-The command name is the first **bare** (non-`-`) argument. If there is no bare argument, a
-`Command=<name>` parameter is consulted instead. Matching is case-insensitive and surrounding
-whitespace is trimmed.
+The command name is the first **bare** (non-`-`) argument. With no bare argument, a `Command=<name>`
+parameter is consulted instead. Matching is case-insensitive, with surrounding whitespace trimmed.
 
 | Spelling | Equivalent to | Effect |
 | :-- | :-- | :-- |
-| `compile` | — | compile one source file, or every project source, into assets |
-| `generate` | `compile` | identical; alternate spelling |
-| `decompile` | — | export a `UMaterial` / `UMaterialFunction` graph to a source file |
-| `export` | `decompile` | identical; alternate spelling |
+| `compile` | — | Compile one source file, or every project source, into assets |
+| `generate` | `compile` | Identical; alternate spelling |
+| `decompile` | — | Export a material, function, layer, blend or material instance to a source file: 2.0 text by default (`.dss`, or `.dsi` for an instance), 1.x text with `-Format=Legacy` or an `-Out` ending in `.dsm` / `.dsf` — see [Decompiler](/en/docs/tools/decompiler). A Custom Pass pipeline is written as a `.dsp`, and has no 1.x text <Since v="2.1.0" /> |
+| `export` | `decompile` | Identical; alternate spelling |
+| `migrate` <Since v="2.0.0" /> | — | Rewrite 1.x sources as `.dss`, proving each rewrite first — see [Migrating from 1.x](/en/docs/language-v2/migrate) |
+| `check` <Since v="2.0.0" /> | — | Compile as far as IR validation and write **no asset**; `-Shaders` builds the products and maps HLSL errors back to source lines |
+| `dump-ir` <Since v="2.0.0" /> | — | Write the lowered graph IR as text, and as JSON with `-Json` |
+| `dump-layout` <Since v="2.0.0" /> | — | Draw the 2.0 graph layout of every product as SVG, building nothing |
+| `index` <Since v="2.0.0" /> | — | Write the symbol index a language service reads; the editor writes the same file after every compile |
+| `export-catalog` <Since v="2.0.0" /> | — | Write the builtin node catalog as JSON, so tools can bind `UE.*` without an editor; the editor writes the same file once it has loaded |
+| `fmt` <Since v="2.0.0" /> | `format` | Rewrite 2.0 sources in the printer's layout; `-Check` reports and writes nothing |
+| `list-generated` <Since v="2.0.0" /> | — | Name every asset the sources build, building none |
+| `pass-registry` <Since v="2.1.0" /> | `passregistry` | List the Custom Pass HLSL slots; `-Gc` frees the dead ones, `-Rebuild` rebuilds the registry |
+| `dump-graph` <Since v="1.9.0" /> | `dumpgraph` | Write a canonical JSON fingerprint of the graph each source generates |
 
 Anything else fails with `Unknown DreamShader command '{Command}'.` followed by the usage banner, and
 exits `1`.
 
 <Callout type="warn">
-The first bare token is taken as the command name **unconditionally**, before any of it is validated.
+The first bare token is taken as the command name **unconditionally**, before anything is validated.
 Writing an option without its leading dash *first* — `-run=DreamShader Source=X compile` — consumes
-`Source=X` as the command name and produces `Unknown DreamShader command 'Source=X'.` Keep the
-command as the first bare argument.
+`Source=X` as the command name and produces `Unknown DreamShader command 'Source=X'.` Keep the command as
+the first bare argument.
 </Callout>
 
 ## `compile` / `generate`
 
-| Option | Aliases | Type | Required | Default | Meaning |
+| Option | Alias | Type | Required | Default | Meaning |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| `-Source=<path>` | `-File=<path>` | string | one of the three | — | compile exactly one source file |
-| `-All` | — | flag | one of the three | off | compile every project DreamShader source |
-| `-Force` | — | flag | no | off | bypass the source-hash skip and regenerate unconditionally |
+| `-Source=<path>` | `-File=<path>` | string | one of three | — | Compile exactly one source file |
+| `-All` | — | flag | one of three | off | Compile every project DreamShader source |
+| `-Force` | — | flag | no | off | Bypass the source-hash skip and regenerate unconditionally |
+| `-Define=<NAME>[=<value>]` <Since v="1.9.0" /> | `-D=<NAME>[=<value>]` | string, repeatable | no | — | Contribute one [preprocessor define](/en/docs/language/lexical#preprocessor) to this run |
 
-Precedence: `-Source` is looked up first, then `-File`; `-All` is consulted only when neither yielded
-a value. `-Source` and `-All` together silently compiles only the one file. With none of the three,
-the usage banner is logged at `Error` and the run exits `1`.
+Precedence: `-Source` is looked up first, then `-File`; `-All` is consulted only when neither yielded a
+value. `-Source` and `-All` together silently compile only the one file. With none of the three, the
+usage banner is logged at `Error` and the run exits `1`.
 
-`-Force` bypasses the [source-hash skip](/en/docs/generation/regeneration) only. It deletes nothing.
+`-Force` bypasses the [source-hash skip](/en/docs/generation/regeneration#when-regeneration-is-skipped)
+only; it deletes nothing, and it does not get past [divergence](/en/docs/generation/regeneration#divergence).
 
 ### `-Source` path resolution
 
@@ -88,108 +126,179 @@ Tried in this order; the first that applies wins.
 | 4 | otherwise | normalized as given — which then fails the extension guard or the compile |
 
 `<SourceDirectory>` is the *Source Directory* project setting, default `<Project>/DShader`. A relative
-value therefore resolves against the DreamShader source tree first and the project directory second.
+value is therefore resolved against the DreamShader source tree first and the project directory second.
 
 ### `-All` discovery and ordering
 
 | Step | Rule |
 | :-- | :-- |
-| 1 | recursively collect `*.dsm`, `*.dsh`, `*.dsf` under `<SourceDirectory>` |
-| 2 | drop **everything** under `<SourceDirectory>/Packages` |
-| 3 | drop `.dsh` headers — they generate no assets and are inlined by their dependents |
-| 4 | sort: `.dsf` function files first (rank 0), then `.dsm` materials (rank 1); ties broken by case-insensitive path comparison |
+| 1 | Recursively collect `*.dsm`, `*.dsh`, `*.dsf`, `*.dss`, `*.dsi` and `*.dsp` under every source root — `<SourceDirectory>`, and the `DShader` folder of every plugin that has one |
+| 2 | Drop **everything** under each root's `Packages` folder |
+| 3 | Drop `.dsh` headers — they generate no assets and are compiled through the sources that include them |
+| 4 | Sort: `.dsf` function files first (rank 0), then every other kind (rank 1); ties broken by case-insensitive path comparison |
+| 5 | **Compile in passes** <Since v="2.1.2" />: a source that fails is held back while its pass still built something else, and retried in the next pass; once a pass builds nothing new, what still fails is reported |
 
-Step 4 is a guarantee, not an accident: function assets referenced by a material must exist before
-that material is generated, and the two-rank sort provides that within a single run. Step 2 has a
-sharp edge for `.dsf` files that live inside packages — see [Packages](/en/docs/tools/packages).
+A material that calls a function another source generates loads that function's asset, so the asset must
+exist first. The sort covers the common case in one pass — a `.dsm` calling a `.dsf` — but not a function
+calling another function, nor another source calling a `.dss` exported function; step 5 covers every
+shape, on a clean workspace too. A source that keeps failing — a real error, a dependency no source
+generates, or a cycle — costs at most one extra attempt per pass, and is reported with the message of its
+last attempt, after every success. The cook runs the same steps (see
+[In-memory Materials](/en/docs/generation/in-memory#cook-behaviour)). Step 2 has a sharp edge for `.dsf`
+files that live in packages; see [Packages](/en/docs/tools/packages#source-file-enumeration). A `.dsp`
+needs no rank of its own: a material one of its passes names that is missing or older than its source is
+compiled first by the `.dsp`'s own compile.
+
+### `-Define`
+
+<Since v="1.9.0" />
+
+Each occurrence contributes one entry to the [define table](/en/docs/language/lexical#preprocessor) this
+run compiles against. The option is repeatable — later occurrences add names rather than replacing the set.
+
+| Written as | Defines |
+| :-- | :-- |
+| `-Define=FOO=1` | `FOO` to `1` |
+| `-Define=PROFILE=cinematic` | `PROFILE` to the string `cinematic` |
+| `-Define="NOTE=two words"` | `NOTE` to `two words` — quote the whole argument, not just the value |
+| `-Define=CI_BUILD` | `CI_BUILD` to an **empty** value: a bare marker, for which `defined(CI_BUILD)` is `1` and `#if CI_BUILD` is true |
+| `-D=FOO=1` | the same as `-Define=FOO=1` — `-D` is the short spelling |
+
+The name is everything up to the **first** `=` in the value, so a value may itself contain `=`. Names are
+case-sensitive. The command line is the highest-precedence define tier, so it overrides *Preprocessor
+Defines* in the project settings and anything a module registered in C++ — with one exception: a name
+beginning with `DS_` is reserved for the builtins and is dropped with a warning.
+
+<Callout type="info">
+Defines are part of the [build key](/en/docs/generation/regeneration#the-build-key), so a run with a
+different `-Define` set rebuilds the sources that read a changed name **without** `-Force`, and still
+skips the ones that do not read it. That is what makes a per-configuration CI sweep affordable: one run
+per define set, each rebuilding only what its own switches touch.
+</Callout>
 
 ### Per-file guard
 
-Each file in the compile list is checked before compiling. A path that is not a DreamShader source,
-or that *is* a `.dsh` header, logs `DreamShader compile requires a .dsm or .dsf file: {Path}`, marks
-the whole run failed, and the loop **continues** with the remaining files. One bad file therefore
-does not prevent the rest from compiling — but the process still exits `1`.
+Each file in the compile list is checked before compiling: a path that is not a DreamShader source, or
+that *is* a `.dsh` header, logs `DreamShader compile requires a .dss, .dsi, .dsp, .dsm or .dsf file: {Path}`,
+marks the whole run failed, and the loop **continues** with the remaining files. One bad file therefore
+does not prevent the rest from compiling, but the process still exits `1`.
 
 ### Result messages
 
-Each file's compile result is logged verbatim: `Display` on success, `Error` on failure. When one
+Each file's compile result is logged verbatim — at `Display` on success, at `Error` on failure. When one
 file produces several assets, the messages are joined with newlines.
 
 | Message | Outcome |
 | :-- | :-- |
-| `Generated {Kind} {AssetPath} from {SourceFile}.` | a `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` asset was generated; `{Kind}` is the block keyword |
-| `Generated {AssetPath} from {SourceFile}.` | material generated, `Graph` backend |
-| `Generated DreamShader thin-custom material {AssetPath} from {SourceFile}.` | material generated, `ThinCustom` backend |
-| `Skipped {AssetPath} from {SourceFile}; source hash is unchanged.` | hash match — pass `-Force` to regenerate |
-| `Generated DreamShader helper include '{Path}' from {SourceFile}.` | the file produced only a generated `.ush` |
-| `DreamShader file '{Path}' contains VirtualFunction declarations only; no assets were generated.` | success, nothing to write |
-| `DreamShader file '{Path}' contains GraphFunction declarations only; no assets were generated.` | success, nothing to write |
-| `DreamShader file '{Path}' did not contain any material, ShaderFunction, ShaderLayer, or ShaderLayerBlend assets to generate.` | **failure** |
-| `DreamShader header '{Path}' does not generate assets directly. Recompile dependent .dsm or .dsf files instead.` | **failure** — a `.dsh` reached the generator |
-| `{Path}: .dsf files cannot define top-level Shader blocks.` | **failure** |
+| `Generated {Kind} {AssetPath} from {SourceFile}.` | one product built. `{Kind}` is `Material`, `MaterialFunction`, `MaterialLayer`, `MaterialLayerBlend`, `MaterialInstance` or `PassPipeline` <Since v="2.1.0" /> — for every source language and both backends; a ThinCustom material is `Material` with the instance's path <Since v="2.0.0" /> |
+| `Generated RenderTarget {ObjectPath} from {SourceFile}.` | the render target of an exported buffer, made or reused by its pipeline's build and saved with it <Since v="2.1.0" />; follows its pipeline's line |
+| `Skipped {AssetPath} from {SourceFile}; source hash is unchanged (build key {BuildKey}).` | hash match — pass `-Force` to regenerate |
+| `Compiled {SourceFile}; it declares no material and no exported function, so no asset was written.` | success, nothing to write — a file of helpers, `VirtualFunction` or `GraphFunction` declarations only <Since v="2.0.0" /> |
+| `Warnings:` followed by one diagnostic per line | appended to a success message when the compile raised warnings |
+| one diagnostic per line, `<file>(<line>,<col>): DSHnnnn: <message>` | **failure**: the first error first, then the other errors, warnings and infos. See [Diagnostics](/en/docs/diagnostics) |
 
-A message ending in ` (virtual)` indicates a transient asset; the commandlet never produces those.
+The 1.x result lines — a separate thin-custom wording, a helper-include line, the "no assets to generate"
+and `.dsh` failures, the ` (virtual)` suffix — are not written since 2.0.0. A file with no product
+succeeds; a `.dsh` never reaches the compiler, because the per-file guard above stops it.
 
 ## `decompile` / `export`
 
-| Option | Aliases | Type | Required | Default | Meaning |
+| Option | Alias | Type | Required | Default | Meaning |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| `-Asset=<object-path>` | — | string | **yes** | — | the asset to decompile |
-| `-Out=<path>` | `-Output=<path>` | string | no | computed | destination file |
+| `-Asset=<object-path>` | — | string | one of two | — | The asset to decompile |
+| `-SourceFile=<path>` <Since v="2.0.0" /> | — | string | one of two | — | Decompile every asset that source builds into one file |
+| `-Out=<path>` | `-Output=<path>` | string | no | computed | Destination file |
+| `-Format=<Dss\|Legacy\|Auto>` <Since v="2.0.0" /> | — | enum | no | `Auto` | `Auto` lets the extension of `-Out` decide: `.dsm` / `.dsf` is 1.x text, anything else 2.0. A format that contradicts the extension is `DSH9085` |
+| `-KeepAssetPath` <Since v="2.0.0" /> | — | flag | no | off | Write `/// @name` with the asset's own path when the output file would otherwise name another |
+| `-Readable` <Since v="2.0.0" /> | — | flag | no | off | Prefer HLSL sugar over class-exact node calls (a rebuilt graph may then differ in node classes), and read the Substrate sugar back |
+| `-DiagnosticsOut=<file>` <Since v="2.0.0" /> | — | string | no | — | The decompile's diagnostics as JSON (schema `dreamshader-diagnostics`) |
 
 ### Asset path normalization
 
 | Step | Rule |
 | :-- | :-- |
-| 1 | every `\` becomes `/` |
-| 2 | if the path starts with `/` and contains **no** `.`, the short name is appended: `/Game/Path/Asset` → `/Game/Path/Asset.Asset` |
+| 1 | Every `\` becomes `/` |
+| 2 | If the path starts with `/` and contains **no** `.`, the short name is appended: `/Game/Path/Asset` → `/Game/Path/Asset.Asset` |
 
-The normalized path is loaded first. If that fails **and** normalization actually changed the string,
-the raw (quote-stripped) input is retried unchanged.
+The normalized path is loaded first. If that fails **and** normalization actually changed the string, the
+raw (quote-stripped) input is retried unchanged.
 
 ### Supported asset classes
 
 | Class | Emits | Default destination |
 | :-- | :-- | :-- |
-| `UMaterial` | `.dsm` | `<SourceDirectory>/Decompiled/Materials/<package path>.dsm` |
-| `UMaterialFunction` | `.dsf` | `<SourceDirectory>/Decompiled/Functions/<package path>.dsf` |
-| `UMaterialFunctionMaterialLayer` | `.dsf` | `<SourceDirectory>/Decompiled/Layers/<package path>.dsf` |
-| `UMaterialFunctionMaterialLayerBlend` | `.dsf` | `<SourceDirectory>/Decompiled/LayerBlends/<package path>.dsf` |
+| `UMaterial` | `.dss`; `.dsm` with `-Format=Legacy` | `<SourceDirectory>/Decompiled/Materials/<package path>.dss` (`.dsm`) |
+| `UMaterialFunction` | `.dss`; `.dsf` with `-Format=Legacy` | `<SourceDirectory>/Decompiled/Functions/<package path>.dss` (`.dsf`) |
+| `UMaterialFunctionMaterialLayer` | `.dss`; `.dsf` with `-Format=Legacy` | `<SourceDirectory>/Decompiled/Layers/<package path>.dss` (`.dsf`) |
+| `UMaterialFunctionMaterialLayerBlend` | `.dss`; `.dsf` with `-Format=Legacy` | `<SourceDirectory>/Decompiled/LayerBlends/<package path>.dss` (`.dsf`) |
+| `UMaterialInstanceConstant` <Since v="2.0.0" /> | `.dsi` — 2.0 text only. A generated ThinCustom instance is the material it stands for, and comes back as a `.dss` under `Materials/` | `<SourceDirectory>/Decompiled/Instances/<package path>.dsi` |
+| `UDreamPassPipeline` <Since v="2.1.0" /> | `.dsp` — 2.0 text only | `<SourceDirectory>/Decompiled/Pipelines/<package path>.dsp` |
 | anything else | — | error |
 
 Path segments are sanitized: control characters and `< > : " / \ \| ? *` become `_`; an empty folder
-segment becomes `Folder<N>` and an empty asset segment becomes `Asset<N>`. Output is UTF-8 without
-BOM. `-Out` bypasses the computed destination entirely, creating the directory if needed. The full
-exporter behaviour is on [Decompiler](/en/docs/tools/decompiler).
+segment becomes `Folder<N>` and an empty asset segment `Asset<N>`. Output is UTF-8 without a BOM. `-Out`
+bypasses the computed destination entirely, creating the directory if needed. Full decompiler behaviour
+is on [Decompiler](/en/docs/tools/decompiler).
 
 ## The 2.0 verbs
 
-<Since v="2.0.0" /> One compiler builds both languages, and every verb below takes any compilable source —
-`.dss`, `.dsi`, `.dsm` or `.dsf`; a `.dsh` header is compiled through the sources that include it. Each
-ends with one summary line that finishes `RESULT=OK` or `RESULT=FAILED`, because a project's own
-commandlet exit code can be non-zero for reasons that have nothing to do with DreamShader.
+<Since v="2.0.0" /> Each verb below ends with one summary line ending `RESULT=OK` or `RESULT=FAILED` —
+because a project's own commandlet exit code can be non-zero for reasons that have nothing to do with
+DreamShader.
 
 | Verb | Does |
 | :-- | :-- |
-| `check` | compiles as far as IR validation and writes **no asset** — the CI gate. `-Shaders` builds and saves the products and compiles their shaders, so an HLSL error in a `/// @custom` body fails here, mapped back to its source line |
-| `migrate` | rewrites 1.x sources as `.dss`, proving each rewrite first — see [Migrating from 1.x](/en/docs/language-v2/migrate) |
-| `decompile` | writes 2.0 text by default — a `.dss`, or a `.dsi` for a material instance; `-Format Legacy` keeps the 1.x exporter |
-| `fmt` | rewrites 2.0 sources in the printer's layout. It refuses to write a file it cannot vouch for — the formatted text has to parse, to the same declarations, with every comment, and format to itself. A file that uses `#if`, or still has 1.x declarations, is left as it is. `-All` takes the project's own source root; `-Check` writes nothing and fails when a file would change |
-| `list-generated` | names every asset the sources build, building none: `-As=Packages`, `Files`, `GitIgnore` or `Json`, `-Out=<file>` — see [Source control](/en/docs/generation/source-control) |
-| `dump-layout` | draws the IR graph layouts — `Blocks`, `SourceBands`, `Layered` — of every product as SVG, building nothing; `-Style` names one, `-Json` adds the coordinates |
-| `dump-ir` · `index` · `export-catalog` | the lowered IR · the symbol index a language service reads · the builtin node catalog as JSON. The editor writes the last two by itself: the index after every compile, the catalog once it has loaded |
-| `dump-graph` | one canonical JSON per generated asset — node classes, properties, connections, pin order — so two builds can be diffed |
+| `check` | Compiles as far as IR validation and writes **no asset** — the CI gate. `-Shaders` builds and saves the products and compiles their shaders, so HLSL errors in a `/// @custom` body fail here, mapped back to source lines; `-Platform`, `-Quality` and `-Timeout` decide which shaders |
+| `migrate` | Rewrites 1.x sources as `.dss`, proving each rewrite first; `-Check` writes nothing — see [Migrating from 1.x](/en/docs/language-v2/migrate) |
+| `fmt` | Rewrites 2.0 sources (`.dss`, `.dsi`, `.dsp`, and a `.dsh` with no 1.x declarations left) in the printer's layout. It refuses to write a file it cannot vouch for — the formatted text has to parse, to the same declarations, with every comment, and format to itself — otherwise `DSH9044`, a fault of the formatter, never of the file. A file with 1.x declarations (`DSH9042`, info) and one using `#if` outside a `/// @custom` body (`DSH9043`, info) are left as they are. `-All` takes the project's own writable root; `-Check` writes nothing and fails with `DSH9046` when a file would change; `-Out=<dir>` writes the formatted copies elsewhere |
+| `list-generated` | Names every asset the sources build, building none — see [below](#list-generated) |
+| `dump-layout` | Draws the IR graph layouts of every product — `Blocks`, `SourceBands`, `Layered` — as SVG, building nothing; `-Style` picks one (`Classic` is `DSH9041`: it works on the finished graph and cannot be drawn from the IR), `-Json` also writes the coordinates; default output `<Project>/Saved/DreamShader/Layout` |
+| `dump-ir` · `index` · `export-catalog` | The lowered IR · the symbol index a language service reads · the builtin node catalog as JSON. The editor writes the last two itself: the index after every compile, the catalog once it has loaded |
+| `dump-graph` <Since v="1.9.0" /> | One canonical JSON per generated asset — node classes, properties, connections, pin order — to diff two builds (`git diff --no-index`). It **never writes an asset**: an asset already on disk is dumped as it stands rather than rebuilt, so run `compile -All -Force` first when the sources may have moved. Default output `<Project>/Saved/DreamShader/GraphBaseline` |
+| `pass-registry` <Since v="2.1.0" /> | The Custom Pass HLSL slot registry (`<DShader>/.dreampass/`): with no option, lists every slot and its state; `-Gc` frees the slots whose pipeline or pass is gone (run it after deleting or renaming a `.dsp`); `-Rebuild` compiles every `.dsp` again and rewrites the registry files from scratch (run it after a merge conflict in `Registry.json`). See [Custom Pass (.dsp)](/en/docs/language-v2/passes) |
+
+### `list-generated`
+
+<Since v="2.0.0" /> Names every asset the sources build — front end, binder and destination rules, and
+nothing after them: no asset is built, loaded or saved. It is what ignore rules and P4 typemaps are written
+from; [Source control](/en/docs/generation/source-control) has the recipes.
+
+| Option | Default | Meaning |
+| :-- | :-- | :-- |
+| `-Source=<path>` / `-All` | one is required | which sources; `-All` covers plugin source roots too |
+| `-As=` | `Packages` | `Packages` — long package names; `Files` — paths relative to the project directory; `GitIgnore` — the same paths anchored with `/`, under a header comment; `Json` — every field (schema `dreamshader-generated-assets`, version 1) |
+| `-Out=<file>` | the log | write the list here. A script should always pass it: the log is for reading |
+| `-IncludeEphemeral` | off | also list a ThinCustom material that is Ephemeral right now; it has no file, so it is left out of a list ignore rules are written from |
+
+A `.dsp` contributes two kinds of row <Since v="2.1.0" />: its pipeline (kind `PassPipeline`) and the
+render target of every exported buffer (kind `PassExportTarget`). A source that does not compile still
+contributes the products established before the failure, and the run ends `RESULT=FAILED` — a list is
+never silently short. Assets outside the project directory (an engine-level plugin's content) have no
+project-relative path; `Files` and `GitIgnore` say how many were left out (`DSH9049`). An unknown `-As` is
+`DSH9048`; a list that cannot be written is `DSH9047`.
+
+### `.dsp` sources
+
+<Since v="2.1.0" /> A [Custom Pass pipeline](/en/docs/language-v2/passes) is a compilable source like the
+others, with one product — a `UDreamPassPipeline` — and no graph.
+
+| Verb | On a `.dsp` |
+| :-- | :-- |
+| `compile` | Builds the pipeline and the render target of every exported buffer, and gives each HLSL pass its slot: planned, pre-checked, its snapshot and the registry written under `<DShader>/.dreampass/`. A material one of its passes names that is missing or stale is compiled first. A commandlet recompiles no shader; the next editor start compiles the changed registry. Below UE 5.8 the compile is refused (`DSH8300`) |
+| `check` | Reads every material and `.usf` the passes name and makes every check the binder makes. Compiles nothing first, builds nothing, and compiles no HLSL |
+| `check -Shaders` | Builds and saves the pipeline as `compile` does, then pre-checks every HLSL pass in its slot, changed or not; `-Platform` names the shader formats |
+| `dump-ir` · `index` · `fmt` · `list-generated` · `dump-graph` · `decompile` | all take a `.dsp`; `dump-layout` writes nothing for one — a pipeline has no graph to lay out, which is not an error |
 
 ## Argument syntax
 
-Shared by every command, and pinned by the automation test
-`DreamShader.Commandlet.Args.SplitAndGet`.
+Shared by every command, and pinned by the automation tests `DreamShader.Commandlet.Args.SplitAndGet` and
+`DreamShader.Commandlet.Args.FlagValues`.
 
 | Rule | Behaviour |
 | :-- | :-- |
 | Key normalization | trim, then strip **all** leading `-`, then trim again. `-Source`, `--Source` and `Source` are the same key |
 | Name matching | case-insensitive — `-source`, `-SOURCE`, `-Source` are equivalent |
-| Value normalization | trim, then strip one layer of surrounding quotes, then trim again |
+| Value normalization | trim, strip one layer of surrounding quotes, trim again |
 | Assignment split | on the **first** `=`; a value may therefore contain `=` |
 | Dashless assignment | bare `Key=Value` is accepted wherever `-Key=Value` is |
 | Search order | the parsed parameter map, then the switch list, then the bare-token list; the first match wins |
@@ -198,20 +307,27 @@ Shared by every command, and pinned by the automation test
 
 ### Boolean flags
 
-A flag may be written bare or with a value. The value is lowercased before matching.
+A flag may be written bare or with a value. The value is matched case-insensitively, after the value
+normalization above.
 
 | Written as | Result |
 | :-- | :-- |
 | `-Force` | on |
-| `-Force=` *(empty value)* | on |
 | `-Force=1` / `-Force=true` / `-Force=yes` / `-Force=on` | on |
 | `-Force=0` / `-Force=false` / `-Force=no` / `-Force=off` | off |
-| `-Force=<anything else>` | **on** |
+| *(not written)* | off |
+| `-Force=<anything else>`, an empty `-Force=` included | **error** `DSH9110` <Since v="2.1.1" /> |
+
+An error is not a guess at what was meant. The command logs `DSH9110`, **does nothing at all** and exits
+`1`: `migrate -Check=banana` neither checks nor writes, and `-All=never` selects nothing. Every command
+reads all of its flags before it touches a file. A flag a command does not take is ignored, like any other
+unknown switch: `dump-graph -Force=banana` runs, because `dump-graph` never reads `-Force`.
 
 <Callout type="warn">
-An unrecognized boolean value evaluates to **on**, not off and not an error. `-Force=banana`,
-`-Force=disable` and `-All=never` all *enable* the flag. There is no diagnostic. Use the literals in
-the table above.
+**In 2.1.0 and earlier** a flag written with a value was read as **absent**: the engine's parser moves
+every `-Name=value` out of the switch list into the parameter map, and the commands looked in the switch
+list only. `-Force=true` did not force, and `migrate -Source=X -Check=true` wrote the migration. This page
+used to say the opposite — that an unrecognized value meant on.
 </Callout>
 
 ## Exit codes
@@ -219,58 +335,112 @@ the table above.
 | Code | Condition |
 | :-- | :-- |
 | `0` | the selected command reported success |
-| `0` | `compile -All` resolved an **empty** source list — logged `Warning`, treated as success |
+| `0` | `compile -All` or `dump-graph -All` resolved an **empty** source list — logged `Warning`, treated as success |
+| `0` | `pass-registry` listed the registry — whatever the listing found; its warnings do not fail the run |
 | `1` | no command token and no `Command=` value |
 | `1` | unknown command name |
-| `1` | `compile` with none of `-Source` / `-File` / `-All` |
-| `1` | any per-file guard failure or compile failure during `compile` |
-| `1` | `decompile` without `-Asset`, or a load / decompile / write failure |
+| `1` | `compile` / `dump-graph` with none of `-Source` / `-File` / `-All` |
+| `1` | any per-file guard failure, compile failure or write failure during `compile` / `dump-graph` |
+| `1` | `decompile` without `-Asset` / `-SourceFile`, or a load / decompile / write failure |
+| `1` | `pass-registry` could not read `Registry.json`, could not write a registry file, or a `.dsp` failed under `-Rebuild` |
+| `1` | any command: a flag it reads has a value that is neither on nor off (`DSH9110`); nothing was run |
+
+## The PowerShell driver `dsc.ps1`
+
+The plugin's `.skill/dsc.ps1` wraps `UnrealEditor-Cmd.exe <project> -run=DreamShader …`: it resolves the
+engine from the `.uproject`'s `EngineAssociation`, walks up from the target file for the project, prints a
+compile's report whole (a report is one multi-line log message, and the engine prefixes only its first
+line), and exits with the command's own code. It is the `./dsc.ps1 …` spelling on
+[Source control](/en/docs/generation/source-control) and [Migrating from 1.x](/en/docs/language-v2/migrate).
+
+```powershell
+pwsh -File Plugins/DreamShader/.skill/dsc.ps1 check   DShader/UI/M_Panel.dss
+pwsh -File Plugins/DreamShader/.skill/dsc.ps1 compile DShader/UI/M_Panel.dss -Force -CleanNew
+```
+
+**`-CleanNew`** deletes the assets the run created, so trial compiles leave nothing in `Content/`.
+<Since v="2.1.2" /> It deletes only what the commandlet **itself saved**: the commandlet records every
+package it saves, with its MD5, in a manifest (`Saved/DreamShader/AssetWrites/<run-id>.json`), and the
+driver deletes a new file only when that manifest names it and its content is unchanged — an asset an
+editor imported meanwhile, a file that existed before the run, and one modified afterwards all stay. A
+missing, invalid or stale manifest, or a Content folder that cannot be listed, deletes nothing and makes an
+otherwise successful run exit `1`. Rebuild the plugin when updating the driver: older commandlets write no
+manifest. (Before 2.1.1 it asked git, so in a project that is not a repository nothing was ever deleted,
+and in one that is, any untracked asset was.)
+
+<Callout type="warn">
+`compile -All` builds every source root — the project's and **each enabled plugin's** `DShader/` — into
+those `Content/` folders, and `-CleanNew` never deletes what existed before the run. Compile single files
+while working; keep `-All` for `check`.
+</Callout>
 
 ## What does not run
 
-- **The editor bridge never starts inside a commandlet.** The editor module returns from startup as
-  soon as it detects a commandlet process, so there is no source-directory watcher, no
-  auto-compile-on-save, no WebSocket server on port `17864`, no `diagnostics.json` writer, no
-  `bridge.db`, and no menu registration.
-- The only exception is the **cook** commandlet, which installs a post-engine-init hook. On the cook
-  director only — a process whose `-run=` contains `Cook` and that does not carry `-cookworker` —
-  DreamShader materializes every project source as a persistent asset before the cook proper. A
-  generation failure there is `Fatal` and aborts the cook.
+- **The editor bridge never starts inside a commandlet.** The editor module returns from startup as soon
+  as it detects a commandlet process, so there is no source watcher, no compile-on-save, no WebSocket
+  server on port `17864`, no `diagnostics.json` writer, no `bridge.db`, and no menu registration.
+- The one exception is the **cook** commandlet, which installs a post-engine-init hook. On the cook
+  director only — a process whose `-run=` contains `Cook` and that carries no `-cookworker` — DreamShader
+  materializes every project source as a persistent asset before the cook proper, in the same order as
+  `compile -All`, passes included. A generation failure there is `Fatal` and aborts the cook — unless the
+  source belongs to an engine or marketplace plugin the project does not write into <Since v="2.1.2" />,
+  in which case it is logged as `[Cook] Not this project's to build (plugin '<Name>')` and the cook goes
+  on. See [In-memory Materials](/en/docs/generation/in-memory#cook-behaviour).
+- **A `.dsp` compile writes outside `Content/`** <Since v="2.1.0" />: the HLSL slot registry and its
+  snapshots under `<DShader>/.dreampass/`, which are sources to commit — see
+  [Source control](/en/docs/generation/source-control#notes). A commandlet writes them and recompiles no
+  shader; an editor recompiles the slot shaders as soon as they change.
 - Adding `-NoDreamShaderEditorBridge` to a *non*-commandlet automation run (for example
   `-ExecCmds="Automation RunTests …"`) suppresses the bridge there too — see
   [Editor Tools](/en/docs/tools/editor#disabling-the-integration).
 
 ## Diagnostics
 
-All messages go to `LogDreamShader`. Runtime substitutions are written `{Placeholder}`.
+Every message goes to `LogDreamShader`. Runtime substitutions are shown as `{Placeholder}`.
 
 | Message | Severity | Cause |
 | :-- | :-- | :-- |
 | *(the usage banner)* | Error | no command token and no `Command=` value |
-| `Unknown DreamShader command '{Command}'.` + the usage banner | Error | the command is not `compile` / `generate` / `decompile` / `export` |
+| `Unknown DreamShader command '{Command}'.` + the usage banner | Error | the command is none of the spellings under [Commands](#commands) |
 | *(the usage banner)* | Error | `compile` with neither `-Source` / `-File` nor `-All` |
 | `DreamShader commandlet found no source files to compile.` | **Warning** | the resolved source list is empty; the run still exits `0` |
-| `DreamShader compile requires a .dsm or .dsf file: {Path}` | Error | the file is not a DreamShader source, or is a `.dsh` header |
+| `DreamShader compile requires a .dss, .dsi, .dsp, .dsm or .dsf file: {Path}` | Error | the file is not a DreamShader source, or is a `.dsh` header |
 | *(the compile result message)* | Display / Error | per-file outcome — see [Result messages](#result-messages) |
-| *(the usage banner)* | Error | `decompile` without `-Asset` |
-| `DreamShader could not load asset '{AssetPath}'.` | Error | the asset failed to load under both the normalized and the raw path |
+| *(the usage banner)* | Error | `decompile` with neither `-Asset` nor `-SourceFile` |
+| `DreamShader decompile: -Format takes Dss, Legacy or Auto; got '{Value}'.` | Error | an unknown `-Format` |
+| `DreamShader could not load asset '{AssetPath}'.` | Error | both the normalized and the raw path failed to load |
+| `DreamShader decompile: {Error}` | Error | the `-SourceFile` source does not resolve, or nothing it builds exists yet — compile it first |
 | `DreamShader failed to decompile '{LoadPath}': {Error}` | Error | the decompiler reported failure |
-| `DreamShader decompile supports Material and MaterialFunction assets only: {AssetPath}` | Error | unsupported asset class |
-| `Decompile did not produce source text.` | Error | the decompiler failed with no error text |
-| `DreamShader failed to resolve an output file path.` | Error | the destination path resolved empty |
-| `DreamShader failed to create output directory '{Directory}'.` | Error | the destination directory could not be created |
 | `DreamShader failed to write decompiled source '{Path}'.` | Error | the file could not be written |
-| `DreamShader decompiled '{LoadPath}' to '{OutputPath}'.` | Display | success |
+| `DreamShader decompiled '{LoadPath}' to '{OutputPath}' ({Format}).` | Display | success; `{Format}` is `dss` or `legacy` |
+| `Dumped {Kind} {AssetPath} ({N} nodes) to {File}.` | Display | `dump-graph` dumped one asset; ` (read from disk; not regenerated)` is appended when the asset already had a file |
+| `{N} of them already exist on disk, so dump-graph read them as they stand instead of rebuilding them …` | **Warning** | `dump-graph` never writes an asset — `compile -All -Force` first if the sources moved |
+| `DSH9110: '-{Flag}={Value}' is neither on nor off. A flag takes true, 1, yes or on, or false, 0, no or off, and '-{Flag}' alone is on; the command did nothing.` | Error | any command: a flag it reads has another value, an empty one included; see [Boolean flags](#boolean-flags) |
+
+An error of a command that belongs to no file — `dump-layout -Style=Bogus` (`DSH9041`),
+`list-generated -As=Bogus` (`DSH9048`), an unknown `check -Platform`, a `pass-registry` failure — is logged
+as `DSHnnnn: ...`, without a made-up location <Since v="2.1.1" />.
 
 The usage banner, verbatim:
 
 ```text
 Usage:
-  -run=DreamShader compile -Source="C:/Project/DShader/File.dsm" [-Force]
-  -run=DreamShader compile -All [-Force]
-  -run=DreamShader decompile -Asset="/Game/Path/Asset.Asset" [-Out="C:/Project/DShader/Decompiled/File.dsm"]
-Supported asset types: Material -> .dsm, MaterialFunction -> .dsf.
+  -run=DreamShader compile -Source="C:/Project/DShader/File.dsm" [-Force] [-Define=NAME=VALUE ...]
+  -run=DreamShader compile -All [-Force] [-Define=NAME=VALUE ...]
+  -run=DreamShader decompile { -Asset="/Game/Path/Asset.Asset" | -SourceFile="C:/Project/DShader/File.dss" } [-Out=<file>] [-Format=Dss|Legacy|Auto] [-KeepAssetPath] [-Readable] [-DiagnosticsOut=<file>]
+  -run=DreamShader migrate { -Source="C:/Project/DShader/File.dsm" | -All | -Root=<source root> } [-Check] [-DryRun] [-Out=<dir>] [-NoBackup]
+  -run=DreamShader dump-graph { -Source="C:/Project/DShader/File.dsm" | -All } [-Out="C:/Project/Saved/DreamShader/GraphBaseline"]
+  -run=DreamShader check { -Source="C:/Project/DShader/File.dss" | -All } [-Shaders] [-Platform=SM6,SM5] [-Quality=High] [-Timeout=120] [-DiagnosticsOut=<file>]
+  -run=DreamShader dump-ir { -Source="C:/Project/DShader/File.dss" | -All } [-Out=<dir>] [-Json]
+  -run=DreamShader dump-layout { -Source="C:/Project/DShader/File.dss" | -All } [-Style=Blocks|SourceBands|Layered|All] [-Out=<dir>] [-Json]
+  -run=DreamShader index { -Source="C:/Project/DShader/File.dss" | -All } [-Out=<dir>]
+  -run=DreamShader export-catalog [-Out=<file>]
+  -run=DreamShader fmt { -Source="C:/Project/DShader/File.dss" | -All } [-Check] [-Out=<dir>]
+  -run=DreamShader list-generated { -Source="C:/Project/DShader/File.dss" | -All } [-As=Packages|Files|GitIgnore|Json] [-Out=<file>] [-IncludeEphemeral]
+  -run=DreamShader pass-registry [-Gc | -Rebuild]
 ```
+
+(A few lines of English explaining each verb follow the banner; they are omitted here.)
 
 ## Examples
 
@@ -283,7 +453,7 @@ Compile a single source, bypassing the hash skip:
   -unattended -nopause -nosplash -stdout -log
 ```
 
-Compile every project source — `.dsf` first, then `.dsm` — as a CI gate:
+Compile every project source as a CI gate — `.dsf` first, then in passes:
 
 ```powershell
 & "C:\Program Files\Epic Games\UE_5.5\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
@@ -292,7 +462,21 @@ Compile every project source — `.dsf` first, then `.dsm` — as a CI gate:
   -unattended -nopause -nosplash -stdout -log
 ```
 
-Decompile an existing material to a chosen path:
+Compile the whole tree twice, once per branch of a `#if` — an untaken branch is never parsed, so nothing
+else checks it:
+
+```powershell
+foreach ($Legacy in 0, 1) {
+    & $UnrealEditorCmd $Project `
+      -run=DreamShader compile -All -Force `
+      -Define=MOONTOON_LEGACY_TOON=$Legacy `
+      -unattended -nopause -nosplash -stdout -log
+    if ($LASTEXITCODE -ne 0) { throw "DreamShader failed with MOONTOON_LEGACY_TOON=$Legacy" }
+}
+```
+
+Decompile an existing material to 1.x text at a chosen path (without `-Format=Legacy`, an `-Out` ending in
+`.dsm` picks 1.x as well):
 
 ```powershell
 & "C:\Program Files\Epic Games\UE_5.5\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
@@ -311,16 +495,17 @@ A relative `-Source` resolves against `DShader/` first:
 Console output of a successful two-file `-All` run:
 
 ```text
-LogDreamShader: Display: Generated ShaderFunction /Game/Functions/MF_Noise from C:/Projects/MyGame/DShader/Functions/MF_Noise.dsf.
-LogDreamShader: Display: Generated DreamShader thin-custom material /Game/Materials/M_Sample from C:/Projects/MyGame/DShader/Materials/M_Sample.dsm.
+LogDreamShader: Display: Generated MaterialFunction /Game/Functions/MF_Noise.MF_Noise from C:/Projects/MyGame/DShader/Functions/MF_Noise.dsf.
+LogDreamShader: Display: Generated Material /Game/Materials/M_Sample.M_Sample from C:/Projects/MyGame/DShader/Materials/M_Sample.dsm.
 ```
 
 ## Where next
 
 <Cards>
-  <Card title="In-memory Materials" href="/en/docs/generation/in-memory" description="Persistent versus transient generation, and cook behaviour." />
+  <Card title="In-memory Materials" href="/en/docs/generation/in-memory" description="Ephemeral versus Materialized, and cook behaviour." />
   <Card title="Regeneration" href="/en/docs/generation/regeneration" description="The source-hash skip that -Force bypasses." />
   <Card title="Decompiler" href="/en/docs/tools/decompiler" description="The export the decompile command drives." />
+  <Card title="Source control" href="/en/docs/generation/source-control" description="list-generated and the two recipes for versioning." />
   <Card title="Packages" href="/en/docs/tools/packages" description="Why DShader/Packages is skipped by -All." />
   <Card title="Editor Tools" href="/en/docs/tools/editor" description="Everything the commandlet deliberately does not start." />
 </Cards>

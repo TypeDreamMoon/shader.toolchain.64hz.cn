@@ -21,7 +21,7 @@ DreamShaderLang 是**两个相互独立的产品**：Unreal 插件，和你编�
 | 预览渲染（PNG 帧） | 插件 | 渲染器、网格集合和各种钳制 |
 | 预览相机控制、pitch 钳制、帧确认 | **扩展** | 插件自己不做任何 pitch 钳制 |
 | 反编译器 | 插件 | [反编译导出](/docs/tools/decompiler) |
-| `.dsm` / `.dsh` / `.dsf` 高亮、补全、Hover | **扩展** | 数据来自插件导出的 manifest |
+| `.dsm` / `.dsh` / `.dsf` 与 `.dss` / `.dsi` / `.dsp` 的高亮、补全、Hover | **扩展** | 数据来自插件导出的 manifest、符号索引和内建目录 |
 | `DreamShader.code-workspace` | 插件 | 每次 *Open Dream Shader Workspace* 都重写 |
 | `dreamshader.package.json`、`dreamshader.lock.json`、安装/更新命令 | **扩展** | **插件里没有任何 C++ 读这两个文件** —— [Package](/docs/tools/packages) |
 | `DShader/Packages` 创建、import 解析、自动编译排除 | 插件 | [Package](/docs/tools/packages) |
@@ -32,7 +32,7 @@ DreamShaderLang 是**两个相互独立的产品**：Unreal 插件，和你编�
 
 | 编辑器 | 仓库 | 提供 |
 | :-- | :-- | :-- |
-| VSCode | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) | 语法高亮、snippets、补全、Go to Definition、Find References、Hover、Signature Help、本地诊断、Unreal 桥接诊断、Package 命令、快速模板、材质预览面板 |
+| VSCode | [TypeDreamMoon/dreamshader-language-support](https://github.com/TypeDreamMoon/dreamshader-language-support) | 语法高亮、snippets、补全、Go to Definition、Find References、Hover、Signature Help、本地诊断、Unreal 桥接诊断、Package 命令、快速模板、材质预览面板；当前版本 2.1.0，含 `.dsp` 支持 |
 | JetBrains Rider | [tsdaer/dreamshader-language-support](https://github.com/tsdaer/dreamshader-language-support) | `.dsm` / `.dsf` / `.dsh` 文件类型、语法与 PSI 解析、高亮、补全、导航、诊断、Unreal Bridge 集成、语义 token、inlay hints、Package 工具 |
 
 | 能力 | VSCode | Rider |
@@ -64,7 +64,7 @@ DreamShaderLang 是**两个相互独立的产品**：Unreal 插件，和你编�
 | 编码 | UTF-8 无 BOM，由 Unreal 的 JSON writer 美化输出（tab 缩进） |
 | 平台 | **仅 Windows** —— 探测用的是 Windows 环境变量、`;` 分隔的 `PATH`、`cmd.exe` 和 `notepad.exe` |
 
-源目录不存在时会被创建。文件的全部内容：
+源目录不存在时会被创建。文件的样子：
 
 ```json
 {
@@ -72,10 +72,17 @@ DreamShaderLang 是**两个相互独立的产品**：Unreal 插件，和你编�
 		{
 			"name": "DreamShader Source",
 			"path": "."
+		},
+		{
+			"name": "Plugin: MoonToon",
+			"path": "../Plugins/MoonToon/DShader"
 		}
 	],
 	"settings": {
 		"files.associations": {
+			"*.dss": "dreamshader-dss",
+			"*.dsi": "dreamshader-dss",
+			"*.dsp": "dreamshader-dsp",
 			"*.dsm": "dreamshaderlang",
 			"*.dsh": "dreamshaderlang",
 			"*.dsf": "dreamshaderlang"
@@ -84,15 +91,25 @@ DreamShaderLang 是**两个相互独立的产品**：Unreal 插件，和你编�
 }
 ```
 
-writer 会写出的所有键。没有别的键，也没有任何条件分支。
+每个源码根一个 `folders` 条目：工程根永远在第一个、永远是 `"."`（workspace 文件就在里面），然后每个带 `DShader` 文件夹的插件一个，
+名为 `Plugin: <Name>`，路径相对 workspace 文件（没有相对形式时 —— 比如另一个盘上的引擎插件 —— 写绝对路径）。
+writer 会写出的所有键如下，没有别的键；变化的只有 `folders` 条目的个数。
 
 | 键 | 值 | 用途 |
 | :-- | :-- | :-- |
-| `folders[0].name` | `DreamShader Source` | 唯一那个 workspace 文件夹的显示名 |
+| `folders[0].name` | `DreamShader Source` | 工程根文件夹的显示名 |
 | `folders[0].path` | `.` | 存放 workspace 文件的目录 —— 也就是 `<SourceDirectory>` 本身 |
+| `folders[n].name`、`folders[n].path` | `Plugin: <Name>`，相对 workspace 文件的路径 | 每个插件源码根一个，按根的顺序 |
+| `settings["files.associations"]["*.dss"]` | `dreamshader-dss` | 2.0 编译单元的 language id <Since v="2.1.0" /> |
+| `settings["files.associations"]["*.dsi"]` | `dreamshader-dss` | 材质实例源文件的 language id <Since v="2.1.0" /> |
+| `settings["files.associations"]["*.dsp"]` | `dreamshader-dsp` | Custom Pass 管线的 language id <Since v="2.1.0" />。没有它，`.dsp` 会被别的认这个扩展名的东西抢走 —— Faust 语言和老的 Visual C++ 工程都用它 |
 | `settings["files.associations"]["*.dsm"]` | `dreamshaderlang` | 材质源文件的 language id |
 | `settings["files.associations"]["*.dsh"]` | `dreamshaderlang` | 头文件的 language id |
 | `settings["files.associations"]["*.dsf"]` | `dreamshaderlang` | 函数源文件的 language id <Since v="1.3.5" /> |
+
+三个 language id 就是扩展注册的那三个：1.x 源文件和头文件用 `dreamshaderlang`，2.0 源文件用 `dreamshader-dss`，管线用
+`dreamshader-dsp`（扩展 2.1.0 及以上）。workspace 里的关联会覆盖扩展自己的扩展名映射，所以两边必须一致：给 `.dss` 写
+`dreamshaderlang`，VS Code 就会用 1.x 的语法和语言服务打开它。按语言限定的设置 —— `"[dreamshader-dss]": { ... }` —— 用同样的 id。
 
 <Callout type="warn">
 **这个文件每次调用都被整体重写。** writer 序列化的是一个固定对象；它从不读取、合并或保留原有内容。
@@ -106,7 +123,7 @@ writer 会写出的所有键。没有别的键，也没有任何条件分支。
 | 步骤 | 动作 | 失败时 |
 | :-- | :-- | :-- |
 | 1 | 重新导出 `material-expressions.json` | 记日志，命令继续 |
-| 2 | 重新导出 `settings.json` | 记日志，命令继续 |
+| 2 | 重新导出 `settings.json`，紧接着导出 `pass-keys.json` <Since v="2.1.0" /> | 记日志，命令继续 |
 | 3 | 重新导出 `substrate-builtins.json` | 记日志，命令继续 |
 | 4 | 写 `DreamShader.code-workspace` | toast + warning，命令**中止** |
 | 5 | 用编辑器打开该 workspace 文件 | toast + warning |
@@ -162,9 +179,9 @@ writer 会写出的所有键。没有别的键，也没有任何条件分支。
 | 操作 | Launcher | 窗口行为 |
 | :-- | :-- | :-- |
 | *Open Dream Shader Workspace (VSCode)*，菜单和工具栏 | workspace launcher | 遵循 `bOpenInNewWindow` |
-| *Open source*（Material Content Browser 的 Gen 页） | file launcher | 总是 `--reuse-window` |
+| *Open source*（Material Content Browser） | file launcher | 总是 `--reuse-window` |
 | *OpenVirtualFunction*（资产右键菜单） | file launcher | 总是 `--reuse-window`，并定位到声明的行列 |
-| *Export DSM* / *Export DSF* 导出后的打开 | 首选编辑器链 | 用 VSCode 时总是 `--reuse-window` |
+| *Export .dss* / *.dsi* / *Legacy .dsm* / *Legacy .dsf* 导出后的打开 | 首选编辑器链 | 用 VSCode 时总是 `--reuse-window` |
 
 file launcher 会把行列钳到至少 `1`，它自己的回退链是 VSCode → Shell 默认应用（`Edit` 动词）→ Notepad，
 和 workspace 链形状一致。
@@ -193,13 +210,16 @@ toast 文本和日志文本不同，两者都列出。运行期替换写作 `{Pl
 
 | 产物 | 方向 | 内容 |
 | :-- | :-- | :-- |
-| `Requests/*.json` | 扩展 → 编辑器 | 重编译、清理和单次预览命令 |
+| `Requests/*.json` | 扩展 → 编辑器 | 重编译、清理、单次预览和 `reveal-node` 命令 |
 | `diagnostics.json` | 编辑器 → 扩展 | 当前全部诊断，按源文件分组 |
 | `diagnostics/index.json` + `diagnostics/<md5>.json` | 编辑器 → 扩展 | 同一份数据按文件分片，便于增量读取 |
 | `bridge.db` | 编辑器 → 扩展 | 诊断和三份 manifest 的 SQLite 镜像 |
 | `material-expressions.json` | 编辑器 → 扩展 | 反射得到的 `UMaterialExpression` 目录，用于 [`UE.Expression`](/docs/builtins/ue-expression) 补全 <Since v="1.2.10" /> |
 | `settings.json` | 编辑器 → 扩展 | `ShadingModel` / `BlendMode` / `MaterialDomain` 别名表 |
 | `substrate-builtins.json` | 编辑器 → 扩展 | 带 snippet 的 [`Substrate.*`](/docs/builtins/substrate) 目录；UE 5.4 以下 `supported: false` |
+| `pass-keys.json` <Since v="2.1.0" /> | 编辑器 → 扩展 | `.dsp` 能写什么，供补全：注入点、管线 / buffer / pass 的键、各种取值、工程的 pass 层名；UE 5.8 以下 `supported: false`。没有 `bridge.db` 表 |
+| `dreamshader-builtin-catalog.json` <Since v="2.0.0" /> | 编辑器 → 扩展 | 绑定器自己的节点目录 —— `UE.` / `Substrate.` 补全的来源；`dsc export-catalog` 也写它 |
+| `../Index/<root>/<source>.index.json` <Since v="2.0.0" /> | 编辑器 → 扩展 | 每个源文件的符号索引，每次编译（失败的也算）之后刷新 |
 | `preview.json` + `Preview/*.png` | 编辑器 → 扩展 | 单次预览的结果清单和图片 |
 | `status.json` | 编辑器 → 扩展 | 心跳与身份 —— **文件缺失就是「编辑器没在运行」** <Since v="1.6.0" /> |
 | `Responses/<requestId>.json` | 编辑器 → 扩展 | 带 `requestId` 的请求的回复 <Since v="1.6.0" /> |
@@ -253,10 +273,11 @@ toast 文本和日志文本不同，两者都列出。运行期替换写作 `{Pl
 | `action` | 必需字段 | 效果 | 何时回复 |
 | :-- | :-- | :-- | :-- |
 | `ping` <Since v="1.6.0" /> | —— | 什么都不做，只确认 bridge 在服务 | 立即 |
-| `recompile` | `scope: "all"` | 重建依赖图并把每个项目 `.dsm` / `.dsf` 排入队列 | 立即，作为 *queued* |
-| `recompile` | `scope: "file"`、`sourceFile` | 把一个文件排进防抖队列 | **那次编译完成时** |
+| `recompile` | `scope: "all"` | 重建依赖图，把每个源码根的每个源文件 —— `.dsm`、`.dsf`、`.dss`、`.dsi`、`.dsp`，`Packages` 下的 `.dsm` 除外 —— 强制排入队列 | 立即，作为 *queued* |
+| `recompile` | `scope: "file"`、`sourceFile` | 把一个文件强制排进防抖队列 | **那次编译完成时** |
 | `cleanGeneratedShaders` | —— | 删掉生成的 `*.ush` include，然后排入一次全量扫描 | 立即 |
-| `previewMaterial` | `sourceFile` | 同步渲染一次预览并写 `preview.json` | 立即，带渲染结果 |
+| `previewMaterial` | `sourceFile` | 同步渲染一次预览并写 `preview.json`；`sourceFile` 是 `.dss`、`.dsi` 或 `.dsm` | 立即，带渲染结果 |
+| `reveal-node` <Since v="2.0.0" /> | `file`、`line` | 找到那一行生成的节点，打开它所属资产的材质编辑器并选中它 | 立即，带资产路径和表达式 GUID |
 
 带 `requestId` 的请求会在 `Responses/<requestId>.json` 里被回答 <Since v="1.6.0" />，字段是 `protocol`、
 `requestId`、`ok`、`durationMs`、`message` 和 `diagnostics`。写入是原子的（写在旁边再改名），
@@ -289,7 +310,7 @@ Protocol 3 is not understood; this editor speaks 1. Update the DreamShaderLang e
 plugin so the two match.
 ```
 
-走这条路径的编译永远是内存内的；排队的文件在防抖窗口
+走这条路径的编译对 ThinCustom 产物永远是 Ephemeral 的；排队的文件在防抖窗口
 （*Save Debounce Seconds*，钳制到 `[0.05, 10.0]`，默认 `0.25`）加最多 `0.1 秒` 轮询延迟之后编译，
 且仅当它还存在于磁盘上。
 
@@ -303,20 +324,27 @@ plugin so the two match.
 | :-- | :-- | :-- |
 | `message` | 始终 | 诊断文本 |
 | `detail` | 非空时 | 底层原始行 |
-| `stage` | 非空时 | `generate`、`materialCompile` 或 `virtualFunctionSync` |
+| `stage` | 非空时 | 编译的记录：按码所在区间是 `preprocess`、`parse`、`bind`、`ir`、`generate`、`tools` 或 `compile`；其余是 `generate`、`materialCompile` 或 `virtualFunctionSync` |
 | `assetPath` | 非空时 | 相关资产的 object path |
 | `shaderPlatform`、`qualityLevel` | 非空时 | 仅材质编译诊断 |
-| `code` | 非空时 | `generate-error`、`material-compile` 或 `virtual-function-sync` |
+| `code` | 非空时 | 编译的记录：它的 `DSHnnnn` 码 <Since v="2.0.0" />；其余是 `generate-error`、`material-compile` 或 `virtual-function-sync` |
 | `line`、`column` | 始终 | 从 1 开始，默认 `1` |
-| `severity` | 始终 | `error` |
-| `source` | 始终 | `DreamShader`、`DreamShader Generate`、`DreamShader Material Compile` 或 `DreamShader VirtualFunction` |
+| `severity` | 始终 | `error`、`warning` 或 `info` <Since v="2.1.0" /> |
+| `source` | 始终 | `DreamShader Lang2`、`DreamShader`、`DreamShader Generate`、`DreamShader Material Compile` 或 `DreamShader VirtualFunction` |
 
 <Callout type="info">
-`severity` 恒为字面量 `error`。插件从不通过这个文件发出 warning、information 或 hint ——
-解析警告是被追加到编译消息里的。按严重度过滤的客户端应该把缺失或未知的值当作 error。
+一次编译提交它自己的记录 —— 每条带着 `DSHnnnn` 码、严重度和位置：失败的编译提交全部记录，**成功的编译提交它的警告和 note**
+<Since v="2.1.0" />（在此之前成功编译会清掉文件的诊断，警告只出现在日志里）。按严重度过滤的客户端应该把缺失或未知的值当作 error。
 </Callout>
 
-位置是从形如 `<path>(<line>,<column>): <message>` 的消息里还原的；没有可解析位置的行报在 `1,1`。
+<Callout type="info">
+**诊断归属于产生它的源文件和那一次运行** <Since v="2.1.1" />。运行有三种：一个源文件的编译、它生成的某个材质的 shader 编译、
+启动时对一个文件的 VirtualFunction 扫描。编译 `A.dsm` 只替换 A 上一次编译提交的东西 —— 包括提交到 A import 的头文件上的 ——
+`B.dsm` 提交到同一个头文件上的记录保持不动；成功编译的警告在它的材质 shader 编译完成后也还在。在此之前，编译 A 会把 B 在共享
+`.dsh` 上的错误一起清掉，直到 B 再编一次。删掉一个文件会清掉它拥有的一切和别人提交到它上面的一切。
+</Callout>
+
+编译的记录带着自己的行列。`generate-error` 的位置是从形如 `<path>(<line>,<column>): <message>` 的消息里还原的；没有可解析位置的行报在 `1,1`。
 材质编译诊断带一条形如 `[{ShaderPlatform} / {QualityLevel}] {Message}` 的展示消息。
 UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5.7 以下带的是 feature level 名，例如 `SM6`。
 
@@ -326,7 +354,7 @@ UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5
 
 | 消息 | 方向 | 用途 |
 | :-- | :-- | :-- |
-| `previewMaterial` | 客户端 → 编辑器 | 为一个 `.dsm` 开启预览会话。`encoding` 选 `raw` 或 `png`，`force` 控制是否重新生成 <Since v="1.7.0" /> |
+| `previewMaterial` | 客户端 → 编辑器 | 为一个 `.dss`、`.dsi` 或 `.dsm` 开启预览会话 <Since v="2.0.0" />。`encoding` 选 `raw` 或 `png`，`force` 控制是否重新生成 <Since v="1.7.0" /> |
 | `previewControl` | 客户端 → 编辑器 | 调整当前会话 —— 流开关、帧率、相机角度、`width` / `height` / `mesh` <Since v="1.7.0" /> |
 | `setProbe` / `clearProbe` | 客户端 → 编辑器 | 挂上 / 摘掉一个断点式探针 <Since v="1.7.0" /> |
 | `previewResult` | 编辑器 → 客户端 | 会话启动结果，或流中途的错误 |
@@ -361,7 +389,7 @@ UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5
 
 <Since v="1.7.0" />
 
-`setProbe` 把一个 `Graph` 行号交给编辑器，预览网格随即显示**那一行绑定的值**而不是成品材质 ——
+`setProbe` 把一个行号 —— `.dsm` 里的一行 `Graph`、`.dss` 里材质函数体的一条语句 <Since v="2.0.0" /> —— 交给编辑器，预览网格随即显示**那一行绑定的值**而不是成品材质 ——
 材质编辑器右键 *Start Previewing Node* 的文本版。空行或注释行上的断点会向前吸附到下一个绑定了值的行；
 源码还没生成过时设的探针记为 *pending*，下一次编译时挂上；重新编译之后自动重解析，并通过 `probeState`
 把落在哪一行告诉客户端。行号也会随每一帧回显在标签 `3` 的帧头里。语义细节见
@@ -382,13 +410,14 @@ UE 5.7 起 `shaderPlatform` 带的是 shader format 名，例如 `PCD3D_SM6`；5
 ← [len][3] <24-byte header><RGBA8 pixels>      // 现在显示的是第 31 行绑定的值
 ```
 
-渲染器自身的限制 —— 只支持 `.dsm`、尺寸钳制、网格回退、没有 pitch 钳制 ——
+渲染器自身的限制 —— 只支持构建材质或材质实例的源文件（`.dss`、`.dsi`、`.dsm`）、尺寸钳制、网格回退、没有 pitch 钳制 ——
 见[编辑器工具](/docs/tools/editor)。
 
 ## DreamShader 2.0 源文件
 
-<Since v="2.0.0" /> `.dss` 与 `.dsi` 文件以语言 **DreamShader 2.0** 打开（扩展 2.0.0），有自己的语法高亮、代码片段、
-`#pragma region` 与 `#if` 的折叠，以及回车后自动续写的 `///`。
+<Since v="2.0.0" /> `.dss` 与 `.dsi` 文件以语言 **DreamShader 2.0**（language id `dreamshader-dss`）打开（扩展 2.0.0），有自己的语法高亮、
+代码片段、`#pragma region` 与 `#if` 的折叠，以及回车后自动续写的 `///`。`.dsp` 文件以 `dreamshader-dsp` 打开（扩展 2.1.0）
+<Since v="2.1.0" />，补全来自 `pass-keys.json`，它的符号索引多一个 `pipeline` 段 —— 语言本身见 [Custom Pass（.dsp）](/docs/language-v2/passes)。
 
 扩展不自己去理解 2.0 的文本。2.0 有重载、隐式转换，还有一个认识引擎节点类的绑定器；用 JavaScript 再实现一遍，
 恰恰会在要紧的地方出错。所以编辑器去问编译器：
@@ -460,10 +489,10 @@ DreamShaderLang: Create DreamShader Noise Material
 
 - 插件这一侧对应的端口**不可配置**：服务器总是绑定 `127.0.0.1:17864`，来自其他地址的连接会被拒绝。
   同一台机器上的两个编辑器无法同时提供预览 —— 第二个会记一条 listen 警告，然后在没有流式预览的情况下继续跑。
-- 报在被 import 的头文件上的诊断会映射回你实际编辑的那个文件：import 行被替换成空行，
-  每个被内联的文件用来源标记括起来，所以行列位置不会漂。
-- Material Content Browser 的 Gen 页每个文件只显示**第一条**诊断，扩展则显示全部。
-  见[编辑器工具](/docs/tools/editor#错误叠加)。
+- 每条诊断都带着它所指构造所在文件的行列：报在被 import 的头文件里的诊断写的就是那个头文件 <Since v="2.0.0" />（头文件被单独解析，
+  不再内联进 import 它的文件）。
+- Material Content Browser 的源文件行上只显示每个文件的**第一条**错误，检查器的 *Diagnostics* 一节和扩展显示全部。
+  见[编辑器工具](/docs/tools/editor#material-content-browser)。
 
 ## 示例
 
@@ -473,6 +502,7 @@ DreamShaderLang: Create DreamShader Noise Material
 <Project>/DShader/DreamShader.code-workspace                    重写
 <Project>/Saved/DreamShader/Bridge/material-expressions.json    重写
 <Project>/Saved/DreamShader/Bridge/settings.json                重写
+<Project>/Saved/DreamShader/Bridge/pass-keys.json               重写（2.1.0 起）
 <Project>/Saved/DreamShader/Bridge/substrate-builtins.json      重写
 <Project>/Saved/DreamShader/Bridge/bridge.db                    整表替换
 ```
