@@ -1,9 +1,9 @@
 ---
 title: Asset References
-description: Path(Root, "…") — every root spelling, how the object path is completed, the two resolvers that disagree, and both error sets.
+description: Path(Root, "…") and the Content Browser's Copy Reference — every root spelling, absolute paths beside a root, object-path completion, the shared resolver, and its codes.
 ---
 
-`Path(…)` is how source code names an existing Unreal asset: a package root plus a relative path,
+`Path(…)` is how source refers to an existing Unreal asset: a package root plus a relative path,
 resolved to a full object path at generation time.
 
 <Synopsis>
@@ -11,6 +11,7 @@ resolved to a full object path at generation time.
 Path( <root> , "<relative-path>" )
 Path( "<absolute-path>" )
 "<absolute-path>"
+<Class>'<absolute-path>'
 ```
 </Synopsis>
 
@@ -18,26 +19,80 @@ Path( "<absolute-path>" )
 Texture2D A = Path(Game, "Textures/T_X");
 Texture2D B = Path("Plugin.MyPlugin", "Textures/T_X");
 Texture2D C = Path("/Game/Textures/T_X");
-Texture2D D = "/Game/Textures/T_X";              // bare quoted form
+Texture2D D = "/Game/Textures/T_X";                  // bare quoted form
+Texture2D E = Texture2D'/Game/Textures/T_X.T_X';     // Copy Reference
 ```
 
-The root may be written quoted or bare. The bare quoted path form arrived in <Since v="1.5.0" />;
-the `Plugin.` / `Plugins.` roots have existed since <Since v="1.2.0" />.
+The root and the path may each be quoted or bare. The bare quoted form exists since
+<Since v="1.5.0" />; the `Plugin.` / `Plugins.` roots since <Since v="1.2.0" />; `Class'…'` references
+since <Since v="1.9.0" />. The front end keeps a reference as the text it was written as; it is resolved
+when the asset is built, because only the editor knows which plugins are mounted.
 
-You will meet `Path(…)` in four places:
+`Path(…)` turns up in these places:
 
-| Where | Example |
+| Location | Example |
 | :-- | :-- |
-| The `= <default>` of a texture property | `Texture2D T = Path(Game, "T_X");` |
-| An object-valued [metadata](/en/docs/parameters/metadata#object-properties) entry | `[Curve = Path(Game, "Curves/CV_Ramp")]` |
+| A texture property's `= <default>` | `Texture2D T = Path(Game, "T_X");` |
+| An object-typed [metadata](/en/docs/parameters/metadata#object-properties) entry | `[Texture = Path(Game, "Textures/T_Mask")]` |
 | A `UE.CollectionParam` argument | `UE.CollectionParam(Collection = Path(Game, "MPC_World"), Parameter = "Wind")` |
 | A `VirtualFunction`'s `Options.Asset` | `Options = { Asset = Path(Game, "Functions/MF_X"); }` |
 | An object-typed [material setting](/en/docs/settings/material) | `PhysicalMaterial = Path(Engine, "EngineMaterials/DefaultPhysicalMaterial");` |
 
+## Content Browser references
+
+<Since v="1.9.0" />
+
+Right-clicking an asset and choosing **Copy Reference** puts Unreal's *export* form on the clipboard:
+
+```text
+/Script/Engine.Texture2D'/Game/Cloud/Texture/T_VolumeCloud_03.T_VolumeCloud_03'
+```
+
+Paste it in as it stands. The resolver strips the `<Class>'…'` shell first and uses the object path
+inside the quotes; the class in front is used only for the check below. Three spellings of the shell
+are recognized:
+
+| Written | Class read as |
+| :-- | :-- |
+| `/Script/Engine.Texture2D'/Game/…'` | `Texture2D` |
+| `Texture2D'/Game/…'` — the older engine spelling | `Texture2D` |
+| `'/Game/…'` — quotes with no class | *(none)* |
+
+The shell may be pasted bare, wrapped in quotes, or handed to `Path(…)` — all four of these name the
+same asset:
+
+```c
+Texture2D A = Texture2D'/Game/Textures/T_X.T_X';
+Texture2D B = "Texture2D'/Game/Textures/T_X.T_X'";
+Texture2D C = Path("Texture2D'/Game/Textures/T_X.T_X'");
+Texture2D D = Path(Game, "Texture2D'/Game/Textures/T_X.T_X'");   // the root is ignored
+```
+
+The path inside the quotes is **absolute**, so a root written beside it is ignored, as for any other
+absolute path. A shell is only recognized when it is well formed: the text ends in `'`, there is an
+earlier `'`, and what lies between is non-empty with no further `'`. Anything else reaches the resolver's
+ordinary grammar — and its ordinary diagnostics — unchanged.
+
+### Class checking
+
+The class named by the shell is checked against the slot it is assigned to, before the asset is loaded:
+
+| Slot | Written class | Outcome |
+| :-- | :-- | :-- |
+| the default of a texture property that declares its dimension (`Texture2D`, `TextureCube`, `Texture2DArray`, `Texture3D`, `VolumeTexture`, and `TextureSampleParameter2D` / `2DArray` / `Cube` / `Volume` / `SubUV`) | a texture class of another dimension | `DSH1044`, naming both |
+| the default of any texture property | a class DreamShader knows is not a texture (`MaterialFunction`, `CurveLinearColor`, `Font`, …) | `DSH1043` |
+| any object property — a [metadata](/en/docs/parameters/metadata#object-properties) entry, a texture-sample default, a `UE.CollectionParam` collection, an object setting, a `VirtualFunction`'s `Options.Asset` | a class unrelated to the one the slot takes | `DSH1045`, naming both |
+| anything | a class this build does not have, or one whose dimension DreamShader does not model (`SparseVolumeTexture`, `TextureCubeArray`, `TextureCollection`, `RuntimeVirtualTexture`) | accepted — stripped and forgotten |
+
+`DSH1043` and `DSH1044` are raised right after the file is parsed; `DSH1045` when the asset is built. An
+unrecognized class is never an error — Unreal itself ignores the class when it resolves an export path.
+`TextureObjectParameter`, which declares no dimension, and `TextureSampleParameterCubeArray` get only the
+"is this a texture at all" half.
+
 ## Roots
 
 The root argument is unquoted, `\` is folded to `/`, and leading and trailing `/` are stripped; the
-result is split on `/`. The **first** segment names the root.
+result is then split on `/`. The **first** segment names the root.
 
 | Root spelling | Resolves to |
 | :-- | :-- |
@@ -48,133 +103,139 @@ result is split on `/`. The **first** segment names the root.
 | `Plugin/<Name>` | the plugin's mounted asset path — consumes two segments |
 | `Plugins/<Name>` | the plugin's mounted asset path — consumes two segments |
 
-All spellings are matched case-insensitively; any other first segment fails.
+All spellings are matched case-insensitively. Any other first segment is `DSH8126`.
 
 **Segments after the root are appended as folders.** `Path("Game/Textures", "T_X")` resolves to
 `/Game/Textures/T_X`, and `Path("Plugin/MyPlugin/Materials", "MF_X")` to `/MyPlugin/Materials/MF_X`.
 
-A plugin root resolves through the plugin's own mounted asset path, normalized the same way
-(backslashes folded, trailing `/` stripped, a leading `/` added). If that path is empty or just `/`,
-`/<PluginName>` is used instead.
+A plugin root resolves through the plugin's own mounted asset path, normalized the same way; if that
+path is empty or just `/`, `/<PluginName>` is used instead. The plugin has to be known, enabled, able to
+contain content, have a `Content` folder on disk and — on UE 5.6 and newer — be mounted
+(`DSH8118` … `DSH8122`).
+
+### Roots and absolute paths
+
+<Since v="1.9.0" />
+
+A root is only consulted when the asset path is **relative**. Written beside an absolute path — one that
+begins with `/`, including the path inside a `Class'…'` shell — the root is **ignored**, and it is not
+validated either: `Path(Plugin.NotInstalled, "/Game/Textures/T_X")` resolves to `/Game/Textures/T_X.T_X`
+without complaining about the plugin.
+
+Before 1.9.0 the texture-default resolver prepended the root anyway, so
+`Texture2D T = Path(Game, "/Game/Textures/T_X");` resolved to `/Game/Game/Textures/T_X.T_X` and then
+failed to load. The root is dropped now.
+
+<Callout type="info">
+If a source relied on the old prepending — a relative path deliberately written with a leading `/`, as in
+`Path(Game, "/Textures/T_X")` — it now resolves to `/Textures/T_X.T_X` and fails to load. Drop the
+leading `/`: `Path(Game, "Textures/T_X")`.
+</Callout>
 
 ## Object-path completion
 
-After the root and the relative path are joined, the result is completed to a full object path: if
-the text after the last `/` contains no `.`, the asset name is appended after a `.`.
+After the root and the relative path are joined, the result is completed to a full object path: if the
+text after the last `/` contains no `.`, the asset name is appended after a `.`.
 
 | Written | Resolved |
 | :-- | :-- |
 | `Path(Game, "Textures/T_X")` | `/Game/Textures/T_X.T_X` |
 | `Path(Game, "Textures/T_X.T_X")` | `/Game/Textures/T_X.T_X` |
 | `"/Game/Textures/T_X"` | `/Game/Textures/T_X.T_X` |
+| `Texture2D'/Game/Textures/T_X.T_X'` | `/Game/Textures/T_X.T_X` |
+| `Path(Game, "Texture2D'/Game/Textures/T_X.T_X'")` | `/Game/Textures/T_X.T_X` — the root is ignored |
 
-The completed path is finally validated by Unreal's own object-path validator, whose message is
-reported verbatim when it fails.
+The completed path is finally validated by Unreal's own object-path validator, whose message is quoted,
+without a code of its own, inside the slot's diagnostic.
 
-## Two resolvers
+## The resolver
 
-There are **two independent implementations** with different accepted forms and different error
-text. Which one runs depends on where the reference appears.
+<Since v="2.0.0" /> There is **one** resolver. 1.x had two — one for texture defaults, one for metadata
+and the rest — with different accepted forms and different messages; every reference site now goes
+through the shared one, and the slot's diagnostic quotes its code.
 
-| Where the reference appears | Resolver | Messages begin |
-| :-- | :-- | :-- |
-| The `= <default>` of a compact texture token, a `TextureObjectParameter`-family token, or a `TextureSampleParameter*`-family token | texture-default resolver | `Texture …` |
-| An object-valued metadata entry — `[Texture=…]`, `[Curve=…]`, `[Font=…]`, `[VirtualTexture=…]`, … | asset-reference resolver | `Asset …` |
-| `UE.CollectionParam(Collection = …)` / `UE.CollectionParameter(Asset = …)` | asset-reference resolver | `Asset …` |
-| A `VirtualFunction`'s `Options = { Asset = …; }` | asset-reference resolver | `Asset …` |
+| Where the reference appears | Reported as |
+| :-- | :-- |
+| The `= <default>` of a compact texture token or `TextureObjectParameter` | `DSH8271` when it does not resolve, `DSH8218` when it does not load |
+| The `= <default>` of a `const` texture, or of a `TextureSampleParameter*` token | the node's `Texture` property: `DSH8213` when it does not resolve; a failed load is silent (below) |
+| An object-valued [metadata](/en/docs/parameters/metadata#object-properties) entry — `[Texture=…]`, `[VirtualTexture=…]`, … | `DSH8213` |
+| `UE.CollectionParam(Collection = …)` / `UE.CollectionParameter(Asset = …)` | `DSH8213`; the named parameter must exist in the collection (`DSH8254`) |
+| An object-valued `Settings` value — `PhysicalMaterial = Path(…)` | `DSH8215`, quoting `DSH7125` |
+| A `VirtualFunction`'s `Options = { Asset = …; }` | `DSH8270` when it does not resolve, `DSH8219` when it does not load |
 
-### Where they differ
+### What the resolver accepts
 
-| Behaviour | Texture-default resolver | Asset-reference resolver |
-| :-- | :-- | :-- |
-| `Path(root, "path")` | accepted | accepted |
-| `Path("/absolute/path")` | accepted | accepted |
-| `"/absolute/path"` (bare **quoted**) | accepted | accepted |
-| `/absolute/path` (bare **unquoted**) | rejected — the value must start with `Path` or `"` | accepted |
-| `Path(…)` with 3+ arguments | the third argument is never read; the missing `)` is reported | rejected with an explicit arity message |
-| Root **and** an absolute asset path | the root is still prepended, producing `/Game/Game/…` | the root is **ignored**; the absolute path wins |
-| Plugin-name validation | characters must be alphanumeric or `_` | the name must survive Unreal's object-name sanitizer unchanged |
-| Plugin `Content` directory must exist | not checked | checked |
-| Plugin content must be mounted | not checked | checked <Since v="5.6" ue /> |
+| Form | |
+| :-- | :-- |
+| `Path(root, "path")` | accepted |
+| `Path("/absolute/path")` | accepted |
+| `"/absolute/path"` (bare **quoted**) | accepted |
+| `/absolute/path` (bare **unquoted**) | accepted. As the default of a texture declaration it is loaded as written <Since v="2.0.0" /> (the 1.x texture-default resolver refused it); quote it all the same, because unquoted it is read as tokens, and a segment such as `1Folder` is a malformed number (`DSH2105`) |
+| `Class'/absolute/path'`, quoted or bare | accepted <Since v="1.9.0" /> |
+| `Path(…)` with 3+ arguments | `DSH8130` (for a texture default too since <Since v="2.0.0" />; it used to stop reading after the second) |
+| Root **and** an absolute asset path | the root is **ignored**; the absolute path wins |
+| Plugin name | must survive Unreal's object-name sanitizer unchanged |
+| Plugin `Content` directory must exist | checked |
+| Plugin content must be mounted | checked <Since v="5.6" ue /> |
 
-<Callout type="warn">
-**Do not combine a root with an absolute path in a texture default.**
-`Texture2D T = Path(Game, "/Game/Textures/T_X");` resolves to `/Game/Game/Textures/T_X.T_X` and then
-fails to load. Write `Path(Game, "Textures/T_X")` or `Path("/Game/Textures/T_X")`. The same
-expression is accepted in a metadata entry, because that resolver drops the root when the path is
-absolute — the two forms are not interchangeable.
-</Callout>
+A texture declaration's default that is no reference at all — `Texture2D T = Foo;` — is no longer
+refused as a spelling; it is simply not found when the material is built (`DSH8218`).
 
 ## String escapes
 
-Quoted paths are string literals. Both resolvers recognize `\n`, `\r`, `\t`, `\"` and `\\`; any
-other `\X` yields the literal `X`. See [Lexical Elements](/en/docs/language/lexical).
+Quoted paths are string literals, read by the lexer <Since v="2.0.0" />: `\\`, `\"`, `\n`, `\r`, `\t`
+and `\0` are recognized, and any other `\X` is `DSH2104` — 1.x read it as the literal `X`. A backslash in
+a path is therefore written `\\`, and the resolver then folds it to `/`. See
+[Lexical structure](/en/docs/language/lexical#string-literals).
 
 ## Loading is a separate step
 
-Resolving a path produces text. Whether the asset then loads is a separate step, and the outcome
-depends on the slot:
+Resolving a path produces text. Whether the asset then loads is a separate step, and the outcome depends
+on the slot:
 
 | Slot | Asset fails to load |
 | :-- | :-- |
-| A compact texture token's default | `Texture property '{Name}' could not load asset '{Path}'.` |
-| A `const` texture token's default | `Const texture property '{Name}' could not load asset '{Path}'.` |
-| The engine fallback asset for a dimension | `Texture property '{Name}' could not load default {Type} asset '{Path}'.` |
+| A compact texture token's or `TextureObjectParameter`'s default | `DSH8218` |
+| A `const` texture token's default | **silently written as `nullptr`** <Since v="2.0.0" /> |
+| A texture-sample token's default | **silently written as `nullptr`**; the node then takes the engine's default texture <Since v="2.0.0" /> |
 | A metadata object property named `Texture` or `TextureObject` whose type is a `UTexture` subclass | **silently written as `nullptr`, reported as success** |
-| Any other metadata object property | `Failed to load asset '{Path}' for '{Property}'.` |
-| `UE.CollectionParam`'s `Collection` | `Could not load MaterialParameterCollection '{Path}'.` |
+| Any other object property, including a `UE.CollectionParam` collection | `DSH8213`, quoting `DSH7138` |
+| An object setting | `DSH8215`, quoting `DSH7138` |
+| A `VirtualFunction`'s asset | `DSH8219` |
 
 <Callout type="warn">
-The silent-null case is the one to watch: `[Texture = Path(Game, "Typo")]` generates without any
-diagnostic and leaves the sampler unbound, which surfaces later as an Unreal shader-compile error.
-**A path that resolves is not a path that exists.**
+The silent-null case is the one to watch: `[Texture = Path(Game, "Typo")]` — and since
+<Since v="2.0.0" /> `TextureSampleParameter2D T = Path(Game, "Typo");` — generates without any diagnostic
+and leaves the sampler on a texture nobody chose. **A path that resolves is not a path that exists.**
 </Callout>
 
 ## Diagnostics
 
-### Texture-default resolver
+Each code reaches you inside the diagnostic of its slot — see [The resolver](#the-resolver).
 
 <Diag>
-  <D msg='Texture defaults must use Path(Game|Engine|Plugin.PluginName, "/Folder/Asset"), Path("/Game/Folder/Asset"), or a bare "/Game/Folder/Asset".' cause="The value is neither a quoted string nor a call to Path." />
-  <D msg="Unexpected trailing tokens after texture Path(...) reference." cause="Text after the closing )." />
-  <D msg="Texture Path(...) requires a non-empty asset path." cause="The asset-path argument is empty." />
-  <D msg="Relative texture Path(...) references require a root such as Game, Engine, or Plugin.PluginName." cause="A relative path with no root, including a bare quoted relative path." />
-  <D msg="Unsupported texture Path root '{Root}'. Use Game, Engine, or Plugin.PluginName." cause="The first root segment is none of the six accepted spellings." />
-  <D msg="Texture Path root '{Root}' has an invalid plugin name." cause="The plugin name contains a character other than a letter, digit or _." />
-  <D msg="Texture Path root '{Root}' references plugin '{Plugin}', but no enabled plugin with that name was found." cause="The plugin manager does not know the plugin." />
-  <D msg="Texture Path root '{Root}' references plugin '{Plugin}', but the plugin is not enabled." cause="The plugin exists but is disabled." />
-  <D msg="Texture Path root '{Root}' references plugin '{Plugin}', but the plugin cannot contain content." cause="The plugin declares no content." />
-  <D msg="Invalid texture asset path '{Path}'." cause="The joined path has no /, or ends with one." />
+  <D msg="DSH8127: Asset reference cannot be empty." cause="The value is empty after trimming." />
+  <D msg="DSH8128: Asset Path(...) reference is missing a closing ')'." cause="Starts with Path( but does not end with )." />
+  <D msg="DSH8129: Asset Path(...) contains an unterminated string literal." cause='An unclosed " inside the argument list.' />
+  <D msg="DSH8130: Asset Path(...) expects either 1 argument (/Game/... path) or 2 arguments (Game|Engine|Plugin.PluginName, asset path)." cause="Three or more arguments. An empty Path() counts as one empty argument and is DSH8131." />
+  <D msg="DSH8131: Asset reference requires a non-empty path." cause="The asset-path argument is empty." />
+  <D msg="DSH8123: Relative asset Path(...) references require a root such as Game, Engine, or Plugin.PluginName." cause="A relative path with no root, including a bare quoted relative path." />
+  <D msg="DSH8126: Unsupported asset Path root '%s'. Use Game, Engine, or Plugin.PluginName." cause="The first root segment is none of the six accepted spellings." />
+  <D msg="DSH8124: Asset Path root '%s' has an invalid plugin name." cause="A Plugin.Name / Plugins.Name root whose name is empty or changed by Unreal's object-name sanitizer (the Plugin/Name form is DSH8125)." />
+  <D msg="DSH8118: Asset Path root '%s' references plugin '%s', but no enabled plugin with that name was found." cause="The plugin manager does not know the plugin." />
+  <D msg="DSH8119: Asset Path root '%s' references plugin '%s', but the plugin is not enabled." cause="The plugin exists but is disabled." />
+  <D msg="DSH8120: Asset Path root '%s' references plugin '%s', but the plugin cannot contain content." cause="The plugin declares it cannot contain content." />
+  <D msg="DSH8121: Asset Path root '%s' references plugin '%s', but its Content directory does not exist: '%s'." cause="The plugin's Content folder is missing on disk." />
+  <D msg="DSH8122: Asset Path root '%s' references plugin '%s', but the plugin content is not mounted." cause="The plugin's content is not mounted (UE 5.6+)." />
+  <D msg="DSH8132: Invalid asset path '%s'." cause="The joined path has no /, or ends with one." />
+  <D msg="DSH1043: Asset reference is written as '{0}', which is not a texture class; a texture default requires {1}." cause="A texture default's Class'…' names a class that is not a texture." />
+  <D msg="DSH1044: Asset reference is written as '{0}', but this property is declared as {1}." cause="A texture default's Class'…' names a texture of another dimension." />
+  <D msg="DSH1045: Asset reference is written as '%s', but this slot requires a '%s'." cause="A Class'…' names a class unrelated to the object property." />
+  <D msg="DSH2104: Unknown escape sequence '\{0}' in a string literal." cause="An unknown escape in a quoted path." fix="Write a backslash as \\, or use /." />
 </Diag>
 
-Unreal's own object-path validation message is reported verbatim when the completed path is not a
-valid object path. The caller wraps every message above:
-
-| Wrapper | Applied to |
-| :-- | :-- |
-| `Invalid texture default value '{Text}' for property '{Name}'. {Inner}` | compact texture tokens and the `TextureObjectParameter` family |
-| `Invalid texture sample default value '{Text}' for property '{Name}'. {Inner}` | the eight texture-sample tokens |
-
-### Asset-reference resolver
-
-<Diag>
-  <D msg="Asset reference cannot be empty." cause="The value is empty after trimming." />
-  <D msg="Asset Path(...) reference is missing a closing ')'." cause="A value beginning with Path( that does not end with )." />
-  <D msg="Asset Path(...) contains an unterminated string literal." cause='An unclosed " inside the argument list.' />
-  <D msg="Asset Path(...) expects either 1 argument (/Game/... path) or 2 arguments (Game|Engine|Plugin.PluginName, asset path)." cause="Three or more arguments. An empty Path() counts as one empty argument and fails with the next message instead." />
-  <D msg="Asset reference requires a non-empty path." cause="The asset-path argument is empty." />
-  <D msg="Relative asset Path(...) references require a root such as Game, Engine, or Plugin.PluginName." cause="A relative path with no root." />
-  <D msg="Unsupported asset Path root '{Root}'. Use Game, Engine, or Plugin.PluginName." cause="The first root segment is none of the six accepted spellings." />
-  <D msg="Asset Path root '{Root}' has an invalid plugin name." cause="The plugin name is empty, or is changed by Unreal's object-name sanitizer." />
-  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but no enabled plugin with that name was found." cause="The plugin manager does not know the plugin." />
-  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but the plugin is not enabled." cause="The plugin exists but is disabled." />
-  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but the plugin cannot contain content." cause="The plugin declares no content." />
-  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but its Content directory does not exist: '{Dir}'." cause="The plugin's Content folder is missing on disk." />
-  <D msg="Asset Path root '{Root}' references plugin '{Plugin}', but the plugin content is not mounted." cause="The plugin's content is not mounted (UE 5.6+)." />
-  <D msg="Invalid asset path '{Path}'." cause="The joined path has no /, or ends with one." />
-</Diag>
-
-The complete cross-stage list is in [Diagnostics](/en/docs/diagnostics).
+When Unreal's object-path validator refuses the completed path there is no code of its own; its message
+is quoted by the slot's diagnostic. The complete list is in [Diagnostics](/en/docs/diagnostics).
 
 ## Example
 
@@ -199,13 +260,14 @@ Shader(Name="Docs/M_Paths")
         Texture2D F = Path("/Game/Textures/T_White");
         Texture2D G = "/Game/Textures/T_White";
 
-        // The asset-reference resolver, reached through metadata.
-        CurveAtlasRowParameter Row = float3(0.5, 0.5, 0.5) [
-            Curve = Path(Game, "Curves/CV_Ramp");
-            Atlas = Path(Game, "Curves/CA_Ramps")
-        ];
+        // Pasted straight from the Content Browser's "Copy Reference".
+        Texture2D H = /Script/Engine.Texture2D'/Game/Textures/T_White.T_White';
+        Texture2D I = "Texture2D'/Game/Textures/T_White.T_White'";
 
-        // The asset-reference resolver, reached through a UE builtin argument.
+        // An object-valued metadata entry.
+        TextureSampleParameter2D Mask [Texture = Path(Game, "Textures/T_Mask")];
+
+        // A UE builtin argument.
         UE.CollectionParam(Collection = Path(Game, "Collections/MPC_World"),
                            Parameter  = "WindStrength") Wind;
     }
@@ -229,11 +291,17 @@ D  /DreamShader/Textures/T_Probe.T_Probe          (plugin mounted asset path)
 E  /DreamShader/Textures/T_Probe.T_Probe
 F  /Game/Textures/T_White.T_White
 G  /Game/Textures/T_White.T_White
+H  /Game/Textures/T_White.T_White
+I  /Game/Textures/T_White.T_White
 ```
+
+A reference is resolved when the property it belongs to is built. This `Graph` reads only `Wind`, so the
+textures are dropped as unread (`DSH4390`, info) and only the collection is resolved; read them and each
+resolves as listed.
 
 ## Next
 
-- [Property Types](/en/docs/parameters/properties) — which tokens accept `= Path(…)` and which do not
-- [Metadata and Groups](/en/docs/parameters/metadata) — object-valued entries and the silent-null case
-- [Asset Paths](/en/docs/generation/asset-paths) — the *output* side: `Name=` + `Root=` → package path
-- [UE.\* Nodes](/en/docs/builtins/ue-nodes) — `UE.CollectionParam` and its `Collection` argument
+- [Property types](/en/docs/parameters/properties) — which tokens accept `= Path(…)` and which do not
+- [Metadata and groups](/en/docs/parameters/metadata) — object-valued entries and the silent-null case
+- [Asset paths](/en/docs/generation/asset-paths) — the *output* side: how `Name=` + `Root=` become a package path
+- [UE.\* nodes](/en/docs/builtins/ue-nodes) — `UE.CollectionParam` and its `Collection` argument

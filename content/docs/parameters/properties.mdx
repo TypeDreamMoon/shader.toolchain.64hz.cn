@@ -1,32 +1,35 @@
 ---
 title: Properties 类型
-description: Properties 声明接受的全部类型 token —— 39 个紧凑 token、22 个参数节点 token，以及它们的默认值与调用形式。
+description: Properties 声明接受的全部类型 token —— 39 个紧凑 token、22 个参数节点 token（其中 15 个能构建），它们的默认值、在 Graph 中的读法与调用形式。
 ---
 
-`Properties` 段里的每一条声明，都会在生成的材质里变成**恰好一个节点**。生成哪个节点完全由你写的类型
-token 决定：token 选定 Unreal 表达式类、决定默认值的写法，并且对少数几种类型来说，还决定这条声明能不能
-在 `Graph` 里被**调用**以连接输入引脚。
+`Properties` 段里的一条声明会变成生成材质里的一个具名节点 —— 实例可以覆盖的材质参数、常量，或内置输入节点。生成
+哪个节点由你写的类型 token 决定：token 选定 Unreal 表达式类、决定默认值的写法，并且对少数几种类型来说，还决定这条
+声明能不能在 `Graph` 里被**调用**以连接输入引脚。
 
 命名类型有两种方式。**紧凑 token**（`float`、`vec3`、`Texture2D`）只说明值是什么，由 DreamShader 选节点；
 **显式 `*Parameter` token**（`TextureSampleParameter2D`、`ChannelMaskParameter`）直接指定 Unreal 表达式类。
 优先用紧凑 token，只有在紧凑集合做不到时才用显式 token。
 
+<Since v="2.0.0" /> 起 1.x 源码由 legacy 前端读入，它把每个 property 变成 2.0 语言对应的写法：一个 `uniform`、一个
+`static const`，或在读取处构建的参数节点。`.dss` 的写法见 [DreamShaderLang 2.0](/docs/language-v2)；
+[`dsc migrate`](/docs/language-v2/migrate) 会替你写出来。
+
 ## 声明的形状
 
 <Synopsis>
 ```c
-[const] <type-token> <name> [ = <default-value> ] [ [ <metadata-entry> ; … ] ] ;
+[const] <type-token> <name> [ = <default-value> ] [ [ <metadata-entry> { ; | , } … ] ] ;
 ```
 </Synopsis>
 
 <Grammar />
 
 `<default-value>` 外面和整个元数据块外面的 `[ … ]` 是表示“可选”的元符号；元数据块自身的方括号是**字面标点**。
-带元数据的声明写作 `float A = 1.0 [Group="X"];`。元数据语法见
-[元数据与分组](/docs/parameters/metadata)，外层段落语法见 [Section](/docs/language/sections)。
+带元数据的声明写作 `float A = 1.0 [Group="X"];`。元数据语法见[元数据与分组](/docs/parameters/metadata)，外层段落
+语法见 [Section](/docs/language/sections#properties)。
 
-所有类型 token 都**大小写不敏感**。`FLOAT3`、`Float3`、`float3` 是同一个 token，
-`texturesampleparameter2d` 和 `TextureSampleParameter2D` 也是。
+所有类型 token 都**大小写不敏感**。`FLOAT3`、`Float3`、`float3` 是同一个 token。
 
 ## 四类 token
 
@@ -35,81 +38,63 @@ token 决定：token 选定 Unreal 表达式类、决定默认值的写法，并
 | 紧凑标量 | 7 | `float Strength = 1.0;` | `UMaterialExpressionScalarParameter` |
 | 紧凑向量 | 27 | `vec3 Tint = vec3(1, 1, 1);` | `UMaterialExpressionVectorParameter` |
 | 紧凑纹理 | 5 | `Texture2D Base = Path(Game, "T_X");` | `UMaterialExpressionTextureObjectParameter` |
-| 显式 `*Parameter` 节点 | 22 | `TextureSampleParameter2D Tex;` | 指定的 `UMaterialExpression` 子类 |
+| 显式 `*Parameter` 节点 | 22，其中 15 个能构建 | `TextureSampleParameter2D Tex;` | 指定的 `UMaterialExpression` 子类 |
 
-还有第五种形式 `UE.<Name>( … ) <name>;`，把引擎输入节点（UV、时间、顶点色、参数集合读取）声明成属性，
-见 [UE.\* 节点](/docs/builtins/ue-nodes) 和 [通用 UE.Expression](/docs/builtins/ue-expression)。
+还有第五种形式 `UE.<Name>( … ) <name>;`，把引擎输入节点（UV、时间、顶点色、参数集合读取）声明成属性，见
+[UE.\* 节点](/docs/builtins/ue-nodes#properties-声明形式)。
 
-不匹配以上任何一种的 token 会报 `Unsupported property type '{Token}'.`
+不匹配以上任何一种的 token 报 `DSH3252`；七个没有 2.0 写法的参数节点 token 报 `DSH3253` <Since v="2.0.0" />。
+
+### 该用哪一种
+
+| 目标 | 写法 | 原因 |
+| :-- | :-- | :-- |
+| 美术能在实例上调的浮点数 | `float`、`half`、`int`、`uint`、`bool`（或 `ScalarParameter`） | 七个紧凑标量 token 和 `ScalarParameter` 生成完全相同的 `ScalarParameter` 节点 |
+| 颜色或 2/3/4 分量参数 | `float2` … `bvec4` | 声明的分量数决定 `Graph` 读哪个输出（`RG` / `RGB` / `RGBA`） |
+| 永远按 RGBA 读的四分量参数 | `VectorParameter` | 固定 4 分量 |
+| 自己采样的纹理 | `Texture2D` / `TextureCube` / `Texture2DArray` / `Texture3D` / `VolumeTexture` | 生成该维度的纹理*对象*参数 |
+| 自带采样节点、采样方式可配置的纹理 | `TextureSampleParameter2D` 等 | 拥有 `Coordinates` 和 mip 引脚；接受 `SamplerType` / `MipValueMode` 元数据 |
+| 维度不固定的纹理对象 | `TextureObjectParameter` | 维度取自默认资产 <Since v="1.6.0" /> |
+| 编译期分支 | `StaticSwitchParameter` | 必须用调用形式 `N(True = …, False = …)` |
+| 不带分支的编译期布尔 | `StaticBoolParameter` | 只是值 |
+| 美术不能改的烘焙值 | `const <紧凑 token>` | 生成常量节点 —— 不是参数，实例无法覆盖 |
+| 引擎喂进来的节点（UV、时间、相机、顶点色、MPC） | `UE.<Name>( … )` | 见 [UE.\* 节点](/docs/builtins/ue-nodes) |
+| 其他任何 `UMaterialExpression` 类 | `UE.<Class>( … )` | 通用反射构造 —— 见[通用 UE.Expression](/docs/builtins/ue-expression) |
 
 ## 紧凑标量 token
 
-七种拼写，在所有可观察的方面完全一致。
-
-| Token | 分量数 | 节点（参数） | 节点（`const`） |
-| :-- | :-- | :-- | :-- |
-| `float` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
-| `float1` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
-| `half` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
-| `half1` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
-| `int` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
-| `uint` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
-| `bool` | 1 | `UMaterialExpressionScalarParameter` | `UMaterialExpressionConstant` |
+七种拼写，在所有可观察的方面完全一致：`float`、`float1`、`half`、`half1`、`int`、`uint`、`bool`。都生成
+`UMaterialExpressionScalarParameter`；`const` 时生成 `UMaterialExpressionConstant`。`int1`、`uint1` 和 `bool1`
+也是标量 token <Since v="2.0.0" />：token 按同名的 2.0 类型读取，而 HLSL 就是这样拼写标量的。
 
 <Callout type="info">
-`int`、`uint`、`bool`、`half` 在节点层面**不带**任何整数、布尔或精度语义。它们统统生成浮点
-`ScalarParameter`，材质图也不会做任何截断。写它们是为了可读性，不是为了行为。
+`int`、`uint`、`bool`、`half` 在节点层面**不带**任何整数、布尔或精度语义。它们统统生成浮点 `ScalarParameter`，
+材质图也不会做任何截断。写它们是为了可读性，不是为了行为。
 </Callout>
 
 ### 标量默认值
 
 ```c
-float A = 0.5;    float B = -2;    float C = 1e3;    float D = true;
+float A = 0.5;    float B = -2;    float C = 2.5f;    float D = 1e3;    float E = true;
 ```
 
-文本按 `double` 解析，同时接受大小写不敏感的 `true` → `1.0`、`false` → `0.0`。其他内容报
-`Invalid scalar default value '{Text}' for property '{Name}'.`
+值是数字 —— 可选的符号、最多一个 `.` 的数字、可选的指数（`1e3`、`2.5E-1`）、可选的结尾 `f` —— 或 `true` / `false`
+（大小写不限），即 `1.0` 和 `0.0`。其他内容报 `DSH3254`（2.0.0 – 2.1.0 连指数也拒绝，而 1.x 能读；
+<Since v="2.1.1" /> 起恢复）。数字后面紧跟字母，如 `1abc`，连一个 token 都不是：报 `DSH2105` <Since v="2.0.0" />
+（1.x 读作 `1.0`）。
 
-不写 `= <default>` 时不会写入任何值，节点保留引擎默认的 `0.0`。
+不写 `= <default>` 时默认值是 `0`。
 
 ## 紧凑向量 token
 
-27 种拼写。每一种都生成 `UMaterialExpressionVectorParameter`，其 `DefaultValue` 是完整的
-`FLinearColor`；不同的只有**声明的分量数**，而分量数决定了 `Graph` 读取时命中哪个节点输出。
-分量数取自 token 的最后一个字符：`2` 是两分量，`4` 是四分量，其余都是三分量。
+27 种拼写：`float2`–`float4`、`half2`–`half4`、`vec2`–`vec4`、`int2`–`int4`、`uint2`–`uint4`、`bool2`–`bool4`、
+`ivec2`–`ivec4`、`uvec2`–`uvec4`、`bvec2`–`bvec4`。每一种都生成 `UMaterialExpressionVectorParameter`，其
+`DefaultValue` 是完整的 `FLinearColor`；不同的只有**声明的分量数** —— token 结尾的数字 —— 它决定 `Graph` 读取时
+命中哪个节点输出。`const` 时按分量数生成 `Constant2Vector`、`Constant3Vector` 或 `Constant4Vector`；3 分量的
+`Constant3Vector` 会被强制 `A = 1.0`。
 
-| Token | 分量数 | 节点（`const`） |
-| :-- | :-- | :-- |
-| `float2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `float3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `float4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `half2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `half3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `half4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `vec2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `vec3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `vec4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `int2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `int3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `int4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `uint2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `uint3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `uint4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `bool2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `bool3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `bool4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `ivec2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `ivec3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `ivec4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `uvec2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `uvec3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `uvec4` | 4 | `UMaterialExpressionConstant4Vector` |
-| `bvec2` | 2 | `UMaterialExpressionConstant2Vector` |
-| `bvec3` | 3 | `UMaterialExpressionConstant3Vector` |
-| `bvec4` | 4 | `UMaterialExpressionConstant4Vector` |
-
-`vec*`、`ivec*`、`uvec*`、`bvec*` 是 `float*`、`int*`、`uint*`、`bool*` 的 GLSL 风格拼写。
-没有单分量**向量**的紧凑 token：`float1` 和 `half1` 属于标量。
+`vec*`、`ivec*`、`uvec*`、`bvec*` 只是 GLSL 风格拼写，行为与 `float*`、`int*`、`uint*`、`bool*` 完全相同。没有单分量
+**向量**的紧凑 token：`float1` 和 `half1` 属于标量。
 
 ### 向量默认值
 
@@ -123,84 +108,78 @@ float A = 0.5;    float B = -2;    float C = 1e3;    float D = true;
 | :-- | :-- |
 | `(` 之前的文本 | **被忽略** —— `float4(…)`、`vec3(…)`、`(…)`、`banana(…)` 都能解析 |
 | 分隔范围 | 从第一个 `(` 到**最后一个** `)` |
-| 各部分 | 按每个 `,` 拆分；空的部分被丢弃；每部分是 `double`，或 `true` / `false` |
+| 各部分 | 按每个 `,` 拆分；空的部分被丢弃；每部分是数字（符号、数字、一个 `.`、指数、结尾 `f`），或 `true` / `false` |
 | 1 个 `a` | `(a, a, a, 1)` |
 | 2 个 `a, b` | `(a, b, 0, 0)` |
 | 3 个 `a, b, c` | `(a, b, c, 1)` |
 | 4 个 `a, b, c, d` | `(a, b, c, d)` |
 | 超过 4 个 | 第 5 个及以后**从不读取**，连解析都不做 |
-| 任一部分无法解析 | `Invalid vector default value '{Text}' for property '{Name}'.` |
+| 没有 `( … )`，或某部分无法解析 | `DSH3254` |
 
-不写 `= <default>` 时节点保留引擎默认的 `(1, 1, 1, 1)`。
+声明保留这四个值中的前 *N* 个（*N* 是它的分量数），参数节点的 `DefaultValue` 是这 *N* 个值，缺的通道为 `0`、alpha
+为 `1`：`float2 T = float2(4, 4)` 是 `(4, 4, 0, 1)` <Since v="2.0.0" />（1.x 写成 `(4, 4, 0, 0)`）。
+
+不写 `= <default>` 时，2、3 分量 token 的默认值是 `(0, 0, 0, 1)`，4 分量是 `(0, 0, 0, 0)` <Since v="2.0.0" />（1.x
+保留节点自己的默认值）。
 
 <Callout type="warn">
-**声明的分量数从不与字面量的元数做校验。** `float2 P = float4(1, 2, 3, 4);` 和
-`float4 P = vec2(1, 2);` 都能解析。字面量按上表填满 `FLinearColor`，再由声明的分量数决定读哪个输出 ——
-于是 `float4 P = vec2(1, 2)` 得到的是按 RGBA 读取的 `(1, 2, 0, 0)`。`(` 之前的 token 同样不校验，
-所以 `flaot3(1, 0, 0)` 这种笔误会被静默接受。字面量的元数和拼写要与声明的 token 保持一致。
+**声明的分量数从不与字面量的元数做校验。** `float2 P = float4(1, 2, 3, 4);` 和 `float4 P = vec2(1, 2);` 都能解析。
+字面量按上表填满四个值，声明的分量数保留前面那几个 —— 于是 `float4 P = vec2(1, 2)` 得到按 RGBA 读取的 `(1, 2, 0, 0)`。
+`(` 之前的 token 同样不校验，所以 `flaot3(1, 0, 0)` 这种笔误会被静默接受。字面量的元数和拼写要与声明的 token 一致。
 </Callout>
 
 ## 紧凑纹理 token
 
-五种拼写，四种不同维度。每一种都生成纹理**对象**参数 —— 节点携带资产，但不采样它。
+五种拼写，四种不同维度。每一种都生成纹理**对象**参数（`const` 时是 `UMaterialExpressionTextureObject`）—— 节点携带
+资产，但不采样它。
 
-| Token | 纹理类型 | 节点（参数） | 节点（`const`） |
-| :-- | :-- | :-- | :-- |
-| `Texture2D` | `Texture2D` | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
-| `TextureCube` | `TextureCube` | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
-| `Texture2DArray` | `Texture2DArray` | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
-| `Texture3D` | `VolumeTexture` <Since v="1.3.8" /> | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
-| `VolumeTexture` | `VolumeTexture` <Since v="1.3.8" /> | `UMaterialExpressionTextureObjectParameter` | `UMaterialExpressionTextureObject` |
+| Token | 纹理类型 |
+| :-- | :-- |
+| `Texture2D` | `Texture2D` |
+| `TextureCube` | `TextureCube` |
+| `Texture2DArray` | `Texture2DArray` |
+| `Texture3D` | `VolumeTexture` <Since v="1.3.8" /> |
+| `VolumeTexture` | `VolumeTexture` <Since v="1.3.8" /> |
 
-`Texture3D` 和 `VolumeTexture` 是严格同义词。要采样它们，在 `Graph` 里交给 `TextureSample` 内置节点，
-或者直接声明 `TextureSampleParameter2D`。
+`Texture3D` 和 `VolumeTexture` 是严格同义词。要采样它们，在 `Graph` 里交给采样调用，或者直接声明
+`TextureSampleParameter2D`。
 
 ### 纹理默认值
 
 ```c
 Texture2D A = Path(Game, "Textures/T_X");
 Texture2D B = Path("/Game/Textures/T_X");
-Texture2D C = "/Game/Textures/T_X";            // 裸的带引号绝对路径
+Texture2D C = "/Game/Textures/T_X";                          // 裸引号绝对路径
+Texture2D D = /Script/Engine.Texture2D'/Game/Textures/T_X.T_X';  // 直接粘贴 Copy Reference
 ```
 
-裸引号形式自 <Since v="1.5.0" /> 起可用。全部 root 拼写和两套错误信息见
-[Path 资产引用](/docs/parameters/path)；失败会被包装成
-`Invalid texture default value '{Text}' for property '{Name}'. {Inner}`。
+裸引号形式自 <Since v="1.5.0" /> 起可用；内容浏览器 **Copy Reference** 复制出的 `Class'…'` 引用可以原样粘贴
+<Since v="1.9.0" />。全部写法见 [Path 资产引用](/docs/parameters/path)。默认值在构建材质时解析：解析不出路径报
+`DSH8271`（消息里引用解析器自己的码），解析出来却加载不了报 `DSH8218`。`const` 纹理的默认值写到它的
+`TextureObject` 节点的 `Texture` 属性上，加载失败时写入空、不报诊断 —— 见[元数据与分组](/docs/parameters/metadata#对象属性)。
 
 ### 未指定资产时的默认值
 
-| 声明的纹理类型 | 加载的回退资产 |
+| 声明的纹理类型 | 回退资产 |
 | :-- | :-- |
-| `Texture2D` | `/Engine/EngineResources/DefaultTexture.DefaultTexture` |
+| `Texture2D` | 节点自己的默认值 `/Engine/EngineResources/DefaultTexture` |
 | `TextureCube` | `/Engine/EngineResources/DefaultTextureCube.DefaultTextureCube` |
 | `VolumeTexture` | `/Engine/EngineResources/DefaultVolumeTexture.DefaultVolumeTexture` |
 | `Texture2DArray` | **不存在** |
 
 <Callout type="warn">
-`Texture2DArray` 没有引擎回退资产。不写 `= Path(…)` 会导致生成失败：
-`Texture property '{Name}' with type Texture2DArray requires an explicit default asset.`
-必须显式指定一个数组资产。
+`Texture2DArray` 没有引擎回退资产。没写 `= Path(…)` 的 `Texture2DArray` 会保留节点那张 2D 默认纹理 —— 不是数组 ——
+而编译器什么都不说 <Since v="2.0.0" />（1.x 拒绝这条声明）。请显式指定一个数组资产。
 </Callout>
 
 ### 维度校验
 
-五个紧凑 token 都声明了明确的维度，因此会拿指定的资产去校验 —— 这里的 `Texture2D` 意思是
-“不是 cube、不是 2D 数组、不是 volume”。不匹配时报
+<Since v="2.0.0" /> 默认值加载出的资产**不再**和声明的维度比对。在加载之前检查的，是内容浏览器引用的 `Class'…'`
+外壳里写的类：另一维度的纹理类报 `DSH1044`，DreamShader 知道不是纹理的类（`MaterialFunction`、`CurveLinearColor`、
+`Font`……）报 `DSH1043`。见 [Path 资产引用](/docs/parameters/path#类检查)。
 
-```text
-{Context} texture property '{Name}' expects {ExpectedType} but '{Path}' is a '{ActualClass}'.
-```
-
-其中 `{Context}` 对参数是 `Texture`，对 `const` 声明是 `Const`。加载成功后会执行
-`AutoSetSampleType()`，所以除非[元数据](/docs/parameters/metadata)覆盖，`SamplerType` 会跟随资产。
-
-<Callout type="info">
-维度检查读的是 `UTexture::GetMaterialType()` <Since v="1.8.0" />，而不是比较资产类 —— 这和材质编译器在
-texture-object pin 上给出的答案是同一个。于是 **render target 可以喂给期待对应维度纹理的地方**：
-`UTextureRenderTargetVolume` 能通过 `VolumeTexture` 的检查，`UTextureRenderTarget2D`、
-`UTextureRenderTargetCube`、`UTextureRenderTarget2DArray` 各自对应，`UTexture2DDynamic` 之类
-texture-object pin 本来就接受的类型也一样。紧凑 token 和 `TextureObjectParameter`、`const` 与否都适用。
-</Callout>
+资产赋上之后，除非声明写了 `SamplerType`，否则会执行 `AutoSetSampleType()`，采样类型跟随资产 —— 见
+[SamplerType](/docs/parameters/metadata#samplertype)。
 
 ## `const` 声明
 
@@ -212,147 +191,177 @@ const vec3  Sky   = vec3(0.2, 0.4, 0.9);       // Constant3Vector
 const Texture2D Lut = Path(Game, "T_Lut");     // TextureObject
 ```
 
-`const` **只能**和 39 个紧凑 token 搭配。和任意 `*Parameter` token 或 `UE.*` 声明搭配会被拒绝：
-`Const property '{Name}' must use a plain scalar, vector, or texture type instead of a parameter node or UE builtin declaration.`
+`const` 可以和 39 个紧凑 token 搭配，<Since v="2.0.0" /> 起也可以和 `ScalarParameter`、`VectorParameter`、
+`TextureObjectParameter` 搭配 —— 它们分别建出和 `const float`、`const float4`、`const Texture2D` 相同的常量。其他
+`*Parameter` token 上的 `const` 报 `DSH3253`；`UE.*` 声明上的 `const` 被忽略 <Since v="2.0.0" />。
 
-`const` 声明仍然接受元数据块 —— `Constant` 节点上的 `[Desc="…"]` 有效；而 `Graph` 读取 `const` 向量时
-永远命中输出 0，不走参数读取会用的 `RG` / `RGB` / `RGBA` 命名输出。
+`const` property 只保留常量节点有的东西 <Since v="2.0.0" />：`Description` 和 `SamplerType` 能到达 `const` 纹理的
+`TextureObject` 节点；`const` 标量或向量上的描述被丢弃，而 `Group`、`SortPriority`、`Slider` —— 写的或从
+`Group(…)` 作用域继承的 —— 都是 `DSH7224` 警告。`Graph` 读取 `const` 向量得到常量节点的整个值，不走
+`RG` / `RGB` / `RGBA` 命名输出。
 
 ## 参数节点 token
 
-22 个直接指定 Unreal 参数表达式类的 token。`ScalarParameter`、`VectorParameter` 和
-`TextureObjectParameter` 走专用构造路径；其余 token 按名字解析类，依次尝试 `<Token>`、`U<Token>`、
-`MaterialExpression<Token>`、`UMaterialExpression<Token>`，在所有非抽象 `UMaterialExpression`
-子类中大小写不敏感地匹配。集合是封闭的 —— 就这 22 个。
+22 个直接指定 Unreal 参数表达式类的 token，集合是封闭的。<Since v="2.0.0" /> 起每个 token 取三种 2.0 形式之一：
+
+- **声明** —— `ScalarParameter`、`StaticBoolParameter`、`VectorParameter`、`TextureObjectParameter` 就是对应紧凑
+  token 会生成的 `uniform`（`float`、`/// @static` 的 `bool`、`float4`、`Texture2D`），不论读多少次都只有一个参数节点；
+- **在每次使用处展开** —— 其余能构建的十一个不是声明：每次读取或调用都是一个带默认值和元数据的反射调用
+  `UE.Expression(Class = "<Token>", ParameterName = …, …)`，写法相同的使用共享一个节点；
+- **没有 2.0 写法** —— 七个 token 报 `DSH3253`。把这样的材质挪到 `.dss`，用 [`UE.Expression`](/docs/builtins/ue-expression)
+  建节点。
 
 <Wide>
 
-| # | Token | 类型 | 分量数 | 生成的类 | `= default` 接受 | `Graph` 调用形式 |
-| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| 1 | `ScalarParameter` | Scalar | 1 | `UMaterialExpressionScalarParameter` | 标量字面量 | — |
-| 2 | `StaticBoolParameter` | Scalar | 1 | `UMaterialExpressionStaticBoolParameter` | 仅 `true` / `false` | — |
-| 3 | `StaticSwitchParameter` | Scalar | 1 | `UMaterialExpressionStaticSwitchParameter` | 仅 `true` / `false` | **必须调用** —— `N(True = …, False = …)` |
-| 4 | `VectorParameter` | Vector | 4 | `UMaterialExpressionVectorParameter` | 向量字面量 | — |
-| 5 | `DoubleVectorParameter` | Vector | 4 | `UMaterialExpressionDoubleVectorParameter` | 向量字面量 | — |
-| 6 | `ChannelMaskParameter` | Vector | **1** | `UMaterialExpressionChannelMaskParameter` | 向量字面量 | `N(Input = …)` |
-| 7 | `StaticComponentMaskParameter` | Vector | 4 | `UMaterialExpressionStaticComponentMaskParameter` | 向量字面量 | `N(Input = …)` |
-| 8 | `CurveAtlasRowParameter` | Vector | **3** | `UMaterialExpressionCurveAtlasRowParameter` | 向量字面量 —— 只写入 `.R` | — |
-| 9 | `DynamicParameter` | Vector | 4 | `UMaterialExpressionDynamicParameter` | 向量字面量 | — |
-| 10 | `FontSampleParameter` | Vector | 4 | `UMaterialExpressionFontSampleParameter` | 向量字面量 —— **被丢弃** | — |
-| 11 | `SpriteTextureSampler` | Vector | 4 | `UMaterialExpressionSpriteTextureSampler`（Paper2D） | **仅**向量字面量 | — |
-| 12 | `TextureObjectParameter` | Texture | 0 | `UMaterialExpressionTextureObjectParameter` | `Path(…)` / 裸引号路径 | — |
-| 13 | `TextureCollectionParameter` | Texture | 0 | `UMaterialExpressionTextureCollectionParameter` | `Path(…)` / 裸引号路径 | — |
-| 14 | `SparseVolumeTextureObjectParameter` | Texture | 0 | `UMaterialExpressionSparseVolumeTextureObjectParameter` | `Path(…)` / 裸引号路径 | — |
-| 15 | `TextureSampleParameter2D` | Vector | 4 | `UMaterialExpressionTextureSampleParameter2D` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 16 | `TextureSampleParameter2DArray` | Vector | 4 | `UMaterialExpressionTextureSampleParameter2DArray` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 17 | `TextureSampleParameterCube` | Vector | 4 | `UMaterialExpressionTextureSampleParameterCube` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 18 | `TextureSampleParameterCubeArray` | Vector | 4 | `UMaterialExpressionTextureSampleParameterCubeArray` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 19 | `TextureSampleParameterVolume` | Vector | 4 | `UMaterialExpressionTextureSampleParameterVolume` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 20 | `TextureSampleParameterSubUV` | Vector | 4 | `UMaterialExpressionTextureSampleParameterSubUV` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 21 | `RuntimeVirtualTextureSampleParameter` | Vector | 4 | `UMaterialExpressionRuntimeVirtualTextureSampleParameter` | `Path(…)` / 裸引号路径 | `N(Coordinates = …)` |
-| 22 | `SparseVolumeTextureSampleParameter` | Vector | 4 | `UMaterialExpressionSparseVolumeTextureSampleParameter` | `Path(…)` / 裸引号路径 | `N(Coordinates = …, TextureObject = …)` |
+| # | Token | 2.0 形式 | 生成的类 | `= default` 接受 | `Graph` 用法 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| 1 | `ScalarParameter` | 声明 | `UMaterialExpressionScalarParameter` | 标量字面量 | 值 |
+| 2 | `StaticBoolParameter` | 声明 | `UMaterialExpressionStaticBoolParameter` | 仅 `true` / `false` | 值 |
+| 3 | `StaticSwitchParameter` | 展开 | `UMaterialExpressionStaticSwitchParameter` | 仅 `true` / `false` | **只能调用** —— `N(True = …, False = …)` |
+| 4 | `VectorParameter` | 声明 | `UMaterialExpressionVectorParameter` | 向量字面量 | 值，4 分量 |
+| 5 | `DoubleVectorParameter` | `DSH3253` | —— | —— | —— |
+| 6 | `ChannelMaskParameter` | 展开 | `UMaterialExpressionChannelMaskParameter` | 向量字面量 | `N(Input = …)`，**1** 分量 |
+| 7 | `StaticComponentMaskParameter` | 展开 | `UMaterialExpressionStaticComponentMaskParameter` | 无 —— 见下 | `N(Input = …)` |
+| 8 | `CurveAtlasRowParameter` | `DSH3253` | —— | —— | —— |
+| 9 | `DynamicParameter` | `DSH3253` | —— | —— | —— |
+| 10 | `FontSampleParameter` | `DSH3253` | —— | —— | —— |
+| 11 | `SpriteTextureSampler` | `DSH3253` | —— | —— | —— |
+| 12 | `TextureObjectParameter` | 声明 | `UMaterialExpressionTextureObjectParameter` | 资产引用 | 值（纹理） |
+| 13 | `TextureCollectionParameter` | `DSH3253` | —— | —— | —— |
+| 14 | `SparseVolumeTextureObjectParameter` | `DSH3253` | —— | —— | —— |
+| 15 | `TextureSampleParameter2D` | 展开 | `UMaterialExpressionTextureSampleParameter2D` | 资产引用 | `N(Coordinates = …)`，读作 `RGBA` |
+| 16 | `TextureSampleParameter2DArray` | 展开 | `UMaterialExpressionTextureSampleParameter2DArray` | 资产引用 | 同 15 |
+| 17 | `TextureSampleParameterCube` | 展开 | `UMaterialExpressionTextureSampleParameterCube` | 资产引用 | 同 15 |
+| 18 | `TextureSampleParameterCubeArray` | 展开 | `UMaterialExpressionTextureSampleParameterCubeArray` | 资产引用 | 同 15 |
+| 19 | `TextureSampleParameterVolume` | 展开 | `UMaterialExpressionTextureSampleParameterVolume` | 资产引用 | 同 15 |
+| 20 | `TextureSampleParameterSubUV` | 展开 | `UMaterialExpressionTextureSampleParameterSubUV` | 资产引用 | 同 15 |
+| 21 | `RuntimeVirtualTextureSampleParameter` | 展开 | `UMaterialExpressionRuntimeVirtualTextureSampleParameter` | 无 —— 见下 | `N(Coordinates = …)`，多个输出 |
+| 22 | `SparseVolumeTextureSampleParameter` | 展开 | `UMaterialExpressionSparseVolumeTextureSampleParameter` | 无 —— 见下 | `N(Coordinates = …)`，多个输出 |
 
 </Wide>
 
-“类型”一列是 DreamShader 的属性类型，不是 Unreal 的引脚类型。`Texture` 表示“资产值”：节点携带资产，
-不产生数值输出。
+展开 token 的类在引擎节点目录里查找；这个引擎没有的类报 `DSH5212`。
 
-<Callout type="info">
-`ChannelMaskParameter` 按 **1 分量**读取，`CurveAtlasRowParameter` 按 **3 分量**读取，尽管两者生成的
-节点看起来都是四通道的。接收变量要照此声明。
-</Callout>
+### 每个 token 的专属元数据键
 
-`SpriteTextureSampler` 属于 **Paper2D** 插件。Paper2D 未启用时类无法解析，生成失败并报
-`Could not resolve MaterialExpression class for parameter type 'SpriteTextureSampler'.`
+每个 token 都接受通用元数据键（`Group`、`Description`、`SortPriority`、`Slider(min, max)`、`ParameterName`）以及它的类
+上任何反射 UPROPERTY。实践中常用的类专属键：
 
-### token 使用哪个默认值解析器
+| Token | 绑定类专属 UPROPERTY 的键 |
+| :-- | :-- |
+| `ScalarParameter` | `SliderMin`、`SliderMax`、`PrimitiveDataIndex` |
+| `VectorParameter` | `UseCustomPrimitiveData`（绑定 `bUseCustomPrimitiveData`）、`PrimitiveDataIndex`、`ChannelNames` |
+| `ChannelMaskParameter` | `MaskChannel`（枚举 `EChannelMaskParameterColor`） |
+| `StaticComponentMaskParameter` | `DefaultR`、`DefaultG`、`DefaultB`、`DefaultA`（布尔） |
+| `TextureObjectParameter` | `Texture`、`SamplerType`、`IsDefaultMeshpaintTexture` |
+| `TextureSampleParameter2D` … `TextureSampleParameterSubUV`（15–20） | `Texture`、`SamplerType`、`SamplerSource`、`MipValueMode`、`GatherMode` <Since v="5.6" ue />、`AutomaticViewMipBias`、`ConstCoordinate`、`ConstMipValue`、`IsDefaultMeshpaintTexture`；`TextureSampleParameterSubUV` 另有 `bBlend` |
+| `RuntimeVirtualTextureSampleParameter` | `VirtualTexture`、`MaterialType`、`bSinglePhysicalSpace`、`bAdaptive`、`MipValueMode`、`TextureAddressMode` |
+| `SparseVolumeTextureSampleParameter` | `SparseVolumeTexture`、`MipValueMode`、`SamplerSource`、`ConstMipValue` |
 
-`= <default>` 走哪个分支由 **token 所属家族**决定，而不是由生成的节点实际能存什么决定。
+声明和展开 token 对类上没有的键报法不同 —— 见[元数据与分组](/docs/parameters/metadata#反射属性透传)。
 
-| 分支 | Token | 接受 |
+### 默认值走哪个解析器
+
+| Token | 接受 | 否则 |
 | :-- | :-- | :-- |
-| 标量 | `ScalarParameter`、`StaticBoolParameter`、`StaticSwitchParameter` | 标量字面量；两个 static token **只**接受 `true` / `false` |
-| 向量 | `VectorParameter`、`DoubleVectorParameter`、`ChannelMaskParameter`、`StaticComponentMaskParameter`、`DynamicParameter`、`FontSampleParameter`、`CurveAtlasRowParameter`、`SpriteTextureSampler` | 向量字面量 |
-| 纹理对象 | `TextureObjectParameter`、`TextureCollectionParameter`、`SparseVolumeTextureObjectParameter` | `Path(…)` 资产引用 |
-| 纹理采样 | token 15–22 | `Path(…)` 资产引用 |
+| `ScalarParameter` | 标量字面量 | `DSH3254` |
+| `StaticBoolParameter`、`StaticSwitchParameter` | 仅 `true` / `false` | `DSH3254` |
+| `VectorParameter`、`ChannelMaskParameter` | 向量字面量 | `VectorParameter` 上 `DSH3254`；`ChannelMaskParameter` 上读不出的字面量不报诊断直接丢弃 |
+| `TextureObjectParameter` | [`Path(…)`](/docs/parameters/path) 资产引用 | 构建材质时解析：`DSH8271` / `DSH8218` |
+| 纹理采样 token 15–20 | `Path(…)` 资产引用 | 构建材质时解析：`DSH8213`，引用解析器的码 |
+| `StaticComponentMaskParameter` | 无 —— 类没有 `DefaultValue` | 默认值被 `DSH5288` 丢弃；写 `[DefaultR = true; …]` |
+| `RuntimeVirtualTextureSampleParameter`、`SparseVolumeTextureSampleParameter` | 无 | 默认值**不报诊断**直接丢弃 <Since v="2.0.0" /> |
 
 <Callout type="warn">
-**`FontSampleParameter`、`CurveAtlasRowParameter` 和 `SpriteTextureSampler` 不能写 `= Path(…)`。**
-它们属于向量分支，所以 `SpriteTextureSampler S = Path(Game, "T_X");` 会失败并报
-`Invalid vector default value 'Path(Game,"T_X")' for property 'S'.` 请改用元数据绑定资产 ——
-`[Texture=Path(…)]`、`[Font=Path(…)]`、`[Curve=Path(…); Atlas=Path(…)]`。
+**`RuntimeVirtualTextureSampleParameter` 和 `SparseVolumeTextureSampleParameter` 的默认值会被忽略。** 这两个 token 上的
+`= Path(…)` 到不了节点的任何属性，而且没有任何提示。改用元数据绑定资产 —— `[VirtualTexture = Path(…)]`、
+`[SparseVolumeTexture = Path(…)]`。
 </Callout>
 
-22 个 token 的默认值**全部可选**。写了默认值时的去向：
+纹理采样 token 的默认值写到节点的 `Texture` 属性；能解析但加载不了的资产写入空、不报诊断，节点随后取引擎默认纹理。
+**没有纹理的采样参数照样能编译**：对 `UMaterialExpressionTextureSampleParameter` 的子类会调用 `SetDefaultTexture()`。
+runtime virtual texture 和 sparse volume 节点不是这种子类，仍必须绑定资产。
 
-| 情况 | 结果 |
+### 维度推断
+
+纹理采样 token 按 `TextureSampleParameter` 之后的后缀确定维度：`2D` → `Texture2D`、`2DArray` → `Texture2DArray`、
+`Cube` → `TextureCube`、`CubeArray` → 无（任何纹理）、`Volume` → `VolumeTexture`、`SubUV` → `Texture2D`；RVT 和 SVT
+不判断。后缀整体比较 <Since v="2.0.0" />，所以 `TextureSampleParameterCubeArray` 不再被当成 cube。维度只用于一件事：
+判断 `Class'…'` 默认值里写的类。
+
+`TextureObjectParameter` **不**声明维度：它取默认值加载出的资产的维度 —— cube、2D 数组或 volume，否则 `Texture2D` ——
+因此它能接受其中任何一种 <Since v="1.6.0" />。
+
+| Token 家族 | 检查什么 |
 | :-- | :-- |
-| 没有 `= <default>` | 什么都不写，节点保留引擎默认值 |
-| 类没有 `DefaultValue` UPROPERTY | 解析出的默认值被**静默丢弃** —— 即 `FontSampleParameter` |
-| 类有标量 `DefaultValue` 但 token 归入向量分支 | 只写入 `VectorDefaultValue.R` —— 即 `CurveAtlasRowParameter`，它的 `DefaultValue` 是曲线行位置 |
-| token 是 `StaticBoolParameter` / `StaticSwitchParameter` | 写入字符串 `true` 或 `false` |
-| 其他标量类 token | 按规范化后的浮点字符串写入 |
-| 向量类 token | 写作 `(R=…,G=…,B=…,A=…)`；若被拒绝则改用 `(X=…,Y=…,Z=…,W=…)` 重试 |
-| 纹理类 token，或任何带资产路径的 token | 按 `Texture` → `TextureObject` → `SparseVolumeTexture` → `VirtualTexture` → `TextureCollection` → `Font` 顺序写入第一个存在的槽位 |
-
-如果这六个资产槽位在类上都不存在，生成失败并报
-`'{Class}' does not expose a texture/asset property for property '{Name}'.`
-
-**没有纹理的采样参数照样能编译**：对 `UMaterialExpressionTextureSampleParameter` 子类会调用
-`SetDefaultTexture()`，随后执行 `AutoSetSampleType()`。这条兜底不适用于 runtime virtual texture、
-sparse volume、font 和 curve atlas 节点 —— 它们仍必须绑定资产。
-
-### 维度：会推断，但基本不校验
-
-八个纹理采样 token 会按拼写做子串测试推断维度，顺序是：`Cube` → `TextureCube`，然后 `Array` →
-`Texture2DArray`，然后 `Volume` → `VolumeTexture`，否则 `Texture2D`。（`TextureSampleParameterCubeArray`
-同时含 `Cube` 和 `Array`，`Cube` 先命中。这没有可观察影响 —— 生成的类仍然是正确的 cube array 类。）
-
-三个纹理对象 token 刻意**不**声明维度：维度在生成时取自指定的资产。
-
-| Token 家族 | 是否用声明的维度校验资产 |
-| :-- | :-- |
-| 紧凑 `Texture2D` / `TextureCube` / `Texture2DArray` / `Texture3D` / `VolumeTexture` | **会** |
-| `TextureObjectParameter` | 会，但期望类型是从资产推断的，所以永远不会失败 |
-| `TextureCollectionParameter`、`SparseVolumeTextureObjectParameter` | **不会** |
-| 全部八个纹理采样 token | **不会** |
+| 紧凑 `Texture2D` / `TextureCube` / `Texture2DArray` / `Texture3D` / `VolumeTexture` | `Class'…'` 外壳：另一维度 `DSH1044`，非纹理类 `DSH1043`。加载出的资产不检查 <Since v="2.0.0" /> |
+| `TextureObjectParameter` | 只检查外壳的「不是纹理」那一半（`DSH1043`） |
+| 纹理采样 token 15–17、19、20 | 外壳，同紧凑 token |
+| `TextureSampleParameterCubeArray` | 只检查外壳的「不是纹理」那一半 |
+| `RuntimeVirtualTextureSampleParameter`、`SparseVolumeTextureSampleParameter` | 不检查；默认值不被读取 |
 
 <Callout type="warn">
-给 `TextureSampleParameterCube` 指定一张普通 2D 贴图，DreamShader 不会报任何诊断 —— 上表中所有“不会”
-的行都走通用反射路径，那里没有维度检查。错误会在稍后由 Unreal 着色器编译器抛出。想要这项检查就用紧凑 token。
+用普通对象路径给 `TextureSampleParameterCube` 指定一张 2D 贴图，DreamShader 不会报任何诊断；只有 `Texture2D'…'` 外壳会
+暴露不匹配（`DSH1044`）。否则错误会在稍后由 Unreal 着色器编译器抛出。请指定正确维度的资产。
 </Callout>
 
-## 在 `Graph` 中读取属性
+## 在 Graph 中使用参数
 
-裸标识符读取属性的值。**声明的分量数**决定读取命中哪个节点输出：
+### 值读取
 
-| 属性种类 | 读取命中的节点输出 |
+property 是两种东西之一 <Since v="2.0.0" />：
+
+- **声明**（所有紧凑 token、`ScalarParameter`、`StaticBoolParameter`、`VectorParameter`、`TextureObjectParameter`）：
+  文件作用域的 `uniform` 或 `static const`，不论读多少次都是一个节点；
+- **在每次使用处展开**的 token（`StaticSwitchParameter`、两个 mask、纹理采样 token）：每次读取或调用都在那里建节点，
+  写法相同的使用共享一个节点。
+
+property 名按忽略大小写查找，和 1.x 一样；对声明的读取只在大小写上匹配时给出 `DSH5275`。同名的 `Graph` 变量会在
+函数体余下部分遮蔽声明（`DSH4251`，警告）。
+
+| property 种类 | 读到的是 |
 | :-- | :-- |
-| 任何标量属性 | 输出 0 |
-| 向量，1 分量（`ChannelMaskParameter`） | 名为 `R` 的输出，否则输出 0 |
-| 向量，2 分量 | 名为 `RG` 的输出，否则输出 0 |
-| 向量，3 分量 | 名为 `RGB` 的输出，否则输出 0 |
-| 向量，4 分量 | 名为 `RGBA` 的输出，否则输出 0 |
-| 任何 `const` 属性 | 输出 0 —— 跳过命名输出重映射 |
-| 任何纹理属性 | 输出 0；该值报告 **0** 分量并被标记为纹理对象 |
+| 标量声明 | `ScalarParameter` 的值 |
+| 2、3 分量向量声明 | `VectorParameter` 的 `RG` / `RGB` 输出 |
+| 4 分量向量声明、`VectorParameter` | `RGBA` 输出 |
+| `const` 声明 | 常量节点的整个值 |
+| 纹理声明 | 纹理对象 |
+| `ChannelMaskParameter` | 它的唯一输出，**1** 分量 |
+| `StaticComponentMaskParameter` | 它的输出，和输入一样宽 |
+| 纹理采样 token（15–20） | 采样的 `RGBA` 输出，4 分量 |
+| `RuntimeVirtualTextureSampleParameter`、`SparseVolumeTextureSampleParameter` | 多输出的节点 |
+| `StaticSwitchParameter` | 不是值 —— 见[下文](#staticswitchparameter) |
 
-所以 `vec2 P` 读 `RG`，而 `VectorParameter P` 读 `RGBA`。读取是惰性且带缓存的：节点在首次引用时创建 ——
-声明顺序不限制读取 —— 之后每次引用都返回同一个节点。参见 [调用](/docs/graph/calls) 和
-[运算符与转换](/docs/graph/expressions)。
+所以 `vec2 P` 读 `RG`，而 `VectorParameter P` 读 `RGBA`。
 
-## 引脚调用形式
+- **声明顺序不限制读取。** `Graph` 可以读后面才声明的 property。例外是 `UE.*` property：它是每个读取它的函数体
+  开头按 `Properties` 顺序声明的局部变量，所以一个参数里引用另一个 `UE.*` property 时，那个 property 要排在前面并且被
+  同一个函数体读取，否则名字未声明（`DSH4200`）。
+- 声明位于**文件作用域** <Since v="2.0.0" />：文件里任何块都能读它。展开 token 属于自己的块。
+- 没有任何东西读取的 property 不建节点（`DSH4390`，提示）。
 
-<Since v="1.4.1" /> 部分参数可以被**调用**以连接输入引脚：
+swizzle 作用在读出的值上，不作用在节点上：`Tint.rgb`、`Sample.a`、`UV.yx`。
+
+### 引脚调用形式
+
+<Since v="1.4.1" />
 
 ```c
 vec4 S = BaseTex(Coordinates = UV);
 vec4 M = Keep(Input = S);
 ```
 
-节点的物化方式与裸读取完全相同 —— 共用同一份缓存 —— 随后每个具名实参去匹配节点的输入引脚。
-匹配时两边都只做 trim 和小写化。**没有位置参数写法**：每个实参都必须具名，且实参值必须是数值。
+调用在此处用声明的默认值和元数据建出 property 的节点，并把每个命名参数连到一个输入引脚。<Since v="2.0.0" /> 节点
+属于这次调用：参数相同的两次调用共享一个节点，但别处对同一个 property 的裸读取是另一个节点、不带这些连线 —— 1.x 每个
+property 缓存一个节点，后来的读取都带着第一次调用的连接。
 
-只有十个 token 会被路由到引脚连接求值器：
+没有位置参数写法：每个参数都必须命名（`DSH5259`）。参数名先和引擎目录列出的输入引脚比对，再和属性比对；只在忽略
+大小写时匹配给出 `DSH5276`。1.x 源码里，目录没列出、但值是数字的名字被当作以节点设置命名的引脚（`DSH5291`，提示）：
+发射器把它连到实际节点上那个显示名 —— 或把标识符放不下的字符换成 `_` 之后的显示名 —— 的引脚，否则报 `DSH8212`。其他
+未知名字报 `DSH5213`。参数值是普通表达式，转换成引脚的类型，转换不了报 `DSH5214`。调用上的输出选择器（`Output = …`、
+`OutputIndex = …`）报 `DSH5265`。
+
+调用形式只适用于在使用处展开的 token：
 
 ```text
 ChannelMaskParameter                  TextureSampleParameterCubeArray
@@ -362,50 +371,35 @@ TextureSampleParameter2DArray         RuntimeVirtualTextureSampleParameter
 TextureSampleParameterCube            SparseVolumeTextureSampleParameter
 ```
 
-其余的 —— 所有紧凑 token 以及剩下十一个 `*Parameter` token —— 根本不会路由到那里；对它们做调用会落到
-函数调用分发器，并以“未知函数”失败。
+对声明 —— 所有紧凑 token、`ScalarParameter`、`StaticBoolParameter`、`VectorParameter`、`TextureObjectParameter` ——
+做调用报 `DSH4208`：它不是函数名。
 
 <Callout type="warn">
-**紧凑 `Texture2D` 不能被调用。** 只有 `TextureSampleParameter*` 家族拥有采样引脚。紧凑纹理 token
-是纹理**对象**参数，根本没有输入引脚。要么把它当值读出来喂给采样器，要么一开始就声明
+**紧凑 `Texture2D` 不能被调用。** 纹理对象没有输入引脚。要么把它当值读出来喂给采样器，要么一开始就声明
 `TextureSampleParameter2D`。
 </Callout>
 
-### 哪些引脚可达
+### 各参数类型的引脚名
 
-引脚名在生成时取自引擎节点，所以可达性既取决于节点，也取决于调用前应用的元数据 —— 元数据在节点创建时
-应用，而节点创建早于任何引脚连接。
+目录用引擎的 C++ 名列出引脚，两者不同时把显示名的标识符形式作为别名。<Since v="2.0.0" /> 起每个引脚都能这样写到 ——
+1.x 只匹配显示名，含空格或括号的那些写不出来。
 
-| 参数类型 | 始终可用 | 仅在元数据下可用 | 引擎暴露但不可达 |
-| :-- | :-- | :-- | :-- |
-| `ChannelMaskParameter` | `Input` | — | — |
-| `StaticComponentMaskParameter` | `Input` | — | — |
-| `TextureSampleParameter2D` | `Coordinates` | `[MipValueMode="MipLevel"]` 下的 `MipLevel`；`[MipValueMode="MipBias"]` 下的 `MipBias` | `[MipValueMode="Derivative"]` 下的两个导数引脚，以及 automatic view mip bias 引脚 |
-| `TextureSampleParameter2DArray` | `Coordinates` | 同上 | 同上 |
-| `TextureSampleParameterCube` | `Coordinates` | 同上 | 同上 |
-| `TextureSampleParameterCubeArray` | `Coordinates` | 同上 | 同上 |
-| `TextureSampleParameterVolume` | `Coordinates` | 同上 | 同上 |
-| `TextureSampleParameterSubUV` | `Coordinates` | 同上 | 同上 |
-| `RuntimeVirtualTextureSampleParameter` | `Coordinates` | — | world position 引脚和全部四个导数 / mip 引脚，引擎会按节点自身设置重命名它们 |
-| `SparseVolumeTextureSampleParameter` | `Coordinates`、`TextureObject` | `[MipValueMode="MipLevel"]` 下的 `MipLevel`；`[MipValueMode="MipBias"]` 下的 `MipBias` | `[MipValueMode="Derivative"]` 下的两个导数引脚 |
+| 参数类型 | 目录列出的引脚 | 1.x 调用仍可用的显示名（`DSH5291`） |
+| :-- | :-- | :-- |
+| `ChannelMaskParameter` | `Input` | —— |
+| `StaticComponentMaskParameter` | `Input` | —— |
+| `TextureSampleParameter2D` … `TextureSampleParameterSubUV` | `Coordinates`、`TextureObject`、`MipValue`、`CoordinatesDX`、`CoordinatesDY`、`AutomaticViewMipBiasValue`（别名 `Apply_View_MipBias`） | `[MipValueMode="MipLevel"]` 下的 `MipLevel`、`[MipValueMode="MipBias"]` 下的 `MipBias`、`[MipValueMode="Derivative"]` 下的 `DDX_UVs_` / `DDY_UVs_` |
+| `RuntimeVirtualTextureSampleParameter` | `Coordinates`、`WorldPosition`（别名 `World_Position`）、`MipValue`、`DDX`、`DDY` | 节点按其设置显示的名字 |
+| `SparseVolumeTextureSampleParameter` | `Coordinates`、`TextureObject`、`MipValue`、`CoordinatesDX`、`CoordinatesDY` | —— |
+| `StaticSwitchParameter` | **单独的形式**：`A`（别名 `True`）、`B`（别名 `False`） | —— |
 
 <Callout type="warn">
-**有些引擎引脚名根本没法写成实参。** 实参名是标识符，而匹配只做 trim 和小写化，所以引擎名里含空格或
-括号的引脚都不可达：纹理采样节点上的 `Apply View MipBias`、`DDX(UVs)`、`DDY(UVs)`，以及 runtime
-virtual texture 节点上的 `World Position`、`Translated World Position`、`Mip Level`、`Mip Bias`、
-`DDX (UV)`、`DDX (World)`、`DDY (UV)`、`DDY (World)`。请改用元数据设置对应的值
-（`[ConstCoordinate=…]`、`[ConstMipValue=…]`、`[AutomaticViewMipBias=…]`），或者用
-[UE.Expression](/docs/builtins/ue-expression) 显式构建节点。
+**纹理采样*参数*节点上的 `TextureObject` 不要连。** Unreal 的 `UMaterialExpressionTextureSampleParameter` 构造函数清掉了
+`bShowTextureInputPin`，资产加载时会丢掉连到隐藏引脚的连线。用默认值或 `[Texture=Path(…)]` 设置资产。
+`SparseVolumeTextureSampleParameter` 是例外 —— 它确实暴露该引脚。
 </Callout>
 
-<Callout type="warn">
-**纹理采样*参数*节点上没有 `TextureObject` 引脚。** Unreal 的构造函数清掉了
-`bShowTextureInputPin`，所以 `Tex(TextureObject = SomeTexture)` 会失败并报
-`Parameter 'Tex' (TextureSampleParameter2D) has no input pin named 'TextureObject'. Asset slots (Texture/Curve/Font/...) are set via [TextureObject=Path(...)] metadata, not call arguments.`
-`SparseVolumeTextureSampleParameter` 是唯一例外 —— 它确实暴露该引脚。
-</Callout>
-
-### `StaticSwitchParameter`
+### StaticSwitchParameter
 
 静态开关有专属调用形式，而且**不能当作值读取**：
 
@@ -415,55 +409,70 @@ vec3 D = UseDetail(A = DetailColor, B = BaseColor);
 vec3 E = UseDetail(DetailColor, BaseColor);          // 位置参数，按此顺序
 ```
 
-true 分支依次取 `True=`、`A=`、第一个位置实参；false 分支依次取 `False=`、`B=`、第二个位置实参。
-两个分支都必填。任一分支都不能是纹理对象或 `Substrate` 值，两个分支不能一边是 `MaterialAttributes`
-一边是数值，且分量数必须相同。裸写 `UseDetail`（或 `UseDetail.r`）会失败并报
-`Unknown Graph identifier 'UseDetail'.`
+true 分支依次取 `True=`、`A=`、第一个位置参数；false 分支依次取 `False=`、`B=`、第二个位置参数。两个分支都必填
+（`DSH5258`）；其他参数被 `DSH5254` 丢弃，输出选择器报 `DSH5265`。分支连到节点的 `A` 和 `B` 引脚，任何宽度都行；
+结果和较宽的分支一样宽，或是某个分支携带的 material / Substrate 值。<Since v="2.0.0" /> 1.x 对分支的检查 —— 不许
+纹理对象、不许 `Substrate` 或 `MaterialAttributes` 与数值混用、分量数相等 —— 不再单独做：引脚接不了的分支报 `DSH5214`。
+
+节点的 `DefaultValue` 是声明的默认值（`true` 或 `false`；没写时是节点自己的 `false`），开关注册为材质的静态参数。
+裸写 `UseDetail`（或 `UseDetail.r`）不是已声明的名字，报 `DSH4200`。
+
+不想先在 `Properties` 里声明时，用匿名形式
+[`UE.StaticSwitchParameter`](/docs/builtins/ue-nodes#uestaticswitchparameter) 就地建同一个节点。
 
 ## 在 `Properties` 中无效的 token
 
-这些在别处是真实存在的 DreamShaderLang 类型 token，但写在 `Properties` 声明里都会落到
-`Unsupported property type '{Token}'.`
+这些在别处是真实存在的 DreamShaderLang 类型 token，但写在 `Properties` 声明里都报 `DSH3252` —— `StaticBool` 除外。
 
 | Token | 有效位置 |
 | :-- | :-- |
 | `MaterialAttributes` | 材质函数的 `Inputs` / `Outputs` / `Results`；`Shader` 的 `Outputs` 声明；`Function` 签名 |
 | `Substrate` | 同上，且仅限 <Since v="5.4" ue /> |
 | `SamplerState` | `Inputs` / `Outputs` / 函数签名，在那里是 `Texture2D` 的别名 |
-| `StaticBool` | 材质函数的 `Inputs` / `Outputs` —— 在 `Properties` 里请用 `StaticBoolParameter` |
-| `mat2` | 只在 `Function` 签名或 `Code` 体中，解析器把它规范成 `float2x2`；生成阶段随后拒绝矩阵类型 |
-| `mat3` | 同上，规范成 `float3x3` |
-| `mat4` | 同上，规范成 `float4x4` |
+| `StaticBool` | 材质函数的 `Inputs` / `Outputs`。在 `Properties` 里它被接受 <Since v="2.0.0" />，但读作 `bool` —— 生成的是**动态**的 `ScalarParameter`，不是静态布尔：要静态布尔就写 `StaticBoolParameter` |
+| `mat2` / `mat3` / `mat4` | 只在 `Function` 签名或 `Code` 体中，解析器把它们规范成 `float2x2` / `float3x3` / `float4x4`；生成阶段随后拒绝矩阵类型 |
 
-完整的跨上下文矩阵见 [类型与值](/docs/language/types-and-values)。
+完整的跨上下文矩阵见[类型与值](/docs/language/types-and-values)。
 
 ## 命名规则
 
-- 属性名只要求**非空**，从不按标识符校验，所以 `float 1Bad = 0;` 能解析 —— 但它在 `Graph` 里不可达，
-  因为那里按标识符查名字。
-- 在一个 `Shader` 内属性名必须**忽略大小写后唯一**。在材质函数内，属性名还不能与输入名冲突。
+- **property 名是标识符** <Since v="2.0.0" />。`float 1Bad = 0;` 报 `DSH2105`（数字格式错误）和 `DSH3250`。
+- **成为声明的 property 位于文件作用域** <Since v="2.0.0" />。同名的两个 property —— 同一个块里，或同一文件的两个块里 ——
+  报 `DSH4210`。名字精确比较。1.x「函数的 property 不能和输入同名」的规则在 2.0 里没有对应检查。
 - `[ParameterName="…"]` 只改变材质暴露给实例和蓝图的名字；`Graph` 使用的仍是声明的标识符。
+- 在 `VirtualFunction` 里，`Properties` 是 `Inputs` 的同义词，用的是带类型参数的语法，不是这一套。
 
 ## 诊断
 
 <Diag>
-  <D msg="Unsupported property type '{Token}'." cause="token 不属于 39 个紧凑 token，不属于 22 个 *Parameter token，也不以 UE. 开头。" fix="对照上面的表检查拼写。" />
-  <D msg="Invalid scalar default value '{Text}' for property '{Name}'." cause="标量默认值既不是数字也不是 true / false。" />
-  <D msg="Invalid vector default value '{Text}' for property '{Name}'." cause="没有括号分量列表，或某个分量既不是数字也不是 true / false —— 包括在向量分支 token 上写 Path(…)。" />
-  <D msg="Invalid texture default value '{Text}' for property '{Name}'. {Inner}" cause="紧凑纹理 token 或 TextureObjectParameter 家族的默认值解析失败。" href="/docs/parameters/path" />
-  <D msg="Invalid texture sample default value '{Text}' for property '{Name}'. {Inner}" cause="纹理采样 token 的 Path(…) 解析失败。" href="/docs/parameters/path" />
-  <D msg="Invalid boolean default value '{Text}' for property '{Name}'." cause="StaticBoolParameter 或 StaticSwitchParameter 上写了非 true/false 的默认值。" />
-  <D msg="Texture property '{Name}' with type Texture2DArray requires an explicit default asset." cause="Texture2DArray 没写 = Path(…)，而引擎没有数组回退资产。" fix="显式指定一个数组资产。" />
-  <D msg="Texture texture property '{Name}' expects {Expected} but '{Path}' is a '{Class}'." cause="指定资产的类与紧凑 token 声明的维度不符。" />
-  <D msg="Could not resolve MaterialExpression class for parameter type '{Token}'." cause="四种名字拼写都没能匹配到 UMaterialExpression 子类 —— 未启用 Paper2D 时 SpriteTextureSampler 就是这样。" />
-  <D msg="'{Class}' does not expose a texture/asset property for property '{Name}'." cause="给了资产默认值，但类上六个资产槽位一个都没有。" />
-  <D msg="Const property '{Name}' must use a plain scalar, vector, or texture type instead of a parameter node or UE builtin declaration." cause="const 用在了 *Parameter token 或 UE.* 声明上。" />
-  <D msg="Parameter '{Name}' ({Token}) has no input pin named '{Arg}'. Asset slots (Texture/Curve/Font/...) are set via [{Arg}=Path(...)] metadata, not call arguments." cause="实参名与节点当前配置下的任何引脚都不匹配。" fix="对照上面的可达引脚表，或改用元数据设置。" />
-  <D msg="Parameter '{Name}' must be called with named arguments wiring its input pins (e.g. {Name}(Coordinates=...) or {Name}(Input=...))." cause="引脚调用形式里使用了位置参数。" />
-  <D msg="Unknown Graph identifier '{Name}'." cause="包括任何对 StaticSwitchParameter 的裸读取 —— 它必须被调用。" href="/docs/graph/calls" />
+  <D msg="DSH3252: Expected a property type such as 'float', 'float4', 'Texture2D' or 'ScalarParameter', found '{0}'." cause="token 不是紧凑 token、不是 *Parameter token，也不以 UE. 开头。" fix="对照上面的表检查拼写。" />
+  <D msg="DSH3253: Expected a property type with a 2.0 spelling, found '{0}{1}', which has none; move this material to a .dss file and write the node with UE.Expression." cause="七个没有 2.0 形式的 token 之一，或 ScalarParameter / VectorParameter / TextureObjectParameter 之外的 token 上写了 const。" href="/docs/builtins/ue-expression" />
+  <D msg="DSH3250: Expected a property type and a name, found {0}." cause="语句不以类型和名字开头、缺名字，或 property 后面没有 ;。" />
+  <D msg="DSH3251: Expected a property type after 'const', found {0}." cause="const 后面没有类型。" />
+  <D msg="DSH3254: Expected a default value after '{0} =', found {1}." cause="= 后面没有默认值，或默认值这个 token 接受不了 —— 标量不是数字或 true/false，向量没有括号分量列表，静态开关不是 true/false。" />
+  <D msg="DSH2105: Malformed number literal '{0}'." cause="数字后面紧跟字母（1abc），或 property 名以数字开头。" />
+  <D msg="DSH1043: Asset reference is written as '{0}', which is not a texture class; a texture default requires {1}." cause="Class'…' 默认值写的类不是纹理。" href="/docs/parameters/path" />
+  <D msg="DSH1044: Asset reference is written as '{0}', but this property is declared as {1}." cause="Class'…' 默认值写的是另一维度的纹理类。" href="/docs/parameters/path" />
+  <D msg="DSH8271: The default texture reference '{0}' of parameter '{1}' does not resolve to an asset path. {2}" cause="纹理默认值解析不出资产路径。" href="/docs/parameters/path" />
+  <D msg="DSH8218: The default texture for parameter '{0}' could not be loaded from '{1}'." cause="纹理默认值解析出来了但加载不了。" />
+  <D msg="DSH5212: '{0}' is not a material expression class this engine has." cause="引擎没有展开 token 的类。" />
+  <D msg="DSH5288: '{0}.{1}' has no 'DefaultValue', so the default written for this parameter is dropped, as 1.x dropped it." cause="警告：StaticComponentMaskParameter 上写了默认值。" fix="写 [DefaultR = true; …]。" />
+  <D msg="DSH4390: '{0}' is declared but nothing reads it, so it is not in the generated material." cause="提示：没有任何东西读取这个 property。" />
+  <D msg="DSH4210: '{0}' is already declared in this file; one name declares one thing." cause="同一文件里两个 property 同名。" />
+  <D msg="DSH5259: Expected every argument of the parameter call '{0}' to name an input pin, found a positional argument." cause="引脚调用形式里用了位置参数。" />
+  <D msg="DSH5265: Expected the parameter call '{0}' to take only its inputs, found an output selector." cause="参数或静态开关调用上写了 Output / OutputIndex。" />
+  <D msg="DSH5213: '{0}.{1}' has no pin or property called '{2}'." cause="参数既不是类的引脚也不是属性。" fix="对照上面的引脚名表，或改用元数据。" />
+  <D msg="DSH5291: '{0}.{1}' lists no pin called '{2}'; it is connected by that name once the node exists, because a node may name its pins after its properties." cause="提示，仅 1.x：参数名是目录没列出的引脚，在实际节点上连接。" />
+  <D msg="DSH8212: '{0}' has no input pin named '{1}'." cause="实际节点上也没有这个名字的引脚。" />
+  <D msg="DSH5214: {0} expects {1}, and this is {2}." cause="引脚类型接不住这个参数。" />
+  <D msg="DSH5258: Expected the static switch '{0}' to be called with a 'True = ...' and a 'False = ...' input, found at most one of them." cause="调用静态开关时缺一条分支。" />
+  <D msg="DSH4208: '{0}' is not a function, a builtin or a struct." cause="对声明形式的 property 做了调用。" />
+  <D msg="DSH4200: '{0}' is not declared; did you mean '{1}'? Names are case-sensitive." cause="裸读取 StaticSwitchParameter，或名字既不是变量也不是 property。" href="/docs/graph/calls" />
+  <D msg="DSH4251: '{0}' hides the file-scope declaration of the same name for the rest of this function." cause="警告：Graph 变量遮蔽了声明。" />
+  <D msg="DSH7224: '@{0}' means nothing here; it belongs on {1}." cause="警告：const 标量或向量上的 Group、SortPriority 或 Slider。" />
 </Diag>
 
-按阶段罗列的完整清单见 [错误速查](/docs/diagnostics)。
+按阶段罗列的完整清单见[错误速查](/docs/diagnostics)。
 
 ## 示例
 
@@ -485,7 +494,7 @@ Shader(Name="Docs/M_ParameterNodes")
 
         Group("Masks") {
             ChannelMaskParameter         Pick = float4(1, 0, 0, 0) [MaskChannel = "Red"];
-            StaticComponentMaskParameter Keep = float4(1, 1, 0, 0);
+            StaticComponentMaskParameter Keep [DefaultR = true; DefaultG = true];
         }
 
         StaticSwitchParameter UseDetail = true [Group="Switches"];
@@ -518,18 +527,21 @@ Shader(Name="Docs/M_ParameterNodes")
 
 ```text
 Constant(2.2)                 Gamma
-TextureSampleParameter2D      BaseTex    Group="Surface" SortPriority=0  SamplerType=LinearColor
-ScalarParameter               Roughness  Group="Surface" SortPriority=10 SliderMin=0 SliderMax=1
-VectorParameter               Tint       Group="Surface" SortPriority=20
-ChannelMaskParameter          Pick       Group="Masks"   SortPriority=30 MaskChannel=Red
-StaticComponentMaskParameter  Keep       Group="Masks"   SortPriority=40
+TextureSampleParameter2D      BaseTex    SamplerType=LinearColor
+ScalarParameter               Roughness  Group="Surface" SortPriority=0  SliderMin=0 SliderMax=1
+VectorParameter               Tint       Group="Surface" SortPriority=10
+ChannelMaskParameter          Pick       MaskChannel=Red
+StaticComponentMaskParameter  Keep       DefaultR/G=true
 StaticSwitchParameter         UseDetail  Group="Switches"
 TextureCoordinate             UV         CoordinateIndex=0
 ```
 
+`BaseTex`、`Pick`、`Keep` 是展开 token，所以 `Group(…)` 作用域不会给它们打标记 <Since v="2.0.0" />，`Roughness`
+拿到计数器槽位 0。
+
 ## 下一步
 
-- [元数据与分组](/docs/parameters/metadata) —— `[ … ]` 块、`Slider(…)`、分组与排序
-- [Path 资产引用](/docs/parameters/path) —— 每种 `Path(…)` root 拼写及其错误
+- [元数据与分组](/docs/parameters/metadata) —— `[ … ]` 块、`Slider(…)`、`SamplerType`、分组与排序
+- [Path 资产引用](/docs/parameters/path) —— 每种 `Path(…)` 写法、Copy Reference 与错误码
 - [UE.\* 节点](/docs/builtins/ue-nodes) —— 把引擎输入节点声明成属性
 - [调用](/docs/graph/calls) —— 这些形式所属的通用调用语法
