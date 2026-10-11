@@ -1,13 +1,12 @@
 ---
 title: Project Settings
-description: All 15 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects.
+description: All 17 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects, and the Custom Pass settings object.
 ---
 
-DreamShader's project-wide configuration is a `UDeveloperSettings` object with **15** properties.
+DreamShader's project-wide configuration is one `UDeveloperSettings` object with **17** properties.
 
 <Callout type="warn">
-The panel is at **Project Settings ▸ DreamPlugin ▸ Dream Shader** — *not* under *Plugins*. Older
-documentation pointed at the wrong place and listed fewer properties under names that do not exist.
+The panel is at **Project Settings ▸ DreamPlugin ▸ Dream Shader** — *not* under *Plugins*.
 </Callout>
 
 | Aspect | Value |
@@ -18,10 +17,11 @@ documentation pointed at the wrong place and listed fewer properties under names
 | Section | `DreamShader`, titled **Dream Shader** |
 | Config file | `<Project>/Config/DefaultEngine.ini`, section `[/Script/DreamShader.DreamShaderSettings]` |
 
-The class is `Config=Engine, DefaultConfig`, so values live in the **project's**
-`DefaultEngine.ini`, not in a per-user file. They are shared by everyone who checks the project out.
+The class is `Config=Engine, DefaultConfig`, so values live in the **project's** `DefaultEngine.ini`,
+not in a per-user file. Everyone who checks the project out shares them. Edits made in the panel, and the
+toggles the editor exposes elsewhere, are written straight back to `DefaultEngine.ini`.
 
-## The 15 settings
+## The 17 settings
 
 <Wide>
 
@@ -30,23 +30,25 @@ The class is `Config=Engine, DefaultConfig`, so values live in the **project's**
 | Mappings | Shading Model Mappings | `ShadingModelMappings` | `TMap<FString, EMaterialShadingModel>` | *empty* | Extra or overriding spellings for the `ShadingModel` value. Scanned before the built-in table. |
 | Mappings | Blend Mode Mappings | `BlendModeMappings` | `TMap<FString, EBlendMode>` | *empty* | Extra or overriding spellings for `BlendMode` / `RenderType`. |
 | Mappings | Material Domain Mappings | `MaterialDomainMappings` | `TMap<FString, EMaterialDomain>` | *empty* | Extra or overriding spellings for `MaterialDomain` / `Domain`. |
-| Paths | Source Directory | `SourceDirectory` | `FDirectoryPath` | `DShader` | Root scanned for `.dsm` / `.dsf` / `.dsh` sources. Empty falls back to `DShader`; a relative path resolves against the project directory. `<Source>/Packages` is derived from it. |
-| Paths | Generated Shader Directory | `GeneratedShaderDirectory` | `FDirectoryPath` | `Intermediate/DreamShader/GeneratedShaders` | Where the generated `.ush` include is written and the virtual shader directory is mapped. Empty falls back to the default. |
-| Paths | **Scan Plugin Source Directories** <Since v="1.6.0" /> | `bScanPluginSourceDirectories` | `bool` | `true` | When on, every enabled plugin that has a `DShader` folder contributes a source root of its own. Off leaves the project's *Source Directory* as the only root. See [Project Layout](/en/docs/start/project-layout). |
-| Compiler | **Default Compiler Backend** | `DefaultBackend` | `EDreamShaderDefaultBackend` | `ThinCustom` | Backend for a source file that does not set `Settings = { Backend = … }`. Changing it regenerates every source file in memory. |
-| Compiler | **Show In-Memory Materials In Content Browser** | `bShowInMemoryMaterialsInContentBrowser` | `bool` | `false` | When off, memory-only DreamShader instances report themselves as non-assets and disappear from the Content Browser, asset-registry enumeration and save pickers. Read live, on every query. |
-| Compiler | **Lay Out In-Memory Graphs** <Since v="1.6.0" /> | `bLayoutInMemoryGraphs` | `bool` | `true` | When on, graph layout also runs for the memory-only materials an interactive compile produces, so the graph you see after a save matches the generated asset. Off, those graphs keep their construction coordinates — a single tall column. Graphs at or above the large-graph threshold skip layout either way. |
+| Paths | Source Directory | `SourceDirectory` | `FDirectoryPath` | `DShader` | Root scanned for sources. Empty falls back to `DShader`; a relative path resolves against the project directory. `<Source>/Packages` is derived from it. |
+| Paths | Generated Shader Directory | `GeneratedShaderDirectory` | `FDirectoryPath` | `Intermediate/DreamShader/GeneratedShaders` | Where the virtual shader directory is mapped. Empty falls back to the default. |
+| Paths | **Scan Plugin Source Directories** <Since v="1.6.0" /> | `bScanPluginSourceDirectories` | `bool` | `true` | When on, every enabled plugin that has a `DShader` folder contributes a source root of its own. Off leaves the project's *Source Directory* as the only root. See [Project layout](/en/docs/start/project-layout). |
+| Compiler | **Preprocessor Defines** <Since v="1.9.0" /> | `PreprocessorDefines` | `TMap<FString, FString>` | *empty* | Names visible to [`#if`](/en/docs/language/lexical#preprocessor) in every source the project compiles. Keys are **case-sensitive**; an empty value is a bare marker, true to `#if` and to `defined()`. A key beginning with `DS_` is dropped with a warning — that prefix is reserved for the builtins. Editing the map rebuilds only the sources that read a changed name. |
+| Compiler | **Default Compiler Backend** | `DefaultBackend` | `EDreamShaderDefaultBackend` | `ThinCustom` | Backend for a source file that does not set `Settings = { Backend = … }`. Changing it rebuilds every source whose build key it changes; one it does not affect is skipped. |
+| Compiler | **Graph Layout Style** <Since v="2.0.0" /> | `GraphLayoutStyle` | `EDreamShaderGraphLayoutStyle` | `Blocks` | What lays a generated graph out: one of the three layouts that read the compiler's IR — `Blocks` (a page of boxes in source order, named reroutes between them; the default), `SourceBands` (one band per source statement) and `Layered` (the whole graph in layers) — or `Classic`, the 1.x layout. `dsc dump-layout` draws the three IR styles without building anything. Not part of the build key: a layout moves nodes, not what they compute. A source is therefore re-laid when it is next **rebuilt** — an unchanged one is skipped as usual, so *Recompile* it (or `compile -Force`) to see an existing graph in the new style. |
+| Compiler | **Show Ephemeral Materials** | `bShowEphemeralMaterials` | `bool` | `false` | When off, memory-only DreamShader instances report themselves as non-assets and disappear from the Content Browser, asset-registry enumeration and save pickers. Applies to the `ThinCustom` backend only: a `Graph` material is a plain `UMaterial` with no Ephemeral state and is always visible. Read live, on every query. |
 | Compiler | Auto Compile On Save | `bAutoCompileOnSave` | `bool` | `true` | When off, the source-directory watcher ignores file changes entirely. |
 | Compiler | Save Debounce Seconds | `SaveDebounceSeconds` | `float` | `0.25` | Quiet period after a file change before compiling. Clamped to `[0.05, 10.0]`; the slider stops at `2.0`. Falls back to `0.25` when the settings object is unavailable. |
 | Compiler | Verbose Logs | `bVerboseLogs` | `bool` | `false` | Adds `Display`-level logging of the dependent-file compile queue. |
-| Decompiler | Export Decompiled Layout | `bExportDecompiledLayout` | `bool` | `true` | When on, a decompiled `.dsm` carries a `Layout = { … }` section reproducing node positions. |
+| Decompiler | Export Decompiled Layout | `bExportDecompiledLayout` | `bool` | `true` | When on, a decompiled source keeps the node positions: a legacy `.dsm` carries a `Layout = { … }` section, and a `.dss` from the 2.0 decompiler `#pragma layout` lines <Since v="2.0.0" />. |
 | Editor | Open In New Window | `bOpenInNewWindow` | `bool` | `true` | When off, the VSCode launch command gets `--reuse-window`. |
 | Editor | **Material Instance Subfolder** | `InstanceSubfolder` | `FString` | `Instances` | Subfolder, relative to the parent material's folder, where the Material Content Browser creates new instances. Empty creates them alongside the parent. The asset is named `MI_<ParentName>`, uniquified. |
+| Editor | **Sync Source References On Asset Rename** <Since v="1.9.0" /> | `bSyncSourceReferencesOnAssetRename` | `bool` | `true` | When on, renaming or moving an asset rewrites the source files that reference it, backing each one up to `<file>.bak` first. Project sources only — plugin roots are never touched. Read live, so turning it off takes effect on the next rename. |
 
 </Wide>
 
 Rows in **bold** carry an explicit `DisplayName`; the others show the name Unreal derives from the
-property identifier, which drops a leading `b` from booleans. The **ini keys are the raw C++
+property identifier, which drops a leading `b` from booleans. **The ini keys are the raw C++
 identifiers**, `b` prefix included — `bAutoCompileOnSave`, not `AutoCompileOnSave`.
 
 ### `EDreamShaderDefaultBackend`
@@ -57,27 +59,46 @@ identifiers**, `b` prefix included — `bAutoCompileOnSave`, not `AutoCompileOnS
 | `Instance` | **Deprecated** alias for `ThinCustom` <Since v="1.5.0" /> |
 | `ThinCustom` | Build the graph on a hidden per-material base and emit a lightweight material instance of it. **The default.** |
 
-How a per-file `Backend` setting overrides this is on [Backend](/en/docs/settings/backend#precedence).
+How a per-file `Backend` overrides it: [Backend](/en/docs/settings/backend#precedence).
 
-## The mapping maps
+## The three mapping maps
 
-The three `Mappings` entries extend the value spellings accepted by the three enum settings. They
-are **empty by default**: the built-in alias tables are rebuilt on demand during resolution and are
-never materialized into these maps, so an empty panel does not mean "no aliases".
+The three `Mappings` entries extend the value spellings accepted by the three enum settings. They are
+**empty by default**: the built-in alias tables are rebuilt on demand during resolution and are never
+written into these maps, so an empty panel does not mean "no aliases".
 
 | Behaviour | Detail |
 | :-- | :-- |
 | Precedence | the project map is scanned first; the first normalized-key match returns immediately |
 | Shadowing | an entry whose key normalizes to a built-in alias replaces it |
 | Disabling | an entry mapped to `MSM_MAX` / `BLEND_MAX` / `MD_MAX` makes that spelling fail to resolve, and does not fall through to the built-in |
-| Key matching | trimmed, lower-cased, and stripped of spaces, `_` and `-` |
+| Key matching | trimmed, lowercased, and stripped of spaces, `_` and `-` |
 | Ambiguity | two entries whose keys normalize identically are resolved in unspecified order |
 
-The complete built-in tables are on [Enum Values](/en/docs/settings/enums).
+The complete built-in tables are on [Enum values](/en/docs/settings/enums).
+
+## Preprocessor Defines
+
+<Since v="1.9.0" />
+
+This map gives every source of the project the names its `#if` / `#elif` conditions read: the name
+answers `defined()`; a value that parses as an integer compares as a number, anything else as a string;
+an empty value still counts as defined; a name absent from the map evaluates to 0, as in C. Conditions
+are evaluated at **generation** time and the losing branch is cut before the parser sees it, so a
+condition can select a `Domain`, a `ShadingModel` or a whole `Outputs` block — none of which a
+StaticSwitch can reach, because they describe what the material *is* rather than what it computes. Names
+are case-sensitive and must match `[A-Za-z_][A-Za-z0-9_]*`.
+
+The `DS_` prefix is reserved for the read-only builtins `DS_ENGINE_MAJOR`, `DS_ENGINE_MINOR`,
+`DS_ENGINE_PATCH`, `DS_PLATFORM`, `DS_PLUGIN_VERSION` and `DS_SUBSTRATE`; an entry using it is dropped
+with a log warning rather than failing the compile, since a settings mistake has no source line to
+report against. The map is one of five tiers of the define table, and the lowest-precedence one a person
+edits: C++ registration and providers outrank it, `-Define=` on the commandlet outranks those, and only
+the builtin `DS_` names outrank everything. See [Preprocessor](/en/docs/language/lexical#preprocessor).
 
 ## Panel tooltips
 
-The editor's own wording, verbatim.
+The panel's own text.
 
 *Scan Plugin Source Directories*:
 
@@ -91,38 +112,76 @@ The editor's own wording, verbatim.
 
 > How DreamShader materializes a source file that does not specify `Settings = { Backend = "..." }`.
 > ThinCustom (the default) builds the material graph on a hidden per-material base and emits a
-> lightweight, memory-only material instance of it -- full feature surface, no visible per-material
+> lightweight, Ephemeral material instance of it -- full feature surface, no visible per-material
 > asset. Graph builds a visible UMaterial node graph. Instance is a deprecated alias for ThinCustom.
 
-*Show In-Memory Materials In Content Browser*:
+*Show Ephemeral Materials*:
 
-> When enabled, the memory-only DreamShader materials appear in the Content Browser like unsaved
-> assets. Disabled by default: the source files are the intended authoring surface, and hiding the
-> materials also prevents accidental Save actions from materializing them to disk.
+> Applies to the ThinCustom/Instance backend only -- it is the only one with an Ephemeral state,
+> which it hides via UDreamShaderMaterialInstance::IsAsset. When enabled, Ephemeral materials appear
+> in the Content Browser like unsaved assets. Disabled by default: the source files are the intended
+> authoring surface, and hiding the materials also prevents accidental Save actions from
+> materializing them to disk. Graph-backend materials are plain UMaterials with no way to opt out of
+> asset enumeration, so they are always visible and this setting does not affect them.
 
 *Material Instance Subfolder*:
 
 > Subfolder, relative to the parent material's folder, where the Material Content Browser creates
 > new material instances. Leave empty to create them alongside the parent.
 
-## Where else these are surfaced
+*Sync Source References On Asset Rename*: renaming or moving an asset rewrites the source files that
+reference it, so a source keeps naming the asset rather than the path it used to have; only files under
+the project source directory are rewritten, never plugin roots; each file is copied to a `.bak` beside it
+first; batched renames such as *Fix Up Redirectors* are coalesced into one pass; deleting an asset is not
+covered — a deletion has no new path to write, and the compile error it produces is the correct outcome.
+Turn it off if you would rather the plugin never edited your source files on its own.
+
+## Other places these settings are surfaced
 
 | Setting | Also reachable from |
 | :-- | :-- |
-| `bShowInMemoryMaterialsInContentBrowser` | *Tools ▸ DreamShader ▸ Show In-Memory Materials*, and the Project page of the [Material Content Browser](/en/docs/tools/editor). Both write the ini and re-broadcast asset creation/removal for every memory-only instance. |
-| `DefaultBackend` | Changing it in the panel triggers an immediate in-memory regeneration of every source file, plus a notification when persisted generated assets shadow the result. |
-| `SourceDirectory`, `GeneratedShaderDirectory` | Consumed by the module's directory helpers — see [Project Layout](/en/docs/start/project-layout) and [Packages](/en/docs/tools/packages). |
-| `bScanPluginSourceDirectories` | The root list is cached and rebuilt only when *Source Directory* or this toggle changes, or when *DreamShader Gen ▸ Refresh* is pressed. The **watcher** is registered once at startup, so *Auto Compile On Save* for a root that appeared mid-session starts working on the next editor start. |
+| `bShowEphemeralMaterials` | *Tools ▸ DreamShader ▸ Show Ephemeral Materials*, and the Project page of the [Material Content Browser](/en/docs/tools/editor). Both write the ini and re-broadcast asset creation/removal for every memory-only instance. |
+| `DefaultBackend`, the three mapping maps, `PreprocessorDefines` | Changing one in the panel rebuilds the project's sources at once and logs `DreamShader setting '{Setting}' changed; regenerating all source files.` Each is part of the build key, so a source the change does not affect is skipped. A notification follows when persisted generated assets shadow the result. |
+| `SourceDirectory`, `GeneratedShaderDirectory` | Consumed by the module's directory helpers — see [Project layout](/en/docs/start/project-layout) and [Packages](/en/docs/tools/packages). |
+| `bScanPluginSourceDirectories` | The root list is cached and rebuilt only when *Source Directory* or this toggle changes, or on *DreamShader Gen ▸ Refresh*. |
+| `bSyncSourceReferencesOnAssetRename` | Read on every asset rename, and again when the coalesced batch is flushed. There is no menu entry for it. |
+
+## DreamShader Custom Pass
+
+<Since v="2.1.0" />
+
+A second settings object sits beside this one: `UDreamPassSettings`, in the `DreamShaderPass` runtime
+module, at *Project Settings ▸ DreamPlugin ▸ DreamShader Custom Pass*. It is saved to the same
+`DefaultEngine.ini`, section `[/Script/DreamShaderPass.DreamPassSettings]`, and configures the
+[Custom Pass runtime](/en/docs/runtime). It exists on every engine; below UE 5.8 nothing reads it.
+
+| Category | Config property | Type | Default | Effect |
+| :-- | :-- | :-- | :-- | :-- |
+| Runtime | `bEnabled` | `bool` | `true` | Off: no pipeline runs anywhere, whatever activates it. `r.DreamPass.Enable 0` does the same for one session. |
+| Pipelines | `GlobalPipelines` | array of `FDreamPassGlobalPipeline` — `Pipeline`, `bEnabled`, `Priority`, `Overrides` | empty | Pipelines that apply to every view of every world, at weight 1. Loaded when a world starts, and again when the list is edited. |
+| Layers | `LayerNames` | array of `FName`, at most 32 | empty | The pass layers: a `UDreamPassLayerComponent` gives primitives some of them, and a mesh pass's `Filter = Layer(Name)` selects the primitives that have one. The order is the bit order — renaming a layer is safe; moving one re-targets every compiled pipeline that names it until those pipelines are compiled again. |
+
+```ini
+[/Script/DreamShaderPass.DreamPassSettings]
+bEnabled=True
++GlobalPipelines=(Pipeline="/Game/Effects/CP_Wind.CP_Wind",bEnabled=True,Priority=0.000000)
++LayerNames=Highlight
++LayerNames=XRay
+```
 
 ## Notes
 
-- There is **no in-memory on/off toggle**. The editor always generates in memory — source files are
-  the authoring surface — and materialization to disk happens at cook, through the
+- **There is no persistence on/off toggle.** A `ThinCustom` product is Ephemeral — source files are the
+  authoring surface — and materialization to disk happens at cook, through the
   [commandlet](/en/docs/tools/commandlet), or through an explicit action. *Default Compiler Backend*
   replaced the old In-Memory toggle in <Since v="1.5.0" />.
+- **Removed in 2.0.0:** *Lay Out In-Memory Graphs* (`bLayoutInMemoryGraphs`). Graph layout always runs
+  now; only the large-graph performance guard can skip it. The *Show Ephemeral Materials* key was
+  `bShowInMemoryMaterialsInContentBrowser` before 2.0.0 and is migrated on load.
 - `GeneratedShaderDirectory` is only consulted while the virtual shader directory is unmapped. If a
-  mapping already exists for this project, **the existing mapping wins over the setting** until the
-  editor restarts.
+  mapping already exists for this project, **the existing mapping wins** until the editor restarts. Since
+  <Since v="2.0.0" /> DreamShader writes no per-source `.ush` there: a `Function`'s HLSL is embedded in its
+  Custom node's code.
 - The built-in shader library path setting was **removed in 1.3.8**; no replacement exists.
 
 ## Example
@@ -134,23 +193,29 @@ The editor's own wording, verbatim.
 SourceDirectory=(Path="DShader")
 GeneratedShaderDirectory=(Path="Intermediate/DreamShader/GeneratedShaders")
 DefaultBackend=ThinCustom
+GraphLayoutStyle=Blocks
 bScanPluginSourceDirectories=True
-bShowInMemoryMaterialsInContentBrowser=False
-bLayoutInMemoryGraphs=True
+bShowEphemeralMaterials=False
 bAutoCompileOnSave=True
 SaveDebounceSeconds=0.250000
 bVerboseLogs=False
 bExportDecompiledLayout=True
 bOpenInNewWindow=True
 InstanceSubfolder=Instances
+bSyncSourceReferencesOnAssetRename=True
 ```
 
-The three mapping maps are container properties; edit them in the Project Settings panel and let the
-editor write them back.
+The three mapping maps and *Preprocessor Defines* are container properties; edit them in the Project
+Settings panel and let the editor write them back. A hand-written entry uses the `+Key=((…))` form:
+
+```ini
++PreprocessorDefines=(("MOONTOON_LEGACY_TOON", "1"))
+```
 
 ## Next
 
-- [Backend](/en/docs/settings/backend) — how *Default Compiler Backend* is overridden per file
-- [Enum Values](/en/docs/settings/enums) — the built-in tables the mapping maps extend
-- [In-memory Materials](/en/docs/generation/in-memory) — what "memory-only" means in practice
-- [Editor Tools](/en/docs/tools/editor) — the Tools menu entries and the Material Content Browser
+- [Backend](/en/docs/settings/backend) — how a per-file setting overrides *Default Compiler Backend*
+- [Enum values](/en/docs/settings/enums) — the built-in tables the mapping maps extend
+- [Preprocessor](/en/docs/language/lexical#preprocessor) — what *Preprocessor Defines* feeds, and the four other tiers
+- [In-memory materials](/en/docs/generation/in-memory) — what Ephemeral means in practice
+- [Editor tools](/en/docs/tools/editor) — the Tools menu entries and the Material Content Browser

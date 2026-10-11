@@ -1,162 +1,166 @@
 ---
 title: Material Settings
-description: The Shader Settings block — six special keys, the reflection resolver that reaches every UMaterial property, and what a regenerated material resets to.
+description: The Settings block — how a statement is read, the special Shader keys, the reflection resolver that reaches any UMaterial property, what a regenerated material resets to, and the four material-function keys.
 ---
 
-`Settings` writes properties onto the asset the enclosing block generates. In a `Shader` block that
-asset is a `UMaterial`, and this is the page that describes what you may write.
-
-The most important thing to know first:
+`Settings` writes `<key> = <value>;` pairs onto the asset the enclosing block generates. In a `Shader`
+block that asset is a `UMaterial`, and most of this page describes what you can write into it; a
+`Settings` block on a material-function block is a different thing entirely — see
+[Material function settings](#material-function-settings).
 
 <Callout type="info">
-**`Settings` is not a fixed list of supported keys.** Exactly six keys are hand-handled. Every other
-key is resolved against the generated `UMaterial` by Unreal reflection — including nested struct
-paths and fixed-array indices. No table can be complete for that surface, because it is the
-engine's property set, not the plugin's.
+**A `Shader`'s `Settings` is not a fixed list of supported keys.** Only a handful of keys are
+hand-handled; every other key is resolved onto the generated `UMaterial` by Unreal reflection. No table
+can be complete for that surface, because it is the engine's property set, not the plugin's.
 </Callout>
 
 ```text
 Settings key
-   ├── one of  blendmode rendertype shadingmodel materialdomain domain backend
-   │             └── hand-handled: value parsed through the alias maps
+   ├── Backend, Substrate
+   │      └── read by the compiler when the source is bound; never reach the material
+   ├── blendmode rendertype shadingmodel materialdomain domain
+   │      └── hand-handled: value parsed through the project's alias maps
    └── anything else
-                 └── alias table  →  UMaterial / UMaterialInterface / UObject property lookup
-                                        (name, b-stripped name, or DisplayName)
-                                     →  value parsed per the property's C++ type
+          └── alias table  →  UMaterial / UMaterialInterface / UObject property lookup
+                                 (name, b-stripped name, or DisplayName)
+                              →  value parsed per the property's C++ type
 ```
 
-## The shape of the block
+A `Shader`'s `Settings` is the 2.0 `#pragma material(…)` — see [DreamShaderLang 2.0](/en/docs/language-v2).
+
+## Block shape
 
 <Synopsis>
 ```c
 Settings [=] { <setting-statement> … }
 
-<setting-statement> := <key> = <value> ;
-<key>               := <segment> [ . <segment> ] …
-<segment>           := <identifier> [ [<integer>] ]
-<value>             := <bare-text> | "<text>"
+<setting-statement> := <name> = <value> ;
+<name>              := <identifier>
+<value>             := <tokens up to the next ;> | "<text>"
 ```
 </Synopsis>
 
-The `=` between the section name and its `{ … }` block is optional sugar <Since v="1.5.0" />. The
-`;` after the last statement is optional. The `[<integer>]` in `<segment>` is **literal**
-punctuation; the surrounding `[ … ]` is the optional-marker meta-bracket.
+The `=` between the section name and its `{ … }` is optional sugar <Since v="1.5.0" />. The `;` after
+the last statement is optional.
 
-How a statement is parsed:
+<Since v="2.0.0" /> The legacy front end reads a `Settings` section from the same tokens as the rest of
+the file:
 
 | # | Step | Consequence |
 | --: | :-- | :-- |
-| 1 | `//` and `/* … */` comments are stripped from the whole block | comments may appear anywhere, including mid-statement |
-| 2 | The block is split on `;` at parenthesis depth 0 **and** bracket depth 0, outside string literals | `Color = (R=1,G=0,B=0);` is one statement; empty statements are dropped |
-| 3 | Each statement is split on the **first** `=` at parenthesis/bracket depth 0 outside a string | the inner `=` of `(R=1,G=0,B=0)` does not split the statement |
-| 4 | The key is normalized — trimmed and lower-cased | key matching is case-insensitive |
-| 5 | The value is unquoted — if the trimmed text both starts and ends with `"`, the quotes are removed and `\` escapes unescaped; otherwise it is kept verbatim | **quotes are optional on every setting** |
-| 6 | The pair is added to the block's map | duplicate keys overwrite, last wins |
+| 1 | `//` and `/* … */` comments are trivia | comments may stand between any two tokens, including mid-statement |
+| 2 | A statement is a name, `=`, and a value; the value runs to the next `;` at depth zero of `( )`, `[ ]` and `{ }`, or to the `}` that closes the section | `Color = (R=1,G=0,B=0);` is one statement; empty statements are skipped, so a trailing `;` is optional |
+| 3 | The name is **one** identifier | `Foo.Bar = 1;` and `Foo[2] = 1;` are `DSH3261`, as are a statement with no `=` and an `=` with no value |
+| 4 | A value that is one string literal gives its contents, its escapes read by the lexer; any other value is its text as written | **quotes are optional on every setting** |
+| 5 | A name written twice, compared ignoring case, keeps the later value | warning `DSH3262` |
 
-Because of step 5, `TwoSided = true;` and `TwoSided = "true";` are identical, and
-`Domain = Surface;` behaves exactly like `Domain = "Surface";`. A block may contain **more than one**
-`Settings` section; they merge into one map and a key declared twice keeps the last value.
+So `TwoSided = true;` and `TwoSided = "true";` are identical, and `Domain = Surface;` behaves exactly
+like `Domain = "Surface";`. A block may contain **more than one** `Settings` section; they merge into
+one list, and a key written twice keeps the last value, with `DSH3262` <Since v="2.0.0" />.
 
-## The six special keys
+<Callout type="warn">
+<Since v="2.0.0" /> A name is **one identifier**. 1.x also read a nested path (`Lightmass.DiffuseBoost`)
+and a fixed-array index (`PhysicalMaterialMap[2]`) as a key of a `Shader` block; the legacy front end
+stops at the `.` or the `[` and reports `DSH3261`.
+</Callout>
 
-Matched after trimming, lower-casing **and** deleting spaces, `_` and `-`, these six never reach the
-reflection resolver:
+## Special keys
+
+These keys never reach the reflection resolver. The emitter skips the six whose name — after trimming,
+lowercasing **and** deleting spaces, `_` and `-` — is one of:
 
 ```text
 blendmode   rendertype   shadingmodel   materialdomain   domain   backend
 ```
 
-| Canonical key | Synonym | Value grammar | Value when absent | Effect |
+| Canonical key | Synonym | Value | Value when absent | Effect |
 | :-- | :-- | :-- | :-- | :-- |
 | `BlendMode` | `RenderType` | one of the [blend-mode spellings](/en/docs/settings/enums#blendmode) | `Opaque` | sets `UMaterial::BlendMode` |
 | `ShadingModel` | — | one of the [shading-model spellings](/en/docs/settings/enums#shadingmodel) | `DefaultLit` | calls `SetShadingModel` |
 | `MaterialDomain` | `Domain` | one of the [domain spellings](/en/docs/settings/enums#domain) | `Surface` | sets `UMaterial::MaterialDomain` |
-| `Backend` | — | `Graph`, `ThinCustom`, `Instance`, or the empty string | the project's *Default Compiler Backend* | selects the materialization strategy — see [Backend](/en/docs/settings/backend) |
+| `Backend` | — | `Graph` or `ThinCustom`; `Instance` is the old spelling of `ThinCustom` | the project's *Default Compiler Backend* | selects the materialization strategy — see [Backend](/en/docs/settings/backend) |
 
-When both a canonical key and its synonym are present, the **canonical** key wins: `BlendMode` beats
-`RenderType`, `MaterialDomain` beats `Domain`. There is no diagnostic for the conflict.
+One more key is read by the compiler and never reaches the material <Since v="2.0.0" />:
+
+| Key | Value | Value when absent | Effect |
+| :-- | :-- | :-- | :-- |
+| `Substrate` | `Legacy`, `Bridge`, `Native` | `Legacy` | how a material written against the legacy attributes is read in a project that has Substrate on — `Bridge` folds the shading attributes of a Surface material into one `Substrate.ShadingModels` node on `FrontMaterial`. See [One source, two kinds of project](/en/docs/language-v2/substrate#one-source-two-kinds-of-project). An unknown mode is `DSH7232` |
+
+`Backend` and `Substrate` are taken out when the source is bound, matched ignoring case; the rest is
+applied when the material is built. When both a canonical key and its synonym are present, the
+**canonical** key wins: `BlendMode` beats `RenderType`, `MaterialDomain` beats `Domain`, with no
+diagnostic. These keys are looked up by trim-and-lowercase only, so `blendmode`, `BlendMode` and
+`BLENDMODE` all work.
 
 <Callout type="warn">
-**A spelling that differs from a special key only by spaces, underscores or hyphens is silently
-dropped.** `Blend_Mode = "Translucent";` does not set the blend mode: the direct probe for
-`BlendMode` misses the stored key `blend_mode`, and the reflection loop skips it because its
-separator-stripped form is on the special-key list. No error, no warning, no effect. The same
-applies to `Render_Type`, `Shading Model`, `Material-Domain`, a `Domain` with an internal space, and
-`Back_end`. Write the six names without separators.
+**A spelling that differs from a special key only by underscores is silently dropped.**
+`Blend_Mode = "Translucent";` does not set the blend mode: the direct probe for `BlendMode` misses the
+stored key `blend_mode`, and the reflection pass skips it because its separator-stripped form is on the
+special-key list. No error, no warning, no effect. The same applies to `Render_Type`, `Shading_Model`,
+`Material_Domain` and `Back_end`. Write these names without separators. (Since <Since v="2.0.0" /> a
+space or a hyphen cannot stand in a key at all: `DSH3261`.)
 </Callout>
 
 ### Application order
 
-1. The **whole** block is validated first — every special value is resolved and every generic value
-   is written to a throw-away transient `UMaterial`. A single bad value aborts before the real
-   material is touched.
-2. `BlendMode`, then `ShadingModel`, then `MaterialDomain`.
-3. The generic keys, in the parsed map's iteration order.
+1. The material is reset to the [defaults](#what-an-omitted-setting-resets-to).
+2. The **whole** block is validated — every special value is resolved and every generic value is
+   written to a throw-away transient `UMaterial`. A single bad value stops the build before the real
+   material is touched, and the rebuild is rolled back.
+3. `BlendMode`, then `ShadingModel`, then `MaterialDomain`; then `bUsedWithVolumetricCloud` follows the
+   domain.
+4. The generic keys, in the settings' iteration order.
 
 <Callout type="info">
-The generic pass iterates a hash map, so **no ordering is guaranteed between two generic keys**. The
-three special keys are always written first, which is why a blend-mode-adjacent property such as
-`TranslucencyLightingMode` sees the final blend mode.
+**No ordering is guaranteed between two generic keys.** The special keys are always written first, so a
+blend-mode-adjacent property such as `TranslucencyLightingMode` sees the final blend mode.
 </Callout>
 
-`Backend` is consumed before any material exists — an unrecognized `Backend` value fails the compile
-*before* the rest of `Settings` is validated, so no other settings diagnostic is reported for that
-file.
+`Backend` is consumed before any material exists — an unrecognized `Backend` value is a binding error,
+which stops the compile before the rest of `Settings` is applied, so no build-time settings diagnostic
+is reported for that file.
 
 ### Interaction with `Base.FrontMaterial`
 
-When any output binds `Base.FrontMaterial`, an explicit `ShadingModel` that is not `Substrate` or
-`Strata` is a hard error; otherwise the shading model is force-set to Substrate after the block is
-applied. Binding `Base.FrontMaterial` and `Base.MaterialAttributes` on the same `Shader` is also a
-hard error. `Substrate` itself requires <Since v="5.4" ue />.
+<Since v="2.0.0" /> The two 1.x checks on a `Base.FrontMaterial` binding — an explicit `ShadingModel`
+that is not `Substrate` or `Strata`, and `Base.FrontMaterial` together with `Base.MaterialAttributes` on
+one `Shader` — have no 2.0 diagnostic, and the compiler no longer forces the shading model to Substrate:
+an explicit `ShadingModel` is applied as written. See
+[Output bindings](/en/docs/generation/outputs#basefrontmaterial), [Substrate nodes](/en/docs/builtins/substrate)
+and, for `Substrate = Bridge`, [Substrate sugar](/en/docs/language-v2/substrate).
 
 ## The reflection resolver
 
-Every key that is not special is resolved against the generated material by Unreal reflection.
+Every key that is not special is resolved against the generated material by Unreal reflection: the key
+goes through the [alias table](#alias-table), `TFieldIterator<FProperty>` scans `UMaterial`, **including
+super-classes** — so `UMaterial`, `UMaterialInterface` and `UObject` properties are all reachable — and
+the value is written according to the resolved property's C++ type. No property of that name is
+`DSH7118`.
 
-| # | Step | Detail |
-| --: | :-- | :-- |
-| 1 | Split the key into segments on `.` at bracket depth 0 | `Lightmass.DiffuseBoost` → `Lightmass`, `DiffuseBoost`. A `.` inside `[ … ]` does not split. |
-| 2 | Parse each segment's optional trailing `[<integer>]` | the index must be a non-negative integer and `]` must be the segment's last character |
-| 3 | Map the segment name through the [alias table](#alias-table) | applied **per segment**, before the field scan |
-| 4 | Scan `TFieldIterator<FProperty>` over the current struct, **including super-classes** | so `UMaterial`, `UMaterialInterface` and `UObject` properties are all reachable |
-| 5 | Descend | a non-terminal segment must be an `FStructProperty`; the walk continues inside the struct |
-| 6 | Write the value | parsed according to the resolved property's C++ type |
+The resolver itself still walks `A.B` (a member of a struct property) and `A[N]` (element `N` of a
+fixed-size C array), but a 1.x `Settings` key cannot reach them any more (see above). The check that
+remains reachable: a fixed-size array property (`ArrayDim` greater than 1) named without an index, such
+as `PhysicalMaterialMap = …`, is `DSH7121`. `TArray`, `TMap` and `TSet` properties are not indexable —
+they fall through to the import-text catch-all in [Value grammar](#value-grammar).
 
 ### Property-name matching
 
-A segment matches a property when any of these three, after deleting spaces, `_` and `-` and
-lower-casing, equals the segment:
+A key matches a property when any of these three, after deleting spaces, `_` and `-` and lowercasing,
+equals it:
 
 | Rule | Example |
 | :-- | :-- |
-| The raw `FProperty` name | `TwoSided` ← `TwoSided`, `two_sided`, `TWO SIDED`, `two-sided` |
+| The raw `FProperty` name | `TwoSided` ← `TwoSided`, `two_sided`, `TWOSIDED` |
 | The property name **with a leading `b` stripped**, when the name is `b` followed by an uppercase letter | `bFullyRough` ← `FullyRough`; `bIsSky` ← `IsSky`; `bIsThinSurface` ← `IsThinSurface` |
 | The property's `DisplayName` metadata | whatever the engine declares for that property |
 
 The `b`-stripping rule is one-way and permissive: the full name still matches, so both
-`bFullyRough = true;` and `FullyRough = true;` resolve to the same property. A property whose name
-begins with a lowercase `b` followed by a non-uppercase character (`bias`, for example) is not
-b-stripped.
-
-### Nested and indexed paths
-
-| Form | Meaning | Example |
-| :-- | :-- | :-- |
-| `A.B` | `B` inside the struct property `A` | `Lightmass.DiffuseBoost = 1.5;` |
-| `A.B.C` | arbitrary depth, each non-terminal an `FStructProperty` | `NaniteOverrideMaterial.bEnableOverride = true;` |
-| `A[N]` | element `N` of a fixed-size C array (`ArrayDim > 1`) | `PhysicalMaterialMap[2] = Path(Game, "Physics/PM_Metal");` |
-| `A[N].B` | a member of an indexed struct element | index and path segments compose freely |
-
-`[N]` on a property whose `ArrayDim` is 1 is an error; omitting `[N]` on a property whose `ArrayDim`
-is greater than 1 is also an error. `TArray`, `TMap` and `TSet` properties are **not** indexable this
-way — they fall through to the `ImportText` catch-all in [Value grammar](#value-grammar).
+`bFullyRough = true;` and `FullyRough = true;` resolve to the same property.
 
 ### Alias table
 
-Ten fixed key aliases are applied per path segment before the field scan. Alias keys are compared in
-their separator-stripped, lower-cased form, so `Lighting_Mode`, `Lighting Mode` and `LIGHTINGMODE`
-all hit the first row.
+Ten fixed key aliases are applied before the field scan, compared in their separator-stripped,
+lowercased form, so `Lighting_Mode` and `LIGHTINGMODE` both hit the first row.
 
 | Alias | Resolves to |
 | :-- | :-- |
@@ -171,41 +175,46 @@ all hit the first row.
 | `ResponsiveAA` | `bEnableResponsiveAA` |
 | `ThinSurface` | `bIsThinSurface` |
 
-Because the alias applies per segment, `Lightmass.DiffuseBoost` resolves as `LightmassSettings` →
-`DiffuseBoost`.
-
 ## Value grammar
 
 The resolved property's C++ type decides how the value text is parsed. The value has already been
 unquoted, so `true` and `"true"` are the same input.
 
-| Property type | Accepted literal | Failure message |
+| Property type | Accepted literal | Code on failure |
 | :-- | :-- | :-- |
-| `bool` | `true` / `false`, case-insensitive | `'{Value}' is not a valid boolean value for '{Property}'.` |
-| `int32` | signed integer literal | `'{Value}' is not a valid integer value for '{Property}'.` |
-| `uint32` | integer in `[0, 4294967295]` | `'{Value}' is not a valid unsigned integer value for '{Property}'.` |
-| `float` | any numeric literal; also `true` → `1.0`, `false` → `0.0` | `'{Value}' is not a valid numeric value for '{Property}'.` |
-| `double` | as `float` | `'{Value}' is not a valid numeric value for '{Property}'.` |
+| `bool` | `true` / `false`, case-insensitive | `DSH7132` |
+| `int32` | signed integer literal | `DSH7133` |
+| `uint32` | integer in `[0, 4294967295]` | `DSH7134` |
+| `float` | a numeric literal — `true` / `false` are not numbers here | `DSH7135` |
+| `double` | as `float` | `DSH7136` |
 | `FString` | any text, trimmed — **never fails** | — |
 | `FName` | any text, trimmed — **never fails** | — |
-| object reference | `Path( … )` or an absolute object path | `Object property '{Property}' expects Path(...) or an absolute Unreal object path.` and the load/class errors |
-| `enum class` | an [enum literal](#enum-literals) | `'{Value}' is not a valid enum value for '{Property}'.` |
-| `uint8` enum | an [enum literal](#enum-literals) | `'{Value}' is not a valid enum value for '{Property}'.` |
-| plain `uint8` | integer in `[0, 255]` | `'{Value}' is not a valid byte value for '{Property}'.` |
-| anything else | Unreal struct-literal text, e.g. `(R=1.0,G=0.0,B=0.0,A=1.0)` | `Property '{Property}' on '{Object}' is not a supported literal type yet.` |
+| object reference | `Path( … )`, an absolute object path such as `/Game/Textures/T_Noise`, or a `Class'…'` reference | `DSH7137` (not a reference), `DSH7138` (does not load), `DSH7139` (wrong class), or the resolver's own code — see [Asset references](/en/docs/parameters/path#diagnostics) |
+| `enum class` (`FEnumProperty`) | an [enum literal](#enum-literals) | `DSH7140` |
+| `uint8` backed by an enum | an [enum literal](#enum-literals) | `DSH7141` |
+| plain `uint8` | integer in `[0, 255]` | `DSH7142` |
+| anything else | Unreal struct-literal text, e.g. `(R=1.0,G=0.0,B=0.0,A=1.0)` | `DSH7143` |
 
-Whichever message applies is wrapped as
-`Invalid value '{Value}' for setting '{Key}'. {TypeMessage}`.
+A number is read the way Unreal's `LexTryParseString` reads it, which stops at the first character it
+cannot use: `OpacityMaskClipValue = "0.5abc";` is `0.5`. The type's message is wrapped as `DSH7125`
+while the block is validated (`DSH7126` if the real material then refuses it), and that reaches you as
+`DSH8215`, which names the material and quotes the code.
+
+<Callout type="info">
+An object-typed property whose class derives from `UTexture` **and** whose name is exactly `Texture` or
+`TextureObject` writes `nullptr` instead of erroring when the asset fails to load. This is the
+material-expression convention; it applies here too.
+</Callout>
 
 ### Enum literals
 
-An enum-typed value is matched after trimming, lower-casing and deleting every space, `_`, `-`, `:`,
-`.` and `/`. Values carrying `Hidden` metadata are skipped. A candidate matches the short enum name
-(`TLM_Surface`), the fully-qualified name (`ETranslucencyLightingMode::TLM_Surface`), the display
-name (`Surface`), or the short name with everything up to the first `_` removed (`Surface`).
+An enum-typed value is matched after trimming, lowercasing and deleting every space, `_`, `-`, `:`, `.`
+and `/`. Values carrying `Hidden` metadata are skipped. A candidate may be the short enum name
+(`TLM_Surface`), the fully-qualified name (`ETranslucencyLightingMode::TLM_Surface`), the display name
+(`Surface`), or the short name with everything up to the first `_` removed (`Surface`).
 
-This matching is **separate** from the `ShadingModel` / `BlendMode` / `Domain` alias maps on
-[Enum Values](/en/docs/settings/enums) — those three keys never reach this code.
+This matching is **separate** from the `ShadingModel` / `BlendMode` / `Domain` alias maps in
+[Enum values](/en/docs/settings/enums) — those three keys never reach this code.
 
 ### `Path( … )` values
 
@@ -217,28 +226,15 @@ This matching is **separate** from the `ShadingModel` / `BlendMode` / `Domain` a
 | `Path(Plugin.PluginName, "Foo/Bar")` | the named plugin's content root |
 | `/Game/Foo/Bar` | bare absolute path, no `Path( … )` wrapper |
 
-The complete root catalogue and its errors are on
-[Asset References](/en/docs/parameters/path).
-
-<Callout type="info">
-An object-typed property whose class derives from `UTexture` **and** whose property name is exactly
-`Texture` or `TextureObject` writes `nullptr` instead of erroring when the asset fails to load. This
-is the material-expression convention; it also applies here.
-</Callout>
-
-<Callout type="warn">
-When an object-typed value *looks* like a path — it starts with `Path(` or `/` — but fails to
-resolve, the type-specific explanation is empty and the diagnostic degenerates to
-`Invalid value '/Game/Nope' for setting 'physmaterial'. ` with nothing after the period. Check that
-the asset exists and that its class matches the property.
-</Callout>
+The complete root catalogue and its codes are in [Asset references](/en/docs/parameters/path). When an
+object-typed value is a reference — it starts with `Path(` or `/`, or ends with `'` — and does not
+resolve, the sentence after `DSH7125`'s period is the resolver's message.
 
 ## Validation
 
-Before anything is written to the real material, each generic key/value pair is applied to a
-transient probe `UMaterial`. The probe write and the real write use the same code, so a value that
-validates always applies. The only failure specific to this stage is
-`Failed to create a transient material for Settings validation.`
+Before anything is written to the real material, each generic key/value pair is applied to a transient
+probe `UMaterial`. The probe write and the real write use the same code, so a value that validates
+always applies. The only failure specific to this stage is `DSH7124`: the probe could not be created.
 
 ## What an omitted setting resets to
 
@@ -251,6 +247,7 @@ A generated material is reset immediately before `Settings` is applied. An omitt
 | `MaterialDomain` | `Surface` |
 | shading model | `DefaultLit` |
 | `TwoSided` | `false` |
+| `bUseMaterialAttributes` | `false` |
 | `OpacityMaskClipValue` | `0.3333` |
 | `Wireframe` | `false` |
 | `DitheredLODTransition` | `false` |
@@ -276,21 +273,20 @@ A generated material is reset immediately before `Settings` is applied. An omitt
 | `NumCustomizedUVs` | `0` |
 | `bUsedWithVolumetricCloud` <Since v="1.8.0" /> | `true` when `Domain="Volume"`, otherwise `false` |
 
-`bUsedWithVolumetricCloud` is the one entry above that is **not a constant**: the domain decides it. A
-`Volume`-domain material is a volumetric material, and the volumetric cloud renderer refuses one that
-is not flagged for it — so you never have to write the flag by hand. Write it explicitly to override
-the domain's choice; a `Volume` material that only ever feeds volumetric fog can turn the flag back
-off with `bUsedWithVolumetricCloud = "false";` and save the cloud shader permutations.
+`bUsedWithVolumetricCloud` is the one entry above that is not a constant: the domain decides it. A
+`Volume`-domain material is a volumetric material, and the volumetric cloud renderer refuses one that is
+not flagged for it — so you never have to write the flag by hand. Write it explicitly to override the
+domain's choice: a `Volume` material that only ever feeds volumetric fog can turn the flag back off with
+`bUsedWithVolumetricCloud = "false";` and save the cloud shader permutations.
 
-Every other `UMaterial` property keeps whatever a freshly constructed material has. Keep anything
-that must survive a rebuild in `Settings`, not as a hand edit on the generated asset.
+Every other `UMaterial` property keeps whatever a freshly constructed material has. Any setting that must
+survive regeneration belongs in `Settings`, not in a hand edit of the generated asset.
 
-## What survives a decompile round trip
+## Which settings survive a decompile round trip
 
 The [decompiler](/en/docs/tools/decompiler) emits `Domain`, `ShadingModel` and `BlendMode`
-unconditionally, plus each of the following when it differs from the `UMaterial` class default. This
-is the set guaranteed to survive `UMaterial` → `.dsm` → `UMaterial`; it is a subset of what
-`Settings` accepts, not a limit on it.
+unconditionally, plus each of the following when it differs from the `UMaterial` class default. This is
+the set guaranteed to survive a round trip; it is a subset of what `Settings` accepts, not a limit on it.
 
 **Booleans (40, in emit order)**
 
@@ -311,12 +307,9 @@ bCastRayTracedShadows       bWriteOnlyAlpha               BlendableOutputAlpha
 bAlwaysEvaluateWorldPositionOffset                        bUsedWithVolumetricCloud
 ```
 
-`bHasPixelAnimation` is emitted only on <Since v="5.4" ue />.
-
-`bUsedWithVolumetricCloud` <Since v="1.8.0" /> is the one boolean **not** compared against the
-`UMaterial` class default: it is compared against the value the domain would give it. On a
-`Volume`-domain material the value that needs no line is `true`, so it is the `false` that gets
-written out — which is what keeps a fog-only `Volume` material from coming back with the flag on.
+`bHasPixelAnimation` is emitted only on <Since v="5.4" ue />. `bUsedWithVolumetricCloud` is the one
+boolean **not** compared against the `UMaterial` class default: it is compared against the value the
+domain would give it, so on a `Domain="Volume"` material it is the `false` that gets written out.
 
 **Enums (1)** — `MaterialDecalResponse`.
 
@@ -324,85 +317,101 @@ Reachable but never emitted, and therefore lost on a round trip: `OpacityMaskCli
 `NumCustomizedUVs`, `TranslucencyLightingMode`, `RefractionMethod`, `RefractionDepthBias`,
 `TranslucencyPass`, `ShadingRate`, `FloatPrecisionMode`, `BlendableLocation`, `BlendablePriority`,
 `bIsBlendable`, `UserSceneTexture`, `StencilCompare`, `StencilRefValue`, `bEnableStencilTest`,
-`MaxWorldPositionOffsetDisplacement`, `PhysMaterial`, `PhysMaterialMask`, `PhysicalMaterialMap[N]`,
-`Lightmass.*`, `DisplacementScaling.*`, `NaniteOverrideMaterial.*`, and every other engine property
+`MaxWorldPositionOffsetDisplacement`, `PhysMaterial`, `PhysMaterialMask`, and every other engine property
 the resolver can reach.
 
 ## Material function settings
 
-A `Settings` block on a `ShaderFunction`, `ShaderLayer` or `ShaderLayerBlend` does **not** share any
-of the behaviour above. Exactly four keys are read there:
+A `Settings` block on a `ShaderFunction`, `ShaderLayer` or `ShaderLayerBlend` (and the deprecated
+`MaterialLayer` / `MaterialLayerBlend`) has **nothing** to do with the above. Exactly four keys are read
+there, describing the generated `UMaterialFunction` to the Material Function Library; in 2.0 they are
+the `/// @desc` and `/// @library` directives of the exported function.
 
-| Key | Sets | Value grammar | Value when absent |
+| Key | Sets | Value | Value when absent |
 | :-- | :-- | :-- | :-- |
 | `Description` | `UMaterialFunction::Description` | free text | cleared to the empty string |
-| `UserExposedCaption` | `UMaterialFunction::UserExposedCaption` | free text | cleared to the empty string |
-| `ExposeToLibrary` | `UMaterialFunction::bExposeToLibrary` | `true` / `false` | `false` |
-| `LibraryCategories` | `UMaterialFunction::LibraryCategoriesText` | a comma-separated list; each entry trimmed, empty entries dropped | the category list is cleared |
+| `UserExposedCaption` | **nothing** <Since v="2.0.0" />: the warning `DSH3264` says it is not applied, and the asset's caption is left as it is | free text | — |
+| `ExposeToLibrary` | `UMaterialFunction::bExposeToLibrary`, together with `LibraryCategories` | `true` / `false`, case-insensitive; any other value is the warning `DSH3265` and the setting is ignored | `false` |
+| `LibraryCategories` | `UMaterialFunction::LibraryCategoriesText`, together with `ExposeToLibrary` | a comma-separated list; each entry trimmed, empty entries dropped | the category list is cleared |
 
 ```c
 Settings = {
     Description        = "Multiplies a colour by a tint.";
-    UserExposedCaption = "Tint";
     ExposeToLibrary    = true;
     LibraryCategories  = "DreamShader, Color";
 }
 ```
 
-Keys here are matched by trim and lower-case only — spaces, underscores and hyphens are **not**
-folded, so `Expose_To_Library` is not `ExposeToLibrary`.
+<Since v="2.0.0" /> `ExposeToLibrary` and `LibraryCategories` act as **one** setting, the 2.0
+`/// @library <categories>`: the function is exposed, under those categories, when `ExposeToLibrary` is
+`true` **and** `LibraryCategories` is not empty. `ExposeToLibrary = true;` alone leaves the function out
+of the library, and `LibraryCategories` without `ExposeToLibrary = true;` is dropped. `LibraryCategories`
+clears the list before parsing, so it always replaces the asset's categories: `LibraryCategories = "A,,  B ,";`
+yields exactly `A` and `B`.
+
+Keys here are matched ignoring case, but underscores are **not** folded — `Expose_To_Library` is not
+`ExposeToLibrary`. An absent key is reset: omitting `ExposeToLibrary` sets it to `false`, omitting
+`Description` empties it; a value edited by hand on the generated asset is lost on the next regeneration
+— except the caption, which 2.0 does not write at all.
 
 <Callout type="warn">
-**Any other key is ignored, silently.** There is no validation pass over a material function's
-`Settings` map: only these four names are looked up and everything else is dropped with no error and
-no warning. `Backend`, `Domain`, `ShadingModel`, `BlendMode`, `TwoSided` and every other key on this
-page do **nothing** in a `ShaderFunction` block — and so does a misspelling of the four.
+**Any other key is ignored, with the warning `DSH3263`** <Since v="2.0.0" /> (1.x said nothing). Only
+these four names are looked up: `Backend`, `Domain`, `ShadingModel`, `BlendMode`, `TwoSided` and every
+other `Shader` key on this page do **nothing** in a `ShaderFunction` block, and a misspelling of one of
+the four — `Descriptions`, `Expose_To_Library`, `LibraryCategory` — is the same warning.
 </Callout>
 
 <Callout type="warn">
-The decompiler does not emit a `Settings` block when exporting a `UMaterialFunction` to `.dsf`. All
-four values are lost on that round trip and must be re-added by hand.
+The decompiler does not emit a `Settings` block when exporting a `UMaterialFunction` to `.dsf`. These
+values are lost on that round trip and must be re-added by hand.
 </Callout>
+
+The checks these settings mistakes are most often confused with: a material function produces at least
+one output (`DSH4315`); a `ShaderLayer` or `ShaderLayerBlend` has a `MaterialAttributes` output
+(`DSH3278`); a `ShaderLayer` has that material as its only input and output (`DSH6204`); a
+`ShaderLayerBlend` has, besides the material output, inputs only, at least one of them
+`MaterialAttributes` (`DSH6205`); the body section is `Graph`, not `Code` (`DSH2246`).
+
+A `VirtualFunction` block also accepts a section named `Settings`, but it is a synonym for `Options` with
+an entirely different key set — `Asset` (required) and `Description`. `Function` and `GraphFunction`
+have no `Settings` section at all.
 
 ## Notes
 
-- The reflection surface is the **engine's**, not the plugin's. A custom or modified engine build
-  exposes its own properties and its own enum values through the same resolver, so this page
-  describes the stock UE 5.3 – 5.8 surface only.
+- The reflection surface is the **engine's**, not the plugin's. A custom or modified engine build exposes
+  its own properties and enum values through the same resolver, so this page describes the stock
+  UE 5.3 – 5.8 surface only.
 - Under the [ThinCustom backend](/en/docs/settings/backend) every setting lands on the **hidden base
-  `UMaterial`**, not on the emitted instance. Reading the blend mode off the instance shows the
-  inherited value.
-- Because keys are lower-cased when stored, the `{Key}` quoted in a diagnostic is the **lower-cased**
-  spelling, not what the source wrote. Every message is also prefixed with the source file path.
+  `UMaterial`**, not on the emitted instance. Reading the blend mode off the instance shows the inherited
+  value.
+- Keys are lowercased when they reach the emitter, so a build-time diagnostic quotes the **lowercased**
+  spelling, not what the source wrote.
+- A settings failure is reported once per material, as `DSH8215`; the message names the material and
+  quotes the reflected writer's code and message.
 
 ## Diagnostics
 
 <Diag>
-  <D msg="Unsupported material setting '{Key}'." cause="No property matched a path segment — the usual unknown-key error." fix="Check the property name on UMaterial, or whether the key needs an alias." />
-  <D msg="Unsupported BlendMode/RenderType '{Value}'." cause="The value matched no project mapping and no built-in alias." href="/en/docs/settings/enums" />
-  <D msg="Unsupported ShadingModel '{Value}'." cause="The value matched no project mapping and no built-in alias." href="/en/docs/settings/enums" />
-  <D msg="Unsupported MaterialDomain '{Value}'." cause="The value matched no project mapping and no built-in alias." href="/en/docs/settings/enums" />
-  <D msg='ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.' cause="The value trims and case-folds to Substrate or Strata on UE 5.3." />
-  <D msg="Invalid value '{Value}' for setting '{Key}'. {TypeMessage}" cause="The literal write failed. {TypeMessage} is empty for a path-shaped object value that failed to resolve." />
-  <D msg="Setting path segment cannot be empty." cause="An empty .-delimited segment, as in Foo..Bar." />
-  <D msg="Invalid array setting segment '{Segment}'." cause="Malformed brackets — no ], ] before [, ] not last, or nothing before [." />
-  <D msg="Invalid array index '{Index}' in setting segment '{Segment}'." cause="The index is not an integer, or is negative." />
-  <D msg="Setting '{Segment}' is not an indexed array property." cause="[N] used on a property whose ArrayDim is 1." />
-  <D msg="Array index {Index} is out of range for setting '{Segment}' (max {Max})." cause="The index is at or beyond ArrayDim." />
-  <D msg="Setting '{Segment}' requires an explicit [index]." cause="A fixed-array property addressed without [N]." />
-  <D msg="Setting path '{Key}' cannot continue through '{Segment}'." cause="A non-terminal segment is not a struct property." />
-  <D msg="Invalid material setting path '{Key}'." cause="The key produced no path segments." />
-  <D msg="Invalid material setting target." cause="The resolver was handed no object." />
-  <D msg="Failed to create a transient material for Settings validation." cause="The probe material could not be allocated." />
-  <D msg="Invalid setting declaration '{Statement}'." cause="A statement with no = at parenthesis/bracket depth 0." />
-  <D msg="Invalid empty setting key in '{Statement}'." cause="The text before = is empty after trimming." />
-  <D msg='{File}: Base.FrontMaterial requires ShadingModel="Substrate" or no explicit ShadingModel setting.' cause="An explicit non-Substrate shading model with a Base.FrontMaterial binding." />
-  <D msg="{File}: Base.FrontMaterial and Base.MaterialAttributes cannot be used by the same Shader." cause="Both bindings on one Shader." />
-  <D msg="{Kind} '{Name}': ExposeToLibrary must be true or false." cause="A material function's ExposeToLibrary value is not a boolean literal." />
+  <D msg="DSH3261: Expected a setting name such as 'BlendMode', found {0}." cause="No { after Settings, a statement that does not start with a name, a name with no = after it (which is what a . or [ in a key gives), or an = with no value." fix="Write one name per key; nested paths and indices are not reachable from a 1.x key." />
+  <D msg="DSH3262: The setting '{0}' is written twice; the later value wins, as it did in 1.x." cause="Warning: a name written twice, compared ignoring case." />
+  <D msg="DSH7127: Unsupported BlendMode/RenderType '%s'." cause="The BlendMode / RenderType value matched no alias." href="/en/docs/settings/enums" />
+  <D msg="DSH7129: Unsupported ShadingModel '%s'." cause="The ShadingModel value matched no alias." href="/en/docs/settings/enums" />
+  <D msg={'DSH7128: ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.'} cause="On UE 5.3 the value trims and case-folds to Substrate or Strata." />
+  <D msg="DSH7130: Unsupported MaterialDomain '%s'." cause="The MaterialDomain / Domain value matched no alias." href="/en/docs/settings/enums" />
+  <D msg="DSH7118: Unsupported material setting '%s'." cause="No property matched the key — the usual unknown-key error." fix="Check the property name on UMaterial, or whether the key needs an alias." />
+  <D msg="DSH7121: Setting '%s' requires an explicit [index]." cause="A fixed-size array property named without an index." />
+  <D msg="DSH7124: Failed to create a transient material for Settings validation." cause="The probe material could not be allocated." />
+  <D msg="DSH7125: Invalid value '%s' for setting '%s'. %s" cause="The literal write failed on the probe (DSH7126: on the real material); the sentence after it is the type-specific code and message." />
+  <D msg="DSH8215: A material setting on '{0}' was refused. {1}" cause="Every build-time code above reaches you inside this one." />
+  <D msg="DSH7232: 'Substrate = {0}' is not a Substrate mode; the modes are 'Legacy', 'Bridge' and 'Native'." cause="Substrate is not Legacy, Bridge or Native." />
+  <D msg="DSH7200: '{0}' is set twice by '#pragma material'; it was already set on line {1}." cause="A key set twice across #pragma material lines in a .dss (a 1.x Settings block reports DSH3262)." />
+  <D msg="DSH3263: '{0}' is not a setting of '{1}'; 1.x ignored it and so does this front end." cause="Warning: a key a material-function block does not read." />
+  <D msg="DSH3264: 'UserExposedCaption' has no 2.0 spelling and is not applied; its value is kept for migration." cause="Warning: UserExposedCaption on a material function." />
+  <D msg="DSH3265: Expected 'true' or 'false' for 'ExposeToLibrary', found '{0}'; 1.x ignored the setting and so does this front end." cause="Warning: ExposeToLibrary is not a boolean literal; the setting is ignored." />
 </Diag>
 
-`Unsupported Backend '{Value}'. Supported values: Graph, Instance, ThinCustom.` is raised earlier, by
-the backend resolver — see [Backend](/en/docs/settings/backend).
+The `Backend` value is checked when the source is bound — see [Backend](/en/docs/settings/backend#diagnostics).
+The complete list is in [Diagnostics](/en/docs/diagnostics).
 
 ## Example
 
@@ -431,9 +440,6 @@ Shader(Name="Docs/M_ShaderSettings", Root="Game")
 
         // Alias -> TranslucencyLightingMode, matched by display name.
         LightingMode = "Surface";
-
-        // Nested struct path.
-        Lightmass.DiffuseBoost = 1.5;
 
         // Object reference.
         PhysicalMaterial = Path(Engine, "EngineMaterials/DefaultPhysicalMaterial");
@@ -468,13 +474,12 @@ bIsSky                   = false
 OpacityMaskClipValue     = 0.25
 MaterialDecalResponse    = MDR_ColorNormalRoughness
 TranslucencyLightingMode = TLM_Surface
-LightmassSettings.DiffuseBoost = 1.5
 PhysMaterial             = /Engine/EngineMaterials/DefaultPhysicalMaterial
 ```
 
 ## Next
 
-- [Enum Values](/en/docs/settings/enums) — every accepted `ShadingModel`, `BlendMode` and `Domain` spelling
-- [Backend](/en/docs/settings/backend) — the sixth special key, and what each backend produces
-- [Project Settings](/en/docs/settings/project) — the mapping maps that extend the enum spellings
+- [Enum values](/en/docs/settings/enums) — every accepted `ShadingModel`, `BlendMode` and `Domain` spelling
+- [Backend](/en/docs/settings/backend) — the materialization strategy, and what each backend produces
+- [Project settings](/en/docs/settings/project) — the mapping maps that extend the enum spellings
 - [Regeneration](/en/docs/generation/regeneration) — what a rebuild resets

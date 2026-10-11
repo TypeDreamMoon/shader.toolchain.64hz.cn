@@ -70,13 +70,12 @@ Reflected from `EMaterialShadingModel`, prefix `MSM_` stripped.
 `substrate`.
 
 Excluded: `MSM_NUM`, `MSM_MAX` and — deliberately — **`MSM_FromMaterialExpression`**. Writing
-`ShadingModel = "FromMaterialExpression";` is an error, not a way to drive the shading model from
-the graph.
+`ShadingModel = "FromMaterialExpression";` is an error (`DSH7129`), not a way to drive the shading model
+from the graph.
 
 <Callout type="warn">
-`Substrate` / `Strata` require <Since v="5.4" ue />. On UE 5.3 they are rejected with a dedicated
-message, `ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.`, rather than the generic
-"unsupported" one.
+`Substrate` / `Strata` require <Since v="5.4" ue />. On UE 5.3 they are rejected with a code of their
+own, `DSH7128`, rather than the generic "unsupported" one. See [Substrate nodes](/en/docs/builtins/substrate).
 </Callout>
 
 ## BlendMode
@@ -188,13 +187,14 @@ order — which one wins is undefined. Do not add both `My Model` and `my_model`
 ## Diagnostics
 
 <Diag>
-  <D msg="Unsupported ShadingModel '{Value}'." cause="The value matched no project mapping and no built-in alias, or matched an entry mapped to MSM_MAX." />
-  <D msg='ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.' cause="The value trims and case-folds to Substrate or Strata on UE 5.3." />
-  <D msg="Unsupported BlendMode/RenderType '{Value}'." cause="No match for the BlendMode / RenderType value." />
-  <D msg="Unsupported MaterialDomain '{Value}'." cause="No match for the MaterialDomain / Domain value." />
+  <D msg="DSH7129: Unsupported ShadingModel '%s'." cause="The value matched no project mapping and no built-in alias, or matched an entry mapped to MSM_MAX." />
+  <D msg={'DSH7128: ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.'} cause="The value trims and case-folds to Substrate or Strata on UE 5.3." />
+  <D msg="DSH7127: Unsupported BlendMode/RenderType '%s'." cause="No match for the BlendMode / RenderType value." />
+  <D msg="DSH7130: Unsupported MaterialDomain '%s'." cause="No match for the MaterialDomain / Domain value." />
 </Diag>
 
-All four are raised during validation, before anything is written to the material.
+All four are raised while the settings are validated, before any of them is applied, and reach you
+inside `DSH8215`, which names the material; the rebuild is rolled back.
 
 ## Example
 

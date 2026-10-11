@@ -66,11 +66,11 @@ Settings [=] {
 也没有 `substrate`。
 
 被排除的：`MSM_NUM`、`MSM_MAX`，以及被刻意排除的 **`MSM_FromMaterialExpression`**。
-写 `ShadingModel = "FromMaterialExpression";` 是错误，它不是从图里驱动 shading model 的办法。
+写 `ShadingModel = "FromMaterialExpression";` 是错误（`DSH7129`），它不是从图里驱动 shading model 的办法。
 
 <Callout type="warn">
-`Substrate` / `Strata` 需要 <Since v="5.4" ue />。在 UE 5.3 上它们会被专门的信息拒绝：
-`ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.`，而不是通用的“不支持”错误。
+`Substrate` / `Strata` 需要 <Since v="5.4" ue />。在 UE 5.3 上它们用自己的码 `DSH7128` 拒绝，而不是通用的
+「不支持」错误。见 [Substrate 节点](/docs/builtins/substrate)。
 </Callout>
 
 ## BlendMode
@@ -175,13 +175,13 @@ Settings [=] {
 ## 诊断
 
 <Diag>
-  <D msg="Unsupported ShadingModel '{Value}'." cause="值既不匹配项目映射也不匹配内置别名，或命中了映射到 MSM_MAX 的条目。" />
-  <D msg='ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.' cause="在 UE 5.3 上值 trim 并折叠大小写后是 Substrate 或 Strata。" />
-  <D msg="Unsupported BlendMode/RenderType '{Value}'." cause="BlendMode / RenderType 的值没有匹配项。" />
-  <D msg="Unsupported MaterialDomain '{Value}'." cause="MaterialDomain / Domain 的值没有匹配项。" />
+  <D msg="DSH7129: Unsupported ShadingModel '%s'." cause="值既不匹配项目映射也不匹配内置别名，或命中了映射到 MSM_MAX 的条目。" />
+  <D msg={'DSH7128: ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.'} cause="在 UE 5.3 上值 trim 并折叠大小写后是 Substrate 或 Strata。" />
+  <D msg="DSH7127: Unsupported BlendMode/RenderType '%s'." cause="BlendMode / RenderType 的值没有匹配项。" />
+  <D msg="DSH7130: Unsupported MaterialDomain '%s'." cause="MaterialDomain / Domain 的值没有匹配项。" />
 </Diag>
 
-这四条都在校验阶段抛出，早于对材质的任何写入。
+这四条都在校验设置时抛出，早于任何一条设置被应用；它们包在 `DSH8215`（会指出材质）里到达你，这次重建被回滚。
 
 ## 示例
 
