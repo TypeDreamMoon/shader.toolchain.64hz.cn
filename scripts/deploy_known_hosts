@@ -1,0 +1,2 @@
+# Public host key matched against this workstation's existing SSH trust.
+8.153.161.157 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMGSwx8O0N1mlzZbt8sv7njfSL2VdXkrOJ9Iz79UBF1m

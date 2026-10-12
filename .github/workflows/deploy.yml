@@ -6,27 +6,33 @@ on:
       - main
       - master
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Compare the export without changing server files
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+# main, master and manual publishes all update the same web root. Let an
+# in-progress deployment finish before the next run starts transferring files.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Build and deploy static site
     runs-on: ubuntu-latest
-
-    env:
-      SFTP_HOST: ${{ secrets.SFTP_HOST }}
-      SFTP_PORT: ${{ secrets.SFTP_PORT }}
-      SFTP_USER: ${{ secrets.SFTP_USER }}
-      SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-      SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
-      SFTP_PASSPHRASE: ${{ secrets.SFTP_PASSPHRASE }}
-      SFTP_REMOTE_DIR: ${{ secrets.SFTP_REMOTE_DIR }}
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Test deploy helper
+        run: python3 -B -m unittest discover -s scripts -p test_deploy_rsync.py
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -43,5 +49,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload static export
-        run: npm run upload
+      - name: Sync static export via rsync
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.SFTP_PORT }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
+          SFTP_PASSPHRASE: ${{ secrets.SFTP_PASSPHRASE }}
+          SFTP_REMOTE_DIR: ${{ secrets.SFTP_REMOTE_DIR }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
+          DEPLOY_DRY_RUN: ${{ inputs.dry_run || false }}
+        run: python3 scripts/deploy_rsync.py --default-remote-dir /www/wwwroot/lang.64hz.cn
