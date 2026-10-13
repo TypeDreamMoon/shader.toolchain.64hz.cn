@@ -1,0 +1,404 @@
+---
+title: "Contributing"
+description: "Contributing"
+---
+
+# Contributing
+
+> [DreamShader](/en/docs/) » **Contributing**
+
+Building the plugin itself, the layout of its five C++ modules, and where each subsystem's code
+lives.
+
+| | |
+| :-- | :-- |
+| Repository | <https://github.com/TypeDreamMoon/DreamShader> |
+| Kind | contributor reference |
+| Plugin version | `2.1.2` — descriptor `Version` `212`, `IsBetaVersion` `false` |
+| Engines | Unreal Engine `5.3` – `5.8`, Win64 verified |
+| License | MIT |
+
+## Synopsis
+
+Validate the plugin standalone, without building a full project target:
+
+```powershell
+& "<EngineDir>\Engine\Build\BatchFiles\RunUAT.bat" BuildPlugin `
+  -Plugin="<PluginDir>\DreamShader.uplugin" `
+  -Package="<OutputDir>\DreamShader" `
+  -TargetPlatforms=Win64 `
+  -Rocket
+```
+
+`<PluginDir>` is the directory holding `DreamShader.uplugin`. `-Package` must point at a directory
+that does not overlap the source tree — UAT stages a clean copy there.
+
+One engine proves nothing about the others, so run the whole matrix with
+[`.skill/build-plugin.ps1`](#the-engine-matrix).
+
+## Repository layout
+
+| Path | Contents | In the [release archive](/en/docs/plugin/contributing/release#archive-contents) |
+| :-- | :-- | :-- |
+| `Source/` | The five C++ modules | yes |
+| `Docs/` | This manual | yes |
+| `.skill/` | The agent skill set, its `dsc.ps1` driver, and [`build-plugin.ps1`](#the-engine-matrix) | yes *(since 1.5.1)* |
+| `Resources/` | `Icon128.png`, the plugin icon | yes |
+| `DreamShader.uplugin` | Plugin descriptor | yes |
+| `README.md` | English readme | yes |
+| `README.zh-CN.md` | Chinese readme | yes *(since 1.5.1)* |
+| `CHANGELOG.md` | Version history; the release workflow reads its `## <VersionName>` section | yes |
+| `LICENSE` | MIT | yes |
+| `Content/Localization/DreamShader/` | `.locmeta` plus one `.locres` per culture; loaded through the `LocalizationTargets` entry in the descriptor | yes *(since 2.1.2)* |
+| `Shaders/` | `DreamShaderBuiltins.ush` and the Custom Pass shaders under `Pass/`, mounted at `/Plugin/DreamShader` | yes *(since 1.5.1)* |
+| `Tests/Corpus/` | Data-driven fixtures and `.expected.json` goldens | **no** |
+| `Tools/Localization/` | `localization_lint.ps1` and the gather baseline it emits | **no** |
+| `Config/` | `FilterPlugin.ini` — the stock commented template; it declares no extra packaged files | **no** |
+| `Images/` | Readme artwork | **no** |
+| `.github/workflows/release.yml` | The only workflow in the repository | **no** |
+| `Binaries/`, `Intermediate/` | Build output; git-ignored | **no** |
+
+## Modules
+
+| Module | Type | Loading phase | Public headers | Export macro |
+| :-- | :-- | :-- | :-- | :-- |
+| `DreamShaderLang` | Runtime | PostConfigInit | 31 | `DREAMSHADERLANG_API` |
+| `DreamShader` | Runtime | PostConfigInit | 8 | `DREAMSHADER_API` |
+| `DreamShaderPass` *(since 2.1.0)* | Runtime | PostConfigInit | 11 | `DREAMSHADERPASS_API` |
+| `DreamShaderCompiler` | Editor | Default | 20 | `DREAMSHADERCOMPILER_API` |
+| `DreamShaderEditor` | Editor | Default | **0** — there is no `Public/` folder | `DREAMSHADEREDITOR_API` is defined by UBT and never used in source |
+
+The order is the descriptor's. `DreamShaderPass` loads at `PostConfigInit` because it maps a shader
+source directory and its global shader types register when its DLL loads, both of which have to happen
+before the engine commits the shader type list.
+
+The descriptor declares two enabled plugin dependencies: `WebSocketNetworking` (the preview
+WebSocket server) and `SQLiteCore` (the bridge database). Both are engine plugins.
+
+### Build rules
+
+All five modules set `PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs`. Three of them add
+definitions, each from a probe of the engine being built against:
+
+| Module | Definitions |
+| :-- | :-- |
+| `DreamShader` | `PublicDefinitions`: `DREAMSHADER_WITH_MOON_ENGINE` and `DREAMSHADER_WITH_PARAMETER_COLLECTION_PARAMETERS`, `0` or `1` from header probes — see [Version compatibility](/en/docs/plugin/api/version-compat#macros) |
+| `DreamShaderPass` | `PublicDefinitions`: `DREAMSHADER_WITH_CUSTOM_PASS`, `1` from UE 5.8 on — see [`DREAMSHADER_WITH_CUSTOM_PASS`](/en/docs/plugin/api/version-compat#dreamshader_with_custom_pass). At `1` it also adds the Renderer's `Internal` folder to its private include paths |
+| `DreamShaderEditor` | `PrivateDefinitions`: `MOON_ENGINE=1`, only when the engine's `SceneTypes.h` declares `MP_MoonEncodedAttribute0`; no source file reads it |
+
+| Module | Dependency list |
+| :-- | :-- |
+| `DreamShaderLang` | **Public (1)**: `Core`. No private dependencies. |
+| `DreamShader` | **Public (7)**: `Core`, `CoreUObject`, `DeveloperSettings`, `DreamShaderLang`, `Engine`, `Projects`, `RenderCore`. No private dependencies. |
+| `DreamShaderPass` | **Public (7)**: `Core`, `CoreUObject`, `DeveloperSettings`, `DreamShader`, `Engine`, `RenderCore`, `RHI`. **Private (2)**: `Projects`, `Renderer`. |
+| `DreamShaderCompiler` | **Public (5)**: `Core`, `CoreUObject`, `DreamShader`, `DreamShaderLang`, `Engine`. **Private (10)**: `AssetRegistry`, `AssetTools`, `DreamShaderPass`, `Json`, `MaterialEditor`, `Projects`, `RenderCore`, `RHI`, `TargetPlatform`, `UnrealEd`. |
+| `DreamShaderEditor` | **Private (31)**: `ApplicationCore`, `AssetRegistry`, `AssetTools`, `ContentBrowser`, `Core`, `CoreUObject`, `DesktopPlatform`, `DirectoryWatcher`, `DreamShader`, `DreamShaderCompiler`, `DreamShaderLang`, `DreamShaderPass`, `Engine`, `InputCore`, `Json`, `MaterialEditor`, `Projects`, `PropertyEditor`, `RHI`, `RenderCore`, `Renderer`, `Settings`, `Slate`, `SlateCore`, `SQLiteCore`, `TargetPlatform`, `ToolMenus`, `ToolWidgets`, `UnrealEd`, `WebSocketNetworking`, `WorkspaceMenuStructure`. No public dependencies. |
+
+`DreamShaderPass` is a **private** dependency of `DreamShaderCompiler` and `DreamShaderEditor`. Both
+read its public definition `DREAMSHADER_WITH_CUSTOM_PASS` instead of testing the engine version
+again. `DreamShaderPass` itself depends on `DreamShader` — for the project source root its
+`.dreampass/` folder lives in — and on no editor module.
+
+`DreamShader` is a **public** dependency of `DreamShaderCompiler`, so anything that links
+`DreamShaderCompiler` transitively gets the runtime headers.
+
+Why the runtime module needs each of its dependencies: `DeveloperSettings` for `UDeveloperSettings`;
+`Engine` for `EngineTypes.h`, `MaterialDomain.h` and `UMaterialInstanceConstant`; `RenderCore` for
+`AllShaderSourceDirectoryMappings` / `AddShaderSourceDirectoryMapping`; `Projects` for
+`IPluginManager`.
+
+## Source tree
+
+### `Source/DreamShader` — Runtime
+
+| Path | Responsibility |
+| :-- | :-- |
+| `Public/` | The eight exported headers. Documented under [C++ API](/en/docs/plugin/api). |
+| `Private/DreamShaderModule.cpp` | Module bootstrap: creates the source, package and generated-shader directories, registers the `/DreamShaderGenerated` and `/Plugin/DreamShader` shader mappings, and implements the source roots, the directory getters, `SanitizeIdentifier`, `NormalizeSourceFilePath` and the file-classification predicates. |
+| `Private/DreamShaderSettings.cpp` | `UDreamShaderSettings`: constructor defaults, `NormalizeMappingKey`, the three `TryResolve*` methods, the three `BuildDefault*Mappings` alias catalogues, and the define-revision and pre-2.0 config hooks. |
+| `Private/DreamShaderTypes.cpp` | `NormalizeSettingKey`, `FTextShaderDefinition::TryGetSetting` / `GetSetting`. |
+| `Private/DreamShaderMaterialInstance.cpp` | `UDreamShaderMaterialInstance::HasOverridenBaseProperties` and `IsAsset`. |
+| `Private/DreamShaderDefineResolution.cpp` | The engine-facing half of the preprocessor define table: the builtin `DS_` defines, project settings, C++ providers and the command line merged into one table. |
+| `Private/DreamShaderCompilerInterface.cpp` | The registry behind `GetDreamShaderCompiler()`, which the compiler module fills when it starts. |
+
+*(since 2.0.0)* The 1.x parser that lived in `Private/Parser/` is gone. A `.dsm` / `.dsf` / `.dsh` is read
+by the legacy front end of `DreamShaderLang` — see [`DreamShaderLang`](/en/docs/plugin/api/lang-module).
+
+### `Source/DreamShaderPass` — Runtime
+
+*(since 2.1.0)* The Custom Pass runtime: the asset a `.dsp` compiles to, the subsystem that decides
+which pipelines apply to a view, and the scene view extension that runs their passes. The module builds
+on every engine; what needs the renderer is compiled only where
+[`DREAMSHADER_WITH_CUSTOM_PASS`](/en/docs/plugin/api/version-compat#dreamshader_with_custom_pass) is `1`. See
+[`DreamShaderPass`](/en/docs/plugin/api/pass-module) and [Custom Pass runtime](/en/docs/plugin/runtime).
+
+| Path | Responsibility |
+| :-- | :-- |
+| `DreamShaderPass.Build.cs` | The UE 5.8 gate: `DREAMSHADER_WITH_CUSTOM_PASS`, and the Renderer `Internal` include path that only the 5.8 build needs. |
+| `Public/` | The eleven exported headers: the module (`LogDreamPass` and the `UE::DreamPass` paths of the user shader directory, the slot registry files and the slot folders), `DreamPassTypes.h`, `DreamPassPipeline.h` (`UDreamPassPipeline`, `FOnDreamPassPipelineChanged`), `DreamPassSettings.h`, `DreamPassSubsystem.h`, `DreamPassVolume.h`, `DreamPassComponent.h`, `DreamPassLayerComponent.h`, `DreamPassBlueprintLibrary.h`, and under `Materials/` the two material expressions. |
+| `Private/DreamShaderPassModule.cpp` | Module startup at 5.8: the `/DreamPassUser` shader directory mapping to the project source root's `.dreampass/`, the empty registry files the slot shaders include, and the removal of registry sections whose snapshot is missing. Below 5.8, one log line. |
+| `Private/DreamPassPipeline.cpp`, `DreamPassTypes.cpp`, `DreamPassSettings.cpp` | The asset and its `Validate`, the shared enums and their spellings, the project settings. |
+| `Private/DreamPassSubsystem.cpp`, `DreamPassVolume.cpp`, `DreamPassComponent.cpp`, `DreamPassLayerComponent.cpp`, `DreamPassBlueprintLibrary.cpp` | Activation: what makes a pipeline apply to a view, pass layers and lists, and the Blueprint surface. |
+| `Private/DreamPassConsole.{h,cpp}` | `r.DreamPass.Enable`, `r.DreamPass.DisablePipelines`, `r.DreamPass.Visualize` and the `DreamPass.Dump` command. |
+| `Private/Materials/` | `UMaterialExpressionDreamPassOutput` and `UMaterialExpressionDreamPassBuffer` — `UE.DreamPassOutput` and `UE.DreamPassBuffer`. |
+| `Private/Render/` | The renderer half, compiled at 5.8 only: the scene view extension and its scheduler, the per-frame snapshot, buffers, the fullscreen, compute, mesh, clear and copy passes, the slot global shaders `FDreamPassCS` / `FDreamPassPS`, exports, buffer visualization, and `DreamPassRendererInternal.cpp` — the one file that includes from the Renderer's `Internal` folder. |
+
+The shaders these passes compile live in the plugin's `Shaders/Pass/`, mounted at
+`/Plugin/DreamShader`.
+
+### `Source/DreamShaderCompiler` — Editor
+
+| Path | Responsibility |
+| :-- | :-- |
+| `Public/` | The twenty exported headers — the compiler service (`DreamShaderCompilerService.h`, the one implementation of `IDreamShaderCompiler`, whose interface lives in `DreamShader`), the compile pipeline, the IR emitter, the builtin catalog and the asset layer. See [Compiler module](/en/docs/plugin/api/compiler-module#public-headers). |
+| `Private/DreamShaderCompilerService.cpp`, `DreamShaderCompilerModule.cpp` | The service — every compile route ends there — and the module, which registers it. |
+| `Private/Pipeline/` | The compile pipeline: preprocess, front end by extension, bind, lower, validate, emit; the build key; `#include` resolution; the 1.x texture-default class check (`DSH1043` / `DSH1044`); diagnostics in their wire form. |
+| `Private/Emitter/` | The IR emitter — IR to `UMaterial` / `UMaterialFunction` / instance nodes — and the builtin catalog reflected from the running engine. |
+| `Private/Assets/` | Package and asset creation, `Root=` and `Path(...)` resolution with the plugin-mount checks, the source metadata and output digest, the rollback of a failed rebuild, instance schemas and ThinCustom parameter overrides. |
+| `Private/Reflection/` | Applying material settings, parsing setting values, writing reflected literal properties, and the reflected class surface behind `material-expressions.json`. |
+| `Private/Layout/` | Graph layout: the IR styles applied to the built graph, and the `Classic` 1.x layout. |
+| `Private/Sources/` | Source discovery, the dependency graph between sources and headers, and the product index. |
+| `Private/Preview/` | The (line, name) probe table a breakpoint preview reads. |
+| `Public/DreamShaderPassPipelines.h` *(since 2.1.0)* | The Custom Pass slot registry from outside a compile: the listing and its slot states, garbage collection, the reset of an unreadable `Registry.json`, the rewrite of the registry files, the slot pre-check of `dsc check -Shaders`, and the `.usf` ↔ `.dsp` lookups the bridge watches with. See [`DreamShaderPassPipelines.h`](/en/docs/plugin/api/compiler-module#dreamshaderpasspipelinesh). |
+| `Private/Pass/` *(since 2.1.0)* | The HLSL slots. `DreamShaderPassSlotRegistry` plans the slots, pre-checks the changed ones in process, commits the snapshots, `Registry.json` and the registry `.ush` files, and hot-reloads the slot shaders; `DreamShaderPassShaderText` reads a `.usf` as text — where a `Shader = "..."` reference lands, what the file defines, which files it includes by a relative path; `DreamShaderPassPipelines.cpp` implements the public header. |
+| `Private/Pipeline/DreamShaderPipelineReferences.{h,cpp}` *(since 2.1.0)* | The two stages that cross between a `.dsp` and the `.dss` sources around it: a `.dsp`'s `Material` and `Shader` references resolved and read for the facts the binder checks, before the bind; a `.dss`'s `UE.DreamPassBuffer` resolved to its pipeline and buffer, after the lower. |
+| `Private/Emitter/DreamShaderIREmitterPassPipeline.{h,cpp}` *(since 2.1.0)* | The `PassPipeline` product: the `UDreamPassPipeline`, the render targets of its exported buffers and its HLSL slots — everything staged first, so that a failure writes nothing. |
+
+The compiler itself — the compile pipeline, the IR emitter and the asset layer — moved into this
+module in 2.0, replacing the 1.x generator (`DreamShaderEditor/Private/MaterialAssetGeneration/`); see
+[Compiler module](/en/docs/plugin/api/compiler-module).
+
+### `Source/DreamShaderLang` — Runtime, `Core` only
+
+| Path | Responsibility |
+| :-- | :-- |
+| `Private/Preprocessor/` | `#if` / `#define` and the define table |
+| `Private/Lang/` | Lexer, the `.dss` / `.dsi` / `.dsp` parser, the **legacy front end** (`LangLegacy*.cpp`) that reads `.dsm` / `.dsf` / `.dsh` into the same tree, the printer behind `fmt` |
+| `Private/Semantic/` | The binder (`LangBinder*.cpp`), the 1.x legacy rules included |
+| `Private/IR/` | IR lowering, the validator, custom-HLSL code, IR layout, dump and compare |
+| `Private/Decompile/`, `Private/Migrate/` | IR back to text, and `dsc migrate` |
+
+See [`DreamShaderLang`](/en/docs/plugin/api/lang-module) and [The 2.0 language](/en/docs/language-v2).
+
+### `Source/DreamShaderEditor` — Editor
+
+Everything is under `Private/`; nothing is exported.
+
+| Path | Responsibility |
+| :-- | :-- |
+| `DreamShaderEditorModule.cpp` | Module entry. Gates the bridge on `IsRunningCommandlet()`, the cook-director check and `-NoDreamShaderEditorBridge`; owns the cook-time materialization pass. |
+| `DreamShaderEditorPersistenceUtils.h` | `BindAndExecute` — the shared prepared-statement helper both SQLite writers use. |
+| `Bridge/` | The [editor bridge](/en/docs/plugin/tools/bridge): request-file polling, directory watcher, debounce and compile queue, material-compile diagnostics, and the preview WebSocket server. |
+| `Commandlet/` | `UDreamShaderCommandlet` and the `compile` / `decompile` / `dump-graph` runners plus the shared argument helpers; `DreamShaderMigrate.{h,cpp}`, the `migrate` verb *(2.0)*. See [Commandlet](/en/docs/tools/commandlet). *(since 2.1.0)* `DreamShaderPassRegistryCommandlet.{h,cpp}`: the [`pass-registry`](/en/docs/tools/commandlet#pass-registry) verb — the listing, `-Gc` and `-Rebuild`. |
+| `Tools/` *(2.0)* | The other 2.0 verbs (`check`, `dump-ir`, `dump-layout`, `index`, `export-catalog`, `fmt`, `list-generated`), the HLSL shader check of `check -Shaders`, the decompile request helpers and the catalog manifest. |
+| `Decompiler/` | The 2.0 decompiler (`DreamShaderIRDecompiler`, `DreamShaderGraphImport`, `DreamShaderInstanceDecompiler`): graph → IR → `.dss` / `.dsi`; the 1.x `.dsm` / `.dsf` export (`DreamShaderGraphDecompiler*`) kept behind `-Format=Legacy`; the decompile service. See [Decompiler](/en/docs/tools/decompiler). *(since 2.1.0)* `DreamShaderPipelineDecompiler.{h,cpp}`: a `UDreamPassPipeline` read back into the payload a `.dsp` binds to — for `dsc decompile`, which prints it and checks the text by parsing and binding it again, and for Adopt, which splices the payload into the existing `.dsp`. |
+| `Diagnostics/` | `FDreamShaderDiagnosticsStore`: error-location parsing, `diagnostics.json`, the per-file `diagnostics/` tree and the SQLite `diagnostics` table. |
+| `Navigation/` | Node ↔ source-line navigation over the `DreamShader.SourceSpans` metadata a compile stamps. |
+| `Provenance/` | *Revert to Source*, *Adopt Into Source* and *Detach* — see [Divergence](/en/docs/plugin/generation/divergence). |
+| `Pass/` *(since 2.1.0)* | `FDreamPassPipelineCustomization` — the [details panel of a `UDreamPassPipeline`](/en/docs/tools/editor#pass-pipeline-details-panel), registered on every engine the asset types build on — and `DreamPassSpellings`, the `.dsp` spelling of every DreamShaderPass enumeration the decompiler, the graph dump, the details panel and `pass-keys.json` write. |
+| `Preview/` | `FDreamShaderPreviewRenderer`: thumbnail scene, render targets, orbit and mesh handling, PNG encoding, blocking and async readback; the streaming session and the breakpoint probe. See [Preview](/en/docs/plugin/tools/preview). |
+| `SourceFiles/` | The [asset rename sync](/en/docs/plugin/tools/asset-rename-sync) service. Source discovery itself moved to `DreamShaderCompiler/Private/Sources/` in 2.0. |
+| `Tests/` | The automation suite and the corpus runners. See [Testing](/en/docs/plugin/contributing/testing). |
+| `UI/` | The [Material Content Browser](/en/docs/plugin/tools/material-browser) tab — navigation, the Sources and Assets views, the inspector and its live preview, *New* source, the instance factory and the generated-asset path helpers. |
+| `VirtualFunction/` | `VirtualFunction` declaration authoring and the startup sync service. See [VirtualFunction tools](/en/docs/plugin/tools/virtual-function-tools). |
+| `Workspace/` | `FDreamShaderWorkspaceService`: the `.code-workspace` writer, the three bridge manifests, `bridge.db`, and the external-editor launch helpers. See [Workspace](/en/docs/plugin/tools/workspace). |
+
+### Inside `MaterialAssetGeneration/`
+
+*(removed in 2.0.0)* The 1.x generator — source loading with textual `import` inlining, the `Graph`
+statement walker, the per-concern lowering units and the generated `.ush` writer — was deleted. Where
+each of its jobs is done now:
+
+| 1.x job | Now |
+| :-- | :-- |
+| Loading a source, inlining `import`s, mapping a byte index back to a line | `DreamShaderCompiler/Private/Pipeline/` and `DreamShaderLang/Private/Preprocessor/`: a header is parsed on its own and every diagnostic carries its own line and column |
+| Parsing and lowering `Graph` statements, builtins, calls and swizzles | `DreamShaderLang`: the legacy front end, the binder and IR lowering |
+| Creating `UMaterialExpression` nodes, node reuse | `DreamShaderCompiler/Private/Emitter/` |
+| Assets, `Root=` / `Path(...)`, settings, reflected properties, metadata and the skip check | `DreamShaderCompiler/Private/Assets/` and `Private/Reflection/` |
+| Graph layout and teardown | `DreamShaderCompiler/Private/Layout/` and `Private/Assets/` (the rollback) |
+| HLSL functions as Custom nodes and the generated `.ush` | `DreamShaderLang/Private/IR/IRCustomHlsl.cpp`; no `.ush` is written |
+
+## Building
+
+| Goal | How |
+| :-- | :-- |
+| Iterate on the plugin inside a project | Build the host project's editor target normally. The plugin is `EnabledByDefault`. |
+| Validate the plugin standalone, exactly as the consumer sees it | `RunUAT BuildPlugin`, as in the [Synopsis](#synopsis). |
+| Prove an engine-version gate on every supported engine | [`.skill/build-plugin.ps1`](#the-engine-matrix). |
+| Reproduce the release archive | Stage the eleven [shipped items](/en/docs/plugin/contributing/release#archive-contents) by hand, or push a tag and let the [release workflow](/en/docs/plugin/contributing/release) do it. |
+
+`BuildPlugin` compiles all five modules against the target engine and fails on the first UBT or UHT
+error. It is the check that matters when adding an engine-version gate, because the project build
+only ever exercises one engine version. It is also the only check that sees a **link** error: an
+engine class that compiles everywhere and only resolves from UE 5.6 on is invisible to every
+compile-time gate. See the note under
+[UE ≥ 5.6](/en/docs/plugin/api/version-compat#ue--56) on version compatibility.
+
+### The engine matrix
+
+`.skill/build-plugin.ps1` runs `BuildPlugin` once per engine root, each into its own `-Package`
+directory, and prints one `PASS` / `FAIL` line per engine plus the compiler diagnostics of the ones
+that failed. The plugin's own `Binaries/` and `Intermediate/` are never touched. Its exit code is
+the number of engines that failed, so `0` means the matrix is green.
+
+```powershell
+./.skill/build-plugin.ps1 -Engine C:\UE\UE_5.5, C:\UE\UE_5.6, C:\UE\UE_5.7
+```
+
+| Switch | Effect |
+| :-- | :-- |
+| `-Engine` | Engine roots. An array, or one comma-separated string |
+| `-Plugin` | The `.uplugin`. Defaults to the one at or above the script |
+| `-Package` | Staging root. Defaults to `%TEMP%\DreamShaderBuildPlugin`; must be outside the plugin tree and every engine root |
+| `-TargetPlatforms` | UAT syntax, `+`-separated. Defaults to `Win64` |
+| `-StopOnFailure` | Stop at the first failing engine instead of finishing the matrix |
+| `-KeepOutput` | Keep the staged plugin. Without it only the log survives — a green build is a few hundred MB per engine |
+| `-Raw` | Echo the whole UAT log instead of diagnostics and step lines |
+| `-NoRocket` | Drop `-Rocket` |
+
+The full UAT log of every engine is kept under `<Package>\Logs\<Engine>.log`, pass or fail.
+
+Each engine builds into `<Package>\<Engine>` (`UE_5.8`, from `Build.version`), and that directory is
+deleted before the build, emptied by `BuildPlugin` itself, and deleted again after it unless
+`-KeepOutput`. So before anything is built or written, the script checks every engine's output
+directory and stops when one is a drive root, is or contains or sits inside an engine root or the
+plugin tree (`-Engine C:\UE\UE_5.8 -Package C:\UE` would otherwise name the engine itself), or
+already exists with files in it that the script did not put there. Its own output directories carry
+a `.build-plugin-output` marker, so a run after `-KeepOutput` reclaims them.
+
+## Engine versions
+
+| Engine | Status |
+| :-- | :-- |
+| `5.8` | Verified with `RunUAT BuildPlugin` (`2.1.2`) |
+| `5.7` | Verified with `RunUAT BuildPlugin` through `1.8.0`; not re-run for `2.0.0` to `2.1.2`, whose gates are written so that 5.7 needs no answer of its own — see [Asked of the type](/en/docs/plugin/api/version-compat#asked-of-the-type). `2.1.0`'s Custom Pass is compiled out below 5.8 (`DREAMSHADER_WITH_CUSTOM_PASS` 0); that side of the code was built on 5.8 with the gate forced off (`Invoke-DreamShaderTests.ps1 -WithoutCustomPass`) during its development; `2.1.2` adds gates at 5.5, 5.6 and 5.7, the last of which 5.7 takes the newer side of, untested |
+| `5.6` | Verified with `RunUAT BuildPlugin` (`2.1.2`) |
+| `5.5` | Verified with `RunUAT BuildPlugin` (`2.1.2`) |
+| `5.4` | Source-compatible; see the toolchain warning below |
+| `5.3` | Source-compatible; see the toolchain warning below |
+
+> [!WARNING]
+> **Unreal Engine `5.3` and `5.4` do not build under a recent MSVC toolchain, whatever plugin you
+> point at them.** `ConcurrentLinearAllocator.h` writes `#elif __has_feature(address_sanitizer)`
+> without a `defined()` guard, inside `#if PLATFORM_HAS_ASAN_INCLUDE` — which is
+> `__has_include(<sanitizer/asan_interface.h>)`, true for every toolchain that ships the ASan
+> headers. MSVC has no `__has_feature`, so the line raises `C4668`, and UBT compiles engine code
+> with `/we4668`. UE 5.5 fixed the header by splitting the test.
+>
+> The failure is in **engine** code, before any plugin source is reached, and `Source/DreamShader*`
+> is named nowhere in it. Epic's own `ExampleDeviceProfileSelector` fails identically on the same
+> engine, which is the cheapest way to confirm the cause on a given machine. Note that installing
+> MSVC `14.38` does **not** by itself help — it ships `sanitizer/asan_interface.h` too. It takes a
+> toolchain without those headers, or a one-line patch to the engine header.
+
+Every engine-version test in the plugin goes through the macros in `DreamShaderVersionCompat.h`;
+there are no raw `ENGINE_MAJOR_VERSION` or `UE_VERSION_NEWER_THAN` uses anywhere in `Source/`. When
+you add version-dependent code, add it there and use `DREAMSHADER_UE_VERSION_AT_LEAST(Major, Minor)`
+or `DREAMSHADER_WITH_SUBSTRATE_BUILTINS`. The one exception is Custom Pass: `DreamShaderPass.Build.cs`
+tests `Target.Version` and defines `DREAMSHADER_WITH_CUSTOM_PASS`, and code that depends on
+`DreamShaderPass` tests that definition with `#if` instead of the version. Both sides compile and
+test on a 5.8 machine: see [Both sides of the Custom Pass gate](/en/docs/plugin/contributing/testing#both-sides-of-the-custom-pass-gate).
+The complete list of currently gated behaviour is on [Version compatibility](/en/docs/plugin/api/version-compat).
+
+## Localization
+
+Editor-facing text is `LOCTEXT`/`NSLOCTEXT`. The wire format is not: `diagnostics.json`,
+`diagnostics/*.json`, `bridge.db`, `preview.json` and the preview WebSocket are parsed by the VSCode
+and Rider extensions and must read the same in every editor culture.
+
+The rule that keeps both true:
+
+- **Text that reaches the wire stays an `FText` all the way there**, and the write goes through
+  `ToInvariantWireString()` (`Diagnostics/DreamShaderTextWireUtils.h`). That function replays the
+  `FText`'s historic format data — pattern, arguments, nested formats — in the invariant culture.
+  `FTextInspector::GetSourceString` alone is not enough: for an `FText::Format` result it returns the
+  *localized* substituted display.
+- **Never collapse such an `FText` with `ToString()` on the way.** `ToString()` is the localized
+  display, and re-wrapping the result in `FText::FromString` cannot recover the English. An API whose
+  error channel is `FString`-typed — `FDreamShaderPreviewRenderContext`, the asset layer's
+  `FDreamShaderError` — therefore keeps literal `FString::Printf` messages, marked `I18N-EXEMPT`.
+- Text that only ever reaches Slate has no such constraint; localize it normally.
+
+```bash
+pwsh -File Tools/Localization/localization_lint.ps1
+```
+
+Checks `LOCTEXT_NAMESPACE` define/undef pairing, rejects the define in headers, and flags literals
+gather cannot see (`FText::FromString(TEXT(...))`, `FString::Printf(TEXT(...))`). A deliberate
+non-display literal is exempted with an `I18N-EXEMPT` comment **on the same line as the call** — the
+check reads one line, not a span. `-IncludeDeferred` widens which files those literal rules run on.
+
+`-EmitBaseline` regenerates `Tools/Localization/BASELINE.md`, whose gather count is the regression
+check; it covers every source file, because `GatherText` does. A count that moves without a matching
+`.locres` update means the translations are behind.
+
+There is no `Config/Localization/DreamShader.ini` yet, so the Dashboard cannot re-gather the target
+and the checked-in `zh-Hans` `.locres` is a hand-made snapshot. New `LOCTEXT` falls back to English
+until it is regenerated.
+
+## Notes
+
+- **`DreamShaderEditor` exports nothing.** It has no `Public/` folder, and `DREAMSHADEREDITOR_API`
+  never appears in source, so third-party C++ cannot link against the bridge or the decompiler. The
+  supported C++ extension point is `IDreamShaderCompiler` — declared in `DreamShader`, implemented in
+  `DreamShaderCompiler`, reached through `GetDreamShaderCompiler()`; everything else is reachable only
+  through the editor UI, the [commandlet](/en/docs/tools/commandlet) or the [bridge](/en/docs/plugin/tools/bridge).
+- **No module singletons.** No module class has `Get()` / `IsAvailable()` accessors. Use
+  `FModuleManager::LoadModuleChecked<FDreamShaderModule>(TEXT("DreamShader"))`. The public delegates
+  are `OnDreamShaderSourceGenerated` (a compile finished, in `DreamShaderCompiler`), the define-provider
+  delegate of `DreamShaderDefineResolution.h`, and `FOnDreamPassPipelineChanged` in `DreamShaderPass`.
+- **The compiler is game-thread, editor-only.** The compile pipeline opens an `FScopedSlowTask`,
+  creates and modifies `UPackage`s and `UMaterial`s, and calls `PostEditChange()`.
+- **Three different "normalize" helpers exist** and are easy to confuse: `NormalizeSettingKey`
+  (trim + lowercase), `UDreamShaderSettings::NormalizeMappingKey` (trim + lowercase + strip spaces,
+  `_` and `-`), and `NormalizeSourceFilePath` (absolute path with `/` separators). `SanitizeIdentifier`
+  is an identifier sanitizer, not a key normalizer.
+- The generated documentation site is built from `Docs/`; `DocsURL` in the descriptor points at
+  <https://shader.toolchain.64hz.cn/>.
+
+## Example
+
+A complete standalone build of the plugin against a 5.7 engine:
+
+```powershell
+& "C:\Program Files\Epic Games\UE_5.7\Engine\Build\BatchFiles\RunUAT.bat" BuildPlugin `
+  -Plugin="D:\Work\MyProject\Plugins\DreamShader\DreamShader.uplugin" `
+  -Package="D:\Work\Out\DreamShader" `
+  -TargetPlatforms=Win64 `
+  -Rocket
+```
+
+Staged output:
+
+```text
+D:\Work\Out\DreamShader\
+  Binaries\Win64\UnrealEditor-DreamShaderLang.dll
+  Binaries\Win64\UnrealEditor-DreamShader.dll
+  Binaries\Win64\UnrealEditor-DreamShaderPass.dll
+  Binaries\Win64\UnrealEditor-DreamShaderCompiler.dll
+  Binaries\Win64\UnrealEditor-DreamShaderEditor.dll
+  Binaries\Win64\UnrealEditor.modules
+  Intermediate\              UBT and UHT working files
+  Source\                    copied from the plugin tree
+  Shaders\                   copied from the plugin tree
+  Resources\                 copied from the plugin tree
+  Docs\                      copied from the plugin tree
+  DreamShader.uplugin
+```
+
+The same five module names appear in a normal project build under
+`<Plugin>/Binaries/Win64/`, alongside their `.pdb` files.
+
+## See also
+
+- [Testing](/en/docs/plugin/contributing/testing) — the automation suite, the fixture corpus, and how to run both headlessly
+- [Release](/en/docs/plugin/contributing/release) — tag conventions, the release workflow, and what the archive contains
+- [C++ API](/en/docs/plugin/api) — the exported headers, class by class
+- [Compiler module](/en/docs/plugin/api/compiler-module) — `IDreamShaderCompiler`, the supported extension point
+- [Version compatibility](/en/docs/plugin/api/version-compat) — the compat macros and every gated behaviour
+- [Commandlet](/en/docs/tools/commandlet) — `-run=DreamShader`, the headless entry point
+- [Editor bridge](/en/docs/plugin/tools/bridge) — request files, `bridge.db`, the preview WebSocket
+- [Generation pipeline](/en/docs/generation/pipeline) — what a compile does, end to end
+- [Project settings](/en/docs/settings/project) — `UDreamShaderSettings`, including the source directory
+</content>
+</invoke>

@@ -1,10 +1,19 @@
 name: Deploy Website
 
 on:
+  workflow_call:
+    inputs:
+      site_ref:
+        type: string
+        required: true
+      artifact:
+        type: string
+        default: ''
   push:
     branches:
       - main
       - master
+  pull_request:
   workflow_dispatch:
     inputs:
       dry_run:
@@ -14,11 +23,12 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # main, master and manual publishes all update the same web root. Let an
 # in-progress deployment finish before the next run starts transferring files.
 concurrency:
-  group: deploy-production
+  group: deploy-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
   cancel-in-progress: false
 
 jobs:
@@ -30,26 +40,69 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.site_ref || github.sha }}
+
+      - name: Test documentation sync
+        if: inputs.artifact == ''
+        run: python3 -B -m unittest discover -s scripts -p 'test_docs*.py'
 
       - name: Test deploy helper
+        if: inputs.artifact == ''
         run: python3 -B -m unittest discover -s scripts -p test_deploy_rsync.py
 
       - name: Setup Node
+        if: inputs.artifact == ''
         uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: inputs.artifact == ''
         run: npm ci
 
       - name: Typecheck
+        if: inputs.artifact == ''
         run: npm run typecheck
 
       - name: Build
+        if: inputs.artifact == ''
         run: npm run build
 
+      - name: Check internal links
+        if: inputs.artifact == ''
+        run: python3 -B scripts/check-links.py
+
+      - name: Verify documentation state
+        run: python3 -B scripts/docs_sync.py validate
+
+      - name: Download the validated sync build
+        if: inputs.artifact != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: out
+
+      - name: Refuse stale production deployment
+        id: production
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: python
+        run: |
+          import os, subprocess
+          def git(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+          remote = git("ls-remote", "origin", "refs/heads/" + os.environ["DEFAULT_BRANCH"]).split()[0]
+          current = git("rev-parse", "HEAD")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("current=" + str(remote == current).lower() + "\n")
+          if remote != current:
+              print("A newer website commit exists; this older build will not deploy.")
+
       - name: Sync static export via rsync
+        if: steps.production.outputs.current == 'true'
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_PORT: ${{ secrets.SFTP_PORT }}

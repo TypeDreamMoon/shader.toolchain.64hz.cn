@@ -1,0 +1,4 @@
+
+# Preserve upstream code samples and Markdown hard breaks verbatim.
+content/docs/** whitespace=-blank-at-eol,-blank-at-eof
+docs-sync/sources/** whitespace=-blank-at-eol,-blank-at-eof

@@ -1,0 +1,464 @@
+---
+title: "Material Content Browser"
+description: "Material Content Browser"
+---
+
+# Material Content Browser
+
+> [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Material Content Browser**
+
+A dockable editor tab over every DreamShader source and every material in the project: what each
+source compiles to, whether that asset is current, whether somebody has edited it by hand, what it
+imports and what inherits from it — and the actions that follow from each of those answers.
+
+| | |
+| :-- | :-- |
+| Kind | nomad tab, registered by the `DreamShaderEditor` module |
+| Tab id | `DreamShaderMaterialBrowser` |
+| Display name | **Material Content Browser** |
+| Modes | **Sources** (the source tree: `.dss` / `.dsi` / `.dsp` and the 1.x `.dsm` / `.dsf` / `.dsh`) · **Assets** (the project's materials) |
+| Since | `1.5.0` |
+
+## Opening it
+
+| Route | Path |
+| :-- | :-- |
+| Tools menu | *Tools ▸ DreamShader ▸ Material Content Browser* |
+| Window menu | *Window ▸ Tools ▸ Material Content Browser* |
+| Content Browser | right-click a material or instance ▸ **Show in Material Content Browser** — opens the tab on that asset |
+
+The tab is registered only when the editor bridge starts. Launching the editor with
+`-NoDreamShaderEditorBridge` removes every route — see
+[Editor integration](/en/docs/tools/editor#disabling-the-integration).
+
+## Layout
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│ [⟳ Refresh] [▶ Compile ▾] [+ New ▾] │ search…          │ [View ▾] [VSCode] [⚙] │
+├──────────────┬──────────────────────────────────┬──────────────────────────┤
+│ NAVIGATION   │ LIST                              │ INSPECTOR                │
+│ ▾ Sources    │ Sources mode: columns or tiles    │ live preview · mesh      │
+│   ▾ Project  │ Assets mode: the asset picker     │ name · status · storage  │
+│     Materials│                                   │ actions                  │
+│   ▸ PluginA  │                                   │ Root / Source / Asset /  │
+│ ▾ Content    │                                   │   Domain / Blend / …     │
+│   ▸ /Game    │                                   │ Diagnostics (N)          │
+│ ──────────── │                                   │ Provenance               │
+│ Quick filters│                                   │ Imports / Used by        │
+│ ☐ Errors …   │                                   │ Inheritance · Children   │
+├──────────────┴──────────────────────────────────┴──────────────────────────┤
+│ 14 sources · 9 ok · 3 stale · 1 errors · 1 edited by hand · 5 Ephemeral │ bridge: idle │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+Three panes in a horizontal splitter, a toolbar above, a status bar below. The pane fractions,
+the mode, the navigation scope, the filters, the sort, the list/tile choice, the preview mesh and
+the last selection are all saved per user and per project
+(`UDreamShaderBrowserUserSettings`, `EditorPerProjectUserSettings`) and restored when the tab is
+next opened.
+
+## Toolbar
+
+| Control | Label | Effect |
+| :-- | :-- | :-- |
+| Button | **Refresh** (`F5`) | Rescans the source roots, rebuilds the dependency graph, recomputes every status |
+| Menu | **Compile ▾** | **Compile** (`Ctrl+B`) the selection · **Compile stale** — every source that is stale, never compiled, or failed · **Compile all** (`Ctrl+Shift+B`) — every listed source but a `.dsh` (`.dss`, `.dsi`, `.dsp`, `.dsm`, `.dsf`), behind a progress dialog |
+| Menu | **New ▾** | *DreamShaderLang 2.0:* **Material (.dss)** · **Material function (.dss)** · **Instance (.dsi)** — *Custom Pass pipeline (.dsp):* **Fullscreen post-process chain** · **Mesh mask chain** · **Compute chain** — *1.x blocks:* **Material (.dsm)** · **Material function (.dsf)** · **Header (.dsh)** — see [New source](#new-source) |
+| Search box | (`Ctrl+F` focuses it) | Case-insensitive substring match against the file name, the root name, the source path, the asset path and the status detail — so an error message is searchable, and a plugin's name filters to everything it ships. In Assets mode it matches the asset name |
+| Menu | **View ▾** | **Tiles** — the Sources list as thumbnail tiles · **Sort by** Name / Status / Root / Asset path, **Ascending** · **Show Ephemeral materials** — the global project setting, see [Editor integration](/en/docs/tools/editor#show-ephemeral-materials) |
+| Button | *(VSCode icon)* | Writes and opens the DreamShader workspace — identical to *Tools ▸ DreamShader ▸ Open Dream Shader Workspace* |
+| Button | *(gear)* | Opens *Project Settings ▸ DreamPlugin ▸ DreamShader* |
+
+Every compile started from this tab goes through the editor bridge, so its result reaches the
+diagnostics store, `diagnostics.json` and the VSCode extension exactly as a compile-on-save does,
+and a success clears the file's previous error.
+
+## Navigation
+
+A tree of two groups. Selecting a node **scopes the list and switches the mode**.
+
+| Node | Scope |
+| :-- | :-- |
+| **Sources** | every source under every root (Sources mode) |
+| **Sources ▸ *root*** | one root — *Project*, or a plugin that ships a `DShader` folder — with the number of sources under it |
+| **Sources ▸ *root* ▸ *folder*** | that folder and everything below it |
+| **Sources ▸ Not managed by DreamShader** | every material and instance under the content roots that no scanned source generates — hand-authored ones, and orphans whose source is gone. See [Unmanaged materials](#unmanaged-materials) |
+| **Content** | `/Game` (Assets mode) |
+| **Content ▸ /Game**, **Content ▸ /*Plugin*** | a mount point — `/Game`, and the content root of every plugin that ships DreamShader sources, which is where its generated assets land |
+| **Content ▸ … ▸ *folder*** | that content path and everything below it; folders are read from the asset registry on expand |
+
+### Quick filters
+
+Check boxes under the tree. The four status filters are **OR-ed**: ticking *Errors* and *Stale*
+shows entries that are either.
+
+| Filter | Keeps |
+| :-- | :-- |
+| **Errors** | sources whose last compile failed, or that could not be read or parsed |
+| **Stale** | sources that changed since their asset was generated |
+| **Edited by hand** | generated assets whose contents no longer match the last generation ([Divergence](/en/docs/plugin/generation/divergence)) |
+| **Ephemeral** | materials that have not been written to disk |
+| **Hide functions** | drops every `.dsf` and `.dsh` |
+| **Hide pipelines** *(since 2.1.0)* | drops every `.dsp` — the Custom Pass pipelines — and its pipeline |
+| **Hide unmanaged** | drops the materials DreamShader does not manage |
+
+The status-bar counts are the same filters: clicking a count turns it on alone, clicking it again
+turns it off, and clicking the *ok* count clears all four.
+
+## Sources mode
+
+Every scanned source that passes the scope, the filters and the search, as a **list** with sortable
+columns or — *View ▸ Tiles* — a grid of thumbnails. Multi-selection; right-click for the
+[context menu](#context-menu); double-click opens the material when there is one, else the source.
+
+| Column | Content |
+| :-- | :-- |
+| *(glyph)* | the status glyph, tooltip = the status detail |
+| **Name** | the file name, tooltip = the absolute path; a `.dsp` row carries the [pipeline badge](#pipelines) in front of it |
+| **Root** | *Project*, or the owning plugin |
+| **Status** | the status label; for `.dsf` / `.dsh`: `function · used by N material(s)`; for a `.dsp`: `pass pipeline · <status label>` |
+| **Asset** | the package path the source compiles into |
+
+### Listed files
+
+**`.dss`, `.dsi`, `.dsp`, `.dsm`, `.dsf` and `.dsh`** found recursively under every source root,
+excluding each root's `Packages` folder — plus, under the *Sources* header and the *Not managed by
+DreamShader* node, the [unmanaged materials](#unmanaged-materials). Selection survives a Refresh:
+entries are re-selected by path.
+
+### Pipelines
+
+*(since 2.1.0)* A `.dsp` is listed like a material source — its status is its pipeline's, resolved and
+judged by the same rules — but its asset is a `UDreamPassPipeline`, the one kind of product in this tab
+that is not a material, and the rows say so:
+
+| | |
+| :-- | :-- |
+| Badge | the post-process volume class icon in front of the name, tooltip "A Custom Pass pipeline source (.dsp)." In the tile view, a pipeline not compiled yet shows the post-process volume thumbnail where a material shows its status glyph |
+| Status | `pass pipeline · up to date`, `pass pipeline · stale`, `pass pipeline · not compiled`, … |
+| Double-click, **Open** | opens the pipeline in its asset editor, whose [details panel](/en/docs/tools/editor#pass-pipeline-details-panel) groups its passes by injection point and shows its slots, buffers and render targets; before the first compile, the source |
+| **Create instance** | not offered: a pipeline has nothing to instance |
+| Preview | none; the inspector's tile reads `pass pipeline` |
+| Filter | **Hide pipelines**, under the tree |
+
+A pipeline is listed through its `.dsp` alone: a `UDreamPassPipeline` that no scanned source builds is
+not an [unmanaged](#unmanaged-materials) row, and neither are the render targets of its exported buffers.
+
+### Unmanaged materials
+
+Every `UMaterial` and `UMaterialInstanceConstant` under the content roots (`/Game` and the mount
+point of each plugin that ships DreamShader sources) that no scanned source resolves to, so the tab
+covers the whole project rather than DreamShader's corner of it. They are found through the asset
+registry and **never loaded for listing** — a project with a thousand hand-made materials costs a
+registry query, not a thousand loads; a row is loaded only when selected, at which point the
+inspector reads its real provenance (an orphan generated asset turns out `Unstamped` or
+`Generated`, a hand-made one stays `Foreign`) and folds it back into the row.
+
+| Column | For an unmanaged row |
+| :-- | :-- |
+| *(glyph)* | `◇` grey |
+| **Name** | the asset name, tooltip = the object path |
+| **Root** | the mount point — `/Game`, `/PluginName` |
+| **Status** | `not managed by DreamShader`, or `material instance · not managed by DreamShader` |
+| **Asset** | the package path |
+
+The status-bar count **not managed** jumps to the node rather than toggling a filter. The thin
+backend's hidden `MB_DreamThinBase_*` base is never listed. *Export .dss* on one of these (a `.dsi`
+for a plain material instance) is how it comes under DreamShader's management.
+
+### Status values
+
+| Status | Glyph | Label | Meaning |
+| :-- | :-- | :-- | :-- |
+| `UpToDate` | `●` green | **up to date** | The generated asset exists and its stamped source hash matches the current source |
+| `EphemeralUntracked` | `◐` green | **compiled, Ephemeral** | The asset exists in memory and carries no source hash. Only an asset generated by a plugin version that stamped memory-only builds with the path alone can read this way; current builds stamp the hash in both states, so this is a legacy state |
+| `Stale` | `●` amber | **stale** | The asset exists and its stamped hash differs from the current source |
+| `NotCompiled` | `○` grey | **not compiled** | No object at the resolved object path. Detail: `No generated asset at {ObjectPath}` |
+| `Error` | `▲` red | **compile error** | A compile failed, from this tab or per the bridge's diagnostics |
+| `Library` | `◆` blue | **function / header** | A `.dsf` or `.dsh` |
+| `Unresolved` | `▲` red | **unresolved** | What the source builds could not be worked out: it has an error (the detail is the first one, `<file>(<line>,<col>): DSHnnnn: <message>`), or it declares no material, instance or exported function |
+
+Status computation for every source but a `.dsf` / `.dsh` *(since 2.0.0)*:
+
+| # | Step | Failure |
+| :-- | :-- | :-- |
+| 1 | Resolve the products the source builds with the compile's own front half — defines, front end by extension, binder, IR builder, destination rules — and take the object path of its material (else its instance, else its pipeline, else its first product) and its build key | ⇒ `unresolved` |
+| 2 | Look the object up **without loading it** | ⇒ `not compiled` |
+| 3 | Compare the asset's stamped source file and build key with the resolved ones | match ⇒ `up to date` |
+| 4 | No stamped key and the asset is not on disk | ⇒ `compiled, Ephemeral` |
+| 5 | otherwise | ⇒ `stale` |
+
+The build key covers what a compile stamps — the preprocessed file and every header it includes, the
+defines they read, a `.dsi`'s parent — so a current asset reads **up to date** and a rebuild always
+makes a stale one current. 1.x resolved `Name=` / `Root=` from text with the imports stripped and
+hashed the source with them inlined; that recipe answered nothing for a `.dss` and is gone.
+
+Then the bridge's diagnostics are overlaid, read live from its store: any `error` record for the
+file makes it `compile error`, with the first error record as the detail
+(`L{line}:{col} {message}`). All records stay on the entry for the inspector.
+
+> [!NOTE]
+> Step 2 does not load, so a material that exists on disk but has not been loaded this session
+> reports **not compiled** until something loads it.
+
+## Assets mode
+
+The engine's asset picker over `UMaterial` and `UMaterialInstanceConstant` (recursively, which
+includes `UDreamShaderMaterialInstance`), scoped to the navigation tree's content path. Kept as the
+engine widget on purpose: thumbnails, drag-to-viewport, the column view and the picker's own
+settings all come with it.
+
+The shared filters apply here too, and are answered **without loading anything**: a scanned
+source's asset is judged by its entry, and *Ephemeral* is read off the registry's package flags. A
+hand-authored material that DreamShader never generated passes no status filter except
+*Ephemeral*.
+
+Double-click opens the asset. Right-click gives the same [context menu](#context-menu).
+
+## Inspector
+
+One panel for both modes. It shows whichever halves of the selection exist — the **source** half
+(a scanned file) and the **asset** half (a material in the project) — joined through the asset's
+`DreamShader.SourceFile` stamp. A material picked in Assets mode therefore shows its source's
+compile status and diagnostics; a source picked in Sources mode shows its asset's provenance and
+inheritance.
+
+| Section | Contents |
+| :-- | :-- |
+| **Preview** | A real render of the material through the plugin's [preview renderer](/en/docs/plugin/tools/preview), 224×224, re-rendered on every compile. **Left-drag orbits**; the **Mesh** picker chooses sphere, plane, cube, cylinder or shaderball and is remembered. Rendered asynchronously, so it never stalls the editor. Shown only when there is a compiled material |
+| **Header** | Name · status glyph and label · `memory-only (not saved)` / `on disk` · a badge when the asset is open in an asset editor (a rebuild refuses while it is) |
+| **Actions** | **Create instance** · **Compile** · **Open** · **Materialize** (memory-only assets) · **Open source** |
+| **Info rows** | **Base** · **Domain** · **Blend mode** · **Root** · **Source** (a link: shows the file in Sources mode) · **Asset** (a link: shows the asset in Assets mode) · **Storage** · **Provenance** |
+| **Diagnostics (N)** | Every record the bridge holds for the file: `[DSHnnnn] L{line}:{col} message`, each a link that opens the file in your editor at that line — into the imported header when the record points there. A failure this tab pinned itself shows its message alone |
+| **Provenance** | The digest state with a one-line explanation, then the answers: **Revert to Source** · **Adopt Into Source** · **Detach**; or, for a material DreamShader never generated, **Export .dss** (a material or material function) / **Export .dsi** (a plain material instance) *(since 2.0.0; **Export DSM** / **Export DSF** before)*. See [Divergence](/en/docs/plugin/generation/divergence). *Adopt* is disabled, with the reason, when the source ships with a plugin |
+| **Imports (N)** | For a material: every header and function it imports, transitively — links into the Sources list |
+| **Used by (N)** | For a header or function: every material that imports it — links |
+| **Inheritance** | The parent chain, root first, each row a link that re-targets the panel |
+| **Child instances (N)** | Loaded instances whose parent this is, plus — from the asset registry's referencers — saved instances nobody has loaded this session, marked *(not loaded)*; clicking one loads it |
+
+For a `.dsp` *(since 2.1.0)* the inspector has no preview and no **Create instance**. **Open** opens the
+pipeline in its [details panel](/en/docs/tools/editor#pass-pipeline-details-panel), and the info rows begin
+with **Pipeline** — `{N} pass(es), {N} buffer(s), {N} parameter(s); order {N}` — in place of Base, Domain
+and Blend mode. The **Provenance** section offers the same three answers as for a material: a pipeline
+edited in its details panel is [adopted](/en/docs/plugin/generation/divergence#a-custom-pass-pipeline) into its
+`.dsp` value by value.
+
+The digest states the **Provenance** row and section spell out:
+
+| State | Reads |
+| :-- | :-- |
+| `Generated` | *generated (matches the last build)* |
+| `Tweaked` *(since 1.9.0)* | *generated, with parameter overrides on the instance* — the values are yours, rebuilds go ahead and [put them back](/en/docs/plugin/generation/divergence#parameter-overrides-on-a-generated-thincustom-instance) |
+| `Unstamped` | *generated (no comparable digest)* |
+| `Diverged` | *edited by hand since the last build* — shown in orange, and the only state that refuses a rebuild |
+| `Foreign` | *not generated by DreamShader* |
+
+The status bar's **edited by hand** count is `Diverged` alone: a tweaked instance is not in trouble
+and does not need finding.
+
+## Status bar
+
+`{N} sources` · the counts of **ok** (up to date, or compiled, Ephemeral), **stale**, **errors**,
+**edited by hand** and **Ephemeral**, each a one-click filter · **not managed**, which jumps to that
+node · the bridge's state: `bridge: idle`,
+`bridge: {action}` while it compiles, `bridge: idle (another editor owns writes)` when a second
+editor on the same project holds the write lock, or `bridge: off`. The tooltip is the bridge's last
+result.
+
+## Context menu
+
+Right-click in either list. Commands act on the selection; most take the first selected entry.
+
+| Section | Entries |
+| :-- | :-- |
+| **Open** | **Open material** (`Enter`; for a `.dsp`, the pipeline in its details panel) · **Open source** (`Ctrl+Enter`, at the first error when there is one) · **Reveal in Content Browser** |
+| **Build** | **Compile** · **Create instance** (not for a `.dsp`) · **Materialize** (shown for memory-only assets; acts on every memory-only entry in the selection) |
+| **Generated asset** | **Revert to Source** (acts on every generated entry in the selection, confirming each) · **Adopt Into Source** · **Detach From DreamShader** — only when the asset carries DreamShader's stamp |
+| **Decompiler** | **Export .dss** — only for a hand-authored material or function (a `.dss`) or plain material instance (a `.dsi`) |
+| **Copy** | **Copy source path** · **Copy asset path** |
+
+## Following the editor
+
+Nothing here polls. The tab listens to:
+
+| Signal | Reaction |
+| :-- | :-- |
+| a source generated, by any route (the watcher, this tab, a provenance action, the VSCode extension) | that entry's status is recomputed |
+| the bridge's diagnostics commit | every entry's error overlay is refreshed |
+| a source file added, removed or renamed on disk (even with compile-on-save off) | the tree is rescanned |
+| a source file modified on disk | that entry is recomputed |
+| an asset added, removed or renamed in the registry | the entry it resolves to is recomputed |
+
+Reactions are coalesced into one refresh per tick, so a header that recompiles its twelve
+dependents repaints the tab once. **Refresh** remains for anything outside these — a plugin mounted
+mid-session, say.
+
+## New source
+
+*New ▾* writes a file from the plugin's templates under `Resources/Templates` and the bridge's watcher
+lists and compiles it as it would any save. The menu has three sections:
+
+| Section | Entry | Template | Writes |
+| :-- | :-- | :-- | :-- |
+| DreamShaderLang 2.0 | **Material (.dss)** *(since 2.0.0)* | `NewMaterial.dss` | two `uniform`s and `export void <Name>(inout material m)` |
+| | **Material function (.dss)** *(since 2.0.0)* | `NewFunction.dss` | `export float3 <Name>(float3 InColor, float Strength = 1.0)` |
+| | **Instance (.dsi)** | `NewInstance.dsi` | `#pragma instance(Parent = …)` — see [Create material instance](#create-material-instance) |
+| Custom Pass pipeline (.dsp) *(since 2.1.0)* | **Fullscreen post-process chain** | `NewPipelinePostProcess.dsp` | a `copy` grabs the lit scene into a half-size buffer and a `fullscreen` pass blends it back over the scene, tinted, both at `BeforePostProcess` |
+| | **Mesh mask chain** | `NewPipelineMeshMask.dsp` | a `mesh` pass draws the objects of the list `<Base>` into a mask without a depth test, and a `fullscreen` pass lights the pixels around the mask: an outline through walls |
+| | **Compute chain** | `NewPipelineCompute.dsp` | a `compute` pass at `BeginView` advances a 256 × 256 wind field kept from frame to frame (`History = true`) and exported as the render target `<Name>_Wind` |
+| 1.x blocks | **Material (.dsm)** | `NewMaterial.dsm` | a `Shader` block |
+| | **Material function (.dsf)** | `NewFunction.dsf` | a `ShaderFunction` block |
+| | **Header (.dsh)** | `NewHeader.dsh` | a header with one `Function` |
+
+A pipeline names the materials its passes draw, so each pipeline template writes those too, next to the
+`.dsp`, and the `.dsp` builds as soon as it lands; a shader is written in the `.dsp` itself. `<Base>` is
+the name without its `CP_` prefix (`CP_Outline` gives `Outline`); a name without the prefix is used as it
+is.
+
+| Template | Also writes, beside the `.dsp` |
+| :-- | :-- |
+| Fullscreen post-process chain | `PP_<Base>.dss` — the Post Process material of the `fullscreen` pass, reading the copy through `UE.UserSceneTexture` |
+| Mesh mask chain | `M_<Base>Mask.dss` — the override material of the `mesh` pass, with `UE.DreamPassOutput` — and `PP_<Base>Composite.dss`, the Post Process material of the outline |
+| Compute chain | nothing: the compute shader is the pass's `hlsl` block ([HLSL passes](/en/docs/plugin/runtime/hlsl)) |
+
+The companions are written first, so the watcher finds the materials the `.dsp` names when it compiles
+the pipeline; and all of them or none — a write that fails takes back the files written before it. A
+pipeline runs only where something activates it: the global pipelines of *Project Settings ▸ DreamPlugin
+▸ DreamShader Custom Pass*, a Dream Pass Volume, a component, or the API — see
+[Custom Pass runtime](/en/docs/plugin/runtime#what-makes-a-pipeline-apply).
+
+The dialog:
+
+| Field | Default |
+| :-- | :-- |
+| **Name** | `M_NewMaterial` / `MF_NewFunction` (`.dss`) · `F_NewFunction` (`.dsf`) / `Common` / `MI_NewInstance` / `CP_SoftGlow`, `CP_Outline`, `CP_WindField` (the three pipeline templates) — must be an identifier |
+| **Folder** | the source folder the navigation tree points at, or the project's `DShader` root when that folder is a plugin's (plugin sources are read-only) |
+
+For a pipeline the dialog also says which files the template writes besides the `.dsp`.
+
+Either way the asset lands beside its neighbours' — a file created in `DShader/Materials/` compiles to
+`/Game/Materials/…`. A 1.x block says so itself: its `Name=` is the folder's path relative to its root
+plus the name. A `.dss` says nothing: the name is its `export`'s, and the folder is where the file is. A
+`.dss` is one kind of product -- one material, or any number of exported functions, each an asset of its
+own -- with helpers that are not exported beside either; the two entries start the two kinds.
+
+| Refusal | Message |
+| :-- | :-- |
+| not an identifier | `The name must be an identifier: letters, digits and underscores, not starting with a digit.` |
+| outside every writable root | `Choose a folder under the project's DShader root. A plugin's sources are read-only.` |
+| file exists | `'{Path}' already exists.` |
+| a file a pipeline template writes besides the `.dsp` exists | `'{Path}' already exists, and the template writes it for '{Pipeline}'; choose another name.` |
+
+The templates are compiled by the automation test
+`DreamShader.Browser.NewSource.TemplatesRenderAndCompile`, so they cannot rot. The pipeline templates
+are not among the ones it covers.
+
+## Create material instance
+
+Reached from the inspector, the context menu, and the Content Browser entry **Create DreamShader
+instance**.
+
+| Aspect | Value |
+| :-- | :-- |
+| Window title | **Create material instance** |
+| Size | 480×240, modal, not resizable through minimize or maximize |
+
+| Field | Kind | Default |
+| :-- | :-- | :-- |
+| **Parent** | read-only text | the parent material's name |
+| **Name** | text box | `MI_<ParentName>`, uniquified against existing assets |
+| **Folder** | text box | the parent's folder plus the *Material Instance Subfolder* setting (`Instances` by default); an empty subfolder puts the instance alongside the parent |
+| **Browse...** | button — "Pick the destination folder." | opens a folder picker titled "Choose a destination folder" |
+| **Open the instance after creating** | checkbox | checked |
+| **Cancel** / **Create** | buttons | — |
+
+Creation steps and their errors:
+
+| Guard | Error |
+| :-- | :-- |
+| No parent material | `No parent material was provided.` |
+| Empty name or empty folder | `Provide a name and a destination folder.` |
+| The parent is memory-only | forwards the [Materialize](#materialize) error |
+| An asset already exists at the target path | `An asset already exists at {PackageName}.` |
+| The package could not be created | `Failed to create package {PackageName}.` |
+| The object could not be created | `Failed to create the material instance object.` |
+| The package could not be saved | `Generated DreamShader asset '{Path}' could not be saved.` |
+| The parent died between opening and confirming | `The parent material is no longer available.` — the window closes |
+
+On success the toast reads `Created {Name}` — the asset name from the **Name** box, not the object
+path — and the window closes. On failure the error is toasted and **the window stays open** so the
+name or folder can be corrected.
+
+| Detail | Behaviour |
+| :-- | :-- |
+| Created class | a plain `UMaterialInstanceConstant`, not a `UDreamShaderMaterialInstance` |
+| Object flags | `RF_Public \| RF_Standalone` |
+| Parent assignment | set editor-only, followed by a post-edit change and an asset-created broadcast |
+| Save failure rollback | the half-created object is un-broadcast, stripped of its flags, renamed into the transient package without redirectors, marked as garbage, and the package's dirty flag is cleared — so it cannot survive GC, appear in the Content Browser, be persisted by *Save All*, or block a same-name retry |
+
+Instancing a memory-only parent materializes the parent first, so a child instance never references a
+transient object. A source that has never been compiled is compiled first; if it still yields no
+material the toast reads `Compile {File} first.`
+
+## Materialize
+
+Writes a memory-only material, and the hidden base it wraps, to disk.
+
+| Rule | Detail |
+| :-- | :-- |
+| "Memory-only" test | the material's package carries the newly-created package flag |
+| Already on disk | returned unchanged — the action is a no-op |
+| Requirement | the material must be a `UDreamShaderMaterialInstance` with a recorded source file path |
+| Implementation | re-runs generation for that source file with force on and transient **off**, then reloads the object at the same object path |
+
+| Message | Cause |
+| :-- | :-- |
+| `This material is memory-only and has no DreamShader source file to materialize from.` | the material is not a DreamShader instance, or records no source path |
+| `Failed to materialize the material to disk: {Error}` | generation failed |
+| `Materialized the material but could not reload it at {ObjectPath}.` | generation succeeded but the object did not reload |
+| `Materialized {Name} to disk` | success — the inspector re-targets the persisted asset |
+
+The material is re-resolved by object path when the button is clicked, rather than held from when
+the panel was built, so a delete or garbage collection in between cannot crash it.
+
+## Keyboard
+
+| Key | Command |
+| :-- | :-- |
+| `F5` | Refresh |
+| `Ctrl+B` | Compile the selection |
+| `Ctrl+Shift+B` | Compile all |
+| `Enter` | Open the material |
+| `Ctrl+Enter` | Open the source |
+| `Ctrl+F` | Focus the search box |
+
+## Example
+
+A source tree and what Sources mode shows for it:
+
+```text
+<Project>/DShader/
+    Materials/M_Emissive.dsm        ● up to date          /Game/Materials
+    Materials/M_Toon.dss            ● up to date          /Game/Materials
+    Materials/M_Broken.dsm          ▲ compile error       L12:9 'Tin' is not declared in this scope.
+    Materials/M_New.dsm             ○ not compiled        No generated asset at /Game/Materials/M_New.M_New
+    Lib/Noise.dsf                   ◆ function · used by 2 material(s)
+    Lib/Common.dsh                  ◆ function · used by 3 material(s)
+    Packages/Sample/Demo.dsm        (not listed — under DShader/Packages)
+```
+
+## See also
+
+- [Editor integration](/en/docs/tools/editor) — the menu entries that open this tab, and the [details panel](/en/docs/tools/editor#pass-pipeline-details-panel) a pipeline opens in
+- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass) — what the pipeline templates are written in
+- [Preview](/en/docs/plugin/tools/preview) — the renderer behind the inspector's preview
+- [Divergence](/en/docs/plugin/generation/divergence) — Revert, Adopt, Detach
+- [Decompiler](/en/docs/tools/decompiler) — Export .dss / .dsi
+- [Ephemeral materials](/en/docs/generation/in-memory) — memory-only generation, the hidden base, materializing
+- [Caching](/en/docs/plugin/generation/caching) — the source hash behind **up to date** and **stale**
+- [Asset paths](/en/docs/generation/asset-paths) — how `Name=` and `Root=` resolve to the object path
+- [Project settings](/en/docs/settings/project) — *Material Instance Subfolder* and the Ephemeral visibility toggle
+- [Bridge](/en/docs/plugin/tools/bridge) — the diagnostics store this tab reads and the events it follows
+- [Material instance API](/en/docs/plugin/api/material-instance) — `UDreamShaderMaterialInstance` in C++
+- [Diagnostics index](/en/docs/diagnostics) — every message, by stage

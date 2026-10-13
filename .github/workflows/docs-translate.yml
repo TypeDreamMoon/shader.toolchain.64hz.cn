@@ -1,0 +1,85 @@
+name: Draft Chinese translations
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - docs-sync/translations/**
+      - docs-sync/config.json
+      - docs-sync/glossary.json
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: draft-chinese-translations
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+      - name: Verify committed source snapshot
+        run: python3 -B scripts/docs_sync.py validate
+      - name: Update the persistent translation checklist
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+        run: python3 -B scripts/docs_ci.py issue
+      - name: Preserve any translation PR already under review
+        id: prepare
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+          DOCS_AI_API_KEY: ${{ secrets.DOCS_AI_API_KEY }}
+          DOCS_AI_MODEL: ${{ vars.DOCS_AI_MODEL }}
+        run: python3 -B scripts/docs_ci.py prepare-translation
+      - uses: actions/setup-node@v5
+        if: steps.prepare.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.prepare.outputs.ready == 'true'
+        run: npm ci
+      - name: AI translation drafts
+        if: steps.prepare.outputs.ready == 'true'
+        env:
+          DOCS_AI_BASE_URL: ${{ vars.DOCS_AI_BASE_URL }}
+          DOCS_AI_API_KEY: ${{ secrets.DOCS_AI_API_KEY }}
+          DOCS_AI_MODEL: ${{ vars.DOCS_AI_MODEL }}
+          DOCS_AI_API_FORMAT: ${{ vars.DOCS_AI_API_FORMAT }}
+          DOCS_AI_JSON_MODE: ${{ vars.DOCS_AI_JSON_MODE }}
+          DOCS_AI_MAX_PAGES: ${{ vars.DOCS_AI_MAX_PAGES }}
+          DOCS_AI_MAX_INPUT_CHARS: ${{ vars.DOCS_AI_MAX_INPUT_CHARS }}
+          DOCS_AI_MAX_OUTPUT_TOKENS: ${{ vars.DOCS_AI_MAX_OUTPUT_TOKENS }}
+          DOCS_AI_TIMEOUT: ${{ vars.DOCS_AI_TIMEOUT }}
+          DOCS_AI_CHUNK_CHARS: ${{ vars.DOCS_AI_CHUNK_CHARS }}
+          DOCS_AI_TOKEN_FIELD: ${{ vars.DOCS_AI_TOKEN_FIELD }}
+        run: python3 -B scripts/docs_sync.py translate
+      - name: Validate draft before opening a PR
+        id: validation
+        continue-on-error: true
+        if: steps.prepare.outputs.ready == 'true'
+        run: |
+          python3 -B scripts/docs_sync.py validate
+          npm run typecheck
+          npm run build
+          python3 -B scripts/check-links.py
+      - name: Open a PR for human review (never merge or deploy here)
+        if: steps.prepare.outputs.ready == 'true' && !cancelled()
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+          DOCS_DRAFT_VALIDATION: ${{ steps.validation.outcome }}
+        run: python3 -B scripts/docs_ci.py open-pr
+      - name: Report draft validation failure
+        if: steps.validation.outcome == 'failure'
+        run: exit 1

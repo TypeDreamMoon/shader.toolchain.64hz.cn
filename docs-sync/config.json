@@ -1,0 +1,1345 @@
+{
+  "version": 1,
+  "repository": "TypeDreamMoon/DreamShader",
+  "branch": "main",
+  "siteOnly": [
+    "changelog/website",
+    "changelog/index",
+    "changelog/vscode-extension",
+    "shader-languages/glsl",
+    "shader-languages/hlsl",
+    "shader-languages/keywords-cheatsheet"
+  ],
+  "pages": [
+    {
+      "id": "builtins/dream-pass",
+      "sources": [
+        {
+          "path": "Docs/builtins/dream-pass.md"
+        }
+      ],
+      "format": "md",
+      "title": "Custom Pass material nodes",
+      "description": "UE.DreamPassOutput writes the data a mesh pass draws, UE.DreamPassBuffer lets an ordinary material read an exported buffer; and how a pass material reads the pass's buffers with UE.UserSceneTexture. Needs UE 5.8."
+    },
+    {
+      "id": "builtins/math",
+      "sources": [
+        {
+          "path": "Docs/builtins/math.md"
+        }
+      ],
+      "format": "md",
+      "title": "Math Builtins",
+      "description": "Unprefixed, HLSL-spelled call names — 44 HLSL names lowered straight to arithmetic material nodes, plus the four GLSL spellings a 1.x source may still use."
+    },
+    {
+      "id": "builtins/substrate",
+      "sources": [
+        {
+          "path": "Docs/builtins/substrate.md"
+        }
+      ],
+      "format": "md",
+      "title": "Substrate Nodes",
+      "description": "The Substrate.* call namespace — every Substrate BSDF, composition and utility node of the running engine, called by name. UE 5.4+."
+    },
+    {
+      "id": "builtins/ue-expression",
+      "sources": [
+        {
+          "path": "Docs/builtins/ue-expression.md"
+        }
+      ],
+      "format": "md",
+      "title": "UE.Expression",
+      "description": "The reflected call that creates any UMaterialExpression class of the builtin catalog by name — class resolution, argument dispatch, OutputType, output selection, Custom nodes and the result type."
+    },
+    {
+      "id": "builtins/ue-nodes",
+      "sources": [
+        {
+          "path": "Docs/builtins/ue.md"
+        }
+      ],
+      "format": "md",
+      "title": "UE.* Nodes",
+      "description": "The 27 UE.* names 1.x implemented itself and their argument lists, the bases of the two transform builtins, the three special-cased names, and the Properties declaration form."
+    },
+    {
+      "id": "changelog/dreamshader",
+      "sources": [
+        {
+          "path": "Docs/changelog/dreamshader.md"
+        }
+      ],
+      "format": "md",
+      "title": "DreamShader Plugin",
+      "description": "Release notes for the DreamShader Unreal plugin, newest first, taken from the plugin's own CHANGELOG.",
+      "locale": "en"
+    },
+    {
+      "id": "custom-pass/hlsl",
+      "sources": [
+        {
+          "path": "Docs/builtins/hlsl-library.md"
+        }
+      ],
+      "format": "md",
+      "title": "HLSL passes",
+      "description": "The HLSL a compute pass, or a fullscreen pass without a material, runs — written in an hlsl block of the .dsp or in a .usf, the names its bindings make, the fixed parameters and helpers of DreamPass.ush, and how the code reaches the engine through a pre-check and a snapshot. Needs UE 5.8."
+    },
+    {
+      "id": "custom-pass/index",
+      "sources": [
+        {
+          "path": "Docs/language-v2/passes.md"
+        }
+      ],
+      "format": "md",
+      "title": "Custom Pass runtime",
+      "description": "What happens to a compiled .dsp pipeline at run time — what makes it apply to a view, when its passes run, what its buffers hold, how exported buffers reach materials, Blueprints, UMG and Niagara, and how to see what it did. Needs UE 5.8."
+    },
+    {
+      "id": "diagnostics/index",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/index.md"
+        }
+      ],
+      "format": "md",
+      "title": "Diagnostics",
+      "description": "Where DreamShader's diagnostics appear, how to read one, how the DSHnnnn codes are banded, their severities, a table of the common ones by stage, and the 1.x messages mapped to their codes."
+    },
+    {
+      "id": "diagnostics/limitations",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/limitations.md"
+        }
+      ],
+      "format": "md",
+      "title": "Limitations",
+      "description": "What DreamShader 2.1.2 does not do — the language boundaries of a 1.x Graph and of .dss, what 1.x did that still happens but is now said out loud, the decompiler's gaps, the function-level ceiling on material layers, and the engine-version and Custom Pass boundaries.",
+      "locale": "en"
+    },
+    {
+      "id": "examples/custom-pass",
+      "sources": [
+        {
+          "path": "Docs/examples/custom-pass.md"
+        }
+      ],
+      "format": "md",
+      "title": "Custom Pass examples",
+      "description": "Seven complete .dsp pipelines with the .dss materials they use — highlight outline, UI frosted glass, X-ray, wind field, scanner pulse, old CRT, tagged objects. Needs UE 5.8."
+    },
+    {
+      "id": "examples/patterns",
+      "sources": [
+        {
+          "path": "Docs/examples/patterns.md"
+        }
+      ],
+      "format": "md",
+      "title": "Patterns",
+      "description": "The file-shaped building blocks of DreamShaderLang — minimal material, parameters, texture sampling, shared headers, functions, UE.* nodes, layers, VirtualFunction, GraphFunction and Layout — each one a complete source file, with the .dss form beside the 1.x one.",
+      "locale": "en"
+    },
+    {
+      "id": "examples/recipes",
+      "sources": [
+        {
+          "path": "Docs/examples/recipes.md"
+        }
+      ],
+      "format": "md",
+      "title": "Recipes",
+      "description": "Complete DreamShaderLang materials — animated tint, panning UVs, branching, static-switch variants, translucent UI, PBR, MaterialAttributes, Substrate, parameter collections, a multi-output helper, a Settings tour and Runtime Virtual Texture, each as a .dsm and as a .dss.",
+      "locale": "en"
+    },
+    {
+      "id": "generation/asset-paths",
+      "sources": [
+        {
+          "path": "Docs/generation/asset-paths.md"
+        }
+      ],
+      "format": "md",
+      "title": "Asset Paths",
+      "description": "How Name= and Root= become an Unreal package path, an object path, and a file on disk — including the Plugin.X roots and the plugin-source-root default."
+    },
+    {
+      "id": "generation/in-memory",
+      "sources": [
+        {
+          "path": "Docs/generation/ephemeral.md"
+        }
+      ],
+      "format": "md",
+      "title": "In-memory (Ephemeral) Materials",
+      "description": "Why a compiled DreamShader material does not show up in the Content Browser — the Ephemeral and Materialized states of a ThinCustom product, the hidden base material, and how to put it on disk."
+    },
+    {
+      "id": "generation/outputs",
+      "sources": [
+        {
+          "path": "Docs/generation/outputs.md"
+        }
+      ],
+      "format": "md",
+      "title": "Output Bindings",
+      "description": "The Outputs section — declaring output variables, the Base.<target> catalogue, and the Expression(...).Pin[i] and Expression(...) { … } forms.",
+      "locale": "en"
+    },
+    {
+      "id": "generation/pipeline",
+      "sources": [
+        {
+          "path": "Docs/generation/index.md"
+        }
+      ],
+      "format": "md",
+      "title": "The Pipeline",
+      "description": "How one DreamShaderLang source file becomes Unreal assets — every stage, what triggers a build, and where each stage can fail."
+    },
+    {
+      "id": "generation/regeneration",
+      "sources": [
+        {
+          "path": "Docs/generation/regeneration.md"
+        }
+      ],
+      "format": "md",
+      "title": "Regeneration",
+      "description": "What a rebuild destroys and what survives, divergence and the three ways out, the ownership guard, and the build key that decides whether a rebuild happens at all."
+    },
+    {
+      "id": "generation/source-control",
+      "sources": [
+        {
+          "path": "Docs/generation/source-control.md"
+        }
+      ],
+      "format": "md",
+      "title": "Source control",
+      "description": "Which generated assets have files since 2.0, the two workable ways to version them, and dsc list-generated — the list ignore rules and P4 typemaps are written from."
+    },
+    {
+      "id": "graph/calls",
+      "sources": [
+        {
+          "path": "Docs/graph/calls.md"
+        }
+      ],
+      "format": "md",
+      "title": "Calls",
+      "description": "Calling Function, GraphFunction, ShaderFunction, VirtualFunction and parameter pins from a Graph block — dispatch order, value form, statement form, arguments and output selection."
+    },
+    {
+      "id": "graph/control-flow",
+      "sources": [
+        {
+          "path": "Docs/graph/if.md"
+        }
+      ],
+      "format": "md",
+      "title": "Control Flow",
+      "description": "if / else in a Graph block — a build-time select that builds both branches, one conditional node per changed variable, and the truthy form that means != 0 rather than > 0."
+    },
+    {
+      "id": "graph/expressions",
+      "sources": [
+        {
+          "path": "Docs/graph/expressions.md"
+        }
+      ],
+      "format": "md",
+      "title": "Expressions and Conversions",
+      "description": "The four operators and their precedence, literals, name lookup, constructors, swizzles, the conversion rules that fit a value to its place, and the merging of identical nodes."
+    },
+    {
+      "id": "graph/overview",
+      "sources": [
+        {
+          "path": "Docs/graph/index.md"
+        }
+      ],
+      "format": "md",
+      "title": "Evaluation Model",
+      "description": "What a Graph block actually is, how the legacy front end of the 2.0 compiler builds it into nodes, and why it is a different language from the declarations around it."
+    },
+    {
+      "id": "graph/statements",
+      "sources": [
+        {
+          "path": "Docs/graph/statements.md"
+        }
+      ],
+      "format": "md",
+      "title": "Statements",
+      "description": "Every statement form a Graph body can contain — declarations, assignments, member writes, calls — plus termination, classification, MaterialAttributes and scope."
+    },
+    {
+      "id": "graph/unsupported",
+      "sources": [
+        {
+          "path": "Docs/graph/unsupported.md"
+        }
+      ],
+      "format": "md",
+      "title": "What Graph Is Not",
+      "description": "Loops, return, ternary, %, comparisons and indexing — every HLSL / GLSL construct a Graph block does not implement, the code the compiler reports for it, and what to write instead."
+    },
+    {
+      "id": "index",
+      "sources": [
+        {
+          "path": "Docs/index.md"
+        }
+      ],
+      "format": "md",
+      "title": "Overview",
+      "description": "DreamShaderLang is a text language for Unreal Engine materials, compiled by the DreamShader plugin into ordinary material assets; on UE 5.8, .dsp sources add render passes of your own."
+    },
+    {
+      "id": "language/blocks",
+      "sources": [
+        {
+          "path": "Docs/language/blocks.md"
+        }
+      ],
+      "format": "md",
+      "title": "Top-level Blocks",
+      "description": "The seven top-level blocks — Shader, ShaderFunction, ShaderLayer / ShaderLayerBlend, VirtualFunction, Function, GraphFunction, Namespace — and what each generates.",
+      "locale": "en"
+    },
+    {
+      "id": "language/file-model",
+      "sources": [
+        {
+          "path": "Docs/language/source-files.md"
+        }
+      ],
+      "format": "md",
+      "title": "Source Files",
+      "description": "The three 1.x file kinds, what each may declare, how that rule is enforced, and how a file is compiled together with the headers it imports."
+    },
+    {
+      "id": "language/functions",
+      "sources": [
+        {
+          "path": "Docs/language/functions.md"
+        }
+      ],
+      "format": "md",
+      "title": "Functions",
+      "description": "Function, GraphFunction and Namespace — parameters, return types, embedding of called functions, UE.* hoisting, and how calls resolve.",
+      "locale": "en"
+    },
+    {
+      "id": "language/imports",
+      "sources": [
+        {
+          "path": "Docs/language/import.md"
+        }
+      ],
+      "format": "md",
+      "title": "Imports and Namespaces",
+      "description": "How import makes a .dsh header's declarations visible in the current file — recognition, specifier normalisation, source roots, how a header is read, and namespaces across files."
+    },
+    {
+      "id": "language/layout",
+      "sources": [
+        {
+          "path": "Docs/language/layout.md"
+        }
+      ],
+      "format": "md",
+      "title": "Layout and #Region",
+      "description": "Pin generated node positions with Layout = { Node(...); Comment(...); }, group graph statements with #Region, and what both do under each layout style."
+    },
+    {
+      "id": "language/lexical",
+      "sources": [
+        {
+          "path": "Docs/language/lexical.md"
+        }
+      ],
+      "format": "md",
+      "title": "Lexical Elements",
+      "description": "Case sensitivity, whitespace and comments, identifiers and reserved words, string and numeric literals, statement splitting, and the line-oriented preprocessor that runs before parsing."
+    },
+    {
+      "id": "language/sections",
+      "sources": [
+        {
+          "path": "Docs/language/sections.md"
+        }
+      ],
+      "format": "md",
+      "title": "Sections",
+      "description": "Properties, Inputs, Outputs, Results, Settings, Options, Graph and Layout — which block accepts which, how repeats behave, and Group scopes.",
+      "locale": "en"
+    },
+    {
+      "id": "language/types-and-values",
+      "sources": [
+        {
+          "path": "Docs/language/types.md"
+        }
+      ],
+      "format": "md",
+      "title": "Types and Values",
+      "description": "The 52 type tokens, the per-context validity matrix, GLSL aliases, literals, and the tokens that no longer exist."
+    },
+    {
+      "id": "language-v2/index",
+      "sources": [
+        {
+          "path": "Docs/language-v2/index.md"
+        }
+      ],
+      "format": "md",
+      "title": "DreamShaderLang 2.0",
+      "description": "The HLSL-shaped language of DreamShader 2.0 — .dss sources, uniforms and doc directives, one asset per export, and how it sits beside the 1.x language."
+    },
+    {
+      "id": "language-v2/instances",
+      "sources": [
+        {
+          "path": "Docs/language-v2/instances.md"
+        }
+      ],
+      "format": "md",
+      "title": "Material instances",
+      "description": ".dsi — a material instance as source. A parent, the properties it overrides and the parameters it sets, checked against the parent's real parameters."
+    },
+    {
+      "id": "language-v2/migrate",
+      "sources": [
+        {
+          "path": "Docs/tools/migrate.md"
+        }
+      ],
+      "format": "md",
+      "title": "Migrating from 1.x",
+      "description": "dsc migrate rewrites .dsm, .dsf and .dsh sources as .dss — and proves, before it writes anything, that no comment is lost and the same graph comes out."
+    },
+    {
+      "id": "language-v2/passes",
+      "sources": [
+        {
+          "path": "Docs/language-v2/passes.md"
+        }
+      ],
+      "format": "md",
+      "title": "Custom Pass pipelines",
+      "description": ".dsp — render passes of your own, written as source. Named buffers, fullscreen / compute / mesh / clear / copy passes at injection points of the renderer, and parameters activations can override, compiled to one UDreamPassPipeline. Needs UE 5.8."
+    },
+    {
+      "id": "language-v2/substrate",
+      "sources": [
+        {
+          "path": "Docs/language-v2/substrate.md"
+        }
+      ],
+      "format": "md",
+      "title": "Substrate sugar",
+      "description": "Operators and lerp over Substrate values, legacy parameters on a slab, run-time branches, values built member by member, and one source for Substrate and non-Substrate projects."
+    },
+    {
+      "id": "parameters/metadata",
+      "sources": [
+        {
+          "path": "Docs/parameters/metadata.md"
+        }
+      ],
+      "format": "md",
+      "title": "Metadata and Groups",
+      "description": "The trailing [ … ] block — recognized keys and aliases, Slider(min,max), SamplerType, Group scopes and the SortPriority counter, and the reflected-property passthrough."
+    },
+    {
+      "id": "parameters/path",
+      "sources": [
+        {
+          "path": "Docs/parameters/path.md"
+        }
+      ],
+      "format": "md",
+      "title": "Asset References",
+      "description": "Path(Root, \"…\") and the Content Browser's Copy Reference — every root spelling, absolute paths beside a root, object-path completion, the shared resolver, and its codes."
+    },
+    {
+      "id": "parameters/properties",
+      "sources": [
+        {
+          "path": "Docs/language/properties.md"
+        }
+      ],
+      "format": "md",
+      "title": "Property Types",
+      "description": "Every type token a Properties declaration accepts — 39 compact tokens, 22 parameter node tokens (15 of which build), their defaults, how Graph reads them and their call forms."
+    },
+    {
+      "id": "settings/backend",
+      "sources": [
+        {
+          "path": "Docs/settings/backend.md"
+        }
+      ],
+      "format": "md",
+      "title": "Backend",
+      "description": "Graph versus ThinCustom — which object carries the graph, which one is addressable, and how the per-file setting resolves against the project default."
+    },
+    {
+      "id": "settings/enums",
+      "sources": [
+        {
+          "path": "Docs/settings/material-enums.md"
+        }
+      ],
+      "format": "md",
+      "title": "Enum Values",
+      "description": "Every accepted ShadingModel, BlendMode and Domain spelling, how a value is matched, and how project mappings extend or shadow the built-in tables."
+    },
+    {
+      "id": "settings/material",
+      "sources": [
+        {
+          "path": "Docs/settings/material.md"
+        }
+      ],
+      "format": "md",
+      "title": "Material Settings",
+      "description": "The Settings block — how a statement is read, the special Shader keys, the reflection resolver that reaches any UMaterial property, what a regenerated material resets to, and the four material-function keys."
+    },
+    {
+      "id": "settings/project",
+      "sources": [
+        {
+          "path": "Docs/settings/project.md"
+        }
+      ],
+      "format": "md",
+      "title": "Project Settings",
+      "description": "All 17 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects, and the Custom Pass settings object."
+    },
+    {
+      "id": "start/about",
+      "sources": [
+        {
+          "path": "Docs/getting-started/about.md"
+        }
+      ],
+      "format": "md",
+      "title": "About DreamShader",
+      "description": "What the plugin is, the five modules it ships, which engines it supports, and where the related repositories live.",
+      "locale": "en"
+    },
+    {
+      "id": "start/first-material",
+      "sources": [
+        {
+          "path": "Docs/getting-started/first-material.md"
+        }
+      ],
+      "format": "md",
+      "title": "Your First Material",
+      "description": "Write a UI Unlit material from scratch — once as a .dss and once in 1.x syntax — generate it, and find the result the editor deliberately hides.",
+      "locale": "en"
+    },
+    {
+      "id": "start/installation",
+      "sources": [
+        {
+          "path": "Docs/getting-started/installation.md"
+        }
+      ],
+      "format": "md",
+      "title": "Installation",
+      "description": "Add the DreamShader plugin to an Unreal project, find its settings, and confirm the compile chain works.",
+      "locale": "en"
+    },
+    {
+      "id": "start/project-layout",
+      "sources": [
+        {
+          "path": "Docs/getting-started/project-layout.md"
+        }
+      ],
+      "format": "md",
+      "title": "Project Layout",
+      "description": "How DShader/ is organized, what each of the six source kinds holds, how a plugin contributes a source root of its own, which directories the plugin owns, and the package rules that decide what gets compiled.",
+      "locale": "en"
+    },
+    {
+      "id": "start/workflow",
+      "sources": [
+        {
+          "path": "Docs/getting-started/workflow.md"
+        }
+      ],
+      "format": "md",
+      "title": "Daily Workflow",
+      "description": "The save, debounce and generate loop — what triggers a rebuild, what is skipped, what editing a .dsh invalidates, and where to look when something fails.",
+      "locale": "en"
+    },
+    {
+      "id": "tools/commandlet",
+      "sources": [
+        {
+          "path": "Docs/tools/commandlet.md"
+        }
+      ],
+      "format": "md",
+      "title": "Commandlet",
+      "description": "-run=DreamShader — every command and switch, path resolution, exit codes, and why it writes real assets when the editor does not."
+    },
+    {
+      "id": "tools/decompiler",
+      "sources": [
+        {
+          "path": "Docs/tools/decompiler.md"
+        }
+      ],
+      "format": "md",
+      "title": "Decompiler",
+      "description": "Exporting an existing material asset back to source — the default 2.0 decompiler (.dss / .dsi / .dsp), and what the kept 1.x exporter (.dsm / .dsf) reproduces and loses."
+    },
+    {
+      "id": "tools/editor",
+      "sources": [
+        {
+          "path": "Docs/tools/editor-integration.md"
+        }
+      ],
+      "format": "md",
+      "title": "Editor Tools",
+      "description": "Every menu entry, toolbar button and context-menu action DreamShader registers, the Material Content Browser tab, and the preview, VirtualFunction tools, asset rename sync and bridge artifacts."
+    },
+    {
+      "id": "tools/packages",
+      "sources": [
+        {
+          "path": "Docs/tools/packages.md"
+        }
+      ],
+      "format": "md",
+      "title": "Packages",
+      "description": "DShader/Packages — the install root the plugin implements, the manifest and lock file the extensions implement, and the enumeration gap between them."
+    },
+    {
+      "id": "tools/vscode",
+      "sources": [
+        {
+          "path": "Docs/tools/vscode.md"
+        }
+      ],
+      "format": "md",
+      "title": "VSCode and Rider",
+      "description": "The language extensions, the generated DreamShader.code-workspace, and the bridge artifacts the two sides exchange.",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/compiler-module",
+      "sources": [
+        {
+          "path": "Docs/api/compiler-module.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/dreamshader-module",
+      "sources": [
+        {
+          "path": "Docs/api/dreamshader-module.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/index",
+      "sources": [
+        {
+          "path": "Docs/api/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/lang-module",
+      "sources": [
+        {
+          "path": "Docs/api/lang-module.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/material-instance",
+      "sources": [
+        {
+          "path": "Docs/api/material-instance.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/parser",
+      "sources": [
+        {
+          "path": "Docs/api/parser.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/pass-module",
+      "sources": [
+        {
+          "path": "Docs/api/pass-module.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/settings",
+      "sources": [
+        {
+          "path": "Docs/api/settings.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/types",
+      "sources": [
+        {
+          "path": "Docs/api/types.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/api/version-compat",
+      "sources": [
+        {
+          "path": "Docs/api/version-compat.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/builtins/index",
+      "sources": [
+        {
+          "path": "Docs/builtins/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/builtins/output-type",
+      "sources": [
+        {
+          "path": "Docs/builtins/output-type.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/builtins/transform",
+      "sources": [
+        {
+          "path": "Docs/builtins/transform.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/contributing/index",
+      "sources": [
+        {
+          "path": "Docs/contributing/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/contributing/release",
+      "sources": [
+        {
+          "path": "Docs/contributing/release.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/contributing/testing",
+      "sources": [
+        {
+          "path": "Docs/contributing/testing.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh1xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH1xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh2xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH2xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh3xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH3xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh4xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH4xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh5xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH5xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh6xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH6xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh7xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH7xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh8xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH8xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/dsh9xxx",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/DSH9xxx.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/diagnostics/readme",
+      "sources": [
+        {
+          "path": "Docs/diagnostics/README.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/examples/index",
+      "sources": [
+        {
+          "path": "Docs/examples/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/generation/caching",
+      "sources": [
+        {
+          "path": "Docs/generation/caching.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/generation/divergence",
+      "sources": [
+        {
+          "path": "Docs/generation/divergence.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/generation/generated-hlsl",
+      "sources": [
+        {
+          "path": "Docs/generation/generated-hlsl.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/generation/graph-layout",
+      "sources": [
+        {
+          "path": "Docs/generation/graph-layout.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/getting-started",
+      "sources": [
+        {
+          "path": "Docs/getting-started.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/constructors",
+      "sources": [
+        {
+          "path": "Docs/graph/constructors.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/conversions",
+      "sources": [
+        {
+          "path": "Docs/graph/conversions.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/declarations",
+      "sources": [
+        {
+          "path": "Docs/graph/declarations.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/literals",
+      "sources": [
+        {
+          "path": "Docs/graph/literals.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/material-attributes",
+      "sources": [
+        {
+          "path": "Docs/graph/material-attributes.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/name-resolution",
+      "sources": [
+        {
+          "path": "Docs/graph/name-resolution.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/node-reuse",
+      "sources": [
+        {
+          "path": "Docs/graph/node-reuse.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/graph/swizzle",
+      "sources": [
+        {
+          "path": "Docs/graph/swizzle.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/function",
+      "sources": [
+        {
+          "path": "Docs/language/function.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/graph-function",
+      "sources": [
+        {
+          "path": "Docs/language/graph-function.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/index",
+      "sources": [
+        {
+          "path": "Docs/language/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/inputs-outputs",
+      "sources": [
+        {
+          "path": "Docs/language/inputs-outputs.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/keywords",
+      "sources": [
+        {
+          "path": "Docs/language/keywords.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/namespace",
+      "sources": [
+        {
+          "path": "Docs/language/namespace.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/options",
+      "sources": [
+        {
+          "path": "Docs/language/options.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/output-bindings",
+      "sources": [
+        {
+          "path": "Docs/language/output-bindings.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/preprocessor",
+      "sources": [
+        {
+          "path": "Docs/language/preprocessor.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/shader-function",
+      "sources": [
+        {
+          "path": "Docs/language/shader-function.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/shader-layer",
+      "sources": [
+        {
+          "path": "Docs/language/shader-layer.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/shader",
+      "sources": [
+        {
+          "path": "Docs/language/shader.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/language/virtual-function",
+      "sources": [
+        {
+          "path": "Docs/language/virtual-function.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/parameters/compact-types",
+      "sources": [
+        {
+          "path": "Docs/parameters/compact-types.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/parameters/graph-usage",
+      "sources": [
+        {
+          "path": "Docs/parameters/graph-usage.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/parameters/index",
+      "sources": [
+        {
+          "path": "Docs/parameters/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/parameters/parameter-nodes",
+      "sources": [
+        {
+          "path": "Docs/parameters/parameter-nodes.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/parameters/sampler-type",
+      "sources": [
+        {
+          "path": "Docs/parameters/sampler-type.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/readme",
+      "sources": [
+        {
+          "path": "Docs/README.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/runtime/hlsl",
+      "sources": [
+        {
+          "path": "Docs/runtime/hlsl.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/runtime/index",
+      "sources": [
+        {
+          "path": "Docs/runtime/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/settings/function",
+      "sources": [
+        {
+          "path": "Docs/settings/function.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/settings/index",
+      "sources": [
+        {
+          "path": "Docs/settings/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/asset-rename-sync",
+      "sources": [
+        {
+          "path": "Docs/tools/asset-rename-sync.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/bridge",
+      "sources": [
+        {
+          "path": "Docs/tools/bridge.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/index",
+      "sources": [
+        {
+          "path": "Docs/tools/index.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/material-browser",
+      "sources": [
+        {
+          "path": "Docs/tools/material-browser.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/preview",
+      "sources": [
+        {
+          "path": "Docs/tools/preview.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/virtual-function-tools",
+      "sources": [
+        {
+          "path": "Docs/tools/virtual-function-tools.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    },
+    {
+      "id": "plugin/tools/workspace",
+      "sources": [
+        {
+          "path": "Docs/tools/workspace.md"
+        }
+      ],
+      "format": "md",
+      "locale": "en"
+    }
+  ]
+}
