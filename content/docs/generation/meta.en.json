@@ -6,6 +6,7 @@
     "in-memory",
     "outputs",
     "regeneration",
+    "no-generation",
     "source-control"
   ]
 }

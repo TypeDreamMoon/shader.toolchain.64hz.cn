@@ -181,6 +181,17 @@
       "description": "Why a compiled DreamShader material does not show up in the Content Browser — the Ephemeral and Materialized states of a ThinCustom product, the hidden base material, and how to put it on disk."
     },
     {
+      "id": "generation/no-generation",
+      "sources": [
+        {
+          "path": "Docs/generation/no-generation.md"
+        }
+      ],
+      "format": "md",
+      "title": "NoGeneration",
+      "description": "A source, or one export of it, that only a compile naming it builds — the three spellings, which build paths leave it alone, and what a compile that does not name it does with its asset."
+    },
+    {
       "id": "generation/outputs",
       "sources": [
         {
@@ -392,6 +403,17 @@
       "format": "md",
       "title": "Types and Values",
       "description": "The 52 type tokens, the per-context validity matrix, GLSL aliases, literals, and the tokens that no longer exist."
+    },
+    {
+      "id": "language-v2/disable-diagnostics",
+      "sources": [
+        {
+          "path": "Docs/language-v2/disable-diagnostics.md"
+        }
+      ],
+      "format": "md",
+      "title": "Disabling diagnostics",
+      "description": "#pragma disable_warning / disable_error and the per-line // disable_warning comment — turning off warnings and errors by code, for a file or a line, and what a disabled error still does."
     },
     {
       "id": "language-v2/index",
