@@ -18,6 +18,11 @@ REAL_GIT = docs.git
 
 class PluginI18nTests(unittest.TestCase):
     def setUp(self):
+        # Local migration fixtures must not inherit the runner's CI mode.
+        # Tests for CI restrictions explicitly enable it within their scope.
+        environment = patch.dict(os.environ, {'GITHUB_ACTIONS': '', 'DOCS_TRANSLATION_PREVIEW': ''})
+        environment.start()
+        self.addCleanup(environment.stop)
         scratch = docs.ROOT / '.docs-sync-tmp'
         scratch.mkdir(exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(prefix='plugin-i18n-', dir=scratch)
@@ -468,6 +473,17 @@ class PluginI18nTests(unittest.TestCase):
             with patch.dict(os.environ, {'DOCS_TRANSLATION_PREVIEW': ''}):
                 with self.assertRaises(ValueError):
                     self.sync(adopt_existing=True)
+
+    def test_ci_rejects_first_adoption_even_in_translation_preview(self):
+        self.translate()
+        before = self.snapshot(self.root)
+        for preview in ('', 'true'):
+            with self.subTest(preview=preview), patch.dict(os.environ, {
+                'GITHUB_ACTIONS': 'true', 'DOCS_TRANSLATION_PREVIEW': preview,
+            }):
+                with self.assertRaisesRegex(ValueError, 'CI cannot adopt'):
+                    self.sync(adopt_existing=True)
+            self.assertEqual(self.snapshot(self.root), before)
 
     def test_failed_ai_batch_leaves_plugin_and_site_unchanged(self):
         docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')

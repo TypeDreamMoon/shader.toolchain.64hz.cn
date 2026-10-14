@@ -11,6 +11,11 @@ import docs_sync as docs
 
 class DocsSyncTests(unittest.TestCase):
     def setUp(self):
+        # Local migration fixtures must not inherit the runner's CI mode.
+        # Tests for CI restrictions explicitly enable it within their scope.
+        environment = patch.dict(os.environ, {'GITHUB_ACTIONS': '', 'DOCS_TRANSLATION_PREVIEW': ''})
+        environment.start()
+        self.addCleanup(environment.stop)
         scratch = docs.ROOT / '.docs-sync-tmp'
         scratch.mkdir(exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(prefix='test-', dir=scratch)
