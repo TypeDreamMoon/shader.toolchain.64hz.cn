@@ -617,6 +617,21 @@ def heading_ids(body):
     return body
 
 
+def introduced_markup(masked, translated):
+    """MDX syntax the AI wrote itself: protect() masked every brace, tag and ESM line of the source."""
+    def census(text):
+        found = collections.Counter()
+        def count(part):
+            found["brace"] += len(re.findall(r"[{}]", part))
+            found["tag"] += len(re.findall(r"<(?:/?[A-Za-z!]|/?>)", part))
+            found["esm"] += len(re.findall(r"(?m)^\s*(?:import|export)\s", part))
+            return part
+        outside_code(text, count)
+        # An expression or a tag may span lines, so compare the whole chunk, not each line.
+        return found
+    return [kind for kind, n in census(translated).items() if n > census(masked)[kind]]
+
+
 def restore(text, values, masked):
     tokens = re.findall(r"@@DOCS_KEEP_\d{5}@@", text)
     expected = re.findall(r"@@DOCS_KEEP_\d{5}@@", masked)
@@ -933,11 +948,8 @@ def translate(root, settings, page_ids=None, request_fn=ai_request, plugin=None)
             result = request_fn(prompt, settings)
             restore_attributes(result, attributes, locations, protected)
             # AI may produce prose only; source markup/code comes exclusively from protected spans.
-            def reject_code(line):
-                if re.search(r"</?[A-Za-z]|\{[^}]*\}|^\s*(?:import|export)\s", line):
-                    raise ValueError("AI introduced executable markup; translation rejected")
-                return line
-            outside_code(result["body"], reject_code)
+            if introduced_markup(part, result["body"]):
+                raise ValueError("AI introduced executable markup; translation rejected")
             restore(result["body"], protected, part)  # Validate each chunk's tokens independently.
             results.append(result)
         translated_body = restore("".join(r["body"].strip() + re.search(r"\s*$", part)[0]

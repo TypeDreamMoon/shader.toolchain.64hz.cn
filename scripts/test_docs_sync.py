@@ -181,6 +181,14 @@ class DocsSyncTests(unittest.TestCase):
         self.assertEqual(docs.restore(masked,values,masked),body)
         with self.assertRaises(ValueError): docs.restore(masked.replace('@@DOCS_KEEP_00000@@',''),values,masked)
 
+    def test_ai_markup_spanning_lines_is_detected(self):
+        masked,_=docs.protect('Use `{Name}` and <Callout>tip</Callout>; {props.x}.\n\nexport const a = 1\n')
+        self.assertEqual(docs.introduced_markup(masked,masked),[])
+        self.assertEqual(docs.introduced_markup(masked,masked+'\n{\n  alert(1)\n}\n'),['brace'])
+        self.assertEqual(docs.introduced_markup(masked,masked+'\n<>\n片段\n</>\n'),['tag'])
+        self.assertEqual(docs.introduced_markup(masked,masked+'\nimport x from "y"\n'),['esm'])
+        self.assertEqual(docs.introduced_markup(masked,masked+'\n`{code}` 与 a < b\n'),[])
+
     def test_notes_remain_exact(self):
         notes='\n## 我的网站补充\n\n保持这个说明。\n'
         docs.write(self.root/'content/docs/guide.mdx','正文\n'+docs.NOTES+notes)
