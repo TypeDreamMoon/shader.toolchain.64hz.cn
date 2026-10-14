@@ -656,7 +656,15 @@ def restore(text, values, masked):
     tokens = re.findall(r"@@DOCS_KEEP_\d{5}@@", text)
     expected = re.findall(r"@@DOCS_KEEP_\d{5}@@", masked)
     if collections.Counter(tokens) != collections.Counter(expected):
-        raise ValueError("AI changed protected code, links or identifiers; no translation was written")
+        # Token numbers only (never their content), so a log says which spans the model broke.
+        missing = sorted((collections.Counter(expected) - collections.Counter(tokens)).elements())
+        extra = sorted((collections.Counter(tokens) - collections.Counter(expected)).elements())
+        stray = len(re.findall(r"DOCS_KEEP", text)) - len(tokens)
+        detail = "; ".join(part for part in (
+            "missing " + " ".join(t[12:17] for t in missing[:12]) if missing else "",
+            "extra " + " ".join(t[12:17] for t in extra[:12]) if extra else "",
+            f"{stray} malformed" if stray else "") if part)
+        raise ValueError(f"AI changed protected code, links or identifiers ({detail}); no translation was written")
     # Nested protected spans are expanded in reverse masking order.
     for index in reversed(range(len(values))):
         text = text.replace(f"@@DOCS_KEEP_{index:05d}@@", values[index])
