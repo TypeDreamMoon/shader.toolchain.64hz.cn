@@ -161,7 +161,7 @@ refused when the material is built if the node has no such pin (`DSH8212`).
 | `double` | as `float` | [`DSH7136`](/en/docs/plugin/diagnostics/dsh7xxx#dsh7136) |
 | `FString` | anything, verbatim after trimming | — |
 | `FName` | anything, converted to an `FName` | — |
-| object reference | `Path(…)`, an absolute `/…` path, or a `Class'…'` reference — see [Path(…)](/en/docs/parameters/path#the-resolver) | see [below](#object-properties) |
+| object reference | `Path(…)`, an absolute `/…` path, or a `Class'…'` reference — see [Path(…)](/en/docs/parameters/path#two-resolvers) | see [below](#object-properties) |
 | `enum` | an enum literal, four spellings — see [below](#enum-literals) | [`DSH7140`](/en/docs/plugin/diagnostics/dsh7xxx#dsh7140) |
 | `uint8` backed by an enum | an enum literal | [`DSH7141`](/en/docs/plugin/diagnostics/dsh7xxx#dsh7141) |
 | plain `uint8` | an integer in `[0, 255]` | [`DSH7142`](/en/docs/plugin/diagnostics/dsh7xxx#dsh7142) |
@@ -200,7 +200,7 @@ is not also an enumerator name, such as `Shared: Wrap` — is
 ### Object properties
 
 An object-valued UPROPERTY takes an asset reference resolved by the shared resolver documented in
-[Path(…)](/en/docs/parameters/path#the-resolver).
+[Path(…)](/en/docs/parameters/path#two-resolvers).
 
 | Situation | Code |
 | :-- | :-- |

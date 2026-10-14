@@ -2,7 +2,7 @@
   "version": 2,
   "status": "unreviewed",
   "sourceHash": null,
-  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
   "sources": [
     {
       "path": "Docs/builtins/hlsl-library.md",

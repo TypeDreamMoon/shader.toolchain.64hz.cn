@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+  "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
   "workingTree": false,
   "translationSnapshotHash": "1c64c67e433cccc0f014e5342196e06f175bffa8ecae3aff8316a23e6456c98b",
   "pages": {
@@ -28,10 +28,10 @@
       }
     },
     "builtins/math": {
-      "hash": "d2c83ddc4201f64f2174ece44cb19fe1e3ce7f12e7479d156cdc62a31d91c5a2",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "16533a53138634cc549c9862221a96a6b983a5be443905c23df7c95864e7dc90",
+      "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
       "output": "content/docs/builtins/math.en.md",
-      "outputHash": "467e7bbcd69ef96dba9a1a8ea99bf2156c072e911a1a9e61a65ae5d16ef26463",
+      "outputHash": "7ddd98ceea02d434f209e56c5398923aeba4270025c3e9abeb8dd3c145a9ba45",
       "locale": "en",
       "format": "md",
       "title": "Math Builtins",
@@ -138,10 +138,10 @@
       }
     },
     "custom-pass/hlsl": {
-      "hash": "a198e621a8bbe02c34abea52de9c4a7888c8d3163dcc8baf395c8b42347ab25c",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "baae330d1a3cade1a6e92fdfe23aad37ead3ef076682d5a589f40ecf12aa0c2c",
+      "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
       "output": "content/docs/custom-pass/hlsl.en.md",
-      "outputHash": "a8e9418c4ffec47c75d2f0e2a36791eda36bf964b716bbc925c069c003bd0359",
+      "outputHash": "0ef65bbbdac99d1167d4ed434f7423d25eea19f28b20a0125411725b24902bea",
       "locale": "en",
       "format": "md",
       "title": "HLSL passes",
@@ -900,10 +900,10 @@
       }
     },
     "parameters/metadata": {
-      "hash": "82e20dcddaadc05fbcbee654ae0cd8f25f1b5eef4717a2c5830b5768a8607c41",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "b0d7321361f74f132bb1cd3e823e6d6a64a18608fc071d7630ade4a86c9827b4",
+      "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
       "output": "content/docs/parameters/metadata.en.md",
-      "outputHash": "10b1544f4ebaaf8482333e26acbc185efbd4d0159ef1f9beb628c861114485f4",
+      "outputHash": "8d258a65aac126a82001b85f4d20d8b0e507b8f0eda7dd87ce91080b345a886b",
       "locale": "en",
       "format": "md",
       "title": "Metadata and Groups",
@@ -922,10 +922,10 @@
       }
     },
     "parameters/path": {
-      "hash": "99afad2f1ee8ff87af987948ed6725e309600d21f5921b83b1252e927d762228",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "6597dd9c640ceb0fb829645bf16a9cc15d8d25a9b4b529924ff293289429ad1d",
+      "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
       "output": "content/docs/parameters/path.en.md",
-      "outputHash": "353daf05158f1363f73de628ba31039bb650416beb5c1cf278bc9e94b4cc9736",
+      "outputHash": "d854ab0e4a83f480c3093e70f7ecb3e287da16e4e371b1e4e82a69d8f49d01ca",
       "locale": "en",
       "format": "md",
       "title": "Asset References",
@@ -1742,17 +1742,17 @@
       }
     },
     "plugin/examples/index": {
-      "hash": "691c22800eaa6ad58b92768f008c7fb6e905d9cebebfbb99072eb49f2fba4533",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "5ce7384ceddbc630e53374325a4b6288a13fe925c1a6fe791cbfccb4713f0834",
+      "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
       "output": "content/docs/plugin/examples/index.en.md",
-      "outputHash": "cd236282743492a2431ef18227a9268fffb8ce35c06e806b32bc79578daa7adc",
+      "outputHash": "f8a45a444647bb20e6fe1804a599800095769b4fbdc4b6949b931b31ab58810a",
       "locale": "en",
       "format": "md",
       "title": "Examples",
       "sources": [
         {
           "path": "Docs/examples/index.md",
-          "hash": "3b0248ef1cac709c08b3fab6dca3129585ed39917bd5bb0b6aea9fc66d6aeac2"
+          "hash": "12402df83db3644a8d396191a40f7cbd17c51b45d0e4a59b8983a659fd366497"
         }
       ],
       "translation": {
@@ -2335,8 +2335,8 @@
         "status": "unreviewed",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "bb57af7b970bef9389ecffb29c0c9d98ea82bd7e769ff2ae212f83d8f0787d30",
-        "bodyHash": "01a5e45af740ce1eee4e938d0aca0733b11c130f0b926f541017167a7af3b5a4"
+        "outputHash": "c3990752787d42b5e28f85bdb80f41a89961f315359fdb7b8ec12193c2230bae",
+        "bodyHash": "bb357b0b5b2b0272c3b64e07cdad25aba30be548d1aac9a1b3ad02d8b85324c2"
       }
     },
     "plugin/pass-runtime/hlsl": {
@@ -2416,10 +2416,10 @@
       }
     },
     "plugin/tools/asset-rename-sync": {
-      "hash": "f84eee518bc2ebcb39f3e2962c6a720aa34585c14019a34c0a928607c6f85a37",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "d7494e83d7a7a7860ca9f98c680fc62d9ebc15c9d6a96cbd30eed4e4c33d2bd7",
+      "revision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
       "output": "content/docs/plugin/tools/asset-rename-sync.en.md",
-      "outputHash": "21e42cf2147bccc488a232be78999a6639b2fc671e1177becb0a8663f980d1ba",
+      "outputHash": "6eee569029496a6d18a8f2b9e7d0485b85fb2af46df4c5c6b5fe27b4bc31d3b5",
       "locale": "en",
       "format": "md",
       "title": "Asset rename sync",

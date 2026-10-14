@@ -38,9 +38,7 @@ which the module also registers. Since 2.0.0 DreamShader writes no per-source he
 HLSL of a `Function` is embedded in the code of its Custom node. See
 [Generated HLSL](/en/docs/plugin/generation/generated-hlsl).
 
-<a id="reachability"></a>
-
-## Reachability
+## Reachability [#reachability]
 
 Nothing in the plugin emits an include for this header, and nothing in the plugin references any
 `DS_*` symbol. The only occurrence of the name outside the file itself is a source comment.

@@ -77,7 +77,7 @@ Texture2D B = Path("Game/Textures", "T_X");   ->   Path("/Game/Props/T_Y")
 ```
 
 The collapsed form is always quoted, because a quoted absolute path is the one spelling **both**
-resolvers accept — see [the two resolvers](/en/docs/parameters/path#the-resolver).
+resolvers accept — see [the two resolvers](/en/docs/parameters/path#two-resolvers).
 
 ## What it never rewrites
 

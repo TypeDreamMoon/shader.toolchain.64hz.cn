@@ -50,7 +50,7 @@ on each parameter, the zero initialisers 1.x gave each output).
 | [6](#6-if--else-in-graph) | `if` / `else` | [`if`](/en/docs/graph/control-flow) |
 | [7](#7-materialattributes-output-binding) | `MaterialAttributes` | [MaterialAttributes](/en/docs/plugin/graph/material-attributes) |
 | [8](#8-substrate-material-ue-54) | Substrate material *(UE 5.4+)* | [`Substrate.*`](/en/docs/builtins/substrate) |
-| [9](#9-shaderfunction-in-a-dsf-called-from-a-material) | `ShaderFunction` in a `.dsf` | [`ShaderFunction`](/en/docs/plugin/language/shader-function), [`VirtualFunction`](/en/docs/plugin/language/virtual-function) |
+| [9](#9-shaderfunction-in-a-dsf-imported-and-called) | `ShaderFunction` in a `.dsf` | [`ShaderFunction`](/en/docs/plugin/language/shader-function), [`VirtualFunction`](/en/docs/plugin/language/virtual-function) |
 | [10](#10-shaderlayer--shaderlayerblend) | `ShaderLayer` / `ShaderLayerBlend` | [Layers](/en/docs/plugin/language/shader-layer) |
 | [11](#11-virtualfunction-wrapping-an-existing-asset) | `VirtualFunction` | [`VirtualFunction`](/en/docs/plugin/language/virtual-function) |
 | [12](#12-graphfunction-hoisting-a-ue-call-into-a-custom-node) | `GraphFunction` hoisting | [`GraphFunction`](/en/docs/plugin/language/graph-function) |
@@ -860,9 +860,7 @@ export void M_Substrate(inout material m)
 
 ---
 
-<a id="9-shaderfunction-in-a-dsf-imported-and-called"></a>
-
-## 9. `ShaderFunction` in a `.dsf`, called from a material
+## 9. `ShaderFunction` in a `.dsf`, called from a material [#9-shaderfunction-in-a-dsf-imported-and-called]
 
 A `.dsf` declares function assets — `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` — beside
 helper blocks (`Function`, `GraphFunction`, `Namespace`, `VirtualFunction`). Only a `.dsh` can be

@@ -159,9 +159,7 @@ text after the last `/` contains no `.`, the asset name is appended after a `.`.
 The completed path is finally validated by Unreal's own object-path validator, whose message is
 reported, without a code of its own, inside the diagnostic of the slot.
 
-<a id="two-resolvers"></a>
-
-## The resolver
+## The resolver [#two-resolvers]
 
 *(since 2.0.0)* There is **one** resolver. 1.x had two — one for texture defaults, one for metadata and
 the rest — with different accepted forms and different messages; every reference site now goes
@@ -245,7 +243,7 @@ depends on the slot:
 | `DSH1045` | a `Class'…'` names a class unrelated to the object property |
 | `DSH2104` | an unknown escape in a quoted path |
 
-Each of these reaches you inside the diagnostic of its slot — see [The resolver](#the-resolver). The
+Each of these reaches you inside the diagnostic of its slot — see [The resolver](#two-resolvers). The
 complete list lives in the [diagnostics index](/en/docs/diagnostics).
 
 ## Example

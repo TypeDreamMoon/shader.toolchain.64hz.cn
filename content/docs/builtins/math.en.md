@@ -130,9 +130,7 @@ A call to a bare name is resolved in this order. The full lookup is on
 A misspelled builtin — `saturte(x)` — is [`DSH4208`](/en/docs/plugin/diagnostics/dsh4xxx#dsh4208), with a
 *did you mean* when a declared name differs only in case.
 
-<a id="named-arguments"></a>
-
-## Named arguments
+## Named arguments [#named-arguments]
 
 *(since 2.0.0)* A named argument names one of the node's input pins — the *Input pins* column of the
 catalogue — and fills that operand, wherever it stands in the list:
@@ -243,9 +241,7 @@ No engine node does any of the three. `fwidth(x)` is built as `abs(ddx(x)) + abs
 what the HLSL intrinsic is defined as; `rcp(x)` as a `Divide` with `ConstA = 1`; `rsqrt(x)` as a
 `SquareRoot` feeding such a `Divide`.
 
-<a id="reflect-refract"></a>
-
-### reflect, refract
+### reflect, refract [#reflect-refract]
 
 Unreal has no `Reflect` or `Refract` `UMaterialExpression`, so both are lowered to the arithmetic
 HLSL defines them as, and the value returned to the caller is the final node of that subgraph.
