@@ -244,10 +244,10 @@ def rewrite_links(body, source_path, repository, revision, source_routes, sectio
 
 
 def source_anchors(body):
-    # Native Markdown discards HTML. Resolve legacy HTML anchors to their following heading.
+    # Native Markdown discards HTML, so sync carries an <a id> onto the heading after it
+    # (html_to_explicit): the anchor stays the heading's ID on the site too.
     offsets = {offset for _, _, offset in headings(body)}
-    return {m[1]: re.sub(r"[^\w\s-]", "", re.sub(r"^#+\s+", "", m[2]).lower()).replace(" ", "-")
-            for m in re.finditer(r'<a (?:id|name)="([^"<>]+)"></a>\s*\n(#{1,6} [^\n]+)', body)
+    return {m[1]: m[1] for m in re.finditer(r'<a (?:id|name)="([^"<>]+)"></a>\s*\n(#{1,6} [^\n]+)', body)
             if m.start(2) in offsets}
 
 
@@ -420,7 +420,8 @@ def sync(root, plugin, revision=None, check=False, adopt_existing=False):
             source_front = source_front or front
             selected = select_source(body, entry)
             fingerprints.append({**entry, "hash": digest(selected)})
-            chunks.append(rewrite_links(selected, entry["path"], cfg["repository"], revision,
+            # GitHub shows a trailing [#id] literally, so sources write <a id> before a plain heading.
+            chunks.append(rewrite_links(html_to_explicit(selected), entry["path"], cfg["repository"], revision,
                                         source_routes, bool(entry.get("heading")), anchors))
         body = "\n\n".join(chunks)
         title = page.get("title") or field(source_front, "title") or next((h[1] for h in headings(body)), page_id)

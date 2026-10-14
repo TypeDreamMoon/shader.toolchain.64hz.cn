@@ -386,9 +386,10 @@ class DocsSyncTests(unittest.TestCase):
     def test_html_anchor_adapted_without_touching_code_example(self):
         source='<a id="stable"></a>\n\n## Title\n\n```md\n<a id="code"></a>\n## Example\n```\n'
         adapted=docs.source_anchors(source)
-        self.assertEqual(adapted,{'stable':'title'})
-        result=docs.rewrite_links(source+'[go](#stable)','Docs/guide.md','example/plugin',self.sha,{},anchors={'Docs/guide.md':adapted})
-        self.assertIn('](#title)',result)
+        self.assertEqual(adapted,{'stable':'stable'})
+        result=docs.rewrite_links(docs.html_to_explicit(source)+'[go](#stable)','Docs/guide.md','example/plugin',self.sha,{},anchors={'Docs/guide.md':adapted})
+        self.assertIn('## Title [#stable]',result)
+        self.assertIn('](#stable)',result)
         self.assertIn('<a id="code"></a>\n## Example',result)
 
     def test_long_page_chunks_keep_tables_and_protected_code(self):
