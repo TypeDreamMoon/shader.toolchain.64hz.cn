@@ -5,6 +5,7 @@
     "substrate",
     "instances",
     "passes",
+    "disable-diagnostics",
     "migrate"
   ]
 }

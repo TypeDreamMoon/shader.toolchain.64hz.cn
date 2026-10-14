@@ -4,7 +4,7 @@ description: HLSL for DreamShaderLang authors — where HLSL actually runs, how 
 ---
 
 HLSL is the shading language Unreal's material `Custom` node speaks. DreamShaderLang is not an HLSL compiler, but
-HLSL is not decoration here either: the body of a [`/// @custom`](/en/docs/language-v2#what-a-function-is) function in
+HLSL is not decoration here either: the body of a [`/// @custom`](/en/docs/language-v2#declarations) function in
 a `.dss`, and of a 1.x [`Function`](/en/docs/language/functions) / `GraphFunction`, **is** HLSL, written almost
 verbatim into the generated `Custom` node and compiled by Unreal. The rest of a `.dss` looks like HLSL but is lowered to
 a material node graph.
@@ -90,7 +90,7 @@ Function float3 Rotate(in mat3 basis, in vec3 v) { return mul(basis, v); }
 ```
 
 Matrix work belongs **inside** a `/// @custom` / `Function` body, as locals, or goes through the transform builtins —
-`UE.TransformVector` and `UE.TransformPosition`, see [UE.\* Nodes](/en/docs/builtins/ue-nodes#transform-builtins).
+`UE.TransformVector` and `UE.TransformPosition`, see [UE.\* Nodes](/en/docs/builtins/ue-nodes#uetransformvector).
 
 ## Signatures
 

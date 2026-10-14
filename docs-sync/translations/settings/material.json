@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/settings/material.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "782953650b3021d2de69942d76c4d16383a4164269165a72b83702088450114b"
+    }
+  ],
+  "translationFile": "content/docs/settings/material.md",
+  "translationHash": "61fc86c1fb212270b9975f317778a864e86a8f2caff77bd7c0a3ab2e2aaa7345"
+}

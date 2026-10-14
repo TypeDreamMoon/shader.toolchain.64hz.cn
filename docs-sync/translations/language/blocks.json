@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/language/blocks.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "df10506378f8731768b4e871b4d3ea7aa28a6c79a47a328df55305f91e8757b9"
+    }
+  ],
+  "translationFile": "content/docs/language/blocks.md",
+  "translationHash": "58ed83a64ae8f7a69714b03441a551b69ca29d2c2c95c110cdc61c23fdcd8198"
+}

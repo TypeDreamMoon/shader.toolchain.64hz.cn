@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/tools/packages.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "eaa9a18cf5fe0b56c4f59949161c35ff19fe135d6bc5631e04f889bfc2e81871"
+    }
+  ],
+  "translationFile": "content/docs/tools/packages.md",
+  "translationHash": "133ab277f38e66f40ddb20d9daa328b13f034d1c1f7375ec692ddbbf977d65ee"
+}

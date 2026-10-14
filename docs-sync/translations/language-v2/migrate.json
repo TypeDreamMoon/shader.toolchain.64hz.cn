@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/tools/migrate.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "17fe6b1c0fd2e54fae0a2559ee6c28cca5281a95bdfd8bd264bd06758ba63d83"
+    }
+  ],
+  "translationFile": "content/docs/language-v2/migrate.md",
+  "translationHash": "92e2af7216751d57d612a30eb712c3e50c4f38682f3cc6e736d5502db263bd0b"
+}

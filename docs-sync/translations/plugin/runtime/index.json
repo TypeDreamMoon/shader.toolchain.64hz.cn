@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/runtime/index.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "a574464dcb9b97e785b77b3a401ed008078cfe427b187e868d31870d8d2af299"
+    }
+  ],
+  "translationFile": "content/docs/plugin/runtime/index.md",
+  "translationHash": "9318bd73d5ac00842e3a8ac9e2d8eda8a2135182aa3fa740850401a9c090e5c1"
+}

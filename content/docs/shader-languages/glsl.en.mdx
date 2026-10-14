@@ -143,7 +143,7 @@ Details: [Expressions and Conversions](/en/docs/graph/expressions).
 | `sampler2D` + `texture(s, uv)` | in a `.dss`, `uniform Texture2D Tex;` and `Tex.Sample(uv)`; in 1.x a texture property plus `SampleTexture2D(tex, uv)`, or a `TextureSampleParameter2D` called as `Tex(Coordinates = uv)` |
 | `layout(…)`, `lowp` / `mediump` / `highp` | none |
 | `mat3 m; m * v` | no matrix values in a graph (`DSH4361`) — use `UE.TransformVector` / `UE.TransformPosition`, or compute it in a `/// @custom` / `Function` body |
-| `#version`, `#extension` | none; the preprocessor has just the [`#if` / `#define`](/en/docs/language/lexical#preprocessor) family |
+| `#version`, `#extension` | none; the preprocessor has just the [`#if` / `#define`](/en/docs/plugin/language/preprocessor) family |
 | `for`, `while` | a `.dss` has them (a loop whose count is known only at run time goes in a `/// @custom` function); a 1.x `Graph` does not (`DSH2208`) |
 | `discard` | valid inside a `/// @custom` / `Function` HLSL body only |
 
@@ -204,7 +204,7 @@ Older sources written that way are still perfectly valid — just no longer nece
 
 The `/// @custom` / `Function` version is one Custom node; the graph-code version produces inspectable
 material nodes that can be wired to parameters. Pick per case — see [Functions](/en/docs/language/functions)
-and [DreamShaderLang 2.0](/en/docs/language-v2#what-a-function-is).
+and [DreamShaderLang 2.0](/en/docs/language-v2#declarations).
 
 ## Common GLSL keywords
 

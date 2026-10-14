@@ -1,3 +1,4 @@
+import { TranslationNotice } from './translation-notice';
 import { getMDXComponents } from '@/mdx-components';
 import {
   DocsBody,
@@ -62,6 +63,7 @@ export function DocsPageContent({
       {page.data.description ? (
         <DocsDescription>{page.data.description}</DocsDescription>
       ) : null}
+      <TranslationNotice locale={locale} slug={slug} />
       <DocsBody>
         <MDX
           components={getMDXComponents({

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/getting-started/workflow.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "0435de4bfd9f5f5ac4e6ada0a5965d6f944399cad262fabaa334622201ee2ee5"
+    }
+  ],
+  "translationFile": "content/docs/start/workflow.md",
+  "translationHash": "633ff95c726d35993c3277f68116bfa9c403bb5d67d401ccca64340cc7e9b8f9"
+}

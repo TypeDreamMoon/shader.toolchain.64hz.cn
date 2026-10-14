@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/examples/custom-pass.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "3cd106ff0c8a2db8650869f49342040bbbf01cf1186ba3dae5e058d7bebef974"
+    }
+  ],
+  "translationFile": "content/docs/examples/custom-pass.md",
+  "translationHash": "1aa52a95c3658385665cf4f47a8cf03f430b3c12faf1eee527526a0cc0211e64"
+}

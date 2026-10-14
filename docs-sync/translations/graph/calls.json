@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/graph/calls.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "65ba7902a3f0b801a741ed8488791aad7cd15b34232f919dcc76fee9d573052e"
+    }
+  ],
+  "translationFile": "content/docs/graph/calls.md",
+  "translationHash": "31722a2643d996090f62bffd2764fa5bc77a0382d38e4ee58769c48b91d1414d"
+}

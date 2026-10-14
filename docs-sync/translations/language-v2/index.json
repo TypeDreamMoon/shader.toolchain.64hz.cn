@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/language-v2/index.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "1dcdd7e9fce68035c34e2b2197deff2edeb649215926aed5359eb100df5fd701"
+    }
+  ],
+  "translationFile": "content/docs/language-v2/index.md",
+  "translationHash": "d13ea775d2763b171726c4c5d712f0a2184e705dabb5f3fb2d3a91c8a033fc2d"
+}

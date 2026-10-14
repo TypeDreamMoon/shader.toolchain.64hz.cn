@@ -1,0 +1,576 @@
+---
+title: "Decompiler"
+description: "Exporting an existing material asset back to source — the default 2.0 decompiler (.dss / .dsi / .dsp), and what the kept 1.x exporter (.dsm / .dsf) reproduces and loses."
+---
+
+# Decompiler
+
+> [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Decompiler**
+
+The exporter that walks an existing `UMaterial` or `UMaterialFunction` node graph and writes an
+equivalent DreamShaderLang source file.
+
+| | |
+| :-- | :-- |
+| Accepts | `UMaterial` · `UMaterialFunction` · `UMaterialFunctionMaterialLayer` · `UMaterialFunctionMaterialLayerBlend` |
+| Produces | one `.dsm` or `.dsf` file, UTF-8 without BOM |
+| Writes to | `<SourceDirectory>/Decompiled/…` unless an explicit output path is given |
+| Since | `1.3.5` (Content Browser actions) |
+
+> [!IMPORTANT]
+> **There are two decompilers.** This page describes the **1.x** one, which writes `.dsm` / `.dsf`
+> and is kept behind `-Format=Legacy`. The **2.0 decompiler** is the default: it reads the
+> asset's graph into the compiler's own IR and prints a `.dss` — or a [`.dsi`](/en/docs/language-v2/instances)
+> for a material instance — and its output is *proved*: the text is compiled again and the two IRs are
+> compared. A Custom Pass pipeline, which has no graph, comes back as a [`.dsp`](/en/docs/language-v2/passes),
+> read back and compared with the asset *(since 2.1.0)*. See [The 2.0 decompiler](#the-20-decompiler) at
+> the end of this page.
+
+> [!NOTE]
+> Treat the 1.x decompiler as a **migration starting point**, not a round-trip guarantee. It reproduces
+> the graph's structure and the parts of the node state it can express, then leaves a `// Warning:`
+> comment for everything it could not. The
+> [known round-trip gaps](#known-round-trip-gaps) below are the ones worth checking by hand before
+> deleting the original asset.
+
+## Invoking it
+
+| Route | Where | Produces |
+| :-- | :-- | :-- |
+| Content Browser | right-click a `UMaterial` ▸ *DreamShader* ▸ **Export Legacy .dsm** *(**Export DSM** before 2.0.0)* | `.dsm` |
+| Content Browser | right-click a `UMaterialFunction`, `UMaterialFunctionMaterialLayer` or `UMaterialFunctionMaterialLayerBlend` ▸ *DreamShader* ▸ **Export Legacy .dsf** *(**Export DSF** before 2.0.0)* | `.dsf` |
+| Material Editor | the **DreamShader** toolbar combo button ▸ **Export Legacy .dsm** / **Export Legacy .dsf** | as above |
+| Commandlet | `-run=DreamShader decompile -Asset=<object path> -Format=Legacy [-Out=<file>]`, or an `-Out` ending in `.dsm` / `.dsf` | as above |
+
+Without `-Format=Legacy` (or a `.dsm` / `.dsf` `-Out`), the commandlet runs the
+[2.0 decompiler](#the-20-decompiler) *(since 2.0.0)*; the **Export .dss** entry beside each legacy
+one does the same from the editor.
+
+Both editor routes require **exactly one** selected asset, write the file, and then open it in your
+preferred editor. See [Editor integration](/en/docs/tools/editor#content-browser-context-menus) and
+[Commandlet](/en/docs/tools/commandlet).
+
+A progress dialog appears after a 0.25 s delay, titled `Decompiling Material '{Asset}'...` or
+`Decompiling Material Function '{Asset}'...`, with one progress frame per visited node. The dialog is
+suppressed in commandlet runs.
+
+## Output paths
+
+| Asset class | Directory | Extension |
+| :-- | :-- | :-- |
+| `UMaterial` | `<SourceDirectory>/Decompiled/Materials/` | `.dsm` |
+| `UMaterialFunction` | `<SourceDirectory>/Decompiled/Functions/` | `.dsf` |
+| `UMaterialFunctionMaterialLayer` | `<SourceDirectory>/Decompiled/Layers/` | `.dsf` |
+| `UMaterialFunctionMaterialLayerBlend` | `<SourceDirectory>/Decompiled/LayerBlends/` | `.dsf` |
+
+`<SourceDirectory>` is the *Source Directory* project setting, `DShader` by default. The layer and
+layer-blend directories are separate from `Functions`, and the class test is ordered blend-first, so
+a layer blend never lands in `Layers`.
+
+Inside the category directory the asset's **package path** becomes the relative file path, one
+directory per package segment:
+
+```text
+/Game/Materials/Metal/M_Steel
+  →  <Project>/DShader/Decompiled/Materials/Game/Materials/Metal/M_Steel.dsm
+```
+
+| Rule | Detail |
+| :-- | :-- |
+| Leading and trailing `/` | stripped from the package name |
+| Illegal characters | control characters and `< > : " / \ | ? *` become `_` |
+| Empty segment | becomes `Folder<N>` for a folder, `Asset<N>` for the last segment, `<N>` being the 1-based index |
+| No package | the asset's own name is used as the only segment |
+
+Passing `-Out=` to the commandlet overrides the whole computation and writes exactly where told
+(after path normalization). The editor routes never take an override.
+
+### The generated asset name
+
+The `Name=` written **inside** the file is not the file path. It is
+`Decompiled/<Category>/<package segments>` with `\ / . :` replaced by `_` in each segment:
+
+```text
+/Game/Materials/Metal/M_Steel
+  →  Shader(Name="Decompiled/Materials/Game/Materials/Metal/M_Steel")
+```
+
+Recompiling the exported file therefore creates a **new** asset under
+`/Game/Decompiled/Materials/…`, leaving the original untouched. Edit `Name=` and `Root=` when you are
+ready to take over the original path. See [Asset paths](/en/docs/generation/asset-paths).
+
+## File layout
+
+```c
+// Decompiled from <full object path>
+[// Warning: <text>]…
+
+[<VirtualFunction declaration>]…
+
+{ Shader | ShaderFunction | ShaderLayer | ShaderLayerBlend }(Name="<generated name>")
+{
+    [Properties = { … }]
+    [Inputs     = { … }]   // function kinds only
+    [Settings   = { … }]   // Shader only
+    [Outputs    = { … }]
+    [Graph      = { … }]
+    [Layout     = { … }]
+}
+```
+
+| Block kind emitted | Source asset |
+| :-- | :-- |
+| `Shader` | `UMaterial` |
+| `ShaderFunction` | `UMaterialFunction` |
+| `ShaderLayer` | `UMaterialFunctionMaterialLayer` |
+| `ShaderLayerBlend` | `UMaterialFunctionMaterialLayerBlend` |
+
+The `Settings` block of a decompiled `Shader` always begins with `Domain`, `ShadingModel` and
+`BlendMode`, emitted unconditionally. Every other setting is emitted only when it differs from the
+`UMaterial` class default; the round-trip set is listed on
+[Shader settings](/en/docs/settings/material). When a `Base.FrontMaterial` binding was decompiled the
+shading model is forced to `Substrate`, because a Substrate material's own shading-model enum does
+not describe its surface.
+
+`Outputs` declares one variable per connected material property and binds it, in the fixed order
+`EmissiveColor`, `BaseColor`, `Metallic`, `Specular`, `Roughness`, `Anisotropy`, `Opacity`,
+`OpacityMask`, `Normal`, `Tangent`, `WorldPositionOffset`, `SubsurfaceColor`, `CustomData0`,
+`CustomData1`, `AmbientOcclusion`, `Refraction`, `PixelDepthOffset`, `MaterialAttributes`, and — on
+UE 5.4 and newer — `FrontMaterial`. Unconnected properties are skipped entirely.
+
+### Terminal output nodes
+
+A `UMaterialExpressionCustomOutput` (`ThinTranslucentMaterialOutput`, `ClearCoatNormalCustomOutput`,
+`VolumetricAdvancedMaterialOutput`, `VertexInterpolator`, …) has no output pins, so the material root
+cannot reach it — it is exported from the node list instead, as an
+[`Expression( … )` output binding](/en/docs/plugin/language/output-bindings#the-expression--pini-target). One
+`Outputs` variable is declared per **connected** input pin, named after the pin, and the pin's whole
+input subtree lands in `Graph`. Which spelling is written depends on how many pins are connected:
+
+| Connected pins | Emitted as |
+| :-- | :-- |
+| 1 | the statement form, `Expression(Class="…").Pin[<i>] = <var>;` |
+| 2 or more | the [block form](/en/docs/plugin/language/output-bindings#block-form), `Expression(Class="…") { Pin[<i>] = <var>; … }` *(since 1.9.0)* |
+| 0 | nothing — the node is dropped |
+
+Both spellings regenerate the same single node; the block form is chosen for multi-pin nodes because
+it states that intent in the syntax instead of leaving it to N repeated argument lists. A file that
+decompiled to the statement form before 1.9.0 still decompiles to it byte for byte.
+
+`Class=` carries the **reflected** class name (`MaterialExpressionThinTranslucentMaterialOutput`, no
+`U` prefix), which is a spelling `Expression(Class=…)` resolves.
+
+> [!WARNING]
+> Output-target nodes are de-duplicated by class plus argument list, so a material holding **two**
+> nodes of the same class cannot round-trip. The decompiler exports the first and records the warning
+> `Material has more than one '{Class}' node; output targets are de-duplicated by class, so only the
+> first was exported.`
+
+## What is exported faithfully
+
+The node walker has a curated case for each class below. Everything else falls through to the
+[generic fallback](#the-ueexpression-fallback).
+
+### Emitted as DreamShaderLang syntax
+
+| `UMaterialExpression` class | Emitted as |
+| :-- | :-- |
+| `Constant` | a float literal |
+| `Constant2Vector` | `float2(x, y)` |
+| `Constant3Vector` | `float3(r, g, b)` |
+| `Constant4Vector` | `float4(r, g, b, a)` |
+| `Add` | `a + b` |
+| `Subtract` | `a - b` |
+| `Multiply` | `a * b` |
+| `Divide` | `a / b` |
+| `OneMinus` | `1.0 - x` |
+| `LinearInterpolate` | `lerp(a, b, alpha)` |
+| `Clamp` | `clamp(x, min, max)` — only when the clamp mode is the default two-sided clamp |
+| `Power` | `pow(base, exponent)` |
+| `DotProduct` | `dot(a, b)` |
+| `Normalize` | `normalize(v)` |
+| `Min` | `min(a, b)` |
+| `Max` | `max(a, b)` |
+| `Abs` | `abs(x)` |
+| `Saturate` | `saturate(x)` |
+| `Floor` | `floor(x)` |
+| `Ceil` | `ceil(x)` |
+| `Frac` | `frac(x)` |
+| `SquareRoot` | `sqrt(x)` |
+| `Sine` | `sin(x)` — only when `Period` is 1 |
+| `Cosine` | `cos(x)` — only when `Period` is 1 |
+| `ComponentMask` | a swizzle on the input, built from the R/G/B/A flags in that order |
+| `AppendVector` | `floatN(a, b)`, or a single merged swizzle when both operands swizzle the same base value |
+| `Time` | `UE.Time()` — only when it neither ignores pause nor overrides the period |
+| `Reroute` | nothing — plain reroutes are traced through, with a cycle guard |
+| `NamedRerouteDeclaration`, `NamedRerouteUsage` | a named `Graph` temporary, reused by every usage |
+| `FunctionInput` | the name declared in the `Inputs` section |
+| `MaterialFunctionCall` | a generated [`VirtualFunction`](/en/docs/plugin/language/virtual-function) declaration placed above the block, plus a call to it |
+
+Unconnected operand pins fall back to the node's own constant property when it has one — `Min`,
+`Max`, `LinearInterpolate`, `Power` and `Clamp` all read their `Const*` values — otherwise to a
+literal `0.0`.
+
+### Emitted as a property declaration
+
+These become entries in the `Properties` section and are referenced by name in the `Graph`. Names are
+uniquified, and a `ParameterName=` metadata entry is added whenever the DreamShaderLang identifier
+had to differ from the asset's parameter name.
+
+| `UMaterialExpression` class | Declaration |
+| :-- | :-- |
+| `ScalarParameter` | `ScalarParameter <Name> = <default>;` |
+| `VectorParameter` | `VectorParameter <Name> = float4(r, g, b, a);` |
+| `TextureObjectParameter` | `TextureObjectParameter <Name>[ = <asset path>];` |
+| `TextureSampleParameter2D` | `TextureSampleParameter2D <Name>[ = <asset path>];` — **only when no input pin is connected** |
+
+A `TextureSampleParameter2D` with any connected input pin is emitted as a curated `UE.Expression`
+instead, carrying its parameter arguments and its sampler arguments together *(since 1.3.7)*. Its
+`RGBA` output is emitted once into a named temporary; every other pin becomes a swizzle of it.
+
+### Emitted as a curated `UE.Expression`
+
+These keep a hand-written argument list rather than a reflection dump, so only the properties that
+actually differ from the node default appear.
+
+| `UMaterialExpression` class | Arguments emitted |
+| :-- | :-- |
+| `CurveAtlasRowParameter` | `ParameterName`, `Group`, `SortPriority` and `Desc` when non-default, then `DefaultValue`, `Curve`, `Atlas`, `UseCustomPrimitiveData` with `PrimitiveDataIndex`, and `CurveTime` when the time pin is connected |
+| `StaticComponentMaskParameter` | `Input`, `DefaultR`, `DefaultG`, `DefaultB`, `DefaultA`, and `ParameterName` when set. `OutputType` follows the number of enabled channels |
+| `StaticSwitchParameter` | `True`, `False`, and `ParameterName`, `DefaultValue`, `DynamicBranch` when non-default |
+| `TextureCoordinate` | `CoordinateIndex`, `UTiling`, `VTiling` — each only when non-default |
+| `Time` | `bIgnorePause`, `bOverride_Period`, `Period` — used when the node is not at its defaults |
+| `Sine` / `Cosine` | `Input`, `Period` — used when `Period` is not 1 |
+| `Clamp` | `Input`, `Min`, `Max`, `ClampMode` — used when the clamp mode is min-only or max-only |
+| `Panner` | `Coordinate` or `ConstCoordinate`, `Time`, and either `Speed` or the non-zero `SpeedX` / `SpeedY`, plus `bFractionalPart` |
+| `Rotator` | `Coordinate` or `ConstCoordinate`, `Time`, and `CenterX`, `CenterY`, `Speed` when non-default |
+| `WorldPosition` | `WorldPositionShaderOffset` when it is not the default |
+| `CameraVectorWS` | *(none)* |
+| `ObjectPositionWS` | *(none)* |
+| `ScreenPosition` | *(none)* |
+| `VertexColor` | *(none)* — always typed `float4`, with the pin's mask emitted as a swizzle |
+| `TextureSample` | the texture, sampler and mip arguments; the `RGBA` output is emitted once and every other pin becomes a swizzle of it |
+| `Custom` | `Code`, `Description`, `Output` for a secondary output, the full `AdditionalOutputs` list, and one argument per connected input. `OutputType` is the node's own declared return type, never the selected output's type |
+
+## The `UE.Expression` fallback
+
+Any class without a case above is exported as a generic
+[`UE.Expression`](/en/docs/builtins/ue-expression) call, and the decompiler records a warning.
+
+The argument list is built in two passes:
+
+1. Every **connected** input pin, named after the pin, in pin order.
+2. Every **reflected literal property** whose value differs from the class default *(since 1.3.7)*.
+
+A property is exported in pass 2 only when all of these hold:
+
+| Requirement | Detail |
+| :-- | :-- |
+| Not deprecated, transient or duplicate-transient | |
+| Not a material-expression input | those are pass 1 |
+| Marked editable | `CPF_Edit` |
+| Not a control name | `Class`, `OutputType`, `ResultType`, `Output`, `OutputName`, `OutputIndex` |
+| Not an editor-only name | `MaterialExpressionEditorX`, `MaterialExpressionEditorY`, `Desc`, `bCommentBubbleVisible`, `bShowOutputNameOnPin`, `bHidePreviewWindow`, `bCollapsed`, `bShaderInputData`, `SortPriority` |
+| A supported property type | bool, numeric, enum, byte, name, string, text, or object reference |
+| Different from the class default | identical values are omitted |
+| Not already an argument | the first writer of a name wins |
+
+Names are compared after normalization, so `bTwoSided` and `Two Sided` collide.
+
+> [!WARNING]
+> **Struct, array, map, set and delegate properties are dropped silently.** They are not one of the
+> supported property types, so a node whose state lives in a struct exports with that state at its
+> class default and no warning names the specific property. Re-set those by hand after the first
+> compile, or keep the node as `UE.Expression` and add the missing arguments yourself.
+
+`OutputType` is always emitted, resolved from the real output index. When a named output selector
+(`Output=` / `OutputName=`) is present, `OutputIndex` is suppressed, because a call that carries both
+is [`DSH5252`](/en/docs/plugin/diagnostics/dsh5xxx#dsh5252). Calls with more than three arguments, or longer than 120 characters, are
+emitted across multiple lines.
+
+## Layout export
+
+Controlled by the *Export Decompiled Layout* project setting, default **on**. When on, the file gets
+a `Layout` section:
+
+| Emitted line | From |
+| :-- | :-- |
+| `Comment(Name="<text>", X=<x>, Y=<y>, W=<w>, H=<h>, Color=float4(r, g, b, a));` | every editor comment box |
+| `Node(Var="<name>", X=<x>, Y=<y>);` | every named expression, sorted by X, then Y, then name |
+
+Comment boxes whose text begins with `DreamShader: ` are skipped — those are generated markers, not
+authored comments.
+
+Independently of the setting, each expression is also assigned to the **smallest** comment box that
+encloses it, and those assignments become `#Region` / `#EndRegion` directives around the
+corresponding `Graph` statements. Turning layout export off removes the `Layout` block but not the
+regions.
+
+See [Layout](/en/docs/language/layout).
+
+## Diagnostics
+
+Runtime substitutions are shown as `{Placeholder}`.
+
+### Warnings written into the file
+
+Each is emitted once, as a `// Warning: …` comment under the `// Decompiled from …` header line. They
+do not fail the export.
+
+| Message | Cause |
+| :-- | :-- |
+| `Exported '{Class}' as UE.Expression; review reflected literal properties if the node has editor-only state.` | a node with no curated case |
+| `MaterialFunctionCall '{Path}' is not a plain MaterialFunction; it was exported through UE.Expression.` | the call targets a layer or layer blend rather than a plain material function |
+| `A MaterialFunctionCall had no function asset and was exported as a zero literal.` | the call node has no function assigned |
+| `Failed to emit VirtualFunction for '{Path}': {Error}` | the called function's declaration could not be built |
+| `Named reroute usage '{Node}' has no valid declaration; emitted a default literal.` | a dangling named-reroute usage reached as a node |
+| `Named reroute usage '{Node}' has no valid declaration; emitted its default value.` | the same, reached through an input pin |
+| `Detected a recursive graph dependency while decompiling node '{Node}'; emitted a default literal to avoid stack overflow.` | a cycle in the expression graph |
+| `Detected a recursive reroute dependency while decompiling node '{Node}'; emitted a default literal to avoid stack overflow.` | a cycle through plain reroutes |
+| `Detected a recursive named reroute dependency for '{Node}'; emitted a default literal to avoid stack overflow.` | a cycle through named reroutes |
+| `Append node '{Node}' resolved to {A} + {B} components, which cannot fit a float4; masked its inputs down to {A2} + {B2}. Review the emitted swizzle.` | an append whose operands exceed four components |
+| `Material has more than one '{Class}' node; output targets are de-duplicated by class, so only the first was exported.` | two [terminal output nodes](#terminal-output-nodes) of the same class |
+
+### Export failures
+
+| Message | Cause |
+| :-- | :-- |
+| `No Material asset was provided.` | a null material reached the decompiler |
+| `No MaterialFunction asset was provided.` | a null function reached the decompiler |
+| `No asset was provided.` | a null asset reached the service |
+| `MaterialFunction '{Name}' does not expose any outputs.` | the function declares no outputs |
+| `DreamShader decompile supports Material and MaterialFunction assets only: {Path}` | any other asset class |
+| `Decompile did not produce source text.` | the decompile reported failure with no message |
+| `DreamShader failed to resolve an output file path.` | the computed output path was empty |
+| `DreamShader failed to create output directory '{Directory}'.` | the directory could not be created |
+| `DreamShader failed to write decompiled source '{File}'.` | the file could not be written |
+
+### Editor toasts
+
+The same toasts for every *Export* entry, the 2.0 ones included *(since 2.0.0)*:
+
+| Toast | Cause |
+| :-- | :-- |
+| `DreamShader could not find the selected Material.` / `…Material Function.` | the asset was unloaded between right-click and click |
+| `DreamShader failed to export '{Asset}': {Reason}` | the decompile failed |
+| *(the raw write error)* | the file could not be saved |
+| `Exported '{File}' but could not open it.` | written, but the editor could not be launched |
+| `Exported '{File}'.` | success |
+
+Logs: `Exported '{Asset}' to '{File}'.` at Display, and
+`Failed to export '{Asset}' to a DreamShader source: {Reason}` at Warning.
+
+## Known round-trip gaps
+
+Verified behaviour of 1.5.0. Each row is something the exported file will not reproduce.
+
+| Gap | Effect | Work-around |
+| :-- | :-- | :-- |
+| Material-function settings are never emitted | `Description`, `ExposeToLibrary`, `LibraryCategories` and `UserExposedCaption` are lost when exporting a `UMaterialFunction` | add a `Settings` block by hand — see [Function settings](/en/docs/plugin/settings/function) |
+| Only the blessed `UMaterial` property set is emitted | properties outside it — for example `OpacityMaskClipValue`, `NumCustomizedUVs`, translucency lighting mode, displacement scaling and Nanite override — keep the class default | add the keys to `Settings`; they resolve by reflection — see [Shader settings](/en/docs/settings/material) |
+| Struct-, array-, map- and set-valued node properties are not reflected | a fallback `UE.Expression` node loses that state, with no per-property warning | set the property in the material after generation, or extend the emitted call |
+| Node comment text (`Desc`) and node `SortPriority` are dropped | comment bubbles and pin ordering are not reproduced | re-apply by hand |
+| Node positions depend on a setting | with *Export Decompiled Layout* off, the regenerated graph is auto-laid-out instead | leave the setting on, or write `Layout` by hand |
+| Comment boxes prefixed `DreamShader: ` are dropped | generated markers are not re-emitted, by design | none needed |
+| A `MaterialFunctionCall` on a layer or layer blend falls back to `UE.Expression` | the call is not expressed as a `VirtualFunction` | export the layer separately and call it |
+| A `MaterialFunctionCall` with no assigned function becomes `0.0` | the branch is silently constant-folded | re-assign the function in the original asset and re-export |
+| Cycles emit a default literal | the cyclic branch evaluates to a constant | break the cycle in the original graph |
+| An append wider than four components is masked down | components are dropped | check the emitted swizzle |
+| Material **instances** are not supported by the 1.x decompiler | `UMaterialInstanceConstant` is rejected outright | use the [2.0 decompiler](#the-20-decompiler), which writes a `.dsi` |
+| Texture-sample `GatherMode` round-trips only on UE 5.6 and newer | on older engines the property is omitted | none |
+| `bHasPixelAnimation` is in the emitted flag set only on UE 5.4 and newer | on older engines the flag is omitted | none |
+| `Base.FrontMaterial` and the `Substrate` shading-model spelling exist only on UE 5.4 and newer | a Substrate material cannot be exported meaningfully below 5.4 | none |
+| The generated `Name=` points into `Decompiled/…` | recompiling creates a second asset rather than replacing the original | edit `Name=` / `Root=` once the source is trusted |
+| Under the `Classic` graph layout style, large graphs skip automatic layout | a regenerated graph of 1200 or more nodes can come back visually unordered when no `Layout` block is present; the IR styles (`Blocks`, the default since 2.0.0) always lay out | keep layout export on, or use an IR style — see [Graph layout](/en/docs/plugin/generation/graph-layout#when-layout-runs) |
+
+## Example
+
+Export `/Game/Materials/M_Steel` headlessly, then inspect the result:
+
+```powershell
+& "$Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "I:\Project\Project.uproject" `
+    -run=DreamShader decompile -Asset="/Game/Materials/M_Steel" -Format=Legacy `
+    -unattended -nopause -nosplash -stdout -log
+```
+
+```text
+DreamShader decompiled '/Game/Materials/M_Steel.M_Steel' to
+'I:/Project/DShader/Decompiled/Materials/Game/Materials/M_Steel.dsm' (legacy).
+```
+
+The written file:
+
+```c
+// Decompiled from /Game/Materials/M_Steel.M_Steel
+Shader(Name="Decompiled/Materials/Game/Materials/M_Steel")
+{
+    Properties = {
+        ScalarParameter Roughness_0 = 0.35 [ParameterName="Roughness"];
+        VectorParameter Tint = float4(0.8, 0.8, 0.82, 1.0);
+    }
+    Settings = {
+        Domain = "Surface";
+        ShadingModel = "DefaultLit";
+        BlendMode = "Opaque";
+    }
+
+    Outputs = {
+        float3 BaseColor;
+        float Metallic;
+        float Roughness;
+
+        Base.BaseColor = BaseColor;
+        Base.Metallic  = Metallic;
+        Base.Roughness = Roughness;
+    }
+
+    Graph = {
+        BaseColor = Tint.rgb;
+        Metallic  = 1.0;
+        Roughness = saturate(Roughness_0);
+    }
+
+    Layout = {
+        Node(Var="Tint", X=-640, Y=-208);
+        Node(Var="Roughness_0", X=-640, Y=48);
+    }
+}
+```
+
+## The 2.0 decompiler
+
+```powershell
+./dsc.ps1 decompile /Game/Materials/M_Steel                  # writes DShader/Decompiled/.../M_Steel.dss
+./dsc.ps1 decompile /Game/Materials/MI_Steel_Worn            # a material instance: MI_Steel_Worn.dsi
+./dsc.ps1 decompile -SourceFile DShader/Functions/Lib.dss    # every asset that source builds, in one file
+./dsc.ps1 decompile /Game/Materials/M_Steel -Format Legacy   # the 1.x text described above
+```
+
+It is the compiler run backwards: **graph → IR → AST → printer**.
+
+1. *Import.* Each expression is read back as the IR op the emitter writes for it; anything else is a
+   reflected `UE.<Class>(...)` node over the builtin catalog. Inline pin masks become swizzles by
+   the emitter's own rule, comment boxes become `#pragma region`s, node positions become
+   `#pragma layout` hints. Two classes keep their pins in arrays no call can name, and are read back
+   as what they compute instead: a **Convert** node (Make / Break FloatN) as the channels each output
+   is put together from (`DXY.xy`, `float3(Gain, 0.25, 0.75)`), a **Switch** as the branches the
+   engine makes of it (`0.0 == floor(s) ? a : 1.0 == floor(s) ? b : default`, or the one input the
+   number picks when nothing is wired to SwitchValue) -- where a case has no name. A Switch whose wired
+   cases are all named is the Switch itself, as the Landscape nodes below are:
+   `UE.Switch(SwitchValue = s, Dry = a, Wet = b, Inputs = "((InputName=\"Dry\"),(InputName=\"Wet\"))")`. A VertexInterpolator, a custom output that
+   also hands a value on, is that value wherever something reads it. A class that keeps its pins in
+   an array of structs and names each after its entry -- **LandscapeLayerBlend**,
+   **LandscapeGrassOutput**, **LandscapePhysicalMaterialOutput**, RenderTrace's PhysicalMaterialOutput
+   of the same shape -- is called with the array as the
+   text the details panel pastes, pins left out, and each pin by the name the node shows in identifier
+   form: `UE.LandscapeLayerBlend(Layer_Grass = g, Height_Rock = h, Layers = "((LayerName=\"Grass\"),...)")`.
+2. *Raise.* Nodes nothing reads are pruned, and the shapes the emitter lowers by hand are read back
+   (a StaticSwitch over a static bool is an `if` / `?:`, a Set-attributes chain is `m.X = ...`). A
+   Substrate node stays the call it is -- `Substrate.Weight(...)`, `SSSMFP = Substrate.TransmittanceToMFP(...).MFP`
+   -- so the text names every node the graph shows. Only the readable form reads the
+   [Substrate sugar](/en/docs/language-v2/substrate#decompiling) back, wherever that is graph-exact:
+   `SubstrateAdd` / `SubstrateWeight` / `SubstrateHorizontalMixing` with nothing set on them are `A + B`,
+   `A * w` and `lerp(A, B, t)`, and a conversion node that feeds one BSDF and nothing else becomes
+   `BaseColor = ...` / `Haziness = ...` / `Transmittance = ...` on that BSDF.
+3. *Write.* Uniforms in display order (`@sort` only where a priority is not the uniform's place), a
+   local for a value that is read twice or that a statement named, custom functions recovered from
+   their node's code with their helpers, layers and blends in their own signatures, an `extern`
+   prototype for every function asset the graph calls.
+4. *Prove.* The printed text is parsed again (`DSH9089` if it does not), and the round-trip tests
+   compile it and compare IRs.
+
+What the language cannot say is named, never dropped silently: `DSH9060`–`DSH9074` from the import
+(a missing function asset, a class outside the catalog, a Preview-pin default expression, additional
+defines on a Custom node) and `DSH9075`–`DSH9084` from the writer (a renamed identifier, positions of
+values written inline, an `extern` inferred from its calls).
+
+These engine classes still keep pins or outputs in arrays the text has no spelling for; a node of one
+of them comes back as a reflected call without those wires (`DSH9070`) or that state (`DSH9068`), and
+has to be finished by hand:
+
+| Class | What is lost |
+| :-- | :-- |
+| `MaterialCache` | the attribute pins and the outputs its tag gives it |
+| `LayerStack` *(experimental)* | the layer inputs |
+| `Operator` *(new translator only)* | every input and its constant: all of them live in one array |
+
+A Substrate node is written under the name sources use — `Substrate.Slab(...)`, the first alias the
+catalog lists for the class — rather than the reflected `SubstrateSlabBSDF`; both resolve to the same
+class.
+
+A plain `UMaterialInstanceConstant` is written as a `.dsi`: the parent, the `#pragma instance` keys
+it overrides, and the parameters that differ from the parent.
+
+### Pipelines (`.dsp`)
+
+*(since 2.1.0)* A `UDreamPassPipeline` has no graph to import. Its fields are read back into the payload a
+[`.dsp`](/en/docs/language-v2/passes) binds to — the mapping the emitter applies, run the other way — and the
+printer writes that payload as a `.dsp`: `#pragma pipeline`, the uniforms, the buffers and the passes, in
+the asset's order, with every key left out that would read back as the default.
+
+```powershell
+./dsc.ps1 decompile /Game/Passes/CP_Highlight                # DShader/Decompiled/Pipelines/Game/Passes/CP_Highlight.dsp
+./dsc.ps1 decompile -SourceFile DShader/Passes/CP_Highlight.dsp
+./dsc.ps1 decompile /Game/Passes/CP_Highlight -Out I:/Work/CP_Highlight.dsp
+```
+
+| Route | |
+| :-- | :-- |
+| `dsc decompile -Asset=<pipeline>` | the pipeline; text headed `// Decompiled by DreamShader from <object path>` |
+| `dsc decompile -SourceFile=<file>.dsp` | the pipeline that `.dsp` builds, without the header line. Compile the source first: before that there is no asset to read |
+| the bridge's `decompile` request | the same decompile, for an editor extension |
+| *Adopt Into Source* | the same reading, spliced into the `.dsp` the pipeline came from instead of printed — see [Divergence](/en/docs/plugin/generation/divergence#a-custom-pass-pipeline) |
+
+There is no Content Browser or Material Content Browser entry that decompiles a pipeline.
+
+| Output | |
+| :-- | :-- |
+| Default path | `<SourceDirectory>/Decompiled/Pipelines/<package path>.dsp`, by the same segment rules as the other kinds |
+| `-Out` | must end in `.dsp`; any other extension is [`DSH9210`](/en/docs/plugin/diagnostics/dsh9xxx). `-Format=Legacy`, or an `-Out` ending in `.dsm` / `.dsf`, hands the pipeline to the 1.x decompiler, which refuses it: a pipeline has no 1.x text |
+| `-KeepAssetPath` | a `.dsp` names its pipeline after its file and has no `/// @name`, so the path is kept only by writing the file where the pipeline's source belongs; anywhere else is `DSH9224` (warning), naming where the text would build |
+| `-Readable` | no effect |
+| `Material = "…"` | the material's bare name when the products under the output file's source root include exactly one material or instance of that name, it is this one, and a `.dss` builds it; otherwise its package name, or its object path for an asset not named after its package |
+| `Shader = "…"` | a virtual path as the asset holds it; a path relative to the `.dsp` the pipeline was built from is rewritten relative to the output file's folder |
+| Layers | a `Layer(...)` filter keeps the names the compiler stored beside the layer bits. Bits with no stored names — a hand edit — are read through today's layer table (`DSH9214`, info) |
+
+What the text cannot say the way the asset has it is a warning, written at the head of the file as a
+`// Warning: DSHnnnn: …` line in English, and raised as a diagnostic:
+
+| Code | The asset holds | The text |
+| :-- | :-- | :-- |
+| `DSH9211` | a fullscreen pass with neither a material nor a shader | names neither, and does not build until one is given |
+| `DSH9212` | a fullscreen pass with both | keeps the material, which is what the pass draws |
+| `DSH9215` | layer bits the project's layer table has no name for | leaves them out |
+| `DSH9216` | a pipeline that runs in no kind of view | leaves `Views` out, so a rebuild runs in `Game \| Editor` |
+| `DSH9217` | a mesh pass that checks no usage flag | leaves `Usage` out, so a rebuild checks the default set |
+| `DSH9218` | a texture parameter whose default is not a 2D texture | declares it `Texture2D`; it may not build until the default is one |
+| `DSH9219` | a `param` bound to a texture constant | leaves the binding out |
+| `DSH9220` | a mesh pass with its own depth and no buffer for it | writes `Own()` empty; it does not build until a `Depth32` buffer is named |
+
+A fixed-size buffer's `Scale`, which the asset may still hold, is not written: `Size` excludes it.
+
+**The re-parse check.** Before the text is handed back it is parsed again and bound without the engine —
+the references taken as written, and every check that needs the project skipped — and the payload it
+binds to is compared with the asset's, the facts only the engine knows (what a reference resolves to, a
+`.usf`'s `[numthreads]`) taken from the asset where the text spells the reference the same way. A text that
+does not parse is `DSH9221`; one that does not bind into a pipeline is `DSH9222` — the asset breaks a rule a
+`.dsp` is checked against, which a hand edit can do, or the decompiler is at fault; one that reads back as a
+different pipeline is `DSH9223`, naming the first difference. All three are warnings: the file is written
+as it is, and they are not copied into its head.
+
+## See also
+
+- [Editor integration](/en/docs/tools/editor) — the *Export .dss* and *Export Legacy .dsm* / *.dsf* menu entries
+- [Commandlet](/en/docs/tools/commandlet) — `-run=DreamShader decompile`, `-Asset` and `-Out`
+- [UE.Expression](/en/docs/builtins/ue-expression) — the generic call the fallback emits
+- [Layout](/en/docs/language/layout) — `Node` and `Comment` directives, and `#Region`
+- [Shader settings](/en/docs/settings/material) — the settings the exporter can and cannot emit
+- [Function settings](/en/docs/plugin/settings/function) — the keys a decompiled `.dsf` will be missing
+- [VirtualFunction](/en/docs/plugin/language/virtual-function) — the declaration emitted for each called function
+- [VirtualFunction tools](/en/docs/plugin/tools/virtual-function-tools) — the same declaration builder, driven from the asset menu
+- [Asset paths](/en/docs/generation/asset-paths) — what the emitted `Name=` resolves to
+- [Graph layout](/en/docs/plugin/generation/graph-layout) — what happens when no `Layout` block is present
+- [Project settings](/en/docs/settings/project) — *Export Decompiled Layout* and *Source Directory*
+- [Substrate builtins](/en/docs/builtins/substrate) — the UE 5.4 gate behind `Base.FrontMaterial`
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — the text a pipeline decompiles to
+- [Divergence](/en/docs/plugin/generation/divergence#a-custom-pass-pipeline) — Adopt Into Source for a pipeline edited in its details panel

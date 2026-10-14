@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sources": [
+    {
+      "path": "Docs/README.md",
+      "sourceHash": null,
+      "sourceRevision": null,
+      "translationHash": "414ce96bc8b1ee76a56bec5f4e9145fdab56595ddaf1662430ef763022fb93f8"
+    }
+  ],
+  "translationFile": "content/docs/plugin/readme.md",
+  "translationHash": "e1a9203574e7f681ed39981e9942be0da76a460e117b3c4b6e99eda3ae48fb05"
+}

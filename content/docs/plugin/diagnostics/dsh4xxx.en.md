@@ -1,0 +1,2874 @@
+---
+title: "DSH4xxx --- Graph statements and expressions"
+description: "DSH4xxx --- Graph statements and expressions"
+---
+
+# DSH4xxx --- Graph statements and expressions
+
+> The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
+> Everything below a marker is written by hand and survives a regeneration.
+
+## DSH4200
+
+<!-- generated:begin DSH4200 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not declared; did you mean '{1}'? Names are case-sensitive.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:757`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:768`
+<!-- generated:end DSH4200 -->
+
+**Cause.** An identifier does not name a local, a parameter or a file-scope declaration that is
+visible here. In 2.0 names are **case-sensitive** (1.x was not), so `intensity` and `Intensity` are
+two different names; when the only difference is case the message says so and names the declaration
+it found.
+
+**Fix.** Correct the spelling, or declare the name above the line that uses it. A name that comes
+from a header only exists below the `#include` that pulled the header in: an `#include` written at
+the bottom of the file declares nothing for the code above it.
+
+## DSH4201
+
+<!-- generated:begin DSH4201 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not a type; did you mean '{1}'? Type names are case-sensitive.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:560`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:571`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:585`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:707`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:980`, `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:544`
+<!-- generated:end DSH4201 -->
+
+**Cause.** A type spelling is neither a builtin (`float3`, `Texture2D`, `material`, `Substrate`, …)
+nor a `struct` declared **before** this line. Also raised for `void` where a value type is required
+— a field, a parameter or a variable.
+
+**Fix.** Check the spelling and its case; move the `struct` above its first use; for a type that
+comes from a header, check that the header is included above this line.
+
+## DSH4202
+
+<!-- generated:begin DSH4202 -->
+**Severity** error
+
+**Message**
+
+```
+A string has no value in an expression; it is only ever the value of a reflected property, as in 'UE.Expression(Class = "...")'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:625`
+<!-- generated:end DSH4202 -->
+
+**Cause.** A quoted string reached an expression. The language has no string values: a string is
+only ever the value of a reflected literal property, as in `UE.Expression(Class = "…")` or
+`Desc = "…"`.
+
+**Fix.** Remove the string, or move it to the property argument it was meant for.
+
+## DSH4203
+
+<!-- generated:begin DSH4203 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is a namespace, not a value; write '{0}.SomeNode(...)'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:717`
+<!-- generated:end DSH4203 -->
+
+**Cause.** `UE` or `Substrate` was used as if it were a variable. They are namespaces; the only
+thing that follows them is a node name and a call.
+
+**Fix.** Write `UE.TexCoord(0)` rather than `UE`. If a variable of that name was intended, declare
+it — a declared `UE` wins over the namespace, and the reflected call is then what stops working.
+
+## DSH4204
+
+<!-- generated:begin DSH4204 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is a type, not a value; write '{0}(...)' to construct one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:512`
+<!-- generated:end DSH4204 -->
+
+**Cause.** A type name appears where a value is expected: `float3;`, `x = float3`, `f(float3)`.
+
+**Fix.** Construct the value — `float3(0.0)` — or write a cast, `(float3)x`.
+
+## DSH4205
+
+<!-- generated:begin DSH4205 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' has no field called '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1125`
+<!-- generated:end DSH4205 -->
+
+**Cause.** A `struct` value was asked for a field it does not have. The message names the struct and
+suggests a field that differs only in case, when there is one.
+
+**Fix.** Correct the field name, or add the field to the struct. Fields are case-sensitive.
+
+## DSH4206
+
+<!-- generated:begin DSH4206 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' on a texture is a call: write 'Tex.{0}(UV)'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1264`
+<!-- generated:end DSH4206 -->
+
+**Cause.** `Tex.Sample` (or `Tex.SampleLevel`) appears without its argument list. A texture's
+methods are calls; there is no value to take from the method itself.
+
+**Fix.** Write `Tex.Sample(UV)`, `Tex.Sample(TexSampler, UV)` or `Tex.SampleLevel(UV, Level)`.
+
+## DSH4207
+
+<!-- generated:begin DSH4207 -->
+**Severity** error
+
+**Message**
+
+```
+A value of type {0} has no member '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1274`
+<!-- generated:end DSH4207 -->
+
+**Cause.** A member access was written on a value whose type has no members of that kind: a swizzle
+on a texture, a field on a number, an attribute on something that is not a `material`.
+
+**Fix.** Check the type the expression actually has — the message names it. Note that `.rgb` is
+only valid on a numeric value of at least three components, and `m.BaseColor` only on a `material`.
+
+## DSH4208
+
+<!-- generated:begin DSH4208 -->
+**Severity** error
+
+**Message**
+
+```
+A value of type {0} has no method '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2985`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3103`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3118`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4909`
+<!-- generated:end DSH4208 -->
+
+**Cause.** A call was written on something that is not callable: a name that is not a function, a
+builtin, a `struct` or `UE.`/`Substrate.` followed by a node; or a method a texture does not have.
+A case-only difference from a declared name is named in the message.
+
+**Fix.** Correct the spelling (names are case-sensitive), declare the function above the call, or
+reach an engine node through `UE.Expression(Class = "…")`.
+
+## DSH4210
+
+<!-- generated:begin DSH4210 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is already declared in this file; one name declares one thing.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:482`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:492`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:861`
+<!-- generated:end DSH4210 -->
+
+**Cause.** One name is declared twice. Structs, file-scope variables and functions share one
+namespace, because a struct's constructor and a function call are spelled the same way. When the
+two declarations are in different files the message names both — the usual cause is a header
+declaring a name the file also declares, or two headers declaring it.
+
+In a `.dsp` it is also raised for two `uniform`s whose names differ only in case
+(`The parameter 'radius' differs from 'Radius', declared on line 3, in case only; ...`): the pipeline
+asset keeps parameter names as Unreal names, which compare ignoring case, so the two would be one
+parameter there. A `static const` is folded away and never reaches the asset, so it is not compared
+this way.
+
+**Fix.** Rename one of them. There is no overloading: two functions of one name are this error even
+when their parameter lists differ.
+
+## DSH4211
+
+<!-- generated:begin DSH4211 -->
+**Severity** error
+
+**Message**
+
+```
+Including '{0}' from '{1}' closes a cycle; a header may not include itself, directly or through another header.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:445`
+<!-- generated:end DSH4211 -->
+
+**Cause.** Following an `#include` / `import` leads back to a file already being read. The message
+names the file that closes the loop and the file that included it.
+
+**Fix.** Break the cycle. A shared type or constant that two headers both need belongs in a third
+header both of them include; DreamShaderLang has no include guards to make a cycle harmless.
+
+## DSH4212
+
+<!-- generated:begin DSH4212 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' cannot be read: this front end was started without an include resolver, so nothing a header declares is visible.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:409`
+<!-- generated:end DSH4212 -->
+
+**Cause.** The file has an `#include` / `import` and this front end was started without an include
+resolver, so nothing a header declares is visible. Inside a compile this cannot happen; it means a
+tool called `BindDreamShaderLang` with `FBindOptions::IncludeResolver` left empty.
+
+**Fix.** In a tool, supply the resolver. If the intent was to bind one file in isolation, expect
+every name the header would have declared to be `DSH4200` as well.
+
+## DSH4213
+
+<!-- generated:begin DSH4213 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is declared twice in struct '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:688`
+<!-- generated:end DSH4213 -->
+
+**Cause.** A `struct` declares two fields with the same name.
+
+**Fix.** Rename one. Field names are case-sensitive, so `Colour` and `colour` are not this error.
+
+## DSH4214
+
+<!-- generated:begin DSH4214 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is declared twice in the parameter list of '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:957`
+<!-- generated:end DSH4214 -->
+
+**Cause.** A parameter list declares one name twice.
+
+**Fix.** Rename one of them.
+
+## DSH4215
+
+<!-- generated:begin DSH4215 -->
+**Severity** error
+
+**Message**
+
+```
+The '{0}' argument of '{1}' is given twice.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3461`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3791`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4458`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4537`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4575`, `Source/DreamShaderLang/Private/Semantic/LangBinderSubstrate.cpp:697`
+<!-- generated:end DSH4215 -->
+
+**Cause.** One argument slot is filled twice in a call: the same parameter named twice, a named
+argument that repeats what a positional argument already filled, or a pin and its literal twin both
+given.
+
+**Fix.** Delete the duplicate. Positional arguments fill the parameters in order, so the first
+named argument that names one of those parameters is the duplicate.
+
+## DSH4216
+
+<!-- generated:begin DSH4216 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' takes its arguments in order and has no argument called '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3426`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3769`
+<!-- generated:end DSH4216 -->
+
+**Cause.** A named argument names nothing in the callee: no parameter of that function, or no pin
+of that builtin. The message lists the builtin's argument names, and suggests a case-only match for
+a function's parameters.
+
+**Fix.** Correct the name, or pass the argument positionally.
+
+## DSH4217
+
+<!-- generated:begin DSH4217 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is missing its '{1}' argument.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3489`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3843`
+<!-- generated:end DSH4217 -->
+
+**Cause.** A call leaves a parameter with no argument and no default, or a builtin without one of
+its arguments.
+
+**Fix.** Pass it, or give the parameter a default in its declaration — a default makes an exported
+function's input optional.
+
+## DSH4218
+
+<!-- generated:begin DSH4218 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' writes back {1}, and this variable is {2}; an out argument has to match exactly.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3904`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3949`
+<!-- generated:end DSH4218 -->
+
+**Cause.** An argument passed to an `out` / `inout` parameter is a variable of a different type.
+Unlike an input, an `out` argument is written back into, and a conversion has nowhere to live on
+the way out.
+
+**Fix.** Declare the variable with the parameter's exact type, then convert after the call.
+
+## DSH4220
+
+<!-- generated:begin DSH4220 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is already declared in this block.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:149`, `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:159`, `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:169`
+<!-- generated:end DSH4220 -->
+
+**Cause.** A local variable redeclares a name in the same block, or hides one from an enclosing
+block or a parameter. HLSL allows the hiding; this language does not, because in a graph the two
+variables become two unrelated nodes with one name and every node description downstream is then
+wrong about which one it is.
+
+**Fix.** Give one of them another name. Two variables of the same name in **sibling** blocks are
+fine — they are not visible to each other and each gets its own slot.
+
+## DSH4221
+
+<!-- generated:begin DSH4221 -->
+**Severity** error
+
+**Message**
+
+```
+{0}() has no components; write the value, as in 'float3(0.0)'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3176`
+<!-- generated:end DSH4221 -->
+
+**Cause.** A constructor was written with no arguments: `float3()`.
+
+**Fix.** Write the value: `float3(0.0)` broadcasts, `float3(x, y, z)` builds one component at a
+time.
+
+## DSH4222
+
+<!-- generated:begin DSH4222 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' has {1} fields and this list has {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2704`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2809`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2842`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3242`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3314`
+<!-- generated:end DSH4222 -->
+
+**Cause.** The pieces do not add up: a constructor whose arguments' components do not total the
+target's, an initializer list of the wrong length, or a struct constructed with the wrong number of
+fields.
+
+**Fix.** Count the components. `float4(v3, w)` is 3 + 1; `float3(v4)` is 4 into 3 and is refused —
+write `v4.xyz`. The one exception is a single scalar, which broadcasts to any width.
+
+## DSH4223
+
+<!-- generated:begin DSH4223 -->
+**Severity** error
+
+**Message**
+
+```
+{0} expects {1}, and this is {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1917`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2603`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2615`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2630`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3155`
+<!-- generated:end DSH4223 -->
+
+**Cause.** A cast the graph cannot carry: to or from a type that is not a number or a bool, or a
+cast that drops components (`(float3)v4`).
+
+**Fix.** For a narrowing cast, write the swizzle that says which components were meant — `.xyz`.
+For a texture, a sampler, a `material` or a `Substrate` value there is no cast at all.
+
+## DSH4224
+
+<!-- generated:begin DSH4224 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' takes at most {1} arguments.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3447`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3507`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3717`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4953`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:5020`
+<!-- generated:end DSH4224 -->
+
+**Cause.** A call has more or fewer arguments than the callee takes. For a texture sample the
+message gives the exact spellings, because the sampler argument is optional and the arity depends
+on whether it was written.
+
+**Fix.** Match the declaration. A parameter with a default may be omitted; one without may not.
+
+## DSH4225
+
+<!-- generated:begin DSH4225 -->
+**Severity** error
+
+**Message**
+
+```
+A constructor takes its components in order; named arguments belong on 'UE.' nodes and on function calls.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3167`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4921`
+<!-- generated:end DSH4225 -->
+
+**Cause.** Named arguments were used where only positional ones are taken: a constructor, a texture
+sample.
+
+**Fix.** Drop the names. Named arguments belong on `UE.`/`Substrate.` nodes, where they match a pin
+or a property, and on calls to declared functions, where they match a parameter.
+
+## DSH4226
+
+<!-- generated:begin DSH4226 -->
+**Severity** error
+
+**Message**
+
+```
+{0} expects {1}, and this is {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1951`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1999`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2542`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3210`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3222`
+<!-- generated:end DSH4226 -->
+
+**Cause.** An operand does not fit where it is used. The two common shapes are a width that does not
+match (`float3 * float2` — a vector never widens silently) and a type that is not a number at all
+(a texture, a `material`, a `struct` in arithmetic).
+
+**Fix.** Make the widths agree with a swizzle or a constructor. A **scalar** broadcasts to any
+width, so `v3 * 2.0` is fine and `v3 * v2` is not.
+
+## DSH4227
+
+<!-- generated:begin DSH4227 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not an operation this language spells as a call.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2103`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2219`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2262`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2299`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2458`
+<!-- generated:end DSH4227 -->
+
+**Cause.** An operator with no graph form: `&`, `|`, `^`, `<<`, `>>`, `~` and their assignment
+forms. The graph carries floats, not bit patterns.
+
+**Fix.** Express it in arithmetic, or move the code into a `/// @custom` function, whose body is
+HLSL the shader compiler sees whole.
+
+## DSH4228
+
+<!-- generated:begin DSH4228 -->
+**Severity** error
+
+**Message**
+
+```
+{0} expects {1}, and this is {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1906`
+<!-- generated:end DSH4228 -->
+
+**Cause.** A value does not fit where it is being stored: the right of an `=`, an initializer, a
+parameter default or a `return`. The message names both types.
+
+**Fix.** As DSH4226 — adjust the width with a swizzle or a constructor. An `int` used where a
+`float` is expected converts silently and is never this error.
+
+## DSH4229
+
+<!-- generated:begin DSH4229 -->
+**Severity** error
+
+**Message**
+
+```
+A 'uniform' is an input and a 'static const' is a constant; neither can be assigned to. Copy it into a local first.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2392`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2433`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2441`
+<!-- generated:end DSH4229 -->
+
+**Cause.** The left side of an assignment cannot be assigned to. Three messages: it is a `uniform`
+(an input) or a `static const` (a constant); it is one component of a member of a Substrate value
+being built (`S.DiffuseAlbedo.r = 1;`) -- such a member is a pin, and a pin is connected whole; or
+it is no variable, struct field, material pin or swizzle of one at all (a call, a literal, an
+arithmetic result).
+
+**Fix.** Copy a uniform into a local before changing it. For a Substrate value, build the vector
+first and assign the whole member. Otherwise assign to a named variable.
+
+## DSH4230
+
+<!-- generated:begin DSH4230 -->
+**Severity** error
+
+**Message**
+
+```
+'.{0}' is not a swizzle; a swizzle is one to four of 'xyzw' or 'rgba'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1291`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1310`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1326`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1346`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1713`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2409`
+<!-- generated:end DSH4230 -->
+
+**Cause.** One of five things:
+
+- a letter that is not one of `xyzw` / `rgba`,
+- more than four components,
+- a component past the end of the value (`.w` on a `float3`, `v[3]` on a `float2`),
+- the two families mixed in one mask (`.xg`),
+- a repeated component **in an assignment target** (`v.xx = f`).
+
+Reading a repeated component is fine: `v.xxx` is HLSL replication and binds like any other mask.
+Writing one is not — the two writes land on the same component with no order between them, so the
+result would depend on how the graph happened to be built.
+
+**Fix.** Use one family and stay in range. For an assignment, write each component on its own line.
+
+## DSH4231
+
+<!-- generated:begin DSH4231 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}.{1}' is an output node, not a value: write it as a statement on a line of its own.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:4802`
+<!-- generated:end DSH4231 -->
+
+**Cause.** A node with no value was used as one. Custom-output classes (`ClearCoatBottomNormal`,
+`ThinTranslucentMaterialOutput`, the volumetric-advanced outputs…) write into the material rather
+than producing something to read, and a class with no output pins is the same case.
+
+**Fix.** Write the call as a statement on a line of its own.
+
+## DSH4233
+
+<!-- generated:begin DSH4233 -->
+**Severity** error
+
+**Message**
+
+```
+A component index must be a compile-time constant; write a swizzle such as '.z', or select with 'lerp'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1704`
+<!-- generated:end DSH4233 -->
+
+**Cause.** `v[i]` with an index the binder cannot evaluate. A component index becomes a swizzle,
+and a swizzle is fixed when the graph is built.
+
+**Fix.** Write the swizzle (`v.z`), or select between components with `lerp` / `?:`.
+
+## DSH4234
+
+<!-- generated:begin DSH4234 -->
+**Severity** error
+
+**Message**
+
+```
+A value of type {0} cannot be indexed.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1740`
+<!-- generated:end DSH4234 -->
+
+**Cause.** `[...]` was written on a value that is neither an array, a vector nor a matrix.
+
+**Fix.** Check the type — the message names it.
+
+## DSH4235
+
+<!-- generated:begin DSH4235 -->
+**Severity** error
+
+**Message**
+
+```
+'++' and '--' write back into what they read, so they need a variable.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2233`
+<!-- generated:end DSH4235 -->
+
+**Cause.** `++` or `--` was applied to something that is not a variable. They read and write back,
+so they need somewhere to write.
+
+**Fix.** Apply them to a local, an `out`/`inout` parameter, a struct field or a material pin.
+
+## DSH4236
+
+<!-- generated:begin DSH4236 -->
+**Severity** error
+
+**Message**
+
+```
+An 'in' parameter is a function input pin and cannot be written to; declare it 'out' or 'inout', or copy it into a local.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2400`
+<!-- generated:end DSH4236 -->
+
+**Cause.** An `in` parameter was assigned to. In a graph an input parameter is a function input pin,
+and a pin cannot be written.
+
+**Fix.** Declare it `out` or `inout` if the caller should see the change; otherwise copy it into a
+local and modify that.
+
+## DSH4237
+
+<!-- generated:begin DSH4237 -->
+**Severity** error
+
+**Message**
+
+```
+An initializer list only has a meaning against a declared type; it cannot stand on its own.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2681`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2748`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2832`
+<!-- generated:end DSH4237 -->
+
+**Cause.** An initializer list appears where nothing says what it should become — or a target that
+cannot be written as a list (a texture, a `material`), or an array initialised with something that
+is not a list.
+
+**Fix.** Give it a declared type: `float4 v = { 1, 0, 0, 1 };`. An array is initialised with
+`= { … }` and nothing else.
+
+## DSH4238
+
+<!-- generated:begin DSH4238 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' returns nothing, so its call has no value; its results come back through its out parameters.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3978`
+<!-- generated:end DSH4238 -->
+
+**Cause.** A call to a function that returns `void` was used as a value.
+
+**Fix.** Call it as a statement. A function with several results returns them through `out`
+parameters, which the caller declares as variables and reads after the call.
+
+## DSH4239
+
+<!-- generated:begin DSH4239 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is an out parameter of '{1}', so its argument has to be a variable.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3875`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3931`
+<!-- generated:end DSH4239 -->
+
+**Cause.** The argument passed to an `out` / `inout` parameter is not a variable, so there is
+nowhere to write the result.
+
+**Fix.** Declare a local of the parameter's type and pass that.
+
+## DSH4240
+
+<!-- generated:begin DSH4240 -->
+**Severity** error
+
+**Message**
+
+```
+'#pragma endregion' closes a box that was never opened.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderDirectives.cpp:869`, `Source/DreamShaderLang/Private/Semantic/LangBinderDirectives.cpp:888`, `Source/DreamShaderLang/Private/Semantic/LangBinderDirectives.cpp:896`
+<!-- generated:end DSH4240 -->
+
+**Cause.** `#pragma region` and `#pragma endregion` do not pair up — an `endregion` with nothing
+open, or a `region` never closed. Regions nest, and they are counted per file and per function
+body, so a region opened in a header cannot be closed by the file that included it.
+
+**Fix.** Add the missing line. A region opened inside a function body is closed inside that body.
+
+## DSH4241
+
+<!-- generated:begin DSH4241 -->
+**Severity** error
+
+**Message**
+
+```
+A multi-dimensional array has no graph form; declare one dimension, or move the code into a '/// @custom' function.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:607`
+<!-- generated:end DSH4241 -->
+
+**Cause.** A declaration has more than one `[n]`. The graph has no arrays at all; the one dimension
+that is supported exists only so a `static const` table can be indexed at compile time.
+
+**Fix.** Flatten it to one dimension, or move the code into a `/// @custom` function.
+
+## DSH4242
+
+<!-- generated:begin DSH4242 -->
+**Severity** error
+
+**Message**
+
+```
+An array index must be a compile-time constant: the graph has no arrays, so every element is read at compile time.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1639`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1648`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1676`
+<!-- generated:end DSH4242 -->
+
+**Cause.** An array element could not be resolved at compile time: a non-constant index, an index
+out of range, or an array whose initializer is not constant. There are no arrays in a graph, so
+every element read has to fold to a value while compiling.
+
+**Fix.** Declare the array `static const` with a constant initializer and index it with a literal
+or a `static const`. For a table that has to be read at run time, use a texture or a `@custom`
+function.
+
+## DSH4243
+
+<!-- generated:begin DSH4243 -->
+**Severity** error
+
+**Message**
+
+```
+Both sides of this '/' are integers, and the material graph has no integer division; write 'float(a) / b' for the fraction, or 'floor(float(a) / b)' for the whole part.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2052`
+<!-- generated:end DSH4243 -->
+
+**Cause.** Both operands of a `/` are integers. HLSL would divide them as integers and drop the
+fraction; a material graph has no integer division at all -- every value in it is a float -- so the
+two would disagree, and the compiler does not pick one silently. In a 1.x `Graph` only a division of
+two integer constructor calls (`int(7) / int(2)`) is refused, as 1.x refused it (`DSH4063`); 1.x typed
+every number literal float, so `7 / 2` there is 3.5 (legacy rule L27; *2.0.0 – 2.1.0 refused it*).
+
+**Fix.** Say which one is meant: `float(a) / b` for the fraction, `floor(float(a) / b)` for the
+whole part.
+
+## DSH4244
+
+<!-- generated:begin DSH4244 -->
+**Severity** error
+
+**Message**
+
+```
+A matrix row cannot be read: the graph has no matrices. Move the code into a '/// @custom' function, where the matrix is an input.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1691`
+<!-- generated:end DSH4244 -->
+
+**Cause.** A row of a matrix was read (`M[1]`). A matrix has no graph value; it exists only as a
+`/// @custom` input or output, or as a constant that folds away entirely.
+
+**Fix.** Move the code into a `/// @custom` function, where the matrix is an ordinary HLSL value.
+
+## DSH4245
+
+<!-- generated:begin DSH4245 -->
+**Severity** error
+
+**Message**
+
+```
+An unsized array needs an initializer list to take its length from.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:626`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:649`, `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:659`
+<!-- generated:end DSH4245 -->
+
+**Cause.** An array size is not an integer literal between 1 and 4096, or an unsized `[]` has no
+initializer list to take its length from. The size is read before anything is bound, so an
+expression — even a constant one — cannot be used.
+
+**Fix.** Write a literal, or `[]` with an initializer list.
+
+## DSH4246
+
+<!-- generated:begin DSH4246 -->
+**Severity** error
+
+**Message**
+
+```
+The material graph has no hyperbolic node, so '{0}' cannot be lowered; write it in a '/// @custom' body, where the shader compiler has it.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3366`
+<!-- generated:end DSH4246 -->
+
+**Cause.** `sinh`, `cosh` or `tanh` was called. The core table carries all three so a `/// @custom`
+body and the type checker agree about them, but the material graph has no hyperbolic node and the
+emitter does not synthesise one out of `exp` — a chain that looked right would quietly differ from
+the shader compiler's own implementation.
+
+**Fix.** Move the expression into a `/// @custom` function, whose body is HLSL the shader compiler
+sees whole and where all three exist. If only one value is needed, writing the identity out in
+terms of `exp` explicitly is also fine — the point is that the file, not the emitter, says so.
+
+## DSH4250
+
+<!-- generated:begin DSH4250 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is the GLSL spelling; this language is HLSL, so write '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:3034`
+<!-- generated:end DSH4250 -->
+
+**Cause.** A GLSL spelling was used: `mix`, `fract`, `mod`. 1.x silently rewrote these to their
+HLSL equivalents; 2.0 does not, because a silent rewrite of one identifier into another is the
+class of mistake this front end exists to stop.
+
+**Fix.** Write the HLSL name the message gives: `lerp`, `frac`, `fmod`.
+
+## DSH4251
+
+<!-- generated:begin DSH4251 -->
+**Severity** warning
+
+**Message**
+
+```
+'{0}' hides the file-scope declaration of the same name for the rest of this function.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:181`
+<!-- generated:end DSH4251 -->
+
+**Cause.** A local variable has the same name as a file-scope declaration, usually one that came
+from a header. This is allowed — a file cannot be expected to know every name its headers declare —
+but from that point on the uniform or constant of that name is unreachable in this function.
+
+**Fix.** Rename the local if the file-scope one was meant. Otherwise ignore it, or rename to make
+the intent obvious to the next reader.
+
+## DSH4260
+
+<!-- generated:begin DSH4260 -->
+**Severity** error
+
+**Message**
+
+```
+{0} expects {1}, and this is {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:1928`, `Source/DreamShaderLang/Private/Semantic/LangBinderExpressions.cpp:2511`, `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:628`
+<!-- generated:end DSH4260 -->
+
+**Cause.** The condition of an `if`, a `for`, a `while`, a `do` or a `?:` is not a single
+true-or-false value: a vector (`if (v3 < 1.0)`), a texture, a `material`, a `struct`.
+
+**Fix.** Reduce it to one value: compare one component, or use `all()` / `any()` semantics written
+out by hand. A number is accepted and means "not zero".
+
+## DSH4261
+
+<!-- generated:begin DSH4261 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' returns {1}, so this 'return' needs a value.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:735`
+<!-- generated:end DSH4261 -->
+
+**Cause.** A bare `return;` in a function that declares a return type.
+
+**Fix.** Return a value, or declare the function `void` and hand its results back through `out`
+parameters.
+
+## DSH4262
+
+<!-- generated:begin DSH4262 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' returns nothing, so this 'return' cannot carry a value; extra results are written to 'out' parameters.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:751`
+<!-- generated:end DSH4262 -->
+
+**Cause.** `return <value>;` in a `void` function.
+
+**Fix.** Drop the value, or give the function a return type.
+
+## DSH4263
+
+<!-- generated:begin DSH4263 -->
+**Severity** error
+
+**Message**
+
+```
+'discard' belongs in a material entry or a layer; a material function has no pixel of its own to drop. Write the mask into 'm.OpacityMask' instead.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:493`
+<!-- generated:end DSH4263 -->
+
+**Cause.** `discard` in a function that is not the material entry, a `@layer` or a `@layerblend`.
+A material function is a subgraph of whatever calls it; it has no pixel of its own to throw away.
+
+**Fix.** Write the mask into `m.OpacityMask` and let the material discard, or move the `discard`
+into the entry.
+
+## DSH4264
+
+<!-- generated:begin DSH4264 -->
+**Severity** error
+
+**Message**
+
+```
+'break' leaves a loop, and this one is not inside a 'for', 'while' or 'do'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderStatements.cpp:472`
+<!-- generated:end DSH4264 -->
+
+**Cause.** `break` or `continue` outside any loop.
+
+**Fix.** Delete it, or put it inside the loop it belongs to. Note that this language has no
+`switch`, so `break` only ever belongs to a loop.
+
+## DSH4300
+
+<!-- generated:begin DSH4300 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} reads {1} from node %{2}, which does not exist; the graph has {3} nodes.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:221`
+<!-- generated:end DSH4300 -->
+
+**Cause.** A node's operand or named input refers to node `%N`, and the graph has no node with
+that index. The IR addresses values by position in `FIRGraph::Nodes`, so this means a builder or a
+pass produced an index against a different (or an older) graph — most often a pass that removed
+nodes without repointing the users, or a value carried across two products.
+
+**Fix.** Compiler side: check the last pass that ran. `RunDreamShaderIRPasses` prune and dedupe are
+the two that renumber; both must repoint every user before a node disappears. Author side: nothing
+you wrote causes this; report the file.
+
+## DSH4301
+
+<!-- generated:begin DSH4301 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} reads {1} from node {2}, which is a statement and produces no value.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:240`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:253`
+<!-- generated:end DSH4301 -->
+
+**Cause.** Two shapes. Either a node reads output *k* of a node that has fewer than *k*+1 outputs
+— multi-output nodes (`TextureSample`, `Reflected` on a class with several outputs, `Custom`
+with additional outputs, `GetMaterialAttributes`) are the only ones with an output other than 0, so
+this is usually a member access that resolved to the wrong output index — or a node reads a
+**statement**, which produces no value at all. A statement is the material sink, a function output,
+or a reflected custom-output class such as `UE.VolumetricAdvancedMaterialOutput` (`FIRNode::IsStatement()`).
+
+**Fix.** Author side: a custom-output node is a statement, not a value — write
+`UE.ClearCoatNormalCustomOutput(Input = n);` on its own line rather than assigning it to something.
+The binder reports that spelling as DSH4231, so seeing it here means the node was built anyway.
+Compiler side: compare `FBoundExpr::FieldIndex` for the `NodeOutput` access with the `Outputs` the
+builder gave the node; the catalog entry's `Outputs` array is the authority for a reflected class.
+
+## DSH4302
+
+<!-- generated:begin DSH4302 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} has {1} operand(s); this op takes exactly {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:382`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:393`
+<!-- generated:end DSH4302 -->
+
+**Cause.** The node has more or fewer operands than its op accepts. The arity comes from
+`GetCoreOpInfo`, the one table that has it, so a mismatch means the builder assembled the node by
+hand rather than from that table.
+
+**Fix.** Compiler side: build core nodes from `FIRCoreOpInfo::MinArity`/`MaxArity` instead of
+literal counts. Author side: report the file, with the expression the diagnostic points at.
+
+## DSH4303
+
+<!-- generated:begin DSH4303 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} has nothing connected to {1}; every operand of this op must carry a value.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:209`
+<!-- generated:end DSH4303 -->
+
+**Cause.** An operand slot that must carry a value is empty. Only two slots in the whole IR may be
+left unset: `Compare`'s operand 3 (the engine If node's optional `AEqualsB` pin) and
+`TextureSample`'s operands 2 and 3 (the optional sampler and mip value). Everything else is a hole
+the emitter cannot fill.
+
+**Fix.** Compiler side: an expression lowered to `FIRValue::None()` without a diagnostic — look for
+a lowering path that returns early on an error it did not report. Author side: report the file.
+
+## DSH4304
+
+<!-- generated:begin DSH4304 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} carries {1} positional operand(s); this op takes {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:347`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:364`
+<!-- generated:end DSH4304 -->
+
+**Cause.** The node uses the wrong connection style for its op. `IR.h` fixes this per op: the core
+math ops, `Swizzle`, `Append`, `Select`, `Compare`, `StaticSwitch`, `TextureSample`,
+`FunctionOutput`, `Convert` and `Broadcast` take positional operands; `Reflected`, `FunctionCall`,
+`Custom`, the three material-attribute ops and `MaterialSink` take named inputs; the four leaves
+(`Constant`, `Parameter`, `TextureParameter`, `FunctionInput`) take neither.
+
+**Fix.** Compiler side: a node built with `Operands` where the emitter will look in `Inputs` (or the
+reverse) silently emits an engine node with nothing connected, which is why this is checked rather
+than tolerated. Author side: report the file.
+
+## DSH4305
+
+<!-- generated:begin DSH4305 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} has a named input with no pin name.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:948`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:961`
+<!-- generated:end DSH4305 -->
+
+**Cause.** A named input has an empty pin name, or the same pin name appears twice on one node. An
+engine `FExpressionInput` takes exactly one connection, so a second binding to the same pin would
+mean one of the two values is dropped without a word.
+
+**Fix.** Compiler side: this is usually an argument matched twice — once positionally through
+`PositionalParameters` and once by name. `FBoundArgument::Target` is the deduplication point.
+Author side: check whether you passed the same argument both positionally and by name in a `UE.*`
+call; if you did not, report the file.
+
+## DSH4306
+
+<!-- generated:begin DSH4306 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} does arithmetic on operand {1}, which is a {2}; the graph carries only float1 to float4, so a matrix, a texture or a material cannot reach a math node.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:690`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:704`
+<!-- generated:end DSH4306 -->
+
+**Cause.** A math node reads or produces a value the material graph has no wire for. The graph
+carries `float1` to `float4` and nothing else: a matrix, a texture object, a sampler, a `material`
+and a `Substrate` value all answer 0 to `FIRType::GraphComponentCount()`.
+
+**Fix.** Author side: this is the IR-level echo of DSH4361 — a matrix reached arithmetic. Move the
+expression into a `/// @custom` function, whose body is verbatim HLSL and may use matrices freely.
+Compiler side: the binder should have refused this before lowering; if it did not, the type it
+assigned to the operand is wrong.
+
+## DSH4307
+
+<!-- generated:begin DSH4307 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} is a statement and must have no outputs, but it declares {1}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:289`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:300`
+<!-- generated:end DSH4307 -->
+
+**Cause.** Either a value node declares no outputs — nothing can read it, so it cannot have been
+built for a reason — or a statement node declares some.
+
+A statement is `MaterialSink`, `FunctionOutput`, or a `Reflected` node with zero outputs, which is
+how a custom-output class (`UE.VolumetricAdvancedMaterialOutput`, `UE.ClearCoatNormalCustomOutput`)
+is modelled. That third shape is a legal root and is **not** reported here;
+the test is `FIRNode::IsStatement()`, never an op list.
+
+**Fix.** Compiler side: every builder path that adds a node must fill `Outputs` before returning
+the value; a node added and typed later is the usual source. Author side: report the file.
+
+## DSH4308
+
+<!-- generated:begin DSH4308 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} has {1} output name(s) for {2} output(s); the two lists are either parallel or the names are omitted.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:311`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:331`
+<!-- generated:end DSH4308 -->
+
+**Cause.** `OutputNames` exists to name multi-output nodes, and it is either empty (the node's
+outputs are positional) or exactly as long as `Outputs`. A short list means the emitter would read
+past its end; two outputs with the same name mean a member access could not pick between them.
+
+**Fix.** Compiler side: fill both lists in the same place. For a reflected node, copy the catalog
+entry's `Outputs` names verbatim. Author side: report the file.
+
+## DSH4309
+
+<!-- generated:begin DSH4309 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} is a reflected node with catalog index {1}, which is not an entry of the builtin catalog.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1038`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:721`
+<!-- generated:end DSH4309 -->
+
+**Cause.** Two shapes of the same mistake. Either a `Reflected` node's `CatalogIndex` does not
+point at an entry of the builtin catalog — so the emitter cannot know which class to create — or a
+node that is *not* reflected carries a catalog index, which would send the emitter down the
+reflection path for a `Multiply`.
+
+**Fix.** Compiler side: `CatalogIndex` is set only where a `Reflected` node is built, from the
+`FBoundExpr::Index` the binder recorded. A stale index usually means a node was copied and its op
+changed. Author side: if the catalog was loaded from an exported manifest, re-export it — the index
+is positional and an older manifest does not match a newer engine.
+
+## DSH4310
+
+<!-- generated:begin DSH4310 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} connects pin '{1}', which '{2}' does not have.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:758`
+<!-- generated:end DSH4310 -->
+
+**Cause.** A reflected node connects a pin the class does not have. The catalog's `Inputs` list is
+built from the class's `FExpressionInput` members, so a pin that is not in it does not exist on
+that engine class.
+
+**Fix.** Author side: check the spelling — pin matching is case-sensitive, and the name is the C++
+member name (`Coordinates`, not `UVs`, on a TextureSample; `VectorInput` on a Normalize). The
+material editor's node tooltip shows the pin names. Compiler side: if the pin *is* real, the
+reflection exporter skipped it — check `IsMaterialExpressionInputProperty`.
+
+## DSH4311
+
+<!-- generated:begin DSH4311 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} sets property '{1}', which '{2}' does not have.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:800`
+<!-- generated:end DSH4311 -->
+
+**Cause.** A reflected node sets a property the class does not have. `ClassSpecifier` (the IR's own
+record of what the author wrote) and a pin's `Const*` twin are accepted; everything else must be a
+reflected property of the class.
+
+**Fix.** Author side: an unknown `Key = value` in a `UE.*` call, usually a typo or a property that
+exists on a different expression class. Compiler side: if the property is real but not in the
+catalog, the reflection exporter filtered it — check the property-flag test in
+`BuildBuiltinCatalogFromReflection`.
+
+## DSH4312
+
+<!-- generated:begin DSH4312 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} names class '{1}' but its catalog entry is '{2}'; the two must agree.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:735`
+<!-- generated:end DSH4312 -->
+
+**Cause.** The node's `ClassName` and the catalog entry its `CatalogIndex` points at name two
+different classes. The emitter uses one of the two and the validator refuses to guess which.
+
+**Fix.** Compiler side: set `ClassName` from `Catalog.Expressions[CatalogIndex].ShortName` at the
+point the node is built, never from the source text; the author's spelling belongs in
+`Prop::ClassSpecifier`. Author side: re-export the catalog manifest if you are using one.
+
+## DSH4313
+
+<!-- generated:begin DSH4313 -->
+**Severity** error
+
+**Message**
+
+```
+Material product {0} has {1} MaterialSink node(s); a material has exactly one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1072`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1082`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1096`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1107`
+<!-- generated:end DSH4313 -->
+
+**Cause.** The product's sink does not match its kind. A `Material` product has exactly one
+`MaterialSink` node and `FIRGraph::Sink` points at it; a `MaterialFunction`, `MaterialLayer` or
+`MaterialLayerBlend` has none and `Sink` is `INDEX_NONE`.
+
+**Fix.** Compiler side: the sink is created once, at the end of the Entry, from the material field
+map — two sinks mean the entry was lowered twice. Author side: a file with two
+`export void M(inout material)` entries is DSH6200 and should have been refused earlier; report the
+file.
+
+## DSH4314
+
+<!-- generated:begin DSH4314 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} lists node %{1} in its {2}, and that node does not exist.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1125`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1137`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1158`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1168`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1182`
+<!-- generated:end DSH4314 -->
+
+**Cause.** The graph's `FunctionInputs` / `FunctionOutputs` lists and the FunctionInput /
+FunctionOutput nodes in it disagree: a listed index does not exist, a listed node is of the wrong
+op, a node of the right op is not listed, or a `Material` product declares a signature at all. The
+lists are what give the asset's inputs and outputs their order (their dense SortPriority), so a node missing from them would end up unordered.
+
+**Fix.** Compiler side: append to the list in the same statement that adds the node. Author side:
+report the file.
+
+## DSH4315
+
+<!-- generated:begin DSH4315 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} is a {1} and produces nothing; a material function needs at least one FunctionOutput.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1192`
+<!-- generated:end DSH4315 -->
+
+**Cause.** A material function, layer or layer blend has no `FunctionOutput` node, so the asset
+would have nothing to connect to. An exported function contributes an output for its return value
+(named `Result`) and one per `out` parameter; a function with neither produces no asset.
+
+**Fix.** Author side: give the exported function a non-`void` return type or an `out` parameter. A
+`@layer` function's output is its `inout material` parameter, so check that the parameter is
+actually spelled `inout`. Compiler side: check `FBoundFunction::MaterialResultParam`.
+
+## DSH4316
+
+<!-- generated:begin DSH4316 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} cannot be ordered: these nodes feed themselves, directly or through others -- {1}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1516`
+<!-- generated:end DSH4316 -->
+
+**Cause.** The graph cannot be put in an order where every operand precedes its user, which means
+some node feeds itself, directly or through a chain. A material graph is a DAG; the emitter walks
+`TopologicalOrder()` and would otherwise write a node before the node it reads.
+
+**Fix.** Compiler side: the usual source is a pass that repointed a user onto a node downstream of
+it — the dedupe pass merging two nodes where one is an ancestor of the other. The diagnostic lists
+the nodes it could not order; the cycle is among them. Author side: report the file with the
+function the nodes come from.
+
+## DSH4317
+
+<!-- generated:begin DSH4317 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} needs a string Mask property holding the component letters.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:512`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:524`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:554`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:567`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:585`
+<!-- generated:end DSH4317 -->
+
+**Cause.** A `Swizzle` node's mask is missing, is not a string, is empty, is longer than four
+characters, contains something other than `x`, `y`, `z` and `w`, names the same component twice, or
+is **not in strictly ascending order** (`xz` is a mask; `zx` is not). The canonical mask is
+lower-case `xyzw`; `rgba` is rewritten to it at bind time, so anything else
+reaching the IR is a builder mistake.
+
+The ordering rule is not fussiness: a ComponentMask carries four independent R/G/B/A flags and has
+no way to express order or repetition at all, so `.yx` emitted as one node would silently come out
+as `.xy`.
+
+**Fix.** Compiler side: `FBoundExpr::Swizzle` already holds the canonical mask — copy it rather
+than re-deriving it from the source text. A reordering or repeating swizzle lowers to per-channel
+masks plus an `AppendVector`, which is what 1.x emitted: the builder splits
+it, and only the ascending remainder becomes a `Swizzle` node. Author side: `.yx` and `.xxz` are
+legal source, so seeing this means the split did not happen — report the file.
+
+## DSH4318
+
+<!-- generated:begin DSH4318 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} masks '{1}' out of a {2}, which has only {3} component(s).
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:615`
+<!-- generated:end DSH4318 -->
+
+**Cause.** The mask names a component the operand does not have — `.w` on a `float3`, `.z` on a
+`float2`. In HLSL that is an error; in a graph it would silently read a channel the wire does not
+carry.
+
+**Fix.** Author side: widen the value (`float4(v, 1)`) or shorten the mask. Compiler side: the
+binder raises DSH4230 for this at source level; reaching the IR means the operand's type changed
+between binding and lowering — usually a conversion inserted on the wrong side.
+
+## DSH4319
+
+<!-- generated:begin DSH4319 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} switches on a {1}; a StaticSwitch condition is a single static bool.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:648`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:661`
+<!-- generated:end DSH4319 -->
+
+**Cause.** A branch node's condition has the wrong type. A `StaticSwitch` condition must be a
+single static bool — a `StaticBoolParameter`, or `!`, `&&`, `||` over static bools.
+A `Select` condition must be one component, the 0/1 value the lowered If compares against 0.5.
+
+**Fix.** Compiler side: if the condition is a wide vector, a comparison was lowered without
+collapsing to a scalar. If a `StaticSwitch` has a non-bool condition, the decision between static
+and dynamic lowering was made on a value the binder did not mark static. Author side: a
+`#pragma`-level static switch needs a `uniform bool` with `/// @static`; without it the branch is
+dynamic, which is also fine.
+
+## DSH4320
+
+<!-- generated:begin DSH4320 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} sits in region {1}, which does not exist; the graph has {2} region(s).
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1211`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1228`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:408`
+<!-- generated:end DSH4320 -->
+
+**Cause.** A region reference does not resolve: a node sits in a region index the graph does not
+have, a region names a parent that does not exist, or the parent chain loops back on itself.
+Regions come from `#pragma region` / `#pragma endregion` and nest strictly.
+
+**Fix.** Compiler side: `FBoundModule::Regions` is copied into the graph wholesale, so the indices
+must be copied with it — a graph that keeps its own region list must remap `FIRNode::Region`.
+Author side: unbalanced `#pragma region` is DSH4240 and is reported at source level; report the
+file if you see this one instead.
+
+## DSH4321
+
+<!-- generated:begin DSH4321 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} has dedupe keys on {1} of its {2} nodes; the key is either computed for the whole graph or for none of it.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1537`
+<!-- generated:end DSH4321 -->
+
+**Cause.** Some nodes of a graph have a `DedupeKey` and others do not. The key is structural: it is computed for the whole graph in one pass or for none of it, because a key
+built from an operand that has no key of its own is not structural at all.
+
+**Fix.** Compiler side: compute keys in `TopologicalOrder()` so every operand already has one, and
+add nodes created *after* the dedupe pass with an empty key only if the whole pass is re-run.
+Author side: report the file.
+
+## DSH4322
+
+<!-- generated:begin DSH4322 -->
+**Severity** error
+
+**Message**
+
+```
+Nodes %{0} and %{1} of product {2} have the same dedupe key, so the dedupe pass should have merged them into one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1586`
+<!-- generated:end DSH4322 -->
+
+**Cause.** Two nodes of one graph have the same dedupe key, so they describe the same expression
+and the dedupe pass should have merged them into one node with the two sets of users.
+
+**Fix.** Compiler side: the merge step repoints users and drops the later node; a surviving pair
+means the repointing loop missed a reference — check named inputs as well as operands, and the
+graph's own `Sink`, `FunctionInputs` and `FunctionOutputs`. Author side: report the file; the
+output is still correct, just larger than it should be.
+
+## DSH4323
+
+<!-- generated:begin DSH4323 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} needs property '{1}' and does not have it.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:492`
+<!-- generated:end DSH4323 -->
+
+**Cause.** A node is missing a property its op cannot do without: `Constant` without `Value`,
+`Parameter` or `TextureParameter` without `ParameterName`, `FunctionInput` without `InputName`,
+`FunctionOutput` without `OutputName`, `Custom` without `Code`.
+
+**Fix.** Compiler side: set these in the same function that creates the node. Author side: a
+`uniform` with no name is impossible to write, so report the file.
+
+## DSH4324
+
+<!-- generated:begin DSH4324 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} carries a property with no name.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:432`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:445`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:467`
+<!-- generated:end DSH4324 -->
+
+**Cause.** Three shapes: a property with no name, the same property set twice on one node, or a
+property whose stored kind is not the kind the IR defines for that name (`Value` and `DefaultValue`
+are `Float4`, `SortPriority` is `Int`, `Code` is `String`, `SamplerType` is `Enum`, and so on —
+`Prop::` in `IR.h` spells each one). The kind table is applied only to the IR's own property names
+and never to a `Reflected` node, whose properties are engine names passed through.
+
+**Fix.** Compiler side: build properties with the matching `FIRPropertyValue::Make*` factory. A
+`SortPriority` stored as `MakeFloat` reads back as 0 in the emitter. Author side: report the file.
+
+## DSH4325
+
+<!-- generated:begin DSH4325 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} writes attribute '{1}', which is not in the engine's material attribute table.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:886`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:904`
+<!-- generated:end DSH4325 -->
+
+**Cause.** An attribute name written into a `MakeMaterialAttributes`, `SetMaterialAttributes`,
+`GetMaterialAttributes` or `MaterialSink` node — or listed in `AttributeSetTypes` — is not in the
+engine's material attribute table. The table comes from the catalog and matching is case-sensitive.
+
+**Fix.** Author side: check the spelling of the `m.<Attribute>` you wrote; the accepted names and
+their aliases are what the material editor's Break Material Attributes node lists (`EmissiveColor`,
+not `Emissive Color`). Compiler side: if the attribute is real, the catalog's `MaterialAttributes`
+array is missing it — re-export the manifest.
+
+## DSH4326
+
+<!-- generated:begin DSH4326 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} has no name; the asset name comes from the exported function or from '/// @name'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1641`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1654`
+<!-- generated:end DSH4326 -->
+
+**Cause.** A product has an empty `Name`, or two products of one file would be called the same
+thing. The asset name comes from the exported function's name or from `/// @name`, and two assets
+of one name in one destination folder would overwrite each other.
+
+**Fix.** Author side: give one of the two exported functions a different name, or a different
+`/// @name`. Note that `@name` with a full `/Game/...` path sets the whole path, and only the leaf
+has to be unique. Compiler side: the binder decides product names; check `FBoundProduct::AssetName`.
+
+## DSH4327
+
+<!-- generated:begin DSH4327 -->
+**Severity** error
+
+**Message**
+
+```
+Node {0} calls local product {1}, which this module does not have; it has {2}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:825`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:837`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:853`
+<!-- generated:end DSH4327 -->
+
+**Cause.** A `FunctionCall` node does not say what it calls. It needs either `Prop::LocalFunction`
+(the index of another product of this module, for a call to an `export` in the same file) or a
+non-empty function asset path — `Prop::FunctionPath`, or `ClassName`. A local index that is out of
+range, or that points at the product the node itself belongs to, is the same failure.
+
+**Fix.** Compiler side: a call to an `ExportFunction` of the same file gets `LocalFunction`; a call
+to an `Extern` gets the `@asset` path. A product
+calling itself means recursion got past DSH6200. Author side: check that the `extern` prototype has
+its `/// @asset /Game/...` line.
+
+## DSH4328
+
+<!-- generated:begin DSH4328 -->
+**Severity** warning
+
+**Message**
+
+```
+Layout hint {0} of product {1} has kind '{2}'; a hint is spelled exactly 'Node' or 'Comment', so this one places nothing.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1261`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1273`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1283`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1294`
+<!-- generated:end DSH4328 -->
+
+**Cause.** A `#pragma layout(...)` hint is not one the layout pass can apply: its kind is neither
+`Node` nor `Comment`, a `Node` hint names no variable, or a `Comment` hint has no title. A warning, not an
+error: the product still compiles and the automatic layout still runs; only this hint places nothing.
+
+**Fix.** Author side: write `#pragma layout(Node, Var = Tint, X = 10, Y = 20)` or
+`#pragma layout(Comment, Name = "Lighting", X = 0, Y = 0, W = 400, H = 200)`. Compiler side: hints
+are carried through untouched from `FBoundModule::LayoutHints`, so the parse is the place to look.
+
+## DSH4329
+
+<!-- generated:begin DSH4329 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} is a material instance, which assigns its parent's parameters and has no graph, and it carries {1} node(s), a sink or a function signature.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1366`
+<!-- generated:end DSH4329 -->
+
+**Cause.** An IR product of kind MaterialInstance carries graph nodes, a sink or a function
+signature. An instance only assigns its parent's parameters. This is an internal consistency check
+of the IR validator: no source text can cause it.
+
+**Fix.** Report it with the `.dsi` that produced it; it is a defect of the compiler.
+
+## DSH4330
+
+<!-- generated:begin DSH4330 -->
+**Severity** error
+
+**Message**
+
+```
+Material instance product {0} needs the material it is an instance of, and its parent reference is empty.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1377`
+<!-- generated:end DSH4330 -->
+
+**Cause.** A MaterialInstance product has no parent reference. The binder refuses a `.dsi` without a
+`Parent` earlier (DSH7250, DSH7252), so reaching this is an internal error.
+
+**Fix.** Report it with the source that produced it.
+
+## DSH4331
+
+<!-- generated:begin DSH4331 -->
+**Severity** error
+
+**Message**
+
+```
+Override '{0}' of product {1} is a {2} override holding a {3} value, and a {2} override holds {4}.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1403`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1416`
+<!-- generated:end DSH4331 -->
+
+**Cause.** An instance override holds a value of another kind than its parameter kind takes -- a
+Scalar is one number, a Vector four, a StaticSwitch a bool, an asset kind an object path -- or a
+Font override names a negative page. Internal consistency check: the binder refuses both in source
+(`DSH7259`, `DSH7266`).
+
+**Fix.** Report it with the source that produced it.
+
+## DSH4332
+
+<!-- generated:begin DSH4332 -->
+**Severity** error
+
+**Message**
+
+```
+Product {0} overrides '{1}' twice, and an instance sets each parameter once.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1433`
+<!-- generated:end DSH4332 -->
+
+**Cause.** One parameter is overridden twice in an instance product. The binder reports the same
+thing on the source (DSH7261); this is the validator's backstop.
+
+**Fix.** Remove one of the two `uniform` lines of that name from the `.dsi`.
+
+## DSH4333
+
+<!-- generated:begin DSH4333 -->
+**Severity** error
+
+**Message**
+
+```
+Override '{0}' of product {1} names a parameter, and the parent schema the product carries has no such parameter.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1449`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1459`
+<!-- generated:end DSH4333 -->
+
+**Cause.** An instance product overrides a parameter its parent schema does not list, or lists under
+another kind. The binder checks both against the same schema (`DSH7258`, `DSH7259`), so reaching
+this means the two saw different schemas.
+
+**Fix.** Rebuild the parent first, then the instance; if it persists, report it.
+
+## DSH4334
+
+<!-- generated:begin DSH4334 -->
+**Severity** error
+
+**Message**
+
+```
+This module holds a material instance and {0} other product(s), and a material instance is the only product of its file.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1613`, `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1627`
+<!-- generated:end DSH4334 -->
+
+**Cause.** A module holds a material instance together with other products. A `.dsi` is one instance
+and nothing else; the front end refuses functions and other declarations in it, so this is the
+validator's backstop.
+
+**Fix.** Keep each instance in a `.dsi` of its own.
+
+## DSH4335
+
+<!-- generated:begin DSH4335 -->
+**Severity** error
+
+**Message**
+
+```
+Material instance product {0} carries backend {1}, and an instance is a plain material instance with the default backend.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRValidator.cpp:1387`
+<!-- generated:end DSH4335 -->
+
+**Cause.** A MaterialInstance product carries a backend. `Backend` is a property of a material; an
+instance is always a plain UMaterialInstanceConstant.
+
+**Fix.** Remove `Backend` from `#pragma instance(...)`.
+
+## DSH4350
+
+<!-- generated:begin DSH4350 -->
+**Severity** error
+
+**Message**
+
+```
+The IR builder cannot read '{0}' here: the binder typed what it is read from as a material, but that did not lower to one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:386`, `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:516`
+<!-- generated:end DSH4350 -->
+
+**Cause.** The IR builder reached a bound expression whose `EBoundExprKind` it has no case for.
+This is an internal error, not an authoring mistake: the binder produced a record the builder was
+not written against, which happens when a new expression kind is added to `LangBound.h` and only
+one of the two sides is updated.
+
+A second message under this code is the same kind of seam: a field read such as `X.Roughness`
+whose object the binder typed `material` but which did not lower to one. Every producer of a
+`material` value -- a `material` parameter, a reflected node's MaterialAttributes output
+(`UE.BlendMaterialAttributes(...)`), a function call's `material` result, an `out material` written
+back -- hands it over as an attribute map with that output as its source, so reaching this message
+means a producer was added or changed on one side only.
+
+**Fix.** Nothing an author can do in the source. Report the file and the line; the fix is a new
+case in `FIRBuilder::LowerExpr` (for the field read, the producer that handed back a bare value).
+Until then, rewriting the expression in a simpler form usually avoids the kind that has no lowering.
+
+## DSH4352
+
+<!-- generated:begin DSH4352 -->
+**Severity** error
+
+**Message**
+
+```
+This module was bound without a builtin catalog, so no 'UE.*' call and no material attribute can be named; run the bind with a catalog, or pass one in FIRBuildOptions.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:121`, `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:1582`, `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:915`, `Source/DreamShaderLang/Private/IR/IRBuilderMaterial.cpp:420`, `Source/DreamShaderLang/Private/IR/IRBuilderMaterial.cpp:532`
+<!-- generated:end DSH4352 -->
+
+**Cause.** Three shapes, told apart by where the message points.
+
+At the top of the file: `BuildDreamShaderIR` ran with no builtin catalog at all -- neither
+`FBoundModule::Catalog` (which the binder sets) nor the `FIRBuildOptions::Catalog` override. The
+catalog is engine knowledge -- expression classes, their pins, the material attribute table -- and
+`DreamShaderLang` cannot look any of it up itself, so nothing that needs naming can be lowered: no
+`UE.*` or `Substrate.*` call, no material attribute such as `m.BaseColor`. It is reported once for
+the whole module rather than once per line.
+
+At a particular attribute or `UE.*` call: a catalog **is** present but does not have the attribute or
+expression index the binder recorded, which means the bind and the build read different catalogs --
+a stale exported manifest against a newer engine, most often.
+
+At the material's entry function: the entry's `material` was replaced as a whole -- `m =
+UE.BlendMaterialAttributes(...)`, or `m` handed to a material function that writes an
+`inout material` back -- so what reaches the material's output is one attribute set, which goes in
+through the material's `MaterialAttributes` input, and the catalog's attribute table has no
+`MaterialAttributes` entry to name that input by.
+
+**Fix.** Inside a compile none of the three can happen; the pipeline binds and builds against one
+catalog filled from reflection, and reflection always adds the `MaterialAttributes` entry. From a tool, pass the catalog: `dsc export-catalog` writes the JSON form and
+`LoadBuiltinCatalogFromJson` reads it back, and the *same* one has to reach both
+`FBindOptions::Catalog` and the build. Re-export the manifest after an engine upgrade. A catalog
+that is present but empty means the reflection pass ran before the engine's material expression
+classes were loaded.
+
+## DSH4360
+
+<!-- generated:begin DSH4360 -->
+**Severity** error
+
+**Message**
+
+```
+This loop runs a number of times the compiler cannot fix at {0} or fewer, and a material graph has no loops; give it a constant trip count, or move it into a '/// @custom' function.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderStatements.cpp:425`
+<!-- generated:end DSH4360 -->
+
+**Cause.** A `for`, `while` or `do` whose trip count the binder could not prove constant, or proved
+to be larger than `MaxUnrolledIterations` (64 by default). A material graph has no loops at all:
+the only way a loop can exist in one is to be unrolled at compile time, and that needs a count
+known before the shader runs.
+
+**Fix.** Give the loop a constant bound -- `for (int i = 0; i < 8; ++i)`, with `8` a literal or a
+`static const`, and a step the binder can follow. A loop over a `uniform` count cannot be unrolled
+by definition; move it into a `/// @custom` function, where the body is HLSL and the shader
+compiler does the loop properly. A very long unroll (hundreds of iterations) is usually a mistake
+in the graph even when it is legal: it puts one node per iteration into the asset.
+
+## DSH4361
+
+<!-- generated:begin DSH4361 -->
+**Severity** error
+
+**Message**
+
+```
+This expression is {0} and the material graph has no matrices; compute it inside the custom body instead.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:254`
+<!-- generated:end DSH4361 -->
+
+**Cause.** An expression is a matrix (`float3x3`, `float4x4`) and something wanted its value. A
+material graph has no matrix pins: the engine's transform nodes take a vector and a basis, not a
+matrix, so there is nowhere to put one.
+
+**Fix.** For a coordinate-space change use `UE.Transform` / `UE.TransformPosition`, which is what
+the graph offers instead of a matrix. For real matrix maths, move the whole calculation into a
+`/// @custom` function and pass the vectors in and out; the matrix then lives inside the HLSL,
+where it is free.
+
+## DSH4362
+
+<!-- generated:begin DSH4362 -->
+**Severity** error
+
+**Message**
+
+```
+'discard' has no material-graph form; set the material's OpacityMask to zero instead, or move the branch into a '/// @custom' function.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderStatements.cpp:125`
+<!-- generated:end DSH4362 -->
+
+**Cause.** `discard` in a body that becomes a graph. The material graph has no early-out: a
+material is an expression per output pin, and every pin is evaluated.
+
+**Fix.** Write the cull as an opacity mask -- set `m.OpacityMask` to `0` where you would have
+discarded and to `1` elsewhere, and set the material's blend mode to Masked -- which is what the
+engine does with `discard` anyway. A `/// @custom` function may not use `discard` either, for the
+same reason: its code is one expression inside a bigger shader.
+
+## DSH4363
+
+<!-- generated:begin DSH4363 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' inside an 'if' cannot be unrolled, because both arms of the 'if' become nodes and only one of them may leave the loop; move it to the top of the loop body, or write the loop in a '/// @custom' function.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderStatements.cpp:114`
+<!-- generated:end DSH4363 -->
+
+**Cause.** A `break` or `continue` inside an `if` inside a loop the builder is unrolling. Unrolling
+turns the loop body into nodes and an `if` into a `Select` over both arms -- so both arms happen,
+and "leave the loop" is not something one of them can do.
+
+**Fix.** Move the `break` to the top level of the loop body, where the unroller can simply stop
+emitting iterations (its condition has to be something the compiler settles, not something the
+shader computes). If the exit genuinely depends on a value the shader computes, the loop is not a
+graph loop: move it into a `/// @custom` function.
+
+## DSH4364
+
+<!-- generated:begin DSH4364 -->
+**Severity** error
+
+**Message**
+
+```
+A parameter of type {0} cannot be a material function input; the graph has no pin that carries one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderMaterial.cpp:251`
+<!-- generated:end DSH4364 -->
+
+**Cause.** An exported function has a parameter whose type cannot be a material function input.
+`SamplerState` and user `struct` parameters are the usual two: the engine's
+`UMaterialExpressionFunctionInput` has a fixed list of types (scalar, the three vector widths, the
+texture kinds, static bool, MaterialAttributes, Substrate) and neither is on it.
+
+**Fix.** For a sampler, drop the parameter: a texture input carries its own sampler. For a struct,
+pass the fields as separate parameters -- a struct is a compile-time aggregate in DreamShaderLang
+and has no run-time form to hand across an asset boundary. If the function is only ever called from
+this file, drop `export`: an internal helper takes any type, because it is inlined.
+
+## DSH4365
+
+<!-- generated:begin DSH4365 -->
+**Severity** error
+
+**Message**
+
+```
+A struct has no graph form; pass one of its fields, or move the whole thing into a '/// @custom' function.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:183`, `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:536`
+<!-- generated:end DSH4365 -->
+
+**Cause.** A struct value reached a place that needs one graph value -- a pin, an operand, a
+material attribute. A `struct` in DreamShaderLang is a compile-time aggregate: it exists to group
+values while the file is being compiled and is flattened away, so it has no single node.
+
+**Fix.** Use the field you meant (`Inputs.Roughness`, not `Inputs`). To pass a whole struct to
+something, make the callee an internal helper, which is inlined and can take it.
+
+## DSH4366
+
+<!-- generated:begin DSH4366 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is a constant texture, which is a TextureObject node, and this engine has no such material expression; declare it 'uniform'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderMaterial.cpp:640`
+<!-- generated:end DSH4366 -->
+
+**Cause.** A `static const` texture (in 1.x, `const Texture2D T = Path(...)`) is built as a
+TextureObject node, and the builtin catalog of this engine has no such class. Stock engines all have
+it; a stripped-down catalog, or one loaded from an incomplete manifest, may not.
+
+**Fix.** Declare the texture `uniform` (a texture parameter), or re-export the catalog (`dsc
+export-catalog`) if a stale manifest is in use.
+
+## DSH4370
+
+<!-- generated:begin DSH4370 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is read before anything wrote it; a material attribute has no value until this function assigns one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderMaterial.cpp:453`
+<!-- generated:end DSH4370 -->
+
+**Cause.** A material attribute was read before anything wrote it: `float r = m.Roughness;` in a
+function where no `m.Roughness = ...` came first. A `material` is a write-then-read record while a
+file compiles -- there is no "current value" of a pin nobody has connected.
+
+**Fix.** Assign the attribute before reading it. In a `/// @layer` or `/// @layerblend` function the
+incoming material is a real value and reading an attribute of it is fine -- that is what
+`BreakMaterialAttributes` is for -- so this message in a layer means the read is of the *result*
+material, not of an input one. A material that came out of a node is a real value in the same way:
+`UE.BlendMaterialAttributes(...).Roughness`, a material function call's `material` result, or `m`
+after `m = UE.BlendMaterialAttributes(...)` all read the node's output, so this message never
+concerns one of those. A compound assignment (`m.Roughness *= 0.5`) and a write to one component
+(`m.Normal.z = 1`) read the attribute first -- the other components have to come from somewhere --
+so either of those on an attribute nothing has set is this message too: set the whole attribute
+first.
+
+## DSH4371
+
+<!-- generated:begin DSH4371 -->
+**Severity** error
+
+**Message**
+
+```
+A 'material' value reached a pin that carries {0}; only a MaterialAttributes pin accepts one.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:173`, `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:222`
+<!-- generated:end DSH4371 -->
+
+**Cause.** A `material` value was passed to something that cannot take one: a reflected node's pin
+that carries a number, or a function parameter declared as a numeric type. Only a
+MaterialAttributes pin accepts a material.
+
+**Fix.** Pass the attribute rather than the material (`m.BaseColor`, not `m`), or change the
+parameter's type to `material`. When calling a material function asset that really does take
+MaterialAttributes, check that the `extern` prototype declares that parameter `material`.
+
+## DSH4372
+
+<!-- generated:begin DSH4372 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is assigned in only one arm of this 'if' and has no value before it; assign it in both arms, or give it a value before the 'if'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:624`, `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:648`
+<!-- generated:end DSH4372 -->
+
+**Cause.** A variable or a material attribute is assigned in one arm of an `if` or `?:` and not in
+the other, and had no value before the branch. Both arms become nodes and a conditional picks
+between them, so the arm that does not assign still has to have something to select.
+
+**Fix.** Give the variable a value before the `if` (`float x = 0;`), or assign it in both arms. For
+a material attribute, set it before the `if` -- `m.Roughness = 0.5;` then override it in the arm
+that needs to. In a layer function, reading the incoming material supplies the missing arm on its
+own, so this only appears when the attribute has no incoming value either.
+
+When the compiler can already tell which arm runs -- `if (i > 0)` in the first trip of an unrolled
+`for (int i = 0; ...)` -- and the arm without a value is the one that does not run, nothing is
+missing and nothing is reported: the value is the other arm's on every path the shader takes.
+
+## DSH4373
+
+<!-- generated:begin DSH4373 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is a property of {1} and needs a literal; this argument is computed at run time.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:1014`
+<!-- generated:end DSH4373 -->
+
+**Cause.** An argument bound to a *property* of a reflected node is not a literal. A property is
+written into the asset when it is generated (a `SceneTextureId`, a `ParameterName`, a coordinate
+index); it is not a pin and there is nothing to connect a computed value to.
+
+**Fix.** Write a literal: `UE.TexCoord(Index = 0)`, not `UE.TexCoord(Index = SomeUniform)`. A
+`static const` also works, because the binder folds it before the builder sees it. If the value has
+to vary, look for a pin of the same name -- many classes have both, and the pin is the one that
+takes an expression.
+
+## DSH4374
+
+<!-- generated:begin DSH4374 -->
+**Severity** error
+
+**Message**
+
+```
+This builds a {0}-component value, but a material graph carries at most four components.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:1120`
+<!-- generated:end DSH4374 -->
+
+**Cause.** A constructor, a swizzle or a coercion asked for more than four components:
+`float4(A.rgb, B.rg)` is five. Material graph values are float1 to float4 and `AppendVector`
+cannot make anything wider.
+
+**Fix.** Count the components. The usual cause is appending a vector where a scalar was meant --
+`float4(Colour, Alpha.r)` rather than `float4(Colour, Alpha)` when `Alpha` is a float2.
+
+## DSH4375
+
+<!-- generated:begin DSH4375 -->
+**Severity** error
+
+**Message**
+
+```
+The two sides of this branch end with a different whole material, and DreamShader chooses between attribute values, not between whole materials; assign the attributes one at a time on both sides, or mix the two materials with UE.BlendMaterialAttributes.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderStatements.cpp:846`, `Source/DreamShaderLang/Private/IR/IRBuilderStatements.cpp:850`
+<!-- generated:end DSH4375 -->
+
+**Cause.** The two arms of an `if` -- or the two sides of a `?:`, or a `return` inside an `if` and
+the code after it -- leave a different *whole* material in the same variable. One arm replaced the
+material (`m = UE.BlendMaterialAttributes(...)`, `R = A`, or a material function call that writes an
+`inout material` back) and the other did not, or each arm replaced it with a different one. A
+branch is lowered by choosing, attribute by attribute, between what the two arms left behind; a
+whole material is not an attribute value, and on the side that did not replace the material an
+attribute nobody wrote has no value the compiler can name to choose against. The same holds one
+attribute down: `m.MaterialAttributes` holds a whole material, so writing a different one to it in
+each arm is this error as well -- never a numeric conditional over two materials.
+
+**Fix.** Write the attributes you need in both arms instead of replacing the material in one of
+them. To choose between two whole materials, mix them: `m = UE.BlendMaterialAttributes(A = First,
+B = Second, Alpha = Mask);` with the mask at 0 or 1 does what the branch meant. A static switch
+between two whole materials (a `StaticSwitch` over MaterialAttributes) is not generated in this
+version.
+
+## DSH4376
+
+<!-- generated:begin DSH4376 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is read here, but nothing gives it a value on any path that reaches this line; assign it first, or give it an initializer where it is declared.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:1459`
+<!-- generated:end DSH4376 -->
+
+**Cause.** A local is read -- or compound-assigned (`x += 1`, `++x`), which reads it first -- at a
+point that no path through the function has given it a value: `float x; m.Opacity = x;`. A material
+graph has no "uninitialised": the read would lower to nothing, and whatever it fed would quietly not
+be connected. Reading a field of a struct local that nothing wrote (`P.B`) is the same error, named
+by the field.
+
+Not reported, on purpose: a local assigned in only one arm of an `if` (that is DSH4372, once); a
+parameter (an `out` one nobody assigns is the binder's DSH6211); a local handed to an `out` or
+`inout` argument, since the callee may only write it; and a read inside an `if` arm the compiler can
+tell never runs, such as `if (i > 0)` on the first trip of an unrolled loop. Each read site is
+reported once, and a later read of the same local on the same path is not reported again.
+
+**Fix.** Give the local a value before the read: an initializer where it is declared
+(`float x = 0;`), or an assignment on every path that reaches the read. Writing a vector local one
+component at a time is fine -- `float3 v; v.x = a; v.y = b;` -- because a component write starts
+from zero, the value the 1.x generator gave a declaration with no initializer; what is refused is
+reading `v`, or a component of it, before anything was written.
+
+## DSH4377
+
+<!-- generated:begin DSH4377 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' writes into the material held in an attribute, and an attribute takes one whole value, not a write to part of it; assign that attribute a whole material, or set the attribute on the material itself.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderExpressions.cpp:1475`
+<!-- generated:end DSH4377 -->
+
+**Cause.** An assignment writes into the material an attribute holds:
+`m.MaterialAttributes.Roughness = 0.5`. While a file compiles a `material` is a map from each
+attribute to one value. What `m.MaterialAttributes` holds is a whole attribute set,
+and the map has no record inside a record, so a write to part of it has nothing to lower to.
+Reading such a field is fine: `m.MaterialAttributes.Roughness` on the right of `=` reads it off the
+stored set.
+
+**Fix.** Set the attribute on the material itself (`m.Roughness = 0.5`), or give the attribute a whole
+material, such as the result of `UE.BlendMaterialAttributes(...)`. Writing one component of an
+ordinary attribute (`m.BaseColor.x = 1`) is not this error: that is a read-modify-write of the
+attribute, the same as one component of a local.
+
+## DSH4378
+
+<!-- generated:begin DSH4378 -->
+**Severity** error
+
+**Message**
+
+```
+A branch chooses between two {0} values or between two numbers, and this one has one of each.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:1538`, `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:1556`
+<!-- generated:end DSH4378 -->
+
+**Cause.** A branch over Substrate values that cannot be built. Two messages: one side of the branch
+is a Substrate value and the other a number; or the branch is decided at run time, which becomes a
+`Substrate.Select` node, and this engine has none (the node exists from Unreal Engine 5.6 on).
+
+**Fix.** Give both sides the same kind of value. On an engine without `Substrate.Select`, make the
+condition a `/// @static` uniform bool -- a StaticSwitch carries a Substrate value -- or mix the two
+values with `lerp()`.
+
+## DSH4379
+
+<!-- generated:begin DSH4379 -->
+**Severity** error
+
+**Message**
+
+```
+A branch can only choose between numbers, bools and static Substrate values, and these are {0} objects, which no material graph node switches; sample each texture first and branch on the samples.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:1527`
+<!-- generated:end DSH4379 -->
+
+**Cause.** A branch leaves a texture object or a sampler in a variable, with a different one on each
+side. No material graph node chooses between two texture objects, static condition or not.
+
+**Fix.** Sample both textures and branch on the sampled colours; with a `/// @static` condition only
+the taken side ends up in the shader.
+
+## DSH4380
+
+<!-- generated:begin DSH4380 -->
+**Severity** warning
+
+**Message**
+
+```
+This branch becomes a 'Substrate.Select', which parameter-blends its two inputs; they are a '{0}' and a '{1}', and the engine may refuse to blend unlike BSDFs.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilder.cpp:1571`
+<!-- generated:end DSH4380 -->
+
+**Cause.** A run-time `if` or `?:` chooses between two Substrate values of unlike kinds -- a slab on
+one side and an Unlit on the other, say. The branch becomes a `Substrate.Select` node, and Select
+always parameter-blends its two inputs; which pairs of BSDFs the engine can blend is the engine's
+business, and it reports the ones it cannot when the material compiles. This is a warning: the node
+is made.
+
+**Fix.** Nothing, if the material compiles. If the engine refuses the pair, choose statically
+instead (`/// @static` on the condition makes a StaticSwitch, which carries any Substrate value), or
+build both sides from the same node.
+
+## DSH4381
+
+<!-- generated:begin DSH4381 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is converted by the node 'Substrate.{1}', and this engine has no such node; give the pins it feeds directly.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderSubstrate.cpp:507`
+<!-- generated:end DSH4381 -->
+
+**Cause.** A virtual argument of a Substrate call -- `BaseColor` / `Metallic` / `Specular`,
+`Haziness`, `Transmittance` / `Thickness` -- stands for a conversion node in front of the BSDF
+(`Substrate.MetalnessToDiffuseAlbedoF0`, `Substrate.HazinessToSecondaryRoughness`,
+`Substrate.TransmittanceToMFP`), and the catalog of this engine has no such node. The binder
+accepted the argument because the node's name is known; the builder found nothing to make.
+
+**Fix.** Give the pins the conversion would have fed directly (`DiffuseAlbedo` and `F0`,
+`SecondRoughness` and `SecondRoughnessWeight`, `SSSMFP`). If the engine does have the node, the
+catalog is stale: run `dsc export-catalog` again.
+
+## DSH4382
+
+<!-- generated:begin DSH4382 -->
+**Severity** error
+
+**Message**
+
+```
+This material drives FrontMaterial and says 'Substrate = Native', and Substrate is off in this project; the engine could not compile the asset. Turn Substrate on, or write 'Substrate = Bridge' and the legacy attributes.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderSubstrate.cpp:416`
+<!-- generated:end DSH4382 -->
+
+**Cause.** The material says `#pragma material(Substrate = Native)`, drives `FrontMaterial`, and
+Substrate is off in this project (`r.Substrate`, the built-in define `DS_SUBSTRATE`). The engine
+cannot compile such an asset, so it is refused here, where the message can say why, instead of as a
+shader error later.
+
+**Fix.** Turn Substrate on in the project, or write the material against the legacy attributes and
+say `Substrate = Bridge`: that builds as written where Substrate is off and as one
+`Substrate.ShadingModels` node where it is on.
+
+## DSH4383
+
+<!-- generated:begin DSH4383 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not the Substrate value being built any more when a loop comes round to '{0}.{1}': an earlier trip assigned it. Declare the value inside the loop, or finish it before the loop.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRBuilderSubstrate.cpp:201`, `Source/DreamShaderLang/Private/IR/IRBuilderSubstrate.cpp:247`, `Source/DreamShaderLang/Private/IR/IRBuilderSubstrate.cpp:277`, `Source/DreamShaderLang/Private/IR/IRBuilderSubstrate.cpp:304`
+<!-- generated:end DSH4383 -->
+
+**Cause.** A Substrate value that is built member by member (`Substrate S = Substrate.Slab();
+S.Roughness = r;`) meets a loop that comes round. The binder checks a builder in source order and
+cannot see a loop's second trip, so the builder of the graph says so, in four cases: a member is
+written after an earlier trip of the loop already used the value (its node is what it was then); a
+member is accessed after an earlier trip assigned the local a whole value, which has no members; a
+member is read, or is the left side of `*=` and its kin, on a path where the line that writes it did
+not run.
+
+**Fix.** Declare the value inside the loop -- a builder declared in the body is a new value on every
+trip -- or finish writing it before the loop starts. For the last two cases, give the member a value
+on every path before it is read.
+
+## DSH4390
+
+<!-- generated:begin DSH4390 -->
+**Severity** info
+
+**Message**
+
+```
+'{0}' is declared but nothing reads it, so it is not in the generated material.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/IR/IRPasses.cpp:872`
+<!-- generated:end DSH4390 -->
+
+**Cause.** Informational. A `uniform` is declared but nothing in the file reads it, so no parameter
+node was generated and the material has no such parameter. The passes report it after pruning, so
+it also fires for a uniform that is only read by code that itself turned out to be dead.
+
+**Fix.** Delete the declaration, or use it. If a material instance is meant to drive the parameter,
+note that a parameter that feeds nothing does nothing: the instance would show a knob with no
+effect, which is why it is not generated. If it is read only inside `#if` text that is currently
+off, the message is expected.
+
+## DSH4400
+
+<!-- generated:begin DSH4400 -->
+**Severity** error
+
+**Message**
+
+```
+Buffer '{0}' is declared twice; the declaration on line {1} already makes it.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1541`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1555`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1568`
+<!-- generated:end DSH4400 -->
+
+**Cause.** A buffer is declared under a name that is taken. Three messages:
+
+- the same name was declared as a buffer before; the first declaration stands and this one is
+  dropped;
+- the name differs from a buffer declared before in case only
+  (`Buffer 'mask' differs from 'Mask', declared on line 2, in case only; ...`): names are
+  case-sensitive in the source, but the pipeline asset keeps buffer names as Unreal names, which
+  compare ignoring case, so the two would be one buffer there. The first declaration stands;
+- the name is a `uniform` or `static const` of the pipeline, or `DreamPassWeight`
+  (`'Mask' already names a parameter or a constant of this pipeline; ...`): buffers, parameters and
+  constants share one namespace, and the buffer is the one refused, wherever it stands in the file.
+
+A refused declaration makes nothing: a binding of the same name binds the first buffer; a binding of
+a refused case-only spelling, or of a name a parameter has, is DSH4403.
+
+**Fix.** Rename one of the two, or merge two declarations of one buffer -- their arguments go in one
+list: `buffer Mask : R8(Clear = 0, Scale = 0.5);`.
+
+## DSH4401
+
+<!-- generated:begin DSH4401 -->
+**Severity** error
+
+**Message**
+
+```
+A pass named '{0}' is already declared on line {1}; RDG events and stats are named after passes, so each name is used once.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1811`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1824`
+<!-- generated:end DSH4401 -->
+
+**Cause.** Two passes of one pipeline have the same name, or names that differ in case only
+(`Pass 'blur' differs from 'Blur', declared on line 7, in case only; ...`): the pipeline asset keeps
+pass names as Unreal names, which compare ignoring case, so `Blur` and `blur` would be one pass
+there. The runtime names a pass's GPU event and its stats after it, `<Pipeline>.<Pass>`, so a name
+has to point at one pass. The second pass is skipped whole: nothing in it is checked or built until
+it is renamed.
+
+**Fix.** Rename one of them, preferably after what it does: `BlurH` and `BlurV` rather than two
+`Blur`s.
+
+## DSH4402
+
+<!-- generated:begin DSH4402 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is a built-in texture a pass binds without declaring it, and cannot be declared as a buffer.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1530`
+<!-- generated:end DSH4402 -->
+
+**Cause.** A `buffer` declaration uses the name of a built-in texture: `SceneColor`, `SceneDepth`,
+`CustomDepth`, `CustomStencil`, `GBufferA` to `GBufferF`, `Velocity` or `Translucency`. A pass binds
+those by name without declaring them, so a buffer of the same name could not be told apart from the
+renderer's texture. The declaration is dropped, and a binding of the name still binds the built-in.
+
+**Fix.** Give the buffer a name of its own. For a copy of a built-in texture, declare the buffer and
+fill it with a `copy` pass (`read SceneColor; write Grab;`); for a mesh pass's private depth, declare
+`buffer MaskDepth : Depth32;` and write `Depth = Own(MaskDepth);`.
+
+## DSH4403
+
+<!-- generated:begin DSH4403 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is neither a buffer of this pipeline nor a built-in texture; declare it with 'buffer {0} : <Format>;'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1509`
+<!-- generated:end DSH4403 -->
+
+**Cause.** A pass names a buffer that does not exist: in a `read` or `write` binding, in
+`Dispatch = <Buffer>` (or `<Buffer> / n`, `<Buffer> * n`), or in `Depth = Own(<Buffer>)`. Names are
+case-sensitive; when a declared buffer or a built-in texture differs only in case, the message
+suggests it (`read sceneColor;`). A pass binds the pipeline's own buffers and the built-in textures
+only: a `Texture2D` parameter, or another pipeline's buffer, is no buffer here. A buffer whose
+declaration was refused (DSH4400) is not declared either, so its bindings land here too.
+
+**Fix.** Declare the buffer -- `buffer Blurred : R8(Scale = 0.5);` -- or correct the name. To hand a
+texture parameter to a pass, draw the pass with a material and give it to the material with `param`.
+
+## DSH4404
+
+<!-- generated:begin DSH4404 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not a 'uniform' or 'static const' of this pipeline; 'Enabled' takes a 'uniform bool' or 'true'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1056`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:2608`
+<!-- generated:end DSH4404 -->
+
+**Cause.** A name in a pipeline value is not declared. Two places raise it:
+
+- `Enabled = <Name>`, in `#pragma pipeline(...)` or in a pass, names neither a `uniform` nor a
+  `static const`. `true` and `false` are lower case: `Enabled = True` is a name.
+- a `param` expression uses a name that is not a `uniform`, a `static const` or `DreamPassWeight`
+  (`'Radius' is not a 'uniform' or 'static const' of this pipeline, nor 'DreamPassWeight'.`): a
+  misspelt parameter, a buffer (`param Size = Mask;`), a name only the pass's shader or material
+  knows.
+
+A variable refused by DSH3316 is not declared either. When a declared name differs only in case, the
+message suggests it.
+
+**Fix.** Correct the name, or declare the value at file scope: a `uniform bool` for `Enabled`, a
+`uniform` or `static const` for a `param`. A buffer reaches a pass through `read`, which in an HLSL
+pass also defines its size as `<Name>Size`.
+
+## DSH4405
+
+<!-- generated:begin DSH4405 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is a '{1}', and 'Enabled' takes a 'uniform bool' or 'true'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:1070`
+<!-- generated:end DSH4405 -->
+
+**Cause.** `Enabled`, in `#pragma pipeline(...)` or in a pass, names a declared value that is not one
+`bool`: a `uniform float`, an `int`, a vector. A pipeline or a pass is switched by a bool alone.
+
+**Fix.** Declare a `uniform bool` and name it:
+
+```hlsl
+#pragma pipeline(Enabled = bShowOutline)
+
+uniform bool bShowOutline = true;
+```
+
+A pipeline needs no `Enabled` to fade out: it does not run at weight 0, and every pass receives the
+weight (`DreamPassWeight` in a material, `DP_Weight` in a `.usf`).
+
+## DSH4406
+
+<!-- generated:begin DSH4406 -->
+**Severity** error
+
+**Message**
+
+```
+No material '{0}' was found: a bare name is the material a '.dss' under the same source root builds, an object path any material or material instance.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3530`
+<!-- generated:end DSH4406 -->
+
+**Cause.** The `Material` of a fullscreen or mesh pass resolves to nothing. A bare name
+(`"PP_Outline"`) is looked up among the products of the DreamShader sources under the `.dsp`'s source
+root -- the material a `.dss` exports, or a `.dsi` -- spelt exactly, case included; a material
+function does not count. An object path (`"/Game/FX/PP_Outline.PP_Outline"`) has to name an asset
+that exists, or one a source under the source roots builds. The check needs the host to look the
+material up, which a compile in the editor or through `dsc` does; without that it is skipped
+(DSH7360).
+
+**Fix.** Check the name against the `export` that builds the material, or write the object path,
+which is what a material outside this source root needs -- a hand-made one, or one another plugin's
+sources build. A bare name that several sources build is DSH8330.
+
+## DSH4407
+
+<!-- generated:begin DSH4407 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not a '.usf' or '.ush' file; the engine compiles shader files of those two kinds only.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:2026`
+<!-- generated:end DSH4407 -->
+
+**Cause.** `Shader =` names a file whose extension is not `.usf` or `.ush` (in any case): none at all
+(`"Passes/Blur"`), `.hlsl`, or a DreamShader source (`"PP_Blur.dss"`). The engine's shader compiler
+reads only those two kinds of file.
+
+**Fix.** Give the shader file a `.usf` extension and write it in the path:
+`Shader = "BoxBlur.usf";`. A material is not a shader file: a fullscreen pass draws a `.dss` with
+`Material = "..."`.
+
+## DSH4408
+
+<!-- generated:begin DSH4408 -->
+**Severity** error
+
+**Message**
+
+```
+The shader file '{0}' does not exist; a path starting with '/' is a virtual shader path, and any other is read from the folder of this '.dsp'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3735`
+<!-- generated:end DSH4408 -->
+
+**Cause.** The file `Shader =` names does not exist. A path that does not start with `/` is relative
+to the folder of the `.dsp` -- `"BoxBlur.usf"` sits next to it, `"../Shared/Blur.usf"` one folder
+up; a path that starts with `/` is a virtual shader path, which resolves only through a directory the
+engine maps (`/Engine/...`, `/Plugin/<Name>/...`, or a mapping a module adds with
+`AddShaderSourceDirectoryMapping`). Checked where DSH4406 is.
+
+**Fix.** Correct the path or move the file. Next to the `.dsp` is the usual place, and it needs no
+mapped directory: the engine compiles a snapshot of the file, never the original. Use a virtual path
+only for a shader that already lives in a mapped directory.
+
+## DSH4410
+
+<!-- generated:begin DSH4410 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' does not define a function '{1}'.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3802`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3830`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3842`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3989`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:4023`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:4082`
+<!-- generated:end DSH4410 -->
+
+**Cause.** The `Entry` of an HLSL pass does not name a function the pass can run. Two messages:
+
+- `'<file>' does not define a function '<Entry>'.` -- no function of that name is defined in what the
+  check reads: the `.usf`, every file it includes by a relative path, and every file it includes by a
+  virtual path a mapped shader directory resolves (`/Project/...`, a plugin's `/Plugin/...`), each
+  followed through its own includes in turn. The engine's own headers (`/Engine/`, `/ThirdParty/`)
+  are not read. Comments and `#` lines are skipped, a function counts when it has a body, and names
+  are case-sensitive. When the file includes something the check cannot follow -- a virtual path no
+  mapped directory covers, a relative path that names no file, `#include MACRO` -- an entry it did
+  not find is not reported, since it may be in what was not read; a compute pass then needs
+  `Threads` (DSH4411).
+- `'<Entry>' in '<file>' is a compute shader entry ...` -- a `fullscreen` pass names a function with
+  `[numthreads(...)]` in front of it. A fullscreen pass runs its `Entry` as the pixel shader of its
+  slot, and a compute shader's entry is not one.
+
+For HLSL written in the `.dsp` the same is checked against the text of the block, with no file to read:
+
+- `The 'hlsl' block of pass '<Pass>' does not define a function '<Entry>' ...` -- the pass's own block holds whole
+  functions, and none has the name `Entry` gives; or, with no `Entry`, none is `Main`, the entry of a block by
+  default. The entry is a function of the block itself, not of a file the block includes;
+- `The file's 'hlsl' block does not define a function '<Entry>' ...`, and `... names a function of the file's 'hlsl'
+  block, and this '.dsp' has none` -- a pass with no `Shader` and no block of its own runs the entry of the file's
+  block that `Entry` names;
+- `'<Entry>' is a compute shader entry ...` -- as above, for a fullscreen pass.
+
+Checked where DSH4406 is, once the file is found; for code in the `.dsp`, whenever the pipeline binds.
+
+**Fix.** Spell `Entry` as the function is spelt in the HLSL -- `Entry = BlurCS;` -- and define the
+function in the `.usf` or in a file it includes; for code in the `.dsp`, in the block it is looked for in -- the
+pass's own, or the file's when the pass has neither `Shader` nor a block. A fullscreen pass names its pixel shader function,
+the one that returns `SV_Target0`; to run a `[numthreads]` function, make the pass `compute`.
+
+## DSH4411
+
+<!-- generated:begin DSH4411 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' in '{1}' has no '[numthreads(x, y, z)]' the compiler can read; write 'Threads = uint3(x, y, z)' in the pass.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3790`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3816`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:4069`
+<!-- generated:end DSH4411 -->
+
+**Cause.** A compute pass's `Entry` has a thread group size the compiler cannot read, and the pass
+gives no `Threads` to say it. The dispatch is counted in groups of that size. Two messages:
+
+- `'<Entry>' in '<file>' has no '[numthreads(x, y, z)]' ...` -- the function is there, but there is
+  no `[numthreads(...)]` in front of it, or its three values are not plain whole numbers -- typically
+  a macro, `[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]`.
+- `'<Entry>' is not in what the compiler could read of '<file>', which includes a file it cannot
+  follow ...` -- the function was not found, and the file includes something the check cannot read
+  (DSH4410 lists what), so the function may be defined there, with a group size nobody read.
+- `'<Entry>' has no '[numthreads(x, y, z)]' in front of it ...` -- the same as the first, for an entry written in
+  the `.dsp`.
+
+**Fix.** Write the group size as numbers in the shader -- `[numthreads(8, 8, 1)]` -- or keep the
+macro and give the same size in the pass: `Threads = uint3(8, 8, 1);`. For the second message, give
+`Threads` as well, or include the file by a path the compiler can follow.
+
+## DSH4412
+
+<!-- generated:begin DSH4412 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}' is not a pass layer of this project; the layers are the first {1} names of Project Settings > DreamPlugin > DreamShader Custom Pass > Layer Names.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3510`
+<!-- generated:end DSH4412 -->
+
+**Cause.** A mesh pass's `Filter` selects by `Layer(...)` a name the project does not have. Pass
+layers are the project's: the first 32 names of the **Layer Names** list of Project Settings ▸
+DreamPlugin ▸ DreamShader Custom Pass, which the message names; only those have a bit, so a name
+further down the list is no layer either. The name is compared case-sensitively, and when a layer
+differs from it only in case the message suggests that one instead
+(`'<Layer>' is not a pass layer of this project; did you mean '<Name>'?`). There is one error per
+unknown name, at the `Filter` line. Checked where DSH4406 is.
+
+**Fix.** Add the layer to that list, within its first 32 names, or correct the name. The list's
+order is the layers' bit order, so add new names at the end: moving one re-targets every compiled
+pipeline that names it until that pipeline compiles again. `List(Name)` is not checked here -- a list
+is filled at run time by `UDreamPassSubsystem::AddToList`.
+
+## DSH4413
+
+<!-- generated:begin DSH4413 -->
+**Severity** error
+
+**Message**
+
+```
+'Threads = uint3({0}, {1}, {2})' disagrees with '[numthreads({3}, {4}, {5})]' of '{6}', and the dispatch would be sized for groups the shader does not have; leave 'Threads' out, or write the same numbers.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:3775`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:4056`
+<!-- generated:end DSH4413 -->
+
+**Cause.** A compute pass writes `Threads = uint3(...)`, and the `[numthreads(...)]` of its entry,
+which the compiler can read -- in the `.usf`, or in the `.dsp` when the entry is written there -- says other
+numbers (the message gives both). The number of groups is
+worked out from `Threads` while the shader runs groups of `[numthreads]`, so the pass would cover
+too much or too little of its buffer. `Threads = uint2(x, y)` counts as `z = 1`.
+
+**Fix.** Leave `Threads` out: the group size is read from `[numthreads]`. `Threads` is for an entry
+whose group size is a macro (DSH4411), and then it states the size the macro gives.
+
+## DSH4414
+
+<!-- generated:begin DSH4414 -->
+**Severity** error
+
+**Message**
+
+```
+'DreamPassWeight' is the pipeline's weight in a view, which every pass can read as 'param P = DreamPassWeight'; it cannot be declared.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:838`
+<!-- generated:end DSH4414 -->
+
+**Cause.** A `uniform` or `static const` of a `.dsp` is called `DreamPassWeight`. The name is the
+pipeline's weight in the view -- the largest weight of its activations, which is how a volume's fade
+reaches the effect -- and the runtime supplies it. The declaration is dropped. A buffer of that name
+is DSH4400.
+
+**Fix.** Rename the declaration. The weight needs none: every pass receives it, a material as its
+scalar parameter `DreamPassWeight` and a `.usf` as `DP_Weight`, and
+`param Fade = DreamPassWeight * 0.5;` hands it on under another name, scaled.
+
+## DSH4415
+
+<!-- generated:begin DSH4415 -->
+**Severity** error
+
+**Message**
+
+```
+'{0}.Previous': a built-in texture keeps no history.
+```
+
+**Raised by** `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:2497`, `Source/DreamShaderLang/Private/Semantic/LangBinderPipeline.cpp:2507`
+<!-- generated:end DSH4415 -->
+
+**Cause.** A `read` names `.Previous`, last frame's contents, of a texture that keeps none. Two
+messages:
+
+- a built-in texture, as in `read SceneColor.Previous;` -- the renderer's textures hold this frame
+  only;
+- a buffer of the pipeline declared without `History = true`
+  (`'Mask.Previous' reads last frame's 'Mask', and 'Mask' keeps none; ...`).
+
+**Fix.** For a buffer, add `History = true` to its declaration. For a built-in texture, keep a copy
+of your own with a history and read that copy's `.Previous`:
+
+```hlsl
+buffer LastColor : RGBA16F(History = true);
+
+pass Keep : copy
+{
+    Injection = BeforePostProcess;
+    read  SceneColor;
+    write LastColor;
+}
+```
+
+A pass then reads last frame's picture with `read Prev = LastColor.Previous;`.
