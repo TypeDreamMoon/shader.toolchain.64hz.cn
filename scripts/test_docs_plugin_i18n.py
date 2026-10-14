@@ -209,6 +209,14 @@ class PluginI18nTests(unittest.TestCase):
         self.translate(['guide.md'])
         self.assertIn('](../topic.md#details)', docs.read(self.translated_path()))
 
+    def test_language_switch_keeps_english_and_drops_the_self_link(self):
+        docs.write(self.plugin / 'Docs/guide.md',
+                   '# Guide\n\n[English](guide.md) · [简体中文](zh-CN/guide.md)\n\nEnglish paragraph.\n')
+        self.translate(['guide.md'])
+        guide = docs.read(self.translated_path())
+        self.assertIn('[English](../guide.md) · 简体中文', guide)
+        self.assertNotIn('[简体中文]', guide)
+
     def test_chinese_only_commit_preserves_english_hash_and_translation_baseline(self):
         self.translate()
         self.sync(adopt_existing=True)

@@ -939,8 +939,22 @@ def plugin_links(body, source_name, plugin, candidates, cfg):
             relative = ''
         return urllib.parse.urlunsplit(('', '', urllib.parse.quote(relative, safe='/'), parsed.query, parsed.fragment))
 
+    def language_switch(match):
+        # "[English](README.md) · [简体中文](zh-CN/README.md)" is a switch, not a reference:
+        # English must stay English, and the Chinese page does not link to itself.
+        text, url = match[1], match[2]
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme or parsed.netloc or parsed.path.startswith('/'):
+            return match[0]
+        name = posixpath.normpath(posixpath.join(posixpath.dirname(source_name), urllib.parse.unquote(parsed.path)))
+        if text == 'English':
+            relative = os.path.relpath(within(plugin, name), chinese.parent).replace('\\', '/')
+            return f'[English]({urllib.parse.quote(relative, safe="/")})'
+        return text if within(plugin, name) == chinese else match[0]
+
     def convert(line):
-        line = re.sub(r'(\]\(<?)([^\s)>]+)(>?)(?=[\s)])', lambda m: m[1] + target(m[2]) + m[3], line)
+        line = re.sub(r'\[(English|简体中文)\]\(<?([^\s)>]+?)>?\)', language_switch, line)
+        line = re.sub(r'(?<!\[English)(\]\(<?)([^\s)>]+)(>?)(?=[\s)])', lambda m: m[1] + target(m[2]) + m[3], line)
         line = re.sub(r'(^\s*\[[^\]]+\]:\s*<?)([^\s>]+)', lambda m: m[1] + target(m[2]), line)
         return re.sub(r'(\b(?:href|src)\s*=\s*)([\'"])([^\'"]+)(\2)',
                       lambda m: m[1] + m[2] + target(m[3]) + m[4], line)
