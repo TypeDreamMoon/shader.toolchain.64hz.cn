@@ -17,6 +17,8 @@ import posixpath
 import re
 import subprocess
 import sys
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -658,6 +660,18 @@ def restore(text, values, masked):
     return text
 
 
+class ProviderBusy(ValueError):
+    """429 or 5xx: the same request may succeed after a pause."""
+
+    def __init__(self, message, wait=0):
+        super().__init__(message)
+        self.wait = wait
+
+
+class ProviderRefused(ValueError):
+    """401, 402 or 403: no further request of the batch can succeed."""
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ValueError("API redirect refused; configure the final BaseURL (credentials are not forwarded)")
@@ -715,7 +729,17 @@ def ai_request(prompt, settings, opener=None):
         with opener.open(request, timeout=settings["timeout"]) as response:
             data = json.load(response)
     except urllib.error.HTTPError as error:
-        raise ValueError(f"Translation API returned HTTP {error.code}; response body hidden to protect credentials") from None
+        message = f"Translation API returned HTTP {error.code}; response body hidden to protect credentials"
+        if error.code in (401, 402, 403):
+            reason = {401: "check DOCS_AI_API_KEY", 402: "the account balance is used up", 403: "access denied"}
+            raise ProviderRefused(f"{message} ({reason[error.code]})") from None
+        if error.code == 429 or error.code >= 500:
+            try:
+                wait = float(error.headers.get("Retry-After") or 0)
+            except (AttributeError, TypeError, ValueError):
+                wait = 0
+            raise ProviderBusy(message, wait) from None
+        raise ValueError(message) from None
     except urllib.error.URLError:
         raise ValueError("Translation API connection failed; check BaseURL and network") from None
     if api_format == "chat-completions":
@@ -977,16 +1001,26 @@ def translate(root, settings, page_ids=None, request_fn=ai_request, plugin=None)
         raise ValueError('Unknown translation source ID; use the path relative to Docs, including .md')
     candidates = {row['path'] for row in pending}
 
+    refused = threading.Event()
+
     def ask(prompt, check):
         # A fresh request often clears a provider hiccup or a draft that broke a protected token.
-        for attempt in range(settings.get("retries", 0) + 1):
+        retries = settings.get("retries", 0)
+        for attempt in range(retries + 1):
+            if refused.is_set():
+                raise ProviderRefused("not requested: the provider refused an earlier request of this batch")
             try:
                 result = request_fn(prompt, settings)
                 check(result)
                 return result
-            except ValueError:
-                if attempt == settings.get("retries", 0):
+            except ProviderRefused:
+                refused.set()  # No balance or no access: every further request would be refused too.
+                raise
+            except ValueError as error:
+                if attempt == retries:
                     raise
+                if isinstance(error, ProviderBusy):
+                    time.sleep(min(120, error.wait or settings.get("backoff", 5) * 2 ** attempt))
 
     def draft(row):
         page_id = row['id']

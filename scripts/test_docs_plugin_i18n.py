@@ -509,6 +509,24 @@ class PluginI18nTests(unittest.TestCase):
         self.assertIn('中文段落。', docs.read(self.translated_path()))
         self.assertIn('第二段中文。', docs.read(self.translated_path('second.md')))
 
+    def test_busy_provider_is_retried_and_a_refusal_stops_the_batch(self):
+        docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')
+        docs.write(self.plugin / 'Docs/third.md', '# Third\n\nEnglish paragraph.\n')
+        self.settings.update(retries=1, backoff=0, partial=True, concurrency=1)
+        calls = []
+
+        def provider(prompt, settings):
+            calls.append(prompt)
+            if len(calls) == 1:
+                raise docs.ProviderBusy('HTTP 429')
+            if 'Second paragraph.' in prompt['NEW_SOURCE']['body']:
+                raise docs.ProviderRefused('HTTP 402')
+            return self.fake_ai(prompt, settings)
+
+        self.assertEqual(self.translate(request_fn=provider), ['guide.md'])
+        self.assertEqual(len(calls), 3)  # guide twice (busy, then fine), second once; third never asked
+        self.assertFalse(self.translated_path('third.md').exists())
+
     def test_trailing_blanks_from_the_model_are_dropped(self):
         def padded(prompt, settings):
             result = self.fake_ai(prompt, settings)

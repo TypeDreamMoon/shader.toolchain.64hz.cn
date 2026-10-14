@@ -358,6 +358,18 @@ class DocsSyncTests(unittest.TestCase):
         self.settings['extra_body']={'model':'other'}
         with self.assertRaisesRegex(ValueError,'may not replace model'): docs.ai_request({},self.settings,Opener())
 
+    def test_http_status_tells_busy_from_refused(self):
+        def opener(code, headers=None):
+            class Opener:
+                def open(inner, request, timeout):
+                    raise docs.urllib.error.HTTPError(request.full_url, code, 'status', headers or {}, None)
+            return Opener()
+        with self.assertRaises(docs.ProviderBusy) as caught: docs.ai_request({}, self.settings, opener(429, {'Retry-After': '7'}))
+        self.assertEqual(caught.exception.wait, 7)
+        with self.assertRaises(docs.ProviderBusy): docs.ai_request({}, self.settings, opener(503))
+        with self.assertRaisesRegex(docs.ProviderRefused, 'balance'): docs.ai_request({}, self.settings, opener(402))
+        with self.assertRaises(docs.ProviderRefused): docs.ai_request({}, self.settings, opener(401))
+
     def test_truncated_api_response_rejected(self):
         class Opener:
             def open(inner,request,timeout):
