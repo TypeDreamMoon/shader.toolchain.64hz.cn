@@ -22,7 +22,7 @@ jobs:
   draft:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
         with:
@@ -83,6 +83,8 @@ jobs:
           DOCS_AI_CHUNK_CHARS: ${{ vars.DOCS_AI_CHUNK_CHARS }}
           DOCS_AI_TOKEN_FIELD: ${{ vars.DOCS_AI_TOKEN_FIELD }}
           DOCS_AI_EXTRA_BODY: ${{ vars.DOCS_AI_EXTRA_BODY }}
+          DOCS_AI_CONCURRENCY: ${{ vars.DOCS_AI_CONCURRENCY }}
+          DOCS_AI_RETRIES: ${{ vars.DOCS_AI_RETRIES }}
         run: python3 -B scripts/docs_sync.py translate --plugin .docs-sync-tmp/plugin
       - name: Validate draft before opening a PR
         id: validation
