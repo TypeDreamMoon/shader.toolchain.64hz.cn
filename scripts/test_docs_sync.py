@@ -346,6 +346,18 @@ class DocsSyncTests(unittest.TestCase):
                 return io.BytesIO(json.dumps({'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'title':'t','description':'d','body':'b'})}]}]}).encode())
         self.assertEqual(docs.ai_request({},self.settings,Opener())['title'],'t')
 
+    def test_extra_body_adds_provider_switches_without_replacing_fields(self):
+        self.settings['extra_body']={'thinking':{'type':'disabled'}}
+        class Opener:
+            def open(inner,request,timeout):
+                payload=json.loads(request.data)
+                self.assertEqual(payload['thinking'],{'type':'disabled'})
+                self.assertEqual(payload['model'],'configured-model')
+                return io.BytesIO(json.dumps({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'title':'t','description':'d','body':'b'})}}]}).encode())
+        self.assertEqual(docs.ai_request({},self.settings,Opener())['title'],'t')
+        self.settings['extra_body']={'model':'other'}
+        with self.assertRaisesRegex(ValueError,'may not replace model'): docs.ai_request({},self.settings,Opener())
+
     def test_truncated_api_response_rejected(self):
         class Opener:
             def open(inner,request,timeout):

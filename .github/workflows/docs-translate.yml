@@ -82,6 +82,7 @@ jobs:
           DOCS_AI_TIMEOUT: ${{ vars.DOCS_AI_TIMEOUT }}
           DOCS_AI_CHUNK_CHARS: ${{ vars.DOCS_AI_CHUNK_CHARS }}
           DOCS_AI_TOKEN_FIELD: ${{ vars.DOCS_AI_TOKEN_FIELD }}
+          DOCS_AI_EXTRA_BODY: ${{ vars.DOCS_AI_EXTRA_BODY }}
         run: python3 -B scripts/docs_sync.py translate --plugin .docs-sync-tmp/plugin
       - name: Validate draft before opening a PR
         id: validation

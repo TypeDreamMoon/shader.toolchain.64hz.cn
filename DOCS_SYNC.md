@@ -34,6 +34,7 @@
 | --- | --- | --- |
 | `DOCS_AI_API_FORMAT` | `chat-completions` | 也可填 `responses`，调用对应接口 |
 | `DOCS_AI_TOKEN_FIELD` | `max_tokens` | Chat Completions 可选 `max_completion_tokens`；不接受此参数的服务用 `omit` |
+| `DOCS_AI_EXTRA_BODY` | 空 | JSON 对象，原样加进请求体，用于服务特有的开关，不能覆盖脚本自己发的字段。DeepSeek 默认开思考，推理会吃掉输出额度，翻译用 `{"thinking":{"type":"disabled"}}` 关掉 |
 | `DOCS_AI_JSON_MODE` | `false` | 仅在服务支持时设 `true`，请求 JSON Object 模式；所有结果仍会做 JSON 校验 |
 | `DOCS_AI_MAX_PAGES` | `5` | 每批最多翻译几个英文源文件 |
 | `DOCS_AI_CHUNK_CHARS` | `8000` | 长文分段的目标字符数，最少 500；代码块先保护，通常不占这部分长度 |

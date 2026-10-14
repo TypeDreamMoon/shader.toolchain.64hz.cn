@@ -700,6 +700,12 @@ def ai_request(prompt, settings, opener=None):
             payload["text"] = {"format": {"type": "json_object"}}
     else:
         raise ValueError("DOCS_AI_API_FORMAT must be chat-completions or responses")
+    # Provider switches the two formats do not name, e.g. {"thinking": {"type": "disabled"}};
+    # they add to the request and never replace what the script itself sends.
+    extra = settings.get("extra_body") or {}
+    if set(extra) & set(payload):
+        raise ValueError("DOCS_AI_EXTRA_BODY may not replace " + ", ".join(sorted(set(extra) & set(payload))))
+    payload.update(extra)
     request = urllib.request.Request(base + endpoint, data=json_text(payload).encode("utf-8"),
                                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + settings["api_key"]})
     opener = opener or urllib.request.build_opener(NoRedirect())
@@ -738,6 +744,14 @@ def ai_request(prompt, settings, opener=None):
 
 
 def ai_settings():
+    def extra_body():
+        try:
+            value = json.loads(os.environ.get("DOCS_AI_EXTRA_BODY") or "{}")
+        except json.JSONDecodeError:
+            raise ValueError("DOCS_AI_EXTRA_BODY must be a JSON object") from None
+        if not isinstance(value, dict):
+            raise ValueError("DOCS_AI_EXTRA_BODY must be a JSON object")
+        return value
     def number(name, default, minimum=1):
         value = int(os.environ.get(name) or default)
         if value < minimum:
@@ -748,6 +762,7 @@ def ai_settings():
             "api_format": os.environ.get("DOCS_AI_API_FORMAT") or "chat-completions",
             "token_field": os.environ.get("DOCS_AI_TOKEN_FIELD") or "max_tokens",
             "json_mode": os.environ.get("DOCS_AI_JSON_MODE", "false").lower() == "true",
+            "extra_body": extra_body(),
             "max_tokens": number("DOCS_AI_MAX_OUTPUT_TOKENS", 12000), "timeout": number("DOCS_AI_TIMEOUT", 180),
             "max_pages": number("DOCS_AI_MAX_PAGES", 5), "max_chars": number("DOCS_AI_MAX_INPUT_CHARS", 120000),
             "chunk_chars": number("DOCS_AI_CHUNK_CHARS", 8000, 500)}
