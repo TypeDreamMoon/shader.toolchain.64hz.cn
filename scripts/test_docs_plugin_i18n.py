@@ -509,6 +509,24 @@ class PluginI18nTests(unittest.TestCase):
         self.assertIn('中文段落。', docs.read(self.translated_path()))
         self.assertIn('第二段中文。', docs.read(self.translated_path('second.md')))
 
+    def test_partial_batch_writes_the_pages_that_passed(self):
+        docs.write(self.plugin / 'Docs/guide.md', '# Guide\n\nEnglish paragraph. [Second](second.md#second)\n')
+        docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')
+        self.settings['partial'] = True
+
+        def fail_second(prompt, settings):
+            if 'Second paragraph.' in prompt['NEW_SOURCE']['body']:
+                raise ValueError('AI changed protected code')
+            return self.fake_ai(prompt, settings)
+
+        self.assertEqual(self.translate(request_fn=fail_second), ['guide.md'])
+        guide = docs.read(self.translated_path())
+        self.assertIn('](../second.md#second)', guide)
+        self.assertFalse(self.translated_path('second.md').exists())
+        self.assertEqual(self.plugin_rows()['second.md']['status'], 'missing')
+        with self.assertRaisesRegex(ValueError, r'second\.md chunk 1/1: AI changed'):
+            self.translate(['second.md'], request_fn=fail_second)
+
     def test_failed_ai_batch_leaves_plugin_and_site_unchanged(self):
         docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')
         plugin_before = self.snapshot(self.plugin)

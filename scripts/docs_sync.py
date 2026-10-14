@@ -768,7 +768,8 @@ def ai_settings():
             "max_tokens": number("DOCS_AI_MAX_OUTPUT_TOKENS", 12000), "timeout": number("DOCS_AI_TIMEOUT", 180),
             "max_pages": number("DOCS_AI_MAX_PAGES", 5), "max_chars": number("DOCS_AI_MAX_INPUT_CHARS", 120000),
             "chunk_chars": number("DOCS_AI_CHUNK_CHARS", 8000, 500),
-            "concurrency": number("DOCS_AI_CONCURRENCY", 4), "retries": number("DOCS_AI_RETRIES", 2, 0)}
+            "concurrency": number("DOCS_AI_CONCURRENCY", 4), "retries": number("DOCS_AI_RETRIES", 2, 0),
+            "partial": os.environ.get("DOCS_AI_PARTIAL", "false").lower() == "true"}
 
 
 def chunks(text, limit):
@@ -1020,26 +1021,52 @@ def translate(root, settings, page_ids=None, request_fn=ai_request, plugin=None)
                     raise ValueError("AI introduced executable markup; translation rejected")
                 restore(result["body"], spans, part)  # Validate each chunk's tokens independently.
 
-            result = ask(prompt, check)
+            try:
+                result = ask(prompt, check)
+            except ValueError as error:
+                raise ValueError(f"{page_id} chunk {index + 1}/{len(parts)}: {error}") from None
             restore_attributes(result, attributes, locations, protected)
             results.append(result)
         translated_body = restore("".join(r["body"].strip() + re.search(r"\s*$", part)[0]
                                           for r, part in zip(results, parts)), protected, masked)
-        output = document(results[0]["title"], results[0]["description"], translated_body)
-        return page_id, {destination: output, record_path: json_text({
-            'version': 1, 'origin': 'ai', 'sourceFile': row['path'],
-            "sourceHash": row["hash"], "sourceRevision": row["revision"], "source": source,
-            "translationFile": destination.relative_to(plugin).as_posix(),
-            "translationHash": digest(output), "model": settings["model"],
-        })}
+        return {"row": row, "source": source, "destination": destination, "record": record_path,
+                "output": document(results[0]["title"], results[0]["description"], translated_body)}
 
-    planned, done = {}, []
+    def attempt(row):
+        try:
+            return draft(row)
+        except ValueError as error:
+            return error
+
     with ThreadPoolExecutor(max_workers=max(1, settings.get("concurrency", 1))) as pool:
-        # map re-raises the first failure; nothing is written before every page is drafted.
-        for page_id, files in pool.map(draft, pending):
-            planned.update(files)
-            done.append(page_id)
-    # A failed request/validation leaves the entire batch unchanged.
+        # Without partial, map re-raises the first failure and the batch is not written at all.
+        drafts = list(pool.map(attempt if settings.get("partial") else draft, pending))
+    failed = [(row, value) for row, value in zip(pending, drafts) if isinstance(value, ValueError)]
+    drafts = [value for value in drafts if not isinstance(value, ValueError)]
+    if failed and not drafts:
+        raise failed[0][1]
+    for row, error in failed:
+        print(f"docs-sync: not translated, left for the next batch: {error}", file=sys.stderr)
+    # A page in this batch was linked as Chinese; one that failed and has no Chinese file yet
+    # is linked as English again.
+    missing = [row['path'] for row, _ in failed if not translation_files(plugin, row['path'])[0].exists()]
+    planned, done = {}, []
+    for page in drafts:
+        output, folder = page["output"], page["destination"].parent
+        for name in missing:
+            chinese = os.path.relpath(translation_files(plugin, name)[0], folder).replace('\\', '/')
+            english = os.path.relpath(within(plugin, name), folder).replace('\\', '/')
+            output = re.sub(r'(\]\(<?)' + re.escape(urllib.parse.quote(chinese, safe='/')) + r'(?=[#)>\s])',
+                            lambda m: m[1] + urllib.parse.quote(english, safe='/'), output)
+        row = page["row"]
+        planned[page["destination"]] = output
+        planned[page["record"]] = json_text({
+            'version': 1, 'origin': 'ai', 'sourceFile': row['path'],
+            "sourceHash": row["hash"], "sourceRevision": row["revision"], "source": page["source"],
+            "translationFile": page["destination"].relative_to(plugin).as_posix(),
+            "translationHash": digest(output), "model": settings["model"],
+        })
+        done.append(row['id'])
     for path, value in planned.items():
         write(path, value)
     return done
