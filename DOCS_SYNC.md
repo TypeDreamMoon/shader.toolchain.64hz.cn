@@ -36,6 +36,7 @@
 | `DOCS_AI_TOKEN_FIELD` | `max_tokens` | Chat Completions 可选 `max_completion_tokens`；不接受此参数的服务用 `omit` |
 | `DOCS_AI_CONCURRENCY` | `4` | 同时翻译几篇；一批页数多时调高，受服务的并发限制 |
 | `DOCS_AI_RETRIES` | `2` | 一段请求失败或译文没过校验时重试几次；重试用完仍失败，整批不写入 |
+| `DOCS_AI_PARTIAL` | `false` | `true` 时，重试用完仍失败的页面跳过、其余照常写入并开 PR；失败的页面留到下一批，指向它的链接回落到英文 |
 | `DOCS_AI_EXTRA_BODY` | 空 | JSON 对象，原样加进请求体，用于服务特有的开关，不能覆盖脚本自己发的字段。DeepSeek 默认开思考，推理会吃掉输出额度，翻译用 `{"thinking":{"type":"disabled"}}` 关掉 |
 | `DOCS_AI_JSON_MODE` | `false` | 仅在服务支持时设 `true`，请求 JSON Object 模式；所有结果仍会做 JSON 校验 |
 | `DOCS_AI_MAX_PAGES` | `5` | 每批最多翻译几个英文源文件 |

@@ -85,6 +85,7 @@ jobs:
           DOCS_AI_EXTRA_BODY: ${{ vars.DOCS_AI_EXTRA_BODY }}
           DOCS_AI_CONCURRENCY: ${{ vars.DOCS_AI_CONCURRENCY }}
           DOCS_AI_RETRIES: ${{ vars.DOCS_AI_RETRIES }}
+          DOCS_AI_PARTIAL: ${{ vars.DOCS_AI_PARTIAL }}
         run: python3 -B scripts/docs_sync.py translate --plugin .docs-sync-tmp/plugin
       - name: Validate draft before opening a PR
         id: validation
