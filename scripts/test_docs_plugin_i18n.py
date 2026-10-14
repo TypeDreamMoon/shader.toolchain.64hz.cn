@@ -509,6 +509,14 @@ class PluginI18nTests(unittest.TestCase):
         self.assertIn('中文段落。', docs.read(self.translated_path()))
         self.assertIn('第二段中文。', docs.read(self.translated_path('second.md')))
 
+    def test_trailing_blanks_from_the_model_are_dropped(self):
+        def padded(prompt, settings):
+            result = self.fake_ai(prompt, settings)
+            return {**result, 'body': result['body'].replace('\n', ' \t\r\n')}
+
+        self.translate(request_fn=padded)
+        self.assertNotRegex(docs.read(self.translated_path()), r'[ \t\r]\n')
+
     def test_partial_batch_writes_the_pages_that_passed(self):
         docs.write(self.plugin / 'Docs/guide.md', '# Guide\n\nEnglish paragraph. [Second](second.md#second)\n')
         docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')

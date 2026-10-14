@@ -1029,6 +1029,8 @@ def translate(root, settings, page_ids=None, request_fn=ai_request, plugin=None)
             results.append(result)
         translated_body = restore("".join(r["body"].strip() + re.search(r"\s*$", part)[0]
                                           for r, part in zip(results, parts)), protected, masked)
+        # Models leave trailing blanks (and stray CRs) that git diff --check refuses to commit.
+        translated_body = re.sub(r"[ \t\r]+(?=\n|$)", "", translated_body)
         return {"row": row, "source": source, "destination": destination, "record": record_path,
                 "output": document(results[0]["title"], results[0]["description"], translated_body)}
 

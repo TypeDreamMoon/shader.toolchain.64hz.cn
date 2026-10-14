@@ -31,6 +31,9 @@ def run(*args, cwd=None, token=None, env=None):
                 if value:
                     detail = detail.replace(value, "***")
             detail = ": " + detail
+        elif args[1:4] == ("diff", "--staged", "--check"):
+            # Only file:line and the kind of whitespace error; the repository's own content.
+            detail = ": " + "; ".join(line for line in result.stdout.splitlines() if not line.startswith("+"))[:500]
         raise ValueError(f"{args[0]} {args[1]} failed (exit {result.returncode}){detail}")
     # Porcelain status has significant leading spaces in its two-column status code.
     return result.stdout.rstrip("\r\n")

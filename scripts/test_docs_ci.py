@@ -50,6 +50,13 @@ class DocsCiTests(unittest.TestCase):
             with self.assertRaises(ValueError) as caught: ci.run('git', 'push')
         self.assertNotIn('403', str(caught.exception))
 
+    def test_whitespace_check_names_the_file(self):
+        failed = ci.subprocess.CompletedProcess([], 2, 'Docs/zh-CN/guide.md:3: trailing whitespace.\n+text  \n', '')
+        with patch.object(ci.subprocess, 'run', return_value=failed):
+            with self.assertRaises(ValueError) as caught: ci.run('git', 'diff', '--staged', '--check')
+        self.assertIn('Docs/zh-CN/guide.md:3: trailing whitespace.', str(caught.exception))
+        self.assertNotIn('text', str(caught.exception))
+
     def test_coordinator_refuses_non_default_branch(self):
         with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/docs-translation/test'}):
             with self.assertRaisesRegex(ValueError,'default branch'): self.invoke('commit-source')
