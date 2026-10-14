@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "d84346dcceeecaeab3646c06a1bc6a36ff6ecb25acf334b649ffce272bdff04f",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/api/material-instance.md",
+      "sourceHash": "ac5e225e6dc0e24b70c5e98f25178d3305751433940ff5d363e86cb97d543494",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "849a9bf5e61a7ccb2d282a3d2e1be920b261cbdadc1cf56ae42439ec7e78c135"
+    }
+  ],
+  "translationFile": "content/docs/plugin/api/material-instance.md",
+  "translationHash": "fc97f5d8a710f99abe523cb9302176c70320f104464be02245b12c1b6540188c"
+}

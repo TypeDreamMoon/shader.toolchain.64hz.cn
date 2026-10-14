@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "e594c6613195db6edc9da9429a7454b7b71eb4f7412bd65f27645d6ebb7aadec",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/generation/ephemeral.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "49c1599b00d4b4feb9fd719ea0a516c06484d98afc8f5133f81091a122c090fc"
+      "sourceHash": "d15ab5f88badc105efa04274171967b16a88b7aff840aa79fe3999cf5ee75a11",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "e03ce521fdeb0f538d3ba0a7bbca6b3dfad7c23ce1818beb4f57b6fc8db7adf7"
     }
   ],
   "translationFile": "content/docs/generation/in-memory.md",
-  "translationHash": "c7d782502ac22fd163ba507e780477996f94d5d889b372d01fc6f4c820f28a05"
+  "translationHash": "c07d73c63e542880ed7e22b0d60d967416dfab585bf9efdb199ede559c26d6ba"
 }

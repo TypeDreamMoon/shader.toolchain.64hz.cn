@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "778e9059daf9d35a1c027953bb76d39e90e34ad4c92d981fcdddaf420008b842",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/getting-started.md",
+      "sourceHash": "bfab387b3ca8d4897c88521a07fc2b048fbb3f055ef083d5ce54ab066b18d4ea",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "91678d28ad26920941ac694251d81b22a882b70e91bf790e40913f730234f05e"
+    }
+  ],
+  "translationFile": "content/docs/plugin/getting-started.md",
+  "translationHash": "4991d4d1cf2fb36ae6ce44cf326bafef35add8a25f60a10bc5c54bd2f0893ba3"
+}

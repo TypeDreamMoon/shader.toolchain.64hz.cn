@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "a6563a18631200f28de37d80acbe38f162a6ae62af63404e53cd2e8521c0048b",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/graph/declarations.md",
+      "sourceHash": "3af8fc626f08f9d8f528a9ab4db5cf07b6a36488630a062fbe6c51ad62c251b9",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "d5230202d90763eef82745ff2b17dc94807688bdd4299b2028b50a37fdb68f58"
+    }
+  ],
+  "translationFile": "content/docs/plugin/graph/declarations.md",
+  "translationHash": "06b6d5316f1ff1b554f58a7dfde303692e9c7cebbe9762238e7a20ff0fa9b3d0"
+}

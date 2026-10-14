@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "d31d762ab712ea5757291131af74f7ce0fcc9204f72988054900c6cbfe11c44d",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/diagnostics/limitations.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "1bf711bcc70739e834cd7c6c29da4e48f2d1c3bede09474be9a9045fe5f8b19b"
+      "sourceHash": "5f2509007cb95b90dc87b68e7808fcbd883d24fc54447022cdd8ad35e74c3fb8",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "7058415ecf371cbade620cb4d62176c440bb120cd09188cb806aced1d575737d"
     }
   ],
   "translationFile": "content/docs/diagnostics/limitations.md",
-  "translationHash": "66cd99aff9aff4ae093bdda79185828350ac6206d7fe82eb2fce2f0eae54abfc"
+  "translationHash": "5343335f0804ee1b38cd9ff196482c193ce06ae83bb897d9dd41eed1d08b1f85"
 }

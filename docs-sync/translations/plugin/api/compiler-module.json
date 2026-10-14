@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "b3247ace809b31fc021e549925ca6468c38e0ce82923417838e2e8a528889e05",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/api/compiler-module.md",
+      "sourceHash": "5fe897aaa08247b5f7d153717dc73b0239adaceb07a4349ff98767e01cbf747f",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "d931dd6ef639adecd5a7b875eb9bc40409a2b5e04172818f82553bc596e74a03"
+    }
+  ],
+  "translationFile": "content/docs/plugin/api/compiler-module.md",
+  "translationHash": "b93f4cd53e7b6a747d04da09531e2d18d7bc02ab0a316f5e50fda01ba2633079"
+}

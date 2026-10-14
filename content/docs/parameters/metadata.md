@@ -41,7 +41,7 @@ ScalarParameter Roughness = 0.5 [Group="Surface"; Slider(0, 1); Desc="Micro-surf
 一个键做什么，取决于 property 的形式 （自 2.0.0 起）：在**声明**上（所有紧凑 token、`ScalarParameter`、
 `StaticBoolParameter`、`VectorParameter`、`TextureObjectParameter`），条目变成 `uniform` 的 2.0 `///` 指令；在**于
 使用处展开**的参数节点上（`StaticSwitchParameter`、两个 mask、纹理采样 token），条目变成反射调用的参数。见
-[Properties 类型](/docs/parameters/properties#参数节点-token)。
+[Properties 类型](/docs/parameters/properties)。
 
 ## 可识别的键 [#可识别的键]
 
@@ -301,7 +301,7 @@ token 上它是反射节点的参数，绑定时按引擎目录检查。
 | `ConstMipValue` | `int32` | `-1` |
 | `IsDefaultMeshpaintTexture` | bool | `false` |
 
-`MipValueMode` 是唯一会改变节点**引脚**名的键，因而也决定了[引脚调用形式](/docs/parameters/properties#各参数类型的引脚名)
+`MipValueMode` 是唯一会改变节点**引脚**名的键，因而也决定了[引脚调用形式](/docs/parameters/properties)
 在实际节点上能匹配哪些名字。
 
 ## 这个块还能用在哪 [#这个块还能用在哪]
@@ -310,7 +310,7 @@ token 上它是反射节点的参数，绑定时按引擎目录检查。
   `SortPriority` / `Sort` 有效。`Group` 会被解析并保留但从不应用 —— Unreal 的函数输入/输出节点没有分组字段 —— 其他键则
   被忽略而不是走反射。输入的 `SortPriority` 默认取声明序号。
 - **不能**用在 `Shader` 的 `Outputs` 语句上，也不能用在 `Settings`、`Options` 或 `Layout` 条目上。
-- `const` 声明只保留常量节点有的东西：见 [Properties 类型](/docs/parameters/properties#const-声明)。
+- `const` 声明只保留常量节点有的东西：见 [Properties 类型](/docs/parameters/properties)。
 
 ## 诊断 [#诊断]
 

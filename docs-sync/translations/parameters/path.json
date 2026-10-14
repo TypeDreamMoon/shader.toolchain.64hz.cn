@@ -2,7 +2,7 @@
   "version": 2,
   "status": "unreviewed",
   "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/parameters/path.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/parameters/path.md",
-  "translationHash": "1ed7d05c31628c900fd35dcca28469ee821c577aed67997aee957ac52017b21f"
+  "translationHash": "7e78dc2c7d4dbb0a125620947966171fa4932c33f9e81480aabd92bd04592e02"
 }

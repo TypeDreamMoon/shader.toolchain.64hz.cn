@@ -39,7 +39,7 @@ if ( <condition> )
 
 `If (x) {}` 和 `ELSE {}` 不是控制流。因为关键字匹配区分大小写，`If (x)` 是对一个叫 `If` 的函数的调用，本该
 放这条语句 `;` 的位置出现了 `{`，于是报 `DSH2154`——一个完全不提 `if` 的码。见
-[不支持的写法](/docs/graph/unsupported#大小写写错的关键字)。
+[不支持的写法](/docs/graph/unsupported#wrong-case-keywords)。
 
 ## 条件 [#条件]
 
@@ -109,7 +109,7 @@ if (Mask > 0.5) {
 ```
 
 条件里的 `%`、`?:`、`[ ]`、`~`、`!` 以及移位和位运算符也一样：各自是带码的错误。见
-[不支持的写法](/docs/graph/unsupported#1x-会截断的运算符)。
+[不支持的写法](/docs/graph/unsupported#operators-1x-truncated)。
 
 ## 节点接线 [#节点接线]
 
@@ -154,7 +154,7 @@ if (Mask > 0.5) {
 - 任一分支内部的错误都会让构建失败，哪怕那是常量条件下永远到不了的分支。每个错误都报在它自己的行列上。
 - 分支里声明的变量只属于该分支 （自 2.0.0 起）：不参与合并，`if` 之后这个名字不存在。见
   [语句与声明](/docs/graph/statements#作用域)。
-- 两个分支里以及合并之后的相同节点由去重 pass 合并。见[节点复用](/docs/graph/expressions#节点复用)。
+- 两个分支里以及合并之后的相同节点由去重 pass 合并。见[节点复用](/docs/graph/expressions)。
 - 条件的操作数是共享的，但 **N** 个被合并的变量会产生 **N** 个条件节点。
 - 在分支内部首次读取的参数在 `if` 之后再读也是同一个节点 （自 2.0.0 起）（1.x 会留下重复的参数节点）。
 
@@ -214,7 +214,7 @@ Color = Blend;
 | `DSH2151: Expected an expression, found {0}.` | if ()，或缺了一个操作数的条件，例如 if (Mask &gt;)。 |  |
 | `DSH2209: Expected braces around the body of a 1.x Graph 'if', found a single statement.` | if 或 else 的块体不带花括号。 | 两个分支的花括号都是必需的，哪怕只有一条语句。 |
 | `DSH2150: Unexpected end of file while parsing {0}.` | 某个块体的 { 从未闭合；报告位置是文件末尾。 | 找到缺少 } 的块体。 |
-| `DSH2154: Expected ';' after an expression statement, found {1}.` | If、Else 等大小写写错的关键字被当作名字和调用读取。 |  [详解](/docs/graph/unsupported#大小写写错的关键字) |
+| `DSH2154: Expected ';' after an expression statement, found {1}.` | If、Else 等大小写写错的关键字被当作名字和调用读取。 |  [详解](/docs/graph/unsupported#wrong-case-keywords) |
 | `DSH2210: Expected at most one comparison in a 1.x Graph 'if' condition, found '{0}' as well, where 1.x silently dropped the rest of the condition; move this code to a .dss file.` | 条件里有第二个比较，或用了 &amp;&amp; / \|\|。 | 改写成嵌套 if，或先算出组合后的掩码再比较。 |
 | `DSH2200: Expected only '+', '-', '*', '/', calls and members in a 1.x Graph expression, found '{0}', where 1.x silently dropped the rest of the expression; move this code to a .dss file.` | 条件操作数里出现了 ! 或 ?:。 |  |
 | `DSH2201: Expected only '+', '-', '*', '/', calls and members in a 1.x Graph expression, found '{0}', where 1.x silently dropped the rest of the expression; move this code to a .dss file.` | 条件操作数里出现了 %、~、移位或位运算符。 |  |

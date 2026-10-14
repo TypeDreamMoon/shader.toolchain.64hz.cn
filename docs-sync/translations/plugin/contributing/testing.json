@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "2e2f98c705bc5a575c6e50400929648a97d8173b197b3e0655bd2600d6e867d7",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/contributing/testing.md",
+      "sourceHash": "05b4204abc96bd6024acc5246ff851171e360ac4026feb889a1511042e9af972",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "8554d5d9aca461a89b129b73e2240878778bef7bbf54be59511fd7f54e2b331a"
+    }
+  ],
+  "translationFile": "content/docs/plugin/contributing/testing.md",
+  "translationHash": "95ec0016e12d39134b8c5fbf0857f92b00698efb185dc73d2089ec62e09b7b95"
+}

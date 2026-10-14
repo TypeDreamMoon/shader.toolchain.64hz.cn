@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "f3dd7be15dcc255ad70462c80f3d8b4ea56056fe07b28de90d614b2df0211184",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/language-v2/substrate.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "40ed1dfadb376e5f575e8b765fddc41205bfaf8929821fe9e79e5d8d54d9aed6"
+      "sourceHash": "6e1c367697cf90b5708337236ed0ef807991741769330fc0cc39d770e6f2dce8",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "16787cbd5151904c54936870323083b1f7e05b66bdfe9373b76bc3023a76b525"
     }
   ],
   "translationFile": "content/docs/language-v2/substrate.md",
-  "translationHash": "3fa367fdf10ed0a3e05799e121b81eaad626a5f571b183cf545a888f3df0ac11"
+  "translationHash": "d6e055eff28ee69327281577a7fbe7852df21394b3f8966ef034bab899bee86f"
 }

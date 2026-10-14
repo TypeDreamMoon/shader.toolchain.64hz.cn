@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "3d1173735a61d62a9f9f690ad1002a0eb90056db42419099ed58fc58144740f6",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/builtins/transform.md",
+      "sourceHash": "447b9ca76e3882bfaf4a09e38ed8333d3546f57940e3c65fc28c034b72589ea7",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "be8a0f8bb8f6c7112c5bf3ca3e12b39e54adf8e4572602b720345c92e46c9aab"
+    }
+  ],
+  "translationFile": "content/docs/plugin/builtins/transform.md",
+  "translationHash": "6ce7a09e8373e1f5f22728bc63a3eda204cb90870192b0e61da753cc8ec8d9ae"
+}

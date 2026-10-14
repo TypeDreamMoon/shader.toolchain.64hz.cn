@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "c2a1b3335b575d44e19a15f06863e091652bec5172a7b929ae979d818ba58f34",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/graph/constructors.md",
+      "sourceHash": "e10a269f06acd941b688259a7646abec1e547b3ae574bbd838baee568dc2cab4",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "c46c4664fd7dc7698a98b5b921f2d7824f5744b223d6451570c522a61921d2bd"
+    }
+  ],
+  "translationFile": "content/docs/plugin/graph/constructors.md",
+  "translationHash": "186ec8058773eefa17e248a66ddec254bbb19dc3be88f9f53a5b0c44e5c85988"
+}

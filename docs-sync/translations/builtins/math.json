@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "16533a53138634cc549c9862221a96a6b983a5be443905c23df7c95864e7dc90",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/builtins/math.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "c72a81a56b3dfc8c82b779e0fe9fdb2dc50589ebb43933116e445517c949e070"
+      "sourceHash": "a08b78b8ef035844a32d749f1045b562aba993927cb1b9190fbeca7802e110f0",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "b805e5dee47ed78c346c85ad07e856146606473f8106eed8f271e15f88b766e9"
     }
   ],
   "translationFile": "content/docs/builtins/math.md",
-  "translationHash": "a3a1c8d00720f525649da8797ed4453879005019bf395c206a3618d96050a4b8"
+  "translationHash": "66a2e60724936e7d6fa2429f9de792ac17153d2ec36d6ff6da14a42658ff00f0"
 }

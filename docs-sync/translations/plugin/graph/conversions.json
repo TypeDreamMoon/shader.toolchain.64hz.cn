@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "9e613b9541133d79f48bcc4315324a5f5c5665fbe8e7d8601f71dc02c269eb9f",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/graph/conversions.md",
+      "sourceHash": "dde83030a5a7eaf8629a7320650877a4f2f1c124c4cc3c56e3302c2c6a0b60b7",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "d1ff6025b837c385c08a0fdb76ef5ec3c5438a096dfd58dbb5f733bf6db71736"
+    }
+  ],
+  "translationFile": "content/docs/plugin/graph/conversions.md",
+  "translationHash": "a88cfa2ab5d8527334a2faf0bd65dcee3fe638c34c02f54da596a701006b5382"
+}

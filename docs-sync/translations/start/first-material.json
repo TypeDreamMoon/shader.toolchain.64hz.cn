@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "8a5ad46f08362e9c70fca5e3af1d3c64269b2e38f10a9bd4d6c235629f64bef2",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/getting-started/first-material.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "cf2b8c0b84f2a275911bb519223a95707bfa736f75781dbdd0f35fb519cf81ae"
+      "sourceHash": "4cc632ea12b7914a9c597ebf27dbe92f9d0e1da9cdbe3efa4a8c291bd4473967",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "18f0834a10397eedb0e79d5807d9087425a312339e186f02e0003360b6a3c74d"
     }
   ],
   "translationFile": "content/docs/start/first-material.md",
-  "translationHash": "7b79acc82af5b699f6641b386d83a0d141eac64f057182d2188d476f492ec2a8"
+  "translationHash": "9aa214c5bfb9ab70024d1cbece1fde332dc5e2853ce946b398d44f1f893836ff"
 }

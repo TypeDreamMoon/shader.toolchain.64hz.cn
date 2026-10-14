@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "f751a0a313964bfaa9079c4836197607b39419455832191668cc77650243241d",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/graph/calls.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "65ba7902a3f0b801a741ed8488791aad7cd15b34232f919dcc76fee9d573052e"
+      "sourceHash": "39816f543e45136767a80125acde24b8d9105a6a82e7c0e8557e10594089a8f3",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "ed87e699fcf57de3e61f1a6ba77b7f1a2487290d43d0a3182da25c438cb238c2"
     }
   ],
   "translationFile": "content/docs/graph/calls.md",
-  "translationHash": "31722a2643d996090f62bffd2764fa5bc77a0382d38e4ee58769c48b91d1414d"
+  "translationHash": "a706eb871f637b689c7ab70861cc8f4226c958155323da3a004397a09c9cdd2e"
 }

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "d3ff0342e813e9855cbfae6b307379f980e07d1e970352900a595d1e4e4d6bb3",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/language/graph-function.md",
+      "sourceHash": "8968441e561f21f051d9e98f43dc9a66b0efbb97c24d5ec2d3dd50c5a22e7d81",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "c968a2964b35556ed430aa452da84ea5dda51b5ea3f8036d8dafdb1896f16a05"
+    }
+  ],
+  "translationFile": "content/docs/plugin/language/graph-function.md",
+  "translationHash": "5f667ffd57c0d514207e4b78cd090be88f34b61197088dbbb75183e1cabb62d5"
+}

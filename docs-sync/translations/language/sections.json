@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "c986710a780a8bfdbb186886a7fc78d58af6e8e8d697063e3590c76ee1e4264f",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/language/sections.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "6673c1b4e61fd9220142ebbd561777139006a934e1bef1b990d79e09d1632c19"
+      "sourceHash": "8482a10c6652cd1cb1a195feea4ac88568a3b2755b661e1e4f177670bea031a9",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "640420c0b00c952defa64a98b10117a703bb23a867b8b5c26d75cc0a9f34dade"
     }
   ],
   "translationFile": "content/docs/language/sections.md",
-  "translationHash": "58f3c9a235055e433c7479af428d421bb5b10596df5a6c0e7bb2af73c0e5fe76"
+  "translationHash": "8e45dfac340c883796892b9a9a55d7ddabac7fb61e43bd84dce0d0694dbbb0ad"
 }

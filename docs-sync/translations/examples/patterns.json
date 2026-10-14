@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "e7e9a28f17fd0cb4729b0d410083b25c4c9ee197d37a1056a80460e8b2dac047",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/examples/patterns.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "31bd9cf54e8f5d2afa437a959aab611d413a973b8e0a73c1b38109be6a05b962"
+      "sourceHash": "0b6b0aafb7a7d46a87e93eed7366664f2f83e99c78c48210e6f32dcbccd25aec",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "df9d8d577e2765102e64a4548debecf463be6905e2af940fa20ca811d4cf706a"
     }
   ],
   "translationFile": "content/docs/examples/patterns.md",
-  "translationHash": "5284367663f8b8cdec4d66d18bd7e8bf071eb52ce0200c531dcf596d74329191"
+  "translationHash": "822710c5dd711ba70334f6afa28b170b2d195463d48b0b440b86b93f0c0376ba"
 }

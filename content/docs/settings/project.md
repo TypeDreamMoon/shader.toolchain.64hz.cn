@@ -30,7 +30,7 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **17**
 | Paths | Source Directory | `SourceDirectory` | `FDirectoryPath` | `DShader` | 扫描源文件的根目录。为空时回退到 `DShader`；相对路径相对项目目录解析。`<Source>/Packages` 由它推导。 |
 | Paths | Generated Shader Directory | `GeneratedShaderDirectory` | `FDirectoryPath` | `Intermediate/DreamShader/GeneratedShaders` | 虚拟着色器目录映射到哪里。为空时回退到默认值。 |
 | Paths | **Scan Plugin Source Directories** （自 1.6.0 起） | `bScanPluginSourceDirectories` | `bool` | `true` | 开启时，每个带 `DShader` 目录的已启用插件都贡献一个自己的源码根。关闭后，项目的 *Source Directory* 是唯一的根。见[工程结构](/docs/start/project-layout)。 |
-| Compiler | **Preprocessor Defines** （自 1.9.0 起） | `PreprocessorDefines` | `TMap<FString, FString>` | *空* | 项目编译的每个源文件里 [`#if`](/docs/language/lexical#预处理器) 能看到的名字。键**区分大小写**；空值是一个裸标记，对 `#if` 和 `defined()` 都为真。以 `DS_` 开头的键会被丢弃并记一条警告 —— 这个前缀留给内置名。修改这张表只重建读到了改动名字的源文件。 |
+| Compiler | **Preprocessor Defines** （自 1.9.0 起） | `PreprocessorDefines` | `TMap<FString, FString>` | *空* | 项目编译的每个源文件里 [`#if`](/docs/language/lexical) 能看到的名字。键**区分大小写**；空值是一个裸标记，对 `#if` 和 `defined()` 都为真。以 `DS_` 开头的键会被丢弃并记一条警告 —— 这个前缀留给内置名。修改这张表只重建读到了改动名字的源文件。 |
 | Compiler | **Default Compiler Backend** | `DefaultBackend` | `EDreamShaderDefaultBackend` | `ThinCustom` | 源文件未写 `Settings = { Backend = … }` 时使用的后端。修改它会重建构建键因此改变的源文件；不受影响的被跳过。 |
 | Compiler | **Graph Layout Style** （自 2.0.0 起） | `GraphLayoutStyle` | `EDreamShaderGraphLayoutStyle` | `Blocks` | 生成的图怎么排布：三种读取编译器 IR 的布局之一 —— `Blocks`（按源码顺序排成一页方框，之间用具名 reroute 相连；默认）、`SourceBands`（每条源码语句一条带）、`Layered`（整张图分层）—— 或 `Classic`，即 1.x 的布局。`dsc dump-layout` 不构建任何东西就能画出三种 IR 布局。不属于构建键：布局只挪节点，不改变计算。所以源文件要等下次**重建**才会重新排布 —— 未改动的照常被跳过，用 *Recompile*（或 `compile -Force`）才能看到已有的图换成新样式。 |
 | Compiler | **Show Ephemeral Materials** | `bShowEphemeralMaterials` | `bool` | `false` | 关闭时，纯内存的 DreamShader 实例把自己报告为非资产，从内容浏览器、资产注册表枚举和保存选择器中消失。只作用于 `ThinCustom` 后端：`Graph` 材质是普通的 `UMaterial`，没有 Ephemeral 状态，总是可见。每次查询都实时读取。 |
@@ -82,7 +82,7 @@ DreamShader 的项目级配置是一个 `UDeveloperSettings` 对象，共 **17**
 `DS_` 前缀留给只读的内置名 `DS_ENGINE_MAJOR`、`DS_ENGINE_MINOR`、`DS_ENGINE_PATCH`、`DS_PLATFORM`、`DS_PLUGIN_VERSION` 和
 `DS_SUBSTRATE`；使用它的条目会被丢弃并记一条日志警告，而不是让编译失败 —— 设置里的错误没有源码行可以报。这张表是 define
 来源的五层之一，也是人能编辑的那层里优先级最低的：C++ 注册和 provider 压过它，命令行的 `-Define=` 又压过那些，只有内置
-`DS_` 名压过一切。见[预处理器](/docs/language/lexical#预处理器)。
+`DS_` 名压过一切。见[预处理器](/docs/language/lexical)。
 
 ## 面板提示文本 [#面板提示文本]
 
@@ -195,6 +195,6 @@ bSyncSourceReferencesOnAssetRename=True
 
 - [Backend](/docs/settings/backend) —— 按文件如何覆盖 *Default Compiler Backend*
 - [枚举取值](/docs/settings/enums) —— 映射表所扩展的内置表
-- [预处理器](/docs/language/lexical#预处理器) —— *Preprocessor Defines* 喂给谁，以及另外四层 define 来源
+- [预处理器](/docs/language/lexical) —— *Preprocessor Defines* 喂给谁，以及另外四层 define 来源
 - [内存材质](/docs/generation/in-memory) —— Ephemeral 在实践中意味着什么
 - [编辑器工具](/docs/tools/editor) —— Tools 菜单项与材质内容浏览器

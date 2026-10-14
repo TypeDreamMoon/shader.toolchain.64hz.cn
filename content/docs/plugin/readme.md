@@ -1,153 +1,49 @@
 ---
-title: "DreamShader 简体中文文档"
-description: "DreamShader 简体中文文档"
+title: "DreamShader 文档"
+description: "DreamShader 文档"
 ---
 
-# DreamShader 简体中文文档
+# DreamShader 文档 [#dreamshader-documentation]
 
 [English](/docs/plugin/readme) · 简体中文
 
-本页当前是首次迁移的初始导航，后续会由 [Docs/README.md 英文原文](/docs/plugin/readme) 的中文译文替换。原有迁入、缺译和待核对清单已完整保存在 [首次迁移快照](https://github.com/TypeDreamMoon/DreamShader/blob/8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4/Docs/zh-CN/TRANSLATIONS.md)，最新状态以 `python -B Docs/translation-status.py` 或文档站仓库的翻译状态 Issue 为准。
+本目录是 DreamShader 手册的英文原文。教程与参考页按主题放在一起，可以在 GitHub 上阅读，也可以用本地 Markdown 阅读器打开。[文档站](https://shader.toolchain.64hz.cn/en/docs)发布这些英文原文，以及本插件中维护的、经过审阅的中文译文。
 
-这些文档从原文档站迁入，目前均为**待核对的旧译文**，尚未确认与当前英文一致。英文仍是技术内容的原文；中文修订由插件仓库中的翻译 PR 审阅，合并后再同步到网站。
+## 从这里开始 [#start-here]
 
-网站独有页面和 `docs-sync:notes` 补充保留在网站，不属于这里的翻译。
+1. [关于 DreamShader](/docs/start/about) —— 插件、其模块及支持的引擎。
+2. [安装](/docs/start/installation) —— 安装、启用并检查插件。
+3. [第一个材质](/docs/start/first-material) —— 编写并找到生成的材质。
+4. [项目结构](/docs/start/project-layout) —— 源根目录、文件夹和文件。
+5. [日常工作流](/docs/start/workflow) —— 保存、编译、重新生成和诊断。
 
-## 已迁入，待核对
+简洁的[入门参考](/docs/plugin/getting-started)仍可用于快速设置。
 
-- [Custom Pass 材质节点](/docs/builtins/dream-pass)
-- [HLSL pass](/docs/custom-pass/hlsl)
-- [数学内置](/docs/builtins/math)
-- [Substrate 节点](/docs/builtins/substrate)
-- [通用 UE.Expression](/docs/builtins/ue-expression)
-- [UE.* 节点](/docs/builtins/ue-nodes)
-- [DreamShader 插件](/docs/changelog/dreamshader)
-- [错误速查](/docs/diagnostics)
-- [当前限制](/docs/diagnostics/limitations)
-- [Custom Pass 示例](/docs/examples/custom-pass)
-- [常用写法](/docs/examples/patterns)
-- [完整示例](/docs/examples/recipes)
-- [资产路径](/docs/generation/asset-paths)
-- [内存材质（Ephemeral）](/docs/generation/in-memory)
-- [生成流程](/docs/generation/pipeline)
-- [输出绑定](/docs/generation/outputs)
-- [重新生成](/docs/generation/regeneration)
-- [版本控制](/docs/generation/source-control)
-- [关于 DreamShader](/docs/start/about)
-- [第一个材质](/docs/start/first-material)
-- [安装](/docs/start/installation)
-- [项目结构](/docs/start/project-layout)
-- [日常工作流](/docs/start/workflow)
-- [调用](/docs/graph/calls)
-- [运算符与转换](/docs/graph/expressions)
-- [if / else](/docs/graph/control-flow)
-- [Graph 求值模型](/docs/graph/overview)
-- [语句与声明](/docs/graph/statements)
-- [不支持的写法](/docs/graph/unsupported)
-- [概览](/docs/)
-- [DreamShaderLang 2.0](/docs/language-v2)
-- [材质实例](/docs/language-v2/instances)
-- [Custom Pass 管线](/docs/language-v2/passes)
-- [Substrate 语法糖](/docs/language-v2/substrate)
-- [顶层块](/docs/language/blocks)
-- [函数](/docs/language/functions)
-- [import 与命名空间](/docs/language/imports)
-- [Layout 与 #Region](/docs/language/layout)
-- [词法与大小写](/docs/language/lexical)
-- [Properties 类型](/docs/parameters/properties)
-- [Section](/docs/language/sections)
-- [文件模型](/docs/language/file-model)
-- [类型与值](/docs/language/types-and-values)
-- [元数据与分组](/docs/parameters/metadata)
-- [Path 资产引用](/docs/parameters/path)
-- [Custom Pass 运行时](/docs/custom-pass)
-- [Backend](/docs/settings/backend)
-- [枚举取值](/docs/settings/enums)
-- [材质 Settings](/docs/settings/material)
-- [项目设置](/docs/settings/project)
-- [命令行](/docs/tools/commandlet)
-- [反编译导出](/docs/tools/decompiler)
-- [编辑器工具](/docs/tools/editor)
-- [从 1.x 迁移](/docs/language-v2/migrate)
-- [Package](/docs/tools/packages)
-- [VSCode 与 Rider](/docs/tools/vscode)
+## 主题 [#topics]
 
-## 尚未翻译
+| 主题 | 指南与参考 |
+| --- | --- |
+| 语言 | [DreamShaderLang 2.0](/docs/language-v2)；[1.x 参考](/docs/plugin/language)、[块](/docs/language/blocks)、[Section](/docs/language/sections)、[函数](/docs/language/functions) |
+| 图 | [语句、表达式与调用](/docs/graph/overview) |
+| 节点与参数 | [内置](/docs/plugin/builtins)、[参数](/en/docs/plugin/parameters)、[设置](/en/docs/plugin/settings) |
+| 生成 | [管线与资产生命周期](/docs/generation/pipeline)、[输出绑定](/docs/generation/outputs)、[版本控制](/docs/generation/source-control) |
+| 示例 | [参考示例](/docs/plugin/examples)、[常用写法](/docs/examples/patterns)、[完整示例](/docs/examples/recipes)、[Custom Pass 示例](/docs/examples/custom-pass) |
+| 工具 | [编辑器工具](/en/docs/plugin/tools)、[VSCode 与 Rider](/docs/tools/vscode)、[命令行](/docs/tools/commandlet) |
+| Custom Pass | [运行时](/docs/custom-pass)、[HLSL pass](/en/docs/plugin/pass-runtime/hlsl)、[管线语言](/docs/language-v2/passes) |
+| 诊断 | [错误与警告速查](/docs/diagnostics)、[当前限制](/docs/diagnostics/limitations) |
+| 开发 | [C++ API](/docs/plugin/api)、[参与贡献](/docs/plugin/contributing)、[测试](/docs/plugin/contributing/testing)、[发布](/docs/plugin/contributing/release) |
+| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/CHANGELOG.md) |
 
-以下链接指向英文原文；不会把英文副本标为中文译文。
+[完整参考索引](/docs/)列出了各篇技术参考页。
 
-- [README.md](/docs/plugin/readme)
-- [api/compiler-module.md](/en/docs/plugin/api/compiler-module)
-- [api/dreamshader-module.md](/en/docs/plugin/api/dreamshader-module)
-- [api/index.md](/en/docs/plugin/api)
-- [api/lang-module.md](/en/docs/plugin/api/lang-module)
-- [api/material-instance.md](/en/docs/plugin/api/material-instance)
-- [api/parser.md](/en/docs/plugin/api/parser)
-- [api/pass-module.md](/en/docs/plugin/api/pass-module)
-- [api/settings.md](/en/docs/plugin/api/settings)
-- [api/types.md](/en/docs/plugin/api/types)
-- [api/version-compat.md](/en/docs/plugin/api/version-compat)
-- [builtins/index.md](/en/docs/plugin/builtins)
-- [builtins/output-type.md](/en/docs/plugin/builtins/output-type)
-- [builtins/transform.md](/en/docs/plugin/builtins/transform)
-- [contributing/index.md](/en/docs/plugin/contributing)
-- [contributing/release.md](/en/docs/plugin/contributing/release)
-- [contributing/testing.md](/en/docs/plugin/contributing/testing)
-- [diagnostics/DSH1xxx.md](/en/docs/plugin/diagnostics/dsh1xxx)
-- [diagnostics/DSH2xxx.md](/en/docs/plugin/diagnostics/dsh2xxx)
-- [diagnostics/DSH3xxx.md](/en/docs/plugin/diagnostics/dsh3xxx)
-- [diagnostics/DSH4xxx.md](/en/docs/plugin/diagnostics/dsh4xxx)
-- [diagnostics/DSH5xxx.md](/en/docs/plugin/diagnostics/dsh5xxx)
-- [diagnostics/DSH6xxx.md](/en/docs/plugin/diagnostics/dsh6xxx)
-- [diagnostics/DSH7xxx.md](/en/docs/plugin/diagnostics/dsh7xxx)
-- [diagnostics/DSH8xxx.md](/en/docs/plugin/diagnostics/dsh8xxx)
-- [diagnostics/DSH9xxx.md](/en/docs/plugin/diagnostics/dsh9xxx)
-- [diagnostics/README.md](/en/docs/plugin/diagnostics/readme)
-- [examples/index.md](/en/docs/plugin/examples)
-- [generation/caching.md](/en/docs/plugin/generation/caching)
-- [generation/divergence.md](/en/docs/plugin/generation/divergence)
-- [generation/generated-hlsl.md](/en/docs/plugin/generation/generated-hlsl)
-- [generation/graph-layout.md](/en/docs/plugin/generation/graph-layout)
-- [getting-started.md](/en/docs/plugin/getting-started)
-- [graph/constructors.md](/en/docs/plugin/graph/constructors)
-- [graph/conversions.md](/en/docs/plugin/graph/conversions)
-- [graph/declarations.md](/en/docs/plugin/graph/declarations)
-- [graph/literals.md](/en/docs/plugin/graph/literals)
-- [graph/material-attributes.md](/en/docs/plugin/graph/material-attributes)
-- [graph/name-resolution.md](/en/docs/plugin/graph/name-resolution)
-- [graph/node-reuse.md](/en/docs/plugin/graph/node-reuse)
-- [graph/swizzle.md](/en/docs/plugin/graph/swizzle)
-- [language/function.md](/en/docs/plugin/language/function)
-- [language/graph-function.md](/en/docs/plugin/language/graph-function)
-- [language/index.md](/en/docs/plugin/language)
-- [language/inputs-outputs.md](/en/docs/plugin/language/inputs-outputs)
-- [language/keywords.md](/en/docs/plugin/language/keywords)
-- [language/namespace.md](/en/docs/plugin/language/namespace)
-- [language/options.md](/en/docs/plugin/language/options)
-- [language/output-bindings.md](/en/docs/plugin/language/output-bindings)
-- [language/preprocessor.md](/en/docs/plugin/language/preprocessor)
-- [language/shader-function.md](/en/docs/plugin/language/shader-function)
-- [language/shader-layer.md](/en/docs/plugin/language/shader-layer)
-- [language/shader.md](/en/docs/plugin/language/shader)
-- [language/virtual-function.md](/en/docs/plugin/language/virtual-function)
-- [parameters/compact-types.md](/en/docs/plugin/parameters/compact-types)
-- [parameters/graph-usage.md](/en/docs/plugin/parameters/graph-usage)
-- [parameters/index.md](/en/docs/plugin/parameters)
-- [parameters/parameter-nodes.md](/en/docs/plugin/parameters/parameter-nodes)
-- [parameters/sampler-type.md](/en/docs/plugin/parameters/sampler-type)
-- [runtime/hlsl.md](/en/docs/plugin/pass-runtime/hlsl)
-- [settings/function.md](/en/docs/plugin/settings/function)
-- [settings/index.md](/en/docs/plugin/settings)
-- [tools/asset-rename-sync.md](/en/docs/plugin/tools/asset-rename-sync)
-- [tools/bridge.md](/en/docs/plugin/tools/bridge)
-- [tools/index.md](/en/docs/plugin/tools)
-- [tools/material-browser.md](/en/docs/plugin/tools/material-browser)
-- [tools/preview.md](/en/docs/plugin/tools/preview)
-- [tools/virtual-function-tools.md](/en/docs/plugin/tools/virtual-function-tools)
-- [tools/workspace.md](/en/docs/plugin/tools/workspace)
+## 维护手册 [#maintaining-the-manual]
 
-## 翻译记录
+编辑相应主题目录中的英文 Markdown。保持示例、标识符和相对链接在插件仓库中可用；网站的呈现方式属于文档站。
 
-`.translations/` 按英文源文件保存迁入记录。`sourceHash: null` 表示尚未核对；`importedSourceHash` 只记录迁入时看到的英文版本，不表示译文已经匹配该版本。这个导航页不是原文翻译，不建立伪造的审阅记录。
+文档站的 `docs-sync/config.json` 将源路径映射到已发布页面 ID。移动源文件需要更新该映射以及指向它的相对链接，同时保留其页面 ID 以保持现有 URL 稳定。英文页面由这些源文件生成；AI 生成的中文更新在发布前会经过 Pull Request 审阅。
 
-在插件根目录运行 `python -B Docs/translation-status.py` 可只读查看翻译状态；`--all` 列出全部原文，`--json` 输出结构化结果。无需文档站仓库，打包后没有 Git 的插件目录也可以运行。
+发布时还会更新[版本说明页面](/docs/changelog/dreamshader)：它面向手册读者撰写——说明对他们而言有哪些变化，并链接到相关页面——并非 `CHANGELOG.md` 的副本，因此两者都不是由对方生成的。当 `CHANGELOG.md` 获得新版本时，更新其*当前版本*行并添加该版本的章节；提及当前版本的页面，例如[限制](/docs/diagnostics/limitations)，也在同一时间审阅。
+
+`zh-CN/` 目录树与英文源路径保持一致。导入的译文未经审阅；[首次迁移快照](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/Docs/zh-CN/TRANSLATIONS.md)保留了原始的已导入和缺译清单。要了解当前状态，请运行 `python -B Docs/translation-status.py`，或查看网站仓库中的翻译状态 Issue。`.translations/` 记录源文件版本，但不将导入视为批准。仅网站使用的说明保留在网站仓库中。
+
+在本地用 `python -B Docs/translation-status.py` 检查翻译状态；添加 `--all` 可包含全部源文件，或添加 `--json` 输出结构化结果。此只读工具无需网站仓库或 Git 检出。

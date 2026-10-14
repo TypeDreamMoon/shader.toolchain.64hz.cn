@@ -2,7 +2,7 @@
   "version": 2,
   "status": "unreviewed",
   "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/settings/project.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/settings/project.md",
-  "translationHash": "5867c1d581bb8b5b20e69e40b3b7ce540e7ea018a7507988395e78dcecf17a43"
+  "translationHash": "8df1ce4c78a82e925f688c8b07bab2405d9e8f9a92135adac416ac4fbf758995"
 }

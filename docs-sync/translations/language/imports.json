@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "b0d42b062c03638705a8fbfdb09c35f74d0ef3a62d9a55e9a285b7eabf7be572",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/language/import.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "882bbd8da9b7093a8ec4e71edfbdd55b53b8de8c2177c6a0ab01e66ef492cb4c"
+      "sourceHash": "0ab6746e33cd18a6dd06434db3406bcdb0bc53fd1134a3ac7d34acce65b4138d",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "369b78a5c2d0f9250adc9329a35f7d5672f5a047502e9465dcfb3e5b77bf75c3"
     }
   ],
   "translationFile": "content/docs/language/imports.md",
-  "translationHash": "abbc23bc7db77a93be1c43b52e11011e46c5d460fb6491679bd1915d6eabe812"
+  "translationHash": "f69e2e18b703aa5a70515dec843e0d3860116337f10b1bc20cd01680a2b0ed6f"
 }

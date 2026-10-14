@@ -101,13 +101,13 @@ UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
 | `-Source=<path>` | `-File=<path>` | 字符串 | 三选一 | — | 只编译一个源文件 |
 | `-All` | — | 标志 | 三选一 | 关 | 编译全部工程 DreamShader 源文件 |
 | `-Force` | — | 标志 | 否 | 关 | 绕过 source hash 短路，无条件重新生成 |
-| `-Define=<NAME>[=<value>]` （自 1.9.0 起） | `-D=<NAME>[=<value>]` | 字符串，可重复 | 否 | — | 给本次运行加一个[预处理器 define](/docs/language/lexical#预处理器) |
+| `-Define=<NAME>[=<value>]` （自 1.9.0 起） | `-D=<NAME>[=<value>]` | 字符串，可重复 | 否 | — | 给本次运行加一个[预处理器 define](/docs/language/lexical) |
 
 优先级：先查 `-Source`，再查 `-File`；两者都没取到值时才看 `-All`。`-Source` 和 `-All` 同时给出时，
 静默地只编译那一个文件。三者都没有时，用法横幅以 `Error` 记录，运行以 `1` 退出。
 
-`-Force` 只绕过 [source hash 短路](/docs/generation/regeneration#什么时候会跳过重新生成)，它不删除任何东西，也过不了
-[手改检测](/docs/generation/regeneration#手改检测)。
+`-Force` 只绕过 [source hash 短路](/docs/generation/regeneration)，它不删除任何东西，也过不了
+[手改检测](/docs/generation/regeneration)。
 
 ### `-Source` 路径解析 [#-source-路径解析]
 
@@ -136,14 +136,14 @@ DreamShader 源树解析，再按工程目录解析。
 调用别的源文件所生成函数的材质会加载那个函数资产，所以资产必须先存在。第 4 步的排序在一轮里就覆盖了常见情况 —— `.dsm` 调 `.dsf` ——
 但覆盖不了函数调函数、或者别的源文件调用一个 `.dss` 导出函数；第 5 步覆盖所有形状，干净的工作区也一样。一直失败的源文件 —— 真错误、
 没人生成的依赖、或者成环 —— 每一轮最多多试一次，报告用的是最后一次的消息，排在所有成功之后。cook 跑的是同样的步骤
-（见[内存材质](/docs/generation/in-memory#cook-行为)）。第 2 步对住在 package 里的 `.dsf` 有一处锋利边缘，见
+（见[内存材质](/docs/generation/in-memory#cook-behaviour)）。第 2 步对住在 package 里的 `.dsf` 有一处锋利边缘，见
 [Package](/docs/tools/packages#源文件枚举)。`.dsp` 不需要自己的 rank：它的 pass 引用的材质缺失或比源文件旧时，`.dsp` 自己的编译会先编那个材质。
 
 ### `-Define` [#-define]
 
 （自 1.9.0 起）
 
-每出现一次，就往本次运行编译所用的 [define 表](/docs/language/lexical#预处理器)里加一项。可以重复 —— 后出现的是追加名字，不是替换整组。
+每出现一次，就往本次运行编译所用的 [define 表](/docs/language/lexical)里加一项。可以重复 —— 后出现的是追加名字，不是替换整组。
 
 | 写法 | 定义 |
 | :-- | :-- |
@@ -158,7 +158,7 @@ DreamShader 源树解析，再按工程目录解析。
 
 **提示：**
 
-define 是[构建键](/docs/generation/regeneration#构建键)的一部分，所以换一组 `-Define` 跑，会**不加** `-Force` 就重建读了变动名字的源文件，
+define 是[构建键](/docs/generation/regeneration)的一部分，所以换一组 `-Define` 跑，会**不加** `-Force` 就重建读了变动名字的源文件，
 没读它的仍然跳过。这正是按配置跑 CI 负担得起的原因：每组 define 跑一次，各自只重建自己开关碰到的东西。
 
 ### 逐文件守卫 [#逐文件守卫]
@@ -346,9 +346,9 @@ pwsh -File Plugins/DreamShader/.skill/dsc.ps1 compile DShader/UI/M_Panel.dss -Fo
   即 `-run=` 含 `Cook` 且不带 `-cookworker` 的进程 —— DreamShader 会在正式 cook 之前把每个工程源文件落成持久资产，
   顺序和 `compile -All` 相同（含分轮重试）。那里的生成失败是 `Fatal`，会中止整个 cook ——
   除非源文件属于一个本工程不往里写的引擎或商城插件 （自 2.1.2 起），那样的失败记成
-  `[Cook] Not this project's to build (plugin '<Name>')`，cook 继续。见[内存材质](/docs/generation/in-memory#cook-行为)。
+  `[Cook] Not this project's to build (plugin '<Name>')`，cook 继续。见[内存材质](/docs/generation/in-memory#cook-behaviour)。
 - **`.dsp` 的编译会写到 `Content/` 之外** （自 2.1.0 起）：`<DShader>/.dreampass/` 下的 HLSL slot 注册表和快照，它们是要提交的源码 ——
-  见[版本控制](/docs/generation/source-control#说明)。commandlet 写它们但不重编 shader；编辑器在它们变化时立刻重编 slot shader。
+  见[版本控制](/docs/generation/source-control#notes)。commandlet 写它们但不重编 shader；编辑器在它们变化时立刻重编 slot shader。
 - 给*非* commandlet 的自动化运行（例如 `-ExecCmds="Automation RunTests …"`）加上
   `-NoDreamShaderEditorBridge`，同样能在那边压掉 bridge —— 见
   [编辑器工具](/docs/tools/editor#关闭整套集成)。

@@ -84,7 +84,7 @@ Graph = {
 **警告：**
 
 关键字区分大小写。`If (x) { … }` 不是 `if` 语句：`If` 是一个名字，`If (x)` 是一次调用，本该放调用语句
-`;` 的位置出现了 `{`，于是报 `DSH2154`。见[不支持的写法](/docs/graph/unsupported#大小写写错的关键字)。
+`;` 的位置出现了 `{`，于是报 `DSH2154`。见[不支持的写法](/docs/graph/unsupported#wrong-case-keywords)。
 
 **提示：**
 
@@ -155,7 +155,7 @@ Texture2D T;           // DSH2215：必须带初始值
 | 3 | 更宽的向量取它的**前导**分量——legacy 规则 L22，给出提示 `DSH5289` |
 | 4 | 其他放不进去的——更窄的向量、把纹理放进数——是 `DSH4228` |
 
-步骤 4 意味着 2 分量值永远不会被加宽成 3 分量。见[转换](/docs/graph/expressions#转换)。
+步骤 4 意味着 2 分量值永远不会被加宽成 3 分量。见[转换](/docs/graph/expressions)。
 
 **警告：**
 
@@ -184,7 +184,7 @@ float a = 1, b, c = 3;
 ### 花括号初始值 [#花括号初始值]
 
 声明的花括号初始值会被改写成声明类型的构造器调用：`T x = { a, b };` 就是 `T x = T(a, b);`。所以它**完全
-就是**构造器调用，继承[构造器](/docs/graph/expressions#构造器)的全部规则：只能用位置参数（`DSH4225`）、
+就是**构造器调用，继承[构造器](/docs/graph/expressions)的全部规则：只能用位置参数（`DSH4225`）、
 单个标量会广播到所有分量、多个参数的分量数之和必须正好等于类型宽度（`DSH4222`）。
 
 `{}` 是特例：它等于没有初始值，变量得到该类型的零值。
@@ -252,7 +252,7 @@ Graph = {
 
 规则 2 的转换会取更宽值的**前导分量**并给出提示 `DSH5289`（legacy 规则 L22），也会把标量广播到更宽的
 目标。它绝不会把 2 分量加宽到 3 分量：那种情况以及其他放不进去的值都是 `DSH4228`。见
-[转换](/docs/graph/expressions#转换)。
+[转换](/docs/graph/expressions)。
 
 ## 表达式语句 [#表达式语句]
 
@@ -423,7 +423,7 @@ Color = Blend;
 | `DSH2154: Expected ';' after a variable declaration, found {1}.` | 语句没有以 ; 结束——包括块体最后一条语句、大小写写错的 If，以及名字不是单个标识符的声明。报告的位置是下一行的第一个记号。 | 补上 ;；错误在报告位置的上一行。 |
 | `DSH2151: Expected an expression, found {0}.` | 该出现值的地方出现了不能开始一个值的记号，例如 = 5;。 | 补上操作数，或删掉多余的记号。 |
 | `DSH2163: Expected a variable name, found {1}.` | 逗号声明里 , 之后的声明子不是名字。 | 只写一个类型 token，后面跟名字：float a = 1, b, c; |
-| `DSH2162: An initializer list is only allowed as a variable initializer, not as a general expression.` | 花括号列表出现在声明初始值以外的地方——赋值或成员写入的右侧、调用参数（形式 5 和 7）。 | 改写成构造器：float3(r, g, b)。 [详解](/docs/graph/expressions#构造器) |
+| `DSH2162: An initializer list is only allowed as a variable initializer, not as a general expression.` | 花括号列表出现在声明初始值以外的地方——赋值或成员写入的右侧、调用参数（形式 5 和 7）。 | 改写成构造器：float3(r, g, b)。 [详解](/docs/graph/expressions) |
 | `DSH2214: Expected an expression as a 1.x Graph initializer, found an initializer list; use a constructor such as 'float3(a, b, c)'.` | 花括号初始值里嵌套了花括号列表。 | 写构造器：float4(float2(1, 2), float2(3, 4))。 |
 | `DSH2206: Expected a variable or 'variable.member' on the left of a 1.x Graph assignment, found '{0}'.` | = 左侧既不是名字也不是 name.member——例如 Attrs.BaseColor.r = 1.0;。 | 给普通变量赋值，在右侧用构造器拼出完整的值。 |
 | `DSH2212: Expected no storage keyword on a 1.x Graph variable, found '{0}'; move this code to a .dss file.` | Graph 变量上写了 static、const 或 uniform。 | 去掉关键字，或把值声明到 Properties 里。 |
@@ -431,7 +431,7 @@ Color = Blend;
 | `DSH2215: Expected an initializer on the 1.x Graph variable '{0}' of type '{1}', found none, and 1.x had no zero value for that type.` | 纹理、SamplerState 或 Substrate 变量没有初始值。 | 给变量一个初始值。 |
 | `DSH4201: '{0}' is not a type; did you mean '{1}'? Type names are case-sensitive.` | 声明的类型 token 无法解析。 |  [详解](/docs/language/types-and-values) |
 | `DSH4220: '{0}' is already declared in this block.` | 同一块里重复声明；分支声明了外层块体已声明的名字；或在 Shader 里声明 Base。 | 去掉类型 token 改成赋值，或换一个名字。 |
-| `DSH4228: {0} expects {1}, and this is {2}.` | 赋值或初始值放不进目标类型——例如把 float2 加宽成 float3，或把纹理放进数。 | 用 swizzle 或构造器调整宽度：float3(v, 0.0)。 [详解](/docs/graph/expressions#转换) |
+| `DSH4228: {0} expects {1}, and this is {2}.` | 赋值或初始值放不进目标类型——例如把 float2 加宽成 float3，或把纹理放进数。 | 用 swizzle 或构造器调整宽度：float3(v, 0.0)。 [详解](/docs/graph/expressions) |
 | `DSH4229: A 'uniform' is an input and a 'static const' is a constant; neither can be assigned to. Copy it into a local first.` | 赋值目标是一个属性。 | 先把属性复制到 Graph 变量里。 |
 | `DSH5289: {0} expects {1}, and this is {2}: its leading components are taken, which is what 1.x did; a '.dss' writes the swizzle.` | 提示（legacy 规则 L22）：更宽的值被截成目标的前导分量。 | 不必改；显式写出 swizzle（Tint.rgb）可以消除提示。 |
 | `DSH5292: '{0}' is not declared, and as in 1.x this assignment declares it, as a local of type {1}.` | 提示（legacy 规则 L26）：赋值声明了一个任何地方都没声明过的名字。 | 不必改；dsc migrate 会写出声明。 |

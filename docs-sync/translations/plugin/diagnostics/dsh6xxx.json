@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "cbbeedba0ed273628d91d80b247788396dc2f8b1f772818c60701e1daab03a2c",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/diagnostics/DSH6xxx.md",
+      "sourceHash": "89a4dfee70e768c75d74c45e85404e98b0eddd3363fd3fd65d68bebe8ceec976",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "613a77d5fb86133f20a6e3e063bd4ef93da800a4bf2661d5f83bd953ad5a564b"
+    }
+  ],
+  "translationFile": "content/docs/plugin/diagnostics/dsh6xxx.md",
+  "translationHash": "b85fbcde86dbbd224f033d33e7ab3d13fcd4a162e89d62ac987018d648d2e3c7"
+}

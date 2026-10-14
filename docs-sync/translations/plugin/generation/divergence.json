@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "474a66ddcfd1e0a82ce773014404522f5298bf792e4c6a99a4e88f7689120df3",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/generation/divergence.md",
+      "sourceHash": "2014caef3c8c180a993ca9e013172e907a2c2a1a6d644ef108523ce40fbefea9",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "6508f85ce4777b6f5808bea56e38c75a334058fee3a75159af023eda8bc6a1bb"
+    }
+  ],
+  "translationFile": "content/docs/plugin/generation/divergence.md",
+  "translationHash": "31ccf052b2698ed77631a867deba7efcb5254f535cb60e2b1082ca89352e36d8"
+}

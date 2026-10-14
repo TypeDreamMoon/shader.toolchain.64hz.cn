@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "8129b312f4dde0499ca3e5ec492ad351cd4d3b13d2d8114ed703c7437c6fb14f",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/language/lexical.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "5315c06c293cfdefe6c089b17de9e707a44f89d85993ae73fb1423344c2a4e96"
+      "sourceHash": "574e87a192e210ea64edeec70f72c9099e2fc89ceead60744695496a4bab23d7",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "abbf02ac66a3609df22fd8ac942c587a813aae005753a31d4c1d49b8292cdbf7"
     }
   ],
   "translationFile": "content/docs/language/lexical.md",
-  "translationHash": "9aa4463eb5b6317c94395af9ae55e378bc796398f5ea9a6b0194d12a6071ca57"
+  "translationHash": "7f6394ef1157aeb49bfd1280ad2e83a185312d02470402b0bbf0c5910e66aadd"
 }

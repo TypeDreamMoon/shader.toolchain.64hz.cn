@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "639f9a311e198449334dbf97812bab7f189413875912b783bc619ca1f65869fa",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/language/output-bindings.md",
+      "sourceHash": "2df76a2395e9d728eb4445f62e440f68b78b75c8cbc5c1ab214c5eb078ca4e04",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "c684d6739ba7a3ffe79bd6c525b19edc12fba454bdf1a4361e2370dcbe037d7d"
+    }
+  ],
+  "translationFile": "content/docs/plugin/language/output-bindings.md",
+  "translationHash": "019c62cff115eeb288221dc1915db635a952d01f6b3add9411a1e94ec0b352d6"
+}

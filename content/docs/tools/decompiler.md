@@ -45,7 +45,7 @@ description: "把已有的材质资产导出成源文件 —— 默认的 2.0 �
 它是[手改检测](/docs/generation/regeneration)的「资产才是对的」那个出口。因此本页的已知缺口同样适用：
 adopt 会把导出器还原不了的东西一起丢掉。源文件声明了不止一个资产时它会**拒绝执行**，因为导出器发射的是
 一个块而不是一个翻译单元，从这种文件里 adopt 一个资产会静默删掉其余的 —— 这种情况请用 **Export Legacy .dsm** 再手工合并。
-含预处理指令的源文件同样拒绝（`DSH8149`）（自 1.9.0 起），见[手改检测](/docs/generation/regeneration#三个出口)。
+含预处理指令的源文件同样拒绝（`DSH8149`）（自 1.9.0 起），见[手改检测](/docs/generation/regeneration)。
 
 两个编辑器入口都要求**恰好选中一个**资产，写完文件后用你偏好的编辑器打开它 —— 见
 [编辑器工具](/docs/tools/editor)。无头入口见[命令行](/docs/tools/commandlet)。
@@ -150,13 +150,13 @@ FrontMaterial        (UE 5.4 及以上)
 
 `UMaterialExpressionCustomOutput`（`ThinTranslucentMaterialOutput`、`ClearCoatNormalCustomOutput`、
 `VolumetricAdvancedMaterialOutput`、`VertexInterpolator`……）没有输出 pin，材质根节点够不到它 —— 所以它从节点列表里导出，写成
-[`Expression( … )` 输出绑定](/docs/generation/outputs#expression--pini-目标)。每个**已连接**的输入 pin 声明一个以 pin 命名的
+[`Expression( … )` 输出绑定](/docs/generation/outputs#the-expression--pini-target)。每个**已连接**的输入 pin 声明一个以 pin 命名的
 `Outputs` 变量，pin 的整棵输入子树写进 `Graph`。写成哪种形式取决于连了几个 pin：
 
 | 已连接的 pin | 写成 |
 | :-- | :-- |
 | 1 | 语句形式，`Expression(Class="…").Pin[<i>] = <var>;` |
-| 2 个或更多 | [块形式](/docs/generation/outputs#块形式)，`Expression(Class="…") { Pin[<i>] = <var>; … }` （自 1.9.0 起） |
+| 2 个或更多 | [块形式](/docs/generation/outputs#block-form)，`Expression(Class="…") { Pin[<i>] = <var>; … }` （自 1.9.0 起） |
 | 0 | 什么都不写 —— 节点被丢掉 |
 
 两种写法重新生成的都是同一个节点。`Class=` 写的是**反射**类名（`MaterialExpressionThinTranslucentMaterialOutput`，不带 `U`）。

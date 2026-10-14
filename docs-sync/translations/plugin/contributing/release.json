@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "6779b5c15fcf593034e605eb7b28cc00a29ec720bfbbef42787785834cd8f068",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/contributing/release.md",
+      "sourceHash": "28d3af9ff6a6dcf18ba1ef7fa0f11b3fcdc923c594c764502ced3c890af5cba2",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "37b811ebda9197283cd6f0759167d9660710360f521c9c13788adc7b3f4f3112"
+    }
+  ],
+  "translationFile": "content/docs/plugin/contributing/release.md",
+  "translationHash": "515e646ff40cf1c1f55d96a105b80b9573005d7b4e2f4411685cf0fece9b1778"
+}

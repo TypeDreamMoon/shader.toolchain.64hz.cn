@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "4651e532446b5cb6aa1c402f2663ade39aed2b98ee4920cc5ca4478eabd9e0e9",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/api/lang-module.md",
+      "sourceHash": "f81c61871118afaed01954c8f43bc4c24d11172cbfa265eba2806c11b03a7c84",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "5483e94c412cf590e82bace2167f98b3febef129f72e003abff4e1d01eba7c64"
+    }
+  ],
+  "translationFile": "content/docs/plugin/api/lang-module.md",
+  "translationHash": "5a891684478cc8f760ee960ce78e131979562ee7c7a09675c57dfa4304c3b3bc"
+}

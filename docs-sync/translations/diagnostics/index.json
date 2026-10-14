@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "ee06984fe333194159dac7a8f37b9e447b26cd19667aeeee04c3c6e577a61c2c",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/diagnostics/index.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "85b914b383cad7530c08654a0d8cdb8c1490bac475f0b56c4a9de6bcf53510b6"
+      "sourceHash": "a9d6e54dbfae34696dea6c40c08b5c8333ae89528064ec7946392c64ba6b2c7c",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "45144d84e37f1033c5f2a6efec5a894a4d8b1e0d24abe8df95ec6610d6b94916"
     }
   ],
   "translationFile": "content/docs/diagnostics/index.md",
-  "translationHash": "66a87340d85e168ed0bbf12bb2ce176c6bc442024777deac353d82efdc35ba0c"
+  "translationHash": "b0d95a332eb5d36847e401d71549d3e2bca86daa98e93b7e9c8de5c8716bbad5"
 }

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "ba5d6aca7f390a45db6ae46fc8b96d6a5a4c789701419039c684b5df4b60bf5f",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/language/namespace.md",
+      "sourceHash": "1b036c3c484c1ea073407d2823759b98bca02c1d6a9469f0dcc325fe096a0c86",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "92c9e07321073dc4dd3031436c1c59cd961106d81e454f6998e22085ae148ebd"
+    }
+  ],
+  "translationFile": "content/docs/plugin/language/namespace.md",
+  "translationHash": "05b72f2809e3c832ae1ec2811d16e892ef589f380c192edb967ca5f096aa61bb"
+}

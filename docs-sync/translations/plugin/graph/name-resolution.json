@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "e6d1fc3c496bcbee0214aa1323d4449f22c3da9235e6dbb96cf18ca44d4b7011",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/graph/name-resolution.md",
+      "sourceHash": "f32813a02fd26837c96c95bf2c7f509d4e5904088e351d4c1cd7e885b0b199c3",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "e7e6d0ae85a4ba16f69638ce538fd22a7e0e6afb59e93a23f4807b38538f641a"
+    }
+  ],
+  "translationFile": "content/docs/plugin/graph/name-resolution.md",
+  "translationHash": "0d6995363861071783141f2e7d446e9adee3c5889a548cae1eca4a3d42b8f67a"
+}

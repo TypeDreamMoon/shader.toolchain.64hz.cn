@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "4fb4831f0a2b4b298d723aea0289e1ab303c4d56868294371ac54e385adcaebd",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/parameters/compact-types.md",
+      "sourceHash": "d7010e469bf9f05aaa70b98c000a06d6988e4abdddeacc78ae8a1378469d8eed",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "ea301fba133cd99286ed63979859bcc0399c5b1b58a128daf0e4accbeaa4fa9c"
+    }
+  ],
+  "translationFile": "content/docs/plugin/parameters/compact-types.md",
+  "translationHash": "735ee4085d8603a049cd0e8a073fbeb107e1c6d46a0f7093ed589127442a05a9"
+}

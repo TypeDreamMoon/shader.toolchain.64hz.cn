@@ -2,7 +2,7 @@
   "version": 2,
   "status": "unreviewed",
   "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/graph/statements.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/graph/statements.md",
-  "translationHash": "5a40d64b87b77c564b6398ced43490b014901634917fcd253eb02dd1c2e23a87"
+  "translationHash": "31209f960a0d4bb7e276ccdc531e7a83aa257d8362d53ff0ced94e348126f1cd"
 }

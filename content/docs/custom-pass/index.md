@@ -116,7 +116,7 @@ Passes->RemovePipeline(Handle);
   以及世界里根本没有管线能运行、或世界结束时立即清掉。没有这样的视图的帧（窗口最小化、编辑器视口不是实时的）保持原样。
   所以读它的材质不会一直显示一个已经关掉的效果的最后一幅画面。
 - **Alpha**：`PostProcess.AfterTonemap` 及之后的画面 alpha 为 0，`copy` 会照样保留。UMG 会把图片乘上纹理的 alpha，
-  所以为 UMG 填导出缓冲区的 pass 要在那里写 1 —— [UI 毛玻璃](/docs/examples/custom-pass#ui-毛玻璃)示例就是这么做的。
+  所以为 UMG 填导出缓冲区的 pass 要在那里写 1 —— [UI 毛玻璃](/docs/examples/custom-pass#ui-frosted-glass)示例就是这么做的。
 
 ## 哪些视图运行管线 [#哪些视图运行管线]
 

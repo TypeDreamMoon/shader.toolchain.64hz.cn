@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "status": "current",
+  "sourceHash": "c232444a4170f507598ecd52f262196b1b28077218c33c24619afeebec44ae1d",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
   "sources": [
     {
       "path": "Docs/getting-started/installation.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "4cf3788d06066f389f4c57284edc94a91fda9624c89927a82398eb4b242d68e8"
+      "sourceHash": "3d4271045228a11cb76afa79b7f6935f1156f4a7b776a63d18de54fccf7d85b7",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "6b66877293faad4f618ad9fcc298617374ff48e860b5ecf75b96beddc5348864"
     }
   ],
   "translationFile": "content/docs/start/installation.md",
-  "translationHash": "eaf7f5db677882b5deb7966c24da13c43cf03998bf9abe0691ab501241827c8f"
+  "translationHash": "f62ab10c2a7d7b59e733cf5bfcc18c48aaa3a5412a2143c69534963067f4c066"
 }

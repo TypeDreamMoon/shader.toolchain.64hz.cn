@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "6383eddd6f8a58472226c34496ba4176bb99bc1cb6b73d41f764feca1557879b",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/language/preprocessor.md",
+      "sourceHash": "a61d9d92d2ce50571a88503eb4c9a16242ce08c5586e96df52038adf116d296a",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "193c15ae131c21e9c2886341d71e68b969ef2b6522742aea01196b5cb0c6c855"
+    }
+  ],
+  "translationFile": "content/docs/plugin/language/preprocessor.md",
+  "translationHash": "ed76acbdc007ce676a6e33427785e08d77ece8604df3adfefb9cffd2c868a81b"
+}

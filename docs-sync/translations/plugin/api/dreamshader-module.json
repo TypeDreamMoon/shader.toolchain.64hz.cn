@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "a7b3cff687cfee91e59e5fecb4d8dd5884d85b835711f866421a3444be1e3872",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/api/dreamshader-module.md",
+      "sourceHash": "cbe747e3e2d09184e9c237d664d9e76897e403b11e976d8686f5cbadcce2cff5",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "d0c61c068787e9cd27abd18b75cef0faf6bef1e3c1f1368701fd1100dfc24454"
+    }
+  ],
+  "translationFile": "content/docs/plugin/api/dreamshader-module.md",
+  "translationHash": "c5edd2fa5827507d8bbb7bfd66bdbe520d00f1ed0c896507b380b0567e412021"
+}

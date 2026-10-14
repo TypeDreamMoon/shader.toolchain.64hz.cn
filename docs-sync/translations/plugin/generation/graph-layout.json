@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "69d8e388a155f72af298dee528d5b8bcf297e56f327b6d3e5230162e27483aa3",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/generation/graph-layout.md",
+      "sourceHash": "f5c95b7cd2960eb487945ec3d2d2ac1d2d40838290b20231fc0ef223cead4bd7",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "c098e45f8d0d2f922aab7e91abd352800a13201e9a57eff42ff092afbce70150"
+    }
+  ],
+  "translationFile": "content/docs/plugin/generation/graph-layout.md",
+  "translationHash": "b6e75b3e8edfdbedf5b4bea2d95f90a9a328c9b8e2c9a2c9b3ba9c2f7df83216"
+}

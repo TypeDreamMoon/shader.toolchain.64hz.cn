@@ -74,7 +74,7 @@ blendmode   rendertype   shadingmodel   materialdomain   domain   backend
 
 | 键 | 取值 | 不写时的值 | 效果 |
 | :-- | :-- | :-- | :-- |
-| `Substrate` | `Legacy`、`Bridge`、`Native` | `Legacy` | 按旧属性写的材质在开了 Substrate 的工程里怎么读 —— `Bridge` 把 Surface 材质的着色属性折叠进 `FrontMaterial` 上的一个 `Substrate.ShadingModels` 节点。见[一份源码，两种工程](/docs/language-v2/substrate#一份源码两种工程)。未知模式报 `DSH7232` |
+| `Substrate` | `Legacy`、`Bridge`、`Native` | `Legacy` | 按旧属性写的材质在开了 Substrate 的工程里怎么读 —— `Bridge` 把 Surface 材质的着色属性折叠进 `FrontMaterial` 上的一个 `Substrate.ShadingModels` 节点。见[一份源码，两种工程](/docs/language-v2/substrate)。未知模式报 `DSH7232` |
 
 `Backend` 和 `Substrate` 在绑定源码时取出（忽略大小写匹配）；其余在构建材质时应用。规范键与同义键同时出现时，**规范键**
 胜出：`BlendMode` 压过 `RenderType`，`MaterialDomain` 压过 `Domain`，没有诊断。这几个键的拼写只做 trim 加小写匹配，所以

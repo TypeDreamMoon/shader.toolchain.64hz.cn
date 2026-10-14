@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "2363c07fe97ecd4b55c91155e1a3c82d2ed7789e5ebde506ddf7bf87c32c1256",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/graph/swizzle.md",
+      "sourceHash": "5eb609c6d462012b93b84f679f01a2be93dd9c83990c8b30dc5ea9f5578f7ac8",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "595be5c9857e99f52a89db448698cea9c7dbe6074076597138fe137463c0939d"
+    }
+  ],
+  "translationFile": "content/docs/plugin/graph/swizzle.md",
+  "translationHash": "551d2d1f75a122069a681f67b81c2055cc20aa6591f6be6cdd76c13e233e8ede"
+}

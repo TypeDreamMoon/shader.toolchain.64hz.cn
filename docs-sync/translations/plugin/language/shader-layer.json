@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "cc66615ce3f689dd31bba06a0a5dff725353be08d7bb5bf2fd9a4e66a8253fd4",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/language/shader-layer.md",
+      "sourceHash": "cd2c698a99587d740aa158853ddad015daaaaaca894870e2bbecbcb8359d26a3",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "c910e014d5228281b055c2eba6ad4e677e8bfcc367b77fe359e5f24c4b0d8bfb"
+    }
+  ],
+  "translationFile": "content/docs/plugin/language/shader-layer.md",
+  "translationHash": "ca158b69f8b9f8d862c2b5d7858e85ce654ad52f6b96319e4524e4188e9efc89"
+}

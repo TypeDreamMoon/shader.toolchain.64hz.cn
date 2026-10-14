@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "011e43b506ee175f21b5d57059ce116247883f7edef0b77d5c32cdda5d761ea9",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/language/shader-function.md",
+      "sourceHash": "29b07baa95d11cefca0a0bd6fd4761b183099d9419a149c212394cbdf21fff44",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "c22953694353388211d3016f9cb5ae4e7c4297458202db60d6a7aabb63296b0f"
+    }
+  ],
+  "translationFile": "content/docs/plugin/language/shader-function.md",
+  "translationHash": "db4bdcd99e3c0f2a9beb24b55be600d914fc7f6af9561345c32df8d63a316669"
+}

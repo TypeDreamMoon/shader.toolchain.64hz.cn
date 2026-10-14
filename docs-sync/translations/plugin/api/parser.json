@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "7697ed7af07cf9134a81598ac331e9a997041d95d89c97131d54067255b85a1b",
+  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sources": [
+    {
+      "path": "Docs/api/parser.md",
+      "sourceHash": "4524d0e9ec89644d14ff6474e6ebcb4cba431dd526426ca20657e0a9340c2a27",
+      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "translationHash": "11211edf63df3fceaa5d5561e14718a8b3b878b042e4607aed02b2492806e8ee"
+    }
+  ],
+  "translationFile": "content/docs/plugin/api/parser.md",
+  "translationHash": "e0180b37ecf41f32339d05c64dae0435fd271ccb1273efbfe8e9817d10eb8350"
+}
