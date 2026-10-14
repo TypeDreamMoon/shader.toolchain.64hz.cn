@@ -395,6 +395,20 @@ class DocsSyncTests(unittest.TestCase):
         self.assertIn(f'https://raw.githubusercontent.com/example/plugin/{self.sha}/Docs/images/shot.png',result)
         self.assertIn('](/en/docs/other)',result)
 
+    def test_chinese_links_follow_a_retranslated_heading(self):
+        content=self.root/'content/docs'
+        docs.write(content/'target.md','# 目标\n\n## 旧标题\n\n正文。\n')
+        docs.write(content/'target.en.md','# Target\n\n## New [#new-id]\n\n## Only English [#only-en]\n')
+        planned={(content/'target.md').resolve():'# 目标\n\n## 新标题 [#new-id]\n\n正文。\n',
+                 (content/'page.md').resolve():'[a](/docs/target#旧标题) [b](/docs/target#新标题) '
+                                               '[c](/docs/target#gone) [d](/docs/target#only-en) [e](#自己)\n'}
+        docs.localize_translation_links(self.root,planned,set())
+        page=planned[(content/'page.md').resolve()]
+        self.assertIn('[a](/docs/target#new-id)',page)
+        self.assertIn('[b](/docs/target#new-id)',page)
+        self.assertIn('[c](/docs/target)',page)
+        self.assertIn('[d](/en/docs/target#only-en)',page)
+
     def test_html_anchor_adapted_without_touching_code_example(self):
         source='<a id="stable"></a>\n\n## Title\n\n```md\n<a id="code"></a>\n## Example\n```\n'
         adapted=docs.source_anchors(source)

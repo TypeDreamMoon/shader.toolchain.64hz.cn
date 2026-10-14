@@ -899,36 +899,89 @@ def localize_translation_links(root, planned, removals):
     pages = {path.resolve(): read(path) for path in content.rglob("*")
              if path.suffix in (".md", ".mdx") and not path.stem.endswith(".en")
              and path.resolve() not in removals}
+    before = dict(pages)
     pages.update({path: value for path, value in planned.items()
                   if path.is_relative_to(content) and path.suffix in (".md", ".mdx")
                   and not path.stem.endswith('.en')})
     targets = {route(path.relative_to(content).with_suffix("").as_posix(), "zh").rstrip("/"):
                translation_anchors(value, path.suffix == ".mdx") for path, value in pages.items()}
 
-    def target(url):
+    def slug(title):
+        return re.sub(r"[^\w\s-]", "", title.lower()).replace(" ", "-")
+
+    # A translated heading carries the English ID ("## 预处理器 [#preprocessor]"); older Chinese
+    # pages still link to its Chinese slug (#预处理器), which GitHub gives it but the site does not.
+    # When the retranslation reworded the heading, the old page's heading at the same position
+    # (same number of headings) names it.
+    aliases = {}
+    for path, value in pages.items():
+        found, new = {}, headings(split_frontmatter(value)[1])
+        ids = [re.search(r"\s+\[#([^\]]+)\]$", title) for _, title, _ in new]
+        for (_, title, _), explicit in zip(new, ids):
+            if explicit:
+                found.setdefault(slug(title[:explicit.start()]), explicit[1])
+        old = headings(split_frontmatter(before.get(path, ""))[1])
+        if before.get(path) != value and len(old) == len(new):
+            for (_, title, _), explicit in zip(old, ids):
+                if explicit:
+                    found.setdefault(slug(re.sub(r"\s+\[#[^\]]+\]$", "", title)), explicit[1])
+        aliases[route(path.relative_to(content).with_suffix("").as_posix(), "zh").rstrip("/")] = found
+    english = {}
+    for path in content.rglob("*.en.*"):
+        if path.suffix in (".md", ".mdx"):
+            text = planned.get(path.resolve(), planned.get(path)) or read(path)
+            english[route(path.relative_to(content).with_suffix("").with_suffix("").as_posix(), "zh").rstrip("/")] = \
+                translation_anchors(text, path.suffix == ".mdx")
+
+    def chinese_target(url, page):
+        # /docs/... or #... inside a Chinese page whose fragment the Chinese target lacks.
         parsed = urllib.parse.urlsplit(url)
-        if parsed.scheme or parsed.netloc or not (parsed.path == "/en/docs" or parsed.path.startswith("/en/docs/")):
+        chinese = urllib.parse.unquote(parsed.path).rstrip("/") if parsed.path else page
+        fragment = urllib.parse.unquote(html.unescape(parsed.fragment))
+        if not fragment or chinese not in targets or fragment in targets[chinese]:
+            return url
+        if fragment in aliases.get(chinese, {}):
+            fixed = aliases[chinese][fragment]
+            return urllib.parse.urlunsplit(("", "", parsed.path, parsed.query, urllib.parse.quote(fixed, safe="-_")))
+        if fragment in english.get(chinese, set()):
+            return urllib.parse.urlunsplit(("", "", "/en" + chinese, parsed.query, parsed.fragment))
+        # Nothing names the section any more: the page itself, not a dead anchor.
+        return urllib.parse.urlunsplit(("", "", parsed.path or chinese, parsed.query, ""))
+
+    def target(url, page=None):
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme or parsed.netloc:
+            return url
+        if page is not None and (parsed.path == "/docs" or parsed.path.startswith("/docs/")
+                                 or (not parsed.path and parsed.fragment)):
+            return chinese_target(url, page)
+        if not (parsed.path == "/en/docs" or parsed.path.startswith("/en/docs/")):
             return url
         chinese = urllib.parse.unquote(parsed.path[3:]).rstrip("/")
         fragment = urllib.parse.unquote(html.unescape(parsed.fragment))
         if chinese in targets and (not fragment or fragment in targets[chinese]):
             return url[3:]  # Keep the original query, escaping and fragment bytes.
+        if chinese in targets and fragment in aliases.get(chinese, {}):
+            return chinese_target(url[3:], None)
         return url
 
-    def convert(line):
-        # Indented code is left alone as well as outside_code's fenced/inline code.
-        if line.startswith(("    ", "\t")):
-            return line
-        line = re.sub(r"(\]\(<?)([^\s)>]+)(>?)(?=[\s)])", lambda m: m[1] + target(m[2]) + m[3], line)
-        line = re.sub(r"(^\s*\[[^\]]+\]:\s*<?)([^\s>]+)", lambda m: m[1] + target(m[2]), line)
-        return re.sub(r'(\bhref\s*=\s*(?:\{\s*)?)([\'"])([^\'"]+)(\2)',
-                      lambda m: m[1] + m[2] + target(m[3]) + m[4], line)
+    def converter(page):
+        def convert(line):
+            # Indented code is left alone as well as outside_code's fenced/inline code.
+            if line.startswith(("    ", "\t")):
+                return line
+            line = re.sub(r"(\]\(<?)([^\s)>]+)(>?)(?=[\s)])", lambda m: m[1] + target(m[2], page) + m[3], line)
+            line = re.sub(r"(^\s*\[[^\]]+\]:\s*<?)([^\s>]+)", lambda m: m[1] + target(m[2], page), line)
+            return re.sub(r'(\bhref\s*=\s*(?:\{\s*)?)([\'"])([^\'"]+)(\2)',
+                          lambda m: m[1] + m[2] + target(m[3], page) + m[4], line)
+        return convert
 
     for path in pages.keys() & planned.keys():
         text = planned[path]
         body = split_frontmatter(text)[1]
         prose, marker, notes = split_notes(body)
-        planned[path] = text[:len(text) - len(body)] + outside_code(prose, convert) + marker + notes
+        page = route(path.relative_to(content).with_suffix("").as_posix(), "zh").rstrip("/")
+        planned[path] = text[:len(text) - len(body)] + outside_code(prose, converter(page)) + marker + notes
 
 
 def plugin_links(body, source_name, plugin, candidates, cfg):
