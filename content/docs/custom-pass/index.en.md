@@ -157,7 +157,7 @@ still exports immediately after its pass.
 ## See also
 
 - [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
-- [HLSL passes](/en/docs/plugin/runtime/hlsl)
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl)
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass)
 - [Custom Pass examples](/en/docs/examples/custom-pass)
 

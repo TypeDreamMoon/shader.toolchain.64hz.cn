@@ -317,5 +317,5 @@ DreamShader.SourceHash   9f2c41ab
 - [`UDreamShaderMaterialInstance`](/en/docs/plugin/api/material-instance) — `SourceFilePath` and `SourceHash`
 - [Generated HLSL](/en/docs/plugin/generation/generated-hlsl) — the Custom-node code, and the 1.x include it replaced
 - [Commandlet](/en/docs/tools/commandlet) — headless compiles and forcing
-- [HLSL passes](/en/docs/plugin/runtime/hlsl) — the snapshots whose inputs a `.dsp`'s key covers
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl) — the snapshots whose inputs a `.dsp`'s key covers
 - [Project settings](/en/docs/settings/project) — auto-compile and debounce

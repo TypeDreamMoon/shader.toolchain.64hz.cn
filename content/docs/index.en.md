@@ -130,7 +130,7 @@ screen-space effects, compute shaders writing data textures.
 | :-- | :-- |
 | [Pipelines — `.dsp`](/en/docs/language-v2/passes) | Buffers, passes, injection points, bindings, mesh selection, what the compiler checks |
 | [Runtime](/en/docs/custom-pass) | What makes a pipeline apply, when passes run, built-in and exported buffers, views, debugging, limits |
-| [HLSL passes](/en/docs/plugin/runtime/hlsl) | The fixed parameters, slots, snapshots and the pre-check |
+| [HLSL passes](/en/docs/plugin/pass-runtime/hlsl) | The fixed parameters, slots, snapshots and the pre-check |
 | [Material nodes](/en/docs/builtins/dream-pass) | `UE.DreamPassOutput` for mesh passes, `UE.DreamPassBuffer` to read an exported buffer |
 | [Examples](/en/docs/examples/custom-pass) | Highlight outline, UI frosted glass, X-ray, wind field |
 | [`DreamShaderPass`](/en/docs/plugin/api/pass-module) | The module's C++ and Blueprint API |
@@ -217,4 +217,4 @@ screen-space effects, compute shaders writing data textures.
 | Documentation site | <https://shader.toolchain.64hz.cn/> |
 | VSCode extension | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider plugin | <https://github.com/tsdaer/dreamshader-language-support> |
-| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/5533fecff05dff170130ce5a4b8c7556742c5fd9/CHANGELOG.md) |
+| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/CHANGELOG.md) |

@@ -64,7 +64,7 @@ All commands accept optional `-AssetWritesManifest=<unused-json-path>` together 
 `-AssetWritesRunId=<run-id>`. These record successful `.uasset` saves performed by this commandlet,
 including their absolute filenames and MD5 content fingerprints, in a versioned JSON manifest.
 The output path must not already exist; failure to write the requested manifest exits `1`.
-The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/5533fecff05dff170130ce5a4b8c7556742c5fd9/.skill/README.md) uses this provenance and a pre-run snapshot for
+The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/.skill/README.md) uses this provenance and a pre-run snapshot for
 `-CleanNew`, retaining unrelated assets and files modified after the recorded save. The manifest
 does not authorize deletion of pre-existing assets or files outside the driver's Content roots.
 
@@ -504,7 +504,7 @@ with one product — a `UDreamPassPipeline` — and no graph. What each verb doe
 
 | Verb | On a `.dsp` |
 | :-- | :-- |
-| `compile` | Builds the pipeline and the render target of every exported buffer, and gives each HLSL pass its slot: planned, [pre-checked](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine), its snapshot and the registry written under `<DShader>/.dreampass/` (see [`pass-registry`](#pass-registry)). A material one of its passes names that is missing or older than its source is compiled first. A commandlet recompiles no shader; the next editor start compiles the changed registry. Below UE 5.8 the compile is refused, `DSH8300` |
+| `compile` | Builds the pipeline and the render target of every exported buffer, and gives each HLSL pass its slot: planned, [pre-checked](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine), its snapshot and the registry written under `<DShader>/.dreampass/` (see [`pass-registry`](#pass-registry)). A material one of its passes names that is missing or older than its source is compiled first. A commandlet recompiles no shader; the next editor start compiles the changed registry. Below UE 5.8 the compile is refused, `DSH8300` |
 | `check` | Reads every material and `.usf` the passes name and makes every check the binder makes. Compiles nothing first, builds nothing, and compiles no HLSL |
 | `check -Shaders` | Builds and saves the pipeline as `compile` does, then pre-checks every HLSL pass in its slot — see [Shader check of a pipeline](#shader-check-of-a-pipeline) |
 | `dump-ir` | The product as text: the pipeline's keys, one line per parameter and buffer, and per pass its keys, its kind's settings and its bindings, as the binder settled them — `(inferred)` marks a buffer resolution the source did not write, `(from the shader)` a group size read off `[numthreads]`. `-Json` adds the JSON form |
@@ -540,7 +540,7 @@ pre-checked in its global shader slot instead — the pre-check a compile runs, 
 *(since 2.1.0)* The Custom Pass HLSL slot registry from the command line. Every HLSL pass of every `.dsp`
 — a `compute` pass, or a `fullscreen` pass with `Shader =` — runs in one **slot** of the global shaders
 `FDreamPassCS` and `FDreamPassPS`, and the files that map slots to passes are committed with the sources
-([HLSL passes](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine)):
+([HLSL passes](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)):
 
 ```text
 <DShader>/.dreampass/
@@ -910,7 +910,7 @@ LogDreamShader: Display: Generated Material /Game/Materials/M_Sample.M_Sample fr
 - [Packages](/en/docs/tools/packages) — why `DShader/Packages` is skipped by `-All`
 - [Source files](/en/docs/language/file-model) — `.dsm` / `.dsf` / `.dsh` roles
 - [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — the source `pass-registry` keeps the slots of
-- [HLSL passes](/en/docs/plugin/runtime/hlsl) — slots, snapshots and the pre-check
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl) — slots, snapshots and the pre-check
 - [Project settings](/en/docs/settings/project) — `SourceDirectory`, which path resolution depends on
 - [Testing](/en/docs/plugin/contributing/testing) — running the automation suite headlessly
 - [Diagnostics index](/en/docs/diagnostics) — every message, by stage

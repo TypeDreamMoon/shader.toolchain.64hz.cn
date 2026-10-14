@@ -1254,7 +1254,7 @@
       "locale": "en"
     },
     {
-      "id": "plugin/runtime/hlsl",
+      "id": "plugin/pass-runtime/hlsl",
       "sources": [
         {
           "path": "Docs/runtime/hlsl.md"
@@ -1264,7 +1264,7 @@
       "locale": "en"
     },
     {
-      "id": "plugin/runtime/index",
+      "id": "plugin/pass-runtime/index",
       "sources": [
         {
           "path": "Docs/runtime/index.md"

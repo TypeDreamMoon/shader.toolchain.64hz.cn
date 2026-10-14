@@ -201,7 +201,7 @@ decide about.
 
 - **`DShader/.dreampass/` is source, under either recipe.** It holds the snapshots of the `.usf` files
   the `.dsp` pipelines' HLSL passes use, and the slot registry the global shaders are built from
-  ([HLSL passes](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine)). Those shaders are compiled from
+  ([HLSL passes](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)). Those shaders are compiled from
   the snapshots, never from the files being edited, so the snapshots are what a teammate's editor and
   the cook run: a checkout without them runs the empty stub of every slot until its `.dsp` files are
   compiled again. Commit the folder with the `.dsp` and `.usf` change that produced it; a conflict in

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
   "workingTree": false,
   "translationSnapshotHash": "309aa1423ddfc5d80d90f143680efb909c51571e3209d887745d9b576d01f27e",
   "pages": {
@@ -160,10 +160,10 @@
       }
     },
     "custom-pass/index": {
-      "hash": "5564dbee44d2b18e3a6a6492482e25d849644aa9e4b5fcc4e266bd8faefa4a96",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "hash": "45c31d60adbb6241a25bcdd28e9c2fac5da0b52d37c0263ae88f2c8d63e75a83",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/custom-pass/index.en.md",
-      "outputHash": "8c095b54b91e21751ca405885af0c100c5b043ba248606c283d40c5b31ae5822",
+      "outputHash": "234053221023c0b0207858da02cad0a30f33692586565c8ff44d0a9a1b14ee9f",
       "locale": "en",
       "format": "md",
       "title": "Custom Pass runtime",
@@ -226,10 +226,10 @@
       }
     },
     "examples/custom-pass": {
-      "hash": "b4728d8bc01a1c978dc6b79a440cda9fd956a407d95be672a9d26c8f29ecce57",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "281efc40c59ae4820d134c3dbac22ba91a893f4a96b00b2a47b5fecdc792efa5",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/examples/custom-pass.en.md",
-      "outputHash": "1d4885c0619615cea9bc5aa234a01bc1ffd1384af95de7dd7bd1fd45fe008202",
+      "outputHash": "0e178f1f7bdca69aed6d648b3517305d02fa188a19995edf40bb02e328b82c43",
       "locale": "en",
       "format": "md",
       "title": "Custom Pass examples",
@@ -398,10 +398,10 @@
       }
     },
     "generation/regeneration": {
-      "hash": "02c8d4f941bffe4dc57ad4fcd06d46660c62ed926d888ffb0c40eedd6ee5a258",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "2864a09a401ae60ed1acbf63f3ff2d81cd2946047e1369260c54744ec29ca96f",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/generation/regeneration.en.md",
-      "outputHash": "bef1682f8d04a31e6fbb0e2cd72b43669b92d0e478e12c2e6aca1dcf08d86c4f",
+      "outputHash": "c39a687845ffb6b92daae05a3738d836e9be71f772b38a6bc2eb9d2a64f1dee6",
       "locale": "en",
       "format": "md",
       "title": "Regeneration",
@@ -420,10 +420,10 @@
       }
     },
     "generation/source-control": {
-      "hash": "57410335823211e8f5c2468c44ccbc2f509b50623fd41852251916de886bceb1",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "69a099080e218ee314f1a3307f869bee1cc90c9d65c4e6dfc5e169162a90dfbb",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/generation/source-control.en.md",
-      "outputHash": "b19ab6762cf254cb856836782f9c77e8ab1b1029a82501468ebc9fec9bae4f7b",
+      "outputHash": "ac7e248ed9dd0792a9c30959e6cbbe46607edf19818c6372712fd0458af8e196",
       "locale": "en",
       "format": "md",
       "title": "Source control",
@@ -574,10 +574,10 @@
       }
     },
     "index": {
-      "hash": "68083e68729d989a101f050888f9d3c8d3d42fe1bf9e6f75f347a7c9afbd5909",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "hash": "85c96d13c8ce3f302cb1964ba8f4acb9199926e37aa3d7d28e9a0bdf07d05d3f",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/index.en.md",
-      "outputHash": "940f02ae9f970150a5ba20d1a5ad9a46cca99ccbc54d49784362be127f53b9fa",
+      "outputHash": "e87e17994dcdf0de1f0730b12e4f7ce0b8e5a3515b682950fcf35c8456d57894",
       "locale": "en",
       "format": "md",
       "title": "Overview",
@@ -856,10 +856,10 @@
       }
     },
     "language-v2/passes": {
-      "hash": "a83b64004d00a0bdd3324fdedde4b40f9e7e5baf6b032d84c26ff63bbcbcf923",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "31795edc658f13936d598c5f49bfdd00b74f9e3550268f06bb080233a4ca30ac",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/language-v2/passes.en.md",
-      "outputHash": "b1c014de4153d527d4fd6df86d2344d023c53161a3cd0e07df3dae0f43050498",
+      "outputHash": "86d1c1d99263f7844df0c474205d9f9dd75fb35ea14c90cfaabaa04c2bc374f2",
       "locale": "en",
       "format": "md",
       "title": "Custom Pass pipelines",
@@ -1164,10 +1164,10 @@
       }
     },
     "tools/commandlet": {
-      "hash": "bd8908107858cf49a49e282cfb6d3d165918332d2a95a5a133ac16794fb1e19b",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "hash": "10fd04ea5cd6c7b846f704647a0cd37e7be9d1a44a2702b60f5857cf60be0fcb",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/tools/commandlet.en.md",
-      "outputHash": "e58133c31acf82d1e901343771f2fad2aca1c17fc9b1b4781826caac5ee4860c",
+      "outputHash": "abb5002821d0bb988b5fb45079889cd5a0bb0853a37dae666a085a69f7834a6b",
       "locale": "en",
       "format": "md",
       "title": "Commandlet",
@@ -1382,10 +1382,10 @@
       }
     },
     "plugin/api/pass-module": {
-      "hash": "cd61a6cef3aa343b7233d6303750012518787404a6319a30b6d4c2bad2a98ed0",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "a8c2b494794a1527c8c78815873d423c13ca69e78086df695606c6f334461274",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/plugin/api/pass-module.en.md",
-      "outputHash": "8ed9ebd0793f1cf6e3c1d07cf90574230f2b0a8bd33f717e51bee058cedd855a",
+      "outputHash": "bc7bd71a78285128df764ab6acacfaa32f46c6ac7e93d45c1e1cec3f3a27b71d",
       "locale": "en",
       "format": "md",
       "title": "DreamShaderPass",
@@ -1760,10 +1760,10 @@
       }
     },
     "plugin/generation/caching": {
-      "hash": "111850fa1e8588f2613bcca79fb4acd1c31c643b5afd0ae7730f3e03523002a3",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "81ab0b209c9c26c8c35208d1aade2d8dc50c166a2c0d5a034cc8bc34e2950d50",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/plugin/generation/caching.en.md",
-      "outputHash": "3fdb3426b762c4e656c0dd277c8b2d16f3f88de9511f8dd294de025ca91d71c5",
+      "outputHash": "c27897579fe0ffc24ff8a22471f67d17b21940f3394d4b9070a4330cfb064ab3",
       "locale": "en",
       "format": "md",
       "title": "Caching",
@@ -2318,10 +2318,10 @@
       }
     },
     "plugin/readme": {
-      "hash": "ab3ba504e60bc51fa11d3ba4902fe4467870c170a8e58fc7cfdcfa966da1d548",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "hash": "e8832985219105d4e407ea4c4e9227f7458774e288b0f0608af0d73c57570031",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/plugin/readme.en.md",
-      "outputHash": "aa90a98f933466f5759f40ce8e1bc76c9514cef87f7194f74532822cb6950e03",
+      "outputHash": "2ce1b7bf9dcbaaead80d7649e17aff4fd7a537e7718292cca1909f6772dea30e",
       "locale": "en",
       "format": "md",
       "title": "DreamShader documentation",
@@ -2335,14 +2335,14 @@
         "status": "unreviewed",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "e1a9203574e7f681ed39981e9942be0da76a460e117b3c4b6e99eda3ae48fb05",
-        "bodyHash": "78239574770495285341bc62dc282b6bab120346208ba747802d912091cc1b83"
+        "outputHash": "bb57af7b970bef9389ecffb29c0c9d98ea82bd7e769ff2ae212f83d8f0787d30",
+        "bodyHash": "01a5e45af740ce1eee4e938d0aca0733b11c130f0b926f541017167a7af3b5a4"
       }
     },
-    "plugin/runtime/hlsl": {
+    "plugin/pass-runtime/hlsl": {
       "hash": "ee4bfc2cdb2680bcd9d3270e70961669218cd583bec44b36d8badcf2b779063e",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
-      "output": "content/docs/plugin/runtime/hlsl.en.md",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+      "output": "content/docs/plugin/pass-runtime/hlsl.en.md",
       "outputHash": "352ad1c668cdd420aadfa92d2557bb8417d58323978902459c3de3495b73fa33",
       "locale": "en",
       "format": "md",
@@ -2357,11 +2357,11 @@
         "status": "missing"
       }
     },
-    "plugin/runtime/index": {
-      "hash": "817d10dee9f70e0b1f75dfdb8fdff69738d90d0869877bf4fdd1d70cc5c95244",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
-      "output": "content/docs/plugin/runtime/index.en.md",
-      "outputHash": "96b10da4fae45e4c209e4a39cb48c0d12c96e49f880713507ab0ad25ffa210cb",
+    "plugin/pass-runtime/index": {
+      "hash": "73f053584caa476b367b30692701c5169f47f7f8b6d717a7233873467fd355cc",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+      "output": "content/docs/plugin/pass-runtime/index.en.md",
+      "outputHash": "d24e7a4c7d52e54cd7c45b54f1241376bfe2ffa1d5e624cbe30a1d79c15cdecb",
       "locale": "en",
       "format": "md",
       "title": "Custom Pass runtime",
@@ -2373,8 +2373,8 @@
       ],
       "translation": {
         "status": "unreviewed",
-        "output": "content/docs/plugin/runtime/index.md",
-        "record": "docs-sync/translations/plugin/runtime/index.json",
+        "output": "content/docs/plugin/pass-runtime/index.md",
+        "record": "docs-sync/translations/plugin/pass-runtime/index.json",
         "outputHash": "9318bd73d5ac00842e3a8ac9e2d8eda8a2135182aa3fa740850401a9c090e5c1",
         "bodyHash": "4bc0571002d8096d0dfc4b106191df8cbce8bfbb9977f1bef5e10699dd89e288"
       }
@@ -2434,10 +2434,10 @@
       }
     },
     "plugin/tools/bridge": {
-      "hash": "e2c88b0742c87c62c09edfa865eb9b011e84525f138695a615211f6769920eab",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "a1a8862100755cbac7520a36f2f839107cfcf4ec7d6b05ffb09dc309ccb3412b",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/plugin/tools/bridge.en.md",
-      "outputHash": "0ddb17179fce9ebc4b7d8a3611a3251fab1b79896d7d0170150181f53905a64c",
+      "outputHash": "3c08f9270c418701d16bf2971a8eb2d64fb0c11dd3cf703a27f942a4d7d3f736",
       "locale": "en",
       "format": "md",
       "title": "Editor bridge",
@@ -2470,10 +2470,10 @@
       }
     },
     "plugin/tools/material-browser": {
-      "hash": "739f94cea574237beb50123c81054c75680219b795aac087a94472a7d2545d2c",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "hash": "07204c8c8b487056cc5e6f24b3d517ef199a5509a4534df0be0118f97d32fa77",
+      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
       "output": "content/docs/plugin/tools/material-browser.en.md",
-      "outputHash": "b3b0cd84515939e306db1212a353386740eb6fea9feb424ad2c68caf7b73c935",
+      "outputHash": "bff6e550768343141fcf99c5a32fbe273816693b67c7d847f1232cc4c39ee64f",
       "locale": "en",
       "format": "md",
       "title": "Material Content Browser",

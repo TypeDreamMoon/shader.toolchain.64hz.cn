@@ -82,7 +82,7 @@ The materials are ordinary `.dss` files: a `#pragma material(Domain = PostProces
 the pass's buffers through `UE.UserSceneTexture`, and a mesh pass's material writes its outputs through
 `UE.DreamPassOutput`. See [Custom Pass material nodes](/en/docs/builtins/dream-pass). An HLSL pass's code is
 written in the `.dsp` itself, as `Blur`'s is, or in a `.usf` the pass names with `Shader =` — see
-[HLSL passes](/en/docs/plugin/runtime/hlsl). Complete examples, with their `.dss`, are in
+[HLSL passes](/en/docs/plugin/pass-runtime/hlsl). Complete examples, with their `.dss`, are in
 [Custom Pass examples](/en/docs/examples/custom-pass).
 
 ## The file
@@ -93,7 +93,7 @@ written in the `.dsp` itself, as `Blur`'s is, or in a `.usf` the pass names with
 | `uniform` | `uniform <type> <Name> [= <value>];` | a parameter activations can override: `float`–`float4`, `int`, `bool`, `Texture2D` (with `/// @default <asset>`). `///` takes `@group`, `@desc`, `@slider`, `@sort` |
 | `static const` | `static const <type> <Name> = <value>;` | a constant, folded where it is used |
 | `buffer` | `buffer <Name> : <Format>[(<Key> = <Value>, ...)];` | [Buffers](#buffers) |
-| `hlsl` | `hlsl { <HLSL> }`, at most one | HLSL every pass whose code is in the `.dsp` is compiled with — shared functions — and entries a pass picks with `Entry = <function>;`. See [HLSL passes](/en/docs/plugin/runtime/hlsl#the-files-hlsl-block) |
+| `hlsl` | `hlsl { <HLSL> }`, at most one | HLSL every pass whose code is in the `.dsp` is compiled with — shared functions — and entries a pass picks with `Entry = <function>;`. See [HLSL passes](/en/docs/plugin/pass-runtime/hlsl#the-files-hlsl-block) |
 | `pass` | `pass <Name> : <kind> { ... }` | [Passes](#passes); they run in declaration order within an injection point |
 
 `buffer`, `pass` and `hlsl` are keywords in a `.dsp` only, and `read`, `write`, `param` and `hlsl` inside a
@@ -119,7 +119,7 @@ Every pass names its own; the pipeline only gives the default.
 
 | Point | Where in the frame | The scene textures there |
 | :-- | :-- | :-- |
-| `BeginView` | before visibility, before anything is drawn | none — no SceneColor, no SceneDepth, no `View` uniform buffer (see [HLSL passes](/en/docs/plugin/runtime/hlsl)) |
+| `BeginView` | before visibility, before anything is drawn | none — no SceneColor, no SceneDepth, no `View` uniform buffer (see [HLSL passes](/en/docs/plugin/pass-runtime/hlsl)) |
 | `BeforeBasePass` | after the depth prepass | SceneDepth |
 | `AfterBasePass` | the GBuffer is written, nothing is lit | GBuffer A–F, Velocity, SceneDepth; SceneColor holds emissive only; CustomDepth if `r.CustomDepth.Order` puts it first (the default with DBuffer decals) |
 | `AfterOpaque` | lighting, fog and sky done, translucency not | everything opaque, CustomDepth / CustomStencil |
@@ -174,7 +174,7 @@ pass <Name> : <kind>
 
 Keys start with a capital letter, bindings with `read`, `write` or `param`. `read Mask;` is
 `read Mask = Mask;`. `hlsl { ... }` — at most one, with no `;` after it — is the code of an HLSL pass, written
-in the pass; see [HLSL passes](/en/docs/plugin/runtime/hlsl).
+in the pass; see [HLSL passes](/en/docs/plugin/pass-runtime/hlsl).
 
 | Kind | Keys | `read X = B` | `write Y = B` | `param P = E` |
 | :-- | :-- | :-- | :-- | :-- |
@@ -203,7 +203,7 @@ buffer rather than the scene colour must set `bDisablePreExposureScale = true` i
 
 Without a `Material`, the pass runs HLSL in a pixel shader slot instead: an `hlsl { ... }` block of its
 own, `Entry = <function>` naming a function of the file's `hlsl` block, or `Shader = "<file>.usf"` with
-`Entry`. See [HLSL passes](/en/docs/plugin/runtime/hlsl).
+`Entry`. See [HLSL passes](/en/docs/plugin/pass-runtime/hlsl).
 
 ### `compute`
 
@@ -212,7 +212,7 @@ The code is an `hlsl { ... }` block of the pass's own, an `Entry` of the file's 
 `Threads = uint3(...)` is needed only when the group size is a macro — and for a block that holds only the
 statements of the entry, whose group size is `Threads` (`uint3(8, 8, 1)` when it is not written).
 `Dispatch` is `<buffer>` (one thread per texel), `<buffer> * <scale>` / `<buffer> / <n>`, or
-`uint3(x, y, z)`. See [HLSL passes](/en/docs/plugin/runtime/hlsl).
+`uint3(x, y, z)`. See [HLSL passes](/en/docs/plugin/pass-runtime/hlsl).
 
 ### `mesh`
 
@@ -256,7 +256,7 @@ instance of a `.dsi`, under the same source root, compiled first when it is miss
 source — or an **object path** to any material. A `Shader` is a path relative to the `.dsp`'s folder —
 next to the `.dsp` is the usual place — or a virtual path such as `/Project/Passes/Blur.usf`; so is an
 `#include` in an `hlsl` block. The file needs no mapped shader directory: what the engine compiles is a
-snapshot of it ([HLSL passes](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine)).
+snapshot of it ([HLSL passes](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)).
 
 ## What the compiler checks
 
@@ -288,7 +288,7 @@ buffer. The codes are `DSH2300`–`DSH2349`, `DSH3300`–`DSH3349`, `DSH4400`–
 ## See also
 
 - [Custom Pass runtime](/en/docs/custom-pass) — activation, injection points, buffers, views, debugging, limits
-- [HLSL passes](/en/docs/plugin/runtime/hlsl) — `DreamPass.ush`, slots, snapshots and the pre-check
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl) — `DreamPass.ush`, slots, snapshots and the pre-check
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass) — `UE.DreamPassOutput`, `UE.DreamPassBuffer`
 - [Custom Pass examples](/en/docs/examples/custom-pass)
 - [Material instances](/en/docs/language-v2/instances) — `.dsi`, the other non-graph source kind

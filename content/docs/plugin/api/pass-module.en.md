@@ -186,12 +186,12 @@ what runs is the slot's snapshot, and a cook carries no HLSL text.
 
 The counts are overridable from a `Target.cs` (`GlobalDefinitions.Add("DREAMSHADER_PASS_COMPUTE_SLOTS=48")`);
 raising one recompiles the two global shader types, nothing else. How the registry is written is
-[HLSL passes](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine).
+[HLSL passes](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine).
 
 ## See also
 
 - [Custom Pass runtime](/en/docs/custom-pass)
 - [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
-- [HLSL passes](/en/docs/plugin/runtime/hlsl)
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl)
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass)
 - [Project settings](/en/docs/settings/project#dreamshader-custom-pass)

@@ -7,7 +7,7 @@ description: "DreamShader 简体中文文档"
 
 [English](/docs/plugin/readme) · 简体中文
 
-本页当前是首次迁移的初始导航，后续会由 [Docs/README.md 英文原文](/docs/plugin/readme) 的中文译文替换。原有迁入、缺译和待核对清单已完整保存在 [首次迁移快照](https://github.com/TypeDreamMoon/DreamShader/blob/5533fecff05dff170130ce5a4b8c7556742c5fd9/Docs/zh-CN/TRANSLATIONS.md)，最新状态以 `python -B Docs/translation-status.py` 或文档站仓库的翻译状态 Issue 为准。
+本页当前是首次迁移的初始导航，后续会由 [Docs/README.md 英文原文](/docs/plugin/readme) 的中文译文替换。原有迁入、缺译和待核对清单已完整保存在 [首次迁移快照](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/Docs/zh-CN/TRANSLATIONS.md)，最新状态以 `python -B Docs/translation-status.py` 或文档站仓库的翻译状态 Issue 为准。
 
 这些文档从原文档站迁入，目前均为**待核对的旧译文**，尚未确认与当前英文一致。英文仍是技术内容的原文；中文修订由插件仓库中的翻译 PR 审阅，合并后再同步到网站。
 
@@ -135,7 +135,7 @@ description: "DreamShader 简体中文文档"
 - [parameters/index.md](/en/docs/plugin/parameters)
 - [parameters/parameter-nodes.md](/en/docs/plugin/parameters/parameter-nodes)
 - [parameters/sampler-type.md](/en/docs/plugin/parameters/sampler-type)
-- [runtime/hlsl.md](/en/docs/plugin/runtime/hlsl)
+- [runtime/hlsl.md](/en/docs/plugin/pass-runtime/hlsl)
 - [settings/function.md](/en/docs/plugin/settings/function)
 - [settings/index.md](/en/docs/plugin/settings)
 - [tools/asset-rename-sync.md](/en/docs/plugin/tools/asset-rename-sync)

@@ -282,7 +282,7 @@ targets and its source stamps, and tells the runtime, which runs the new pipelin
 | :-- | :-- |
 | Gates | the ones above, in the same order: another editor owns writes (skipped), the [build key](/en/docs/plugin/generation/caching#custom-pass-pipelines) (skipped), open in an asset editor (`DSH8206`), [divergence](/en/docs/plugin/generation/divergence#a-custom-pass-pipeline) (`DSH8207`) |
 | Ownership | refused at a path holding another class (`DSH8302`), or a saved pipeline DreamShader did not generate (`DSH8303`) |
-| Atomic | everything is staged before the first write: the pipeline's data onto a transient copy, the HLSL slots planned and [pre-checked](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine) in memory, every render target found or made in memory. A pre-check that fails, or a cancel before the writes (`DSH8298`), leaves the asset, the slot registry and the snapshots exactly as they were, and the previous version keeps running |
+| Atomic | everything is staged before the first write: the pipeline's data onto a transient copy, the HLSL slots planned and [pre-checked](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine) in memory, every render target found or made in memory. A pre-check that fails, or a cancel before the writes (`DSH8298`), leaves the asset, the slot registry and the snapshots exactly as they were, and the previous version keeps running |
 | Writes, in order | the snapshots and the registry files; the render targets' settings; the pipeline's data; in the editor, the slot shaders recompiled synchronously; the stamps; one save of the pipeline with every render target it touched |
 | A save that fails | `DSH8311`. The slots are in the registry already; the next compile saves the asset |
 

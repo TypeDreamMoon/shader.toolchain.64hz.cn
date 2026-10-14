@@ -335,7 +335,7 @@ format spellings. The rest of the `.dsp` vocabulary is in [`pass-keys.json`](/en
 *(since 2.1.0)* An HLSL pass of a [`.dsp`](/en/docs/language-v2/passes) compiles from a `.usf` that may live
 anywhere: next to the `.dsp` is the usual place, but neither a source root nor a mapped shader directory is
 required, because the engine only ever compiles a snapshot of the file
-([HLSL passes](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine)). The source-directory watcher acts
+([HLSL passes](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)). The source-directory watcher acts
 on DreamShader sources only, so the shader files have watches of their own.
 
 | | |
@@ -960,7 +960,7 @@ Note the `frameRate` repeated on the control message: omitting it would drop the
 - [Editor integration](/en/docs/tools/editor) — the menu commands the request actions mirror
 - [VirtualFunction tools](/en/docs/plugin/tools/virtual-function-tools) — the sync pass that produces `virtualFunctionSync` diagnostics
 - [Packages](/en/docs/tools/packages) — which files a full rescan actually queues
-- [HLSL passes](/en/docs/plugin/runtime/hlsl) — the pre-check, the snapshots and the slots a `.usf` save goes through
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl) — the pre-check, the snapshots and the slots a `.usf` save goes through
 - [Commandlet](/en/docs/tools/commandlet#pass-registry) — `pass-registry`, for the slots of a deleted `.dsp`
 - [Project settings](/en/docs/settings/project) — `SaveDebounceSeconds`, `bAutoCompileOnSave`, `GeneratedShaderDirectory`
 - [Material enums](/en/docs/settings/enums) — the alias tables exported to `settings.json`

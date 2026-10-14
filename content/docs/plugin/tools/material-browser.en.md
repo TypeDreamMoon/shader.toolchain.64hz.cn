@@ -320,7 +320,7 @@ is.
 | :-- | :-- |
 | Fullscreen post-process chain | `PP_<Base>.dss` — the Post Process material of the `fullscreen` pass, reading the copy through `UE.UserSceneTexture` |
 | Mesh mask chain | `M_<Base>Mask.dss` — the override material of the `mesh` pass, with `UE.DreamPassOutput` — and `PP_<Base>Composite.dss`, the Post Process material of the outline |
-| Compute chain | nothing: the compute shader is the pass's `hlsl` block ([HLSL passes](/en/docs/plugin/runtime/hlsl)) |
+| Compute chain | nothing: the compute shader is the pass's `hlsl` block ([HLSL passes](/en/docs/plugin/pass-runtime/hlsl)) |
 
 The companions are written first, so the watcher finds the materials the `.dsp` names when it compiles
 the pipeline; and all of them or none — a write that fails takes back the files written before it. A

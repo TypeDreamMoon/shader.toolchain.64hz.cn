@@ -8,7 +8,7 @@ description: "Seven complete .dsp pipelines with the .dss materials they use —
 > [DreamShader](/en/docs/) » [Examples](/en/docs/plugin/examples) » **Custom Pass examples**
 
 Complete pipelines, each with the `.dss` materials it uses; the HLSL of their HLSL passes is written in the `.dsp`
-itself, in the three ways [HLSL passes](/en/docs/plugin/runtime/hlsl#where-the-code-is) describes. Every one of them runs in the
+itself, in the three ways [HLSL passes](/en/docs/plugin/pass-runtime/hlsl#where-the-code-is) describes. Every one of them runs in the
 test host's demo level, built from these sources and rendered in a game viewport (`Tools/TestHost/PassDemo`). Two of the
 material browser's **New Source** pipeline templates are cut-down versions of them — the mesh mask of the outline,
 and the wind field; the post-process template is a soft glow of its own.
@@ -539,5 +539,5 @@ Notes:
 
 - [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
 - [Custom Pass runtime](/en/docs/custom-pass)
-- [HLSL passes](/en/docs/plugin/runtime/hlsl)
+- [HLSL passes](/en/docs/plugin/pass-runtime/hlsl)
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass)
