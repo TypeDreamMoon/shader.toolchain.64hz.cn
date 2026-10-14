@@ -715,10 +715,14 @@ def ai_request(prompt, settings, opener=None):
         if choice.get("finish_reason") != "stop" or choice["message"].get("refusal"):
             # The reason and token counts say whether to raise a limit or shrink a chunk; neither is sensitive.
             usage = data.get("usage") or {}
+            message = choice["message"]
+            reasoning = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
             raise ValueError("Translation incomplete or refused (finish_reason={}, refusal={}, prompt_tokens={}, "
-                             "completion_tokens={}); no translation was written".format(
-                                 choice.get("finish_reason"), bool(choice["message"].get("refusal")),
-                                 usage.get("prompt_tokens"), usage.get("completion_tokens")))
+                             "completion_tokens={}, reasoning_tokens={}, reasoning_chars={}, content_chars={}); "
+                             "no translation was written".format(
+                                 choice.get("finish_reason"), bool(message.get("refusal")),
+                                 usage.get("prompt_tokens"), usage.get("completion_tokens"), reasoning,
+                                 len(message.get("reasoning_content") or ""), len(message.get("content") or "")))
         text = choice["message"]["content"]
     else:
         if data.get("status") != "completed":
