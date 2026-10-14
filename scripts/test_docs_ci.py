@@ -183,7 +183,11 @@ class DocsCiTests(unittest.TestCase):
         self.assertEqual(created[1]['token'],'plugin-token')
         added=next(args for args,_ in calls if args[:2]==('git','add'))
         self.assertEqual(set(added[3:]),{record,document})
-        self.assertTrue(any(args==('git','push','origin','HEAD:refs/heads/docs-translation/test') for args,_ in calls))
+        pushed=next(kwargs for args,kwargs in calls if args==('git','push','origin','HEAD:refs/heads/docs-translation/test'))
+        header=pushed['env']['GIT_CONFIG_VALUE_0']
+        self.assertEqual(pushed['env']['GIT_CONFIG_KEY_0'],'http.https://github.com/.extraheader')
+        self.assertEqual(ci.base64.b64decode(header.removeprefix('AUTHORIZATION: basic ')).decode(),'x-access-token:plugin-token')
+        self.assertFalse(any('plugin-token' in str(a) for args,_ in calls for a in args))
         self.assertIn('插件中文翻译草稿',docs.read(self.root/'.docs-sync-tmp/translation-pr.md'))
 
     def test_status_issue_stays_on_website_and_links_plugin_source(self):
@@ -200,6 +204,7 @@ class DocsCiTests(unittest.TestCase):
         self.assertEqual(workflow.count("DOCS_TRANSLATION_PREVIEW: 'true'"),1)
         self.assertNotIn('docs-sync/translations/**',workflow)
         self.assertIn('translate --plugin .docs-sync-tmp/plugin',workflow)
+        self.assertNotIn('persist-credentials: true',workflow)
 
 
 if __name__ == '__main__':

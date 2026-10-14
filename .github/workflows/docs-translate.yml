@@ -39,9 +39,11 @@ jobs:
           path: .docs-sync-tmp/plugin
           fetch-depth: 0
           # Read-only credentials may inspect status. A draft requires the
-          # explicit plugin-write token checked by prepare-translation.
+          # explicit plugin-write token checked by prepare-translation; open-pr
+          # hands it to git for the push only, so npm ci and the build below
+          # never run with it in the checkout's configuration.
           token: ${{ secrets.DOCS_PR_TOKEN || secrets.DOCS_SOURCE_TOKEN || github.token }}
-          persist-credentials: true
+          persist-credentials: false
       - name: Preview the latest merged plugin documents locally
         run: python3 -B scripts/docs_sync.py sync --plugin .docs-sync-tmp/plugin
       - name: Verify committed source snapshot

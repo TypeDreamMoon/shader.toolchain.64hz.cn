@@ -1,5 +1,6 @@
 """GitHub-only coordination; local docs_sync commands never invoke this implicitly."""
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -11,8 +12,9 @@ import urllib.parse
 from docs_sync import ROOT, config, git, load, plugin_statuses, validate, within, write
 
 
-def run(*args, cwd=None, token=None):
-    env = {**os.environ, "GH_TOKEN": token} if token is not None else None
+def run(*args, cwd=None, token=None, env=None):
+    extra = {**({"GH_TOKEN": token} if token is not None else {}), **(env or {})}
+    env = {**os.environ, **extra} if extra else None
     result = subprocess.run(list(args), cwd=cwd or ROOT, env=env, capture_output=True, text=True, encoding="utf-8")
     if result.returncode:
         # Never echo subprocess input, auth-bearing errors or provider responses.
@@ -31,6 +33,16 @@ def plugin_token():
     if not token:
         raise ValueError("Set DOCS_PR_TOKEN with Contents and Pull requests write access to the plugin repository")
     return token
+
+
+def push_plugin(plugin, branch, token):
+    # The plugin checkout keeps no credentials, so npm and the build that run in it
+    # never see the write token. It reaches git for this one push, through the
+    # environment rather than the command line.
+    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    run("git", "push", "origin", f"HEAD:refs/heads/{branch}", cwd=plugin, env={
+        "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+        "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}"})
 
 
 def open_translation_pr(repository, branch, token):
@@ -185,7 +197,7 @@ def main():
         run("git", "diff", "--staged", "--check", cwd=plugin)
         run("git", "-c", "user.name=docs-translation[bot]", "-c", "user.email=docs-translation[bot]@users.noreply.github.com",
             "commit", "-m", "docs: draft Chinese translation updates", cwd=plugin)
-        run("git", "push", "origin", f"HEAD:refs/heads/{branch}", cwd=plugin)
+        push_plugin(plugin, branch, token)
         options = [] if verified else ["--draft"]
         print(run("gh", "pr", "create", "--repo", repo, "--base", cfg["branch"], "--head", branch,
                   "--title", f"docs: 更新 {len(records)} 篇插件中文文档", "--body-file", str(body_path), *options, token=token))
