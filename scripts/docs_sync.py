@@ -613,6 +613,9 @@ def protect(text):
     text = re.sub(r"<!--.*?-->|</?[A-Za-z][\s\S]*?>|\{[^{}]*\}", hold, text)
     text = re.sub(r"https?://[^\s<>\"]+?(?=[)\s<>\"]|$)|(?<=\]\()[^\s)]+|\[#[-\w]+\]|\b(?:DSH|DFX|DUI|DNS)\d{4}\b", hold, text)
     text = re.sub(r'(?m)^(\s*\[[^\]]+\]:\s*)([^\s]+)', lambda m: m[1] + hold(re.match(r'.+', m[2])), text)
+    # <a id="x"></a> masks as two tokens back to back; models drop or split the run of @ between
+    # them, which fails a whole chunk. One token for the run; restore() expands it level by level.
+    text = re.sub(r"(?:@@DOCS_KEEP_\d{5}@@){2,}", hold, text)
     return text, values
 
 

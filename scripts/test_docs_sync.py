@@ -181,6 +181,13 @@ class DocsSyncTests(unittest.TestCase):
         self.assertEqual(docs.restore(masked,values,masked),body)
         with self.assertRaises(ValueError): docs.restore(masked.replace('@@DOCS_KEEP_00000@@',''),values,masked)
 
+    def test_adjacent_protected_spans_become_one_token(self):
+        body='<a id="x"></a>\n\n## Title\n\nSee `a``b` and <b>c</b>.\n'
+        masked, values=docs.protect(body)
+        self.assertNotRegex(masked,r'@@@@')
+        self.assertEqual(masked.count('@@DOCS_KEEP_'),4)  # anchor pair, code pair, <b>, </b>
+        self.assertEqual(docs.restore(masked,values,masked),body)
+
     def test_ai_markup_spanning_lines_is_detected(self):
         masked,_=docs.protect('Use `{Name}` and <Callout>tip</Callout>; {props.x}.\n\nexport const a = 1\n')
         self.assertEqual(docs.introduced_markup(masked,masked),[])
