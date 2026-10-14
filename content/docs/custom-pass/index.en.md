@@ -165,54 +165,54 @@ still exports immediately after its pass.
 
 These links keep earlier documentation bookmarks useful. The pipeline language has its own reference.
 
-### Buffers [#buffers]
+### Buffers
 
 See [the pipeline language reference](/en/docs/language-v2/passes#buffers).
 
-### Clear and copy [#clear-and-copy]
+### Clear and copy
 
 See [the pipeline language reference](/en/docs/language-v2/passes#clear-and-copy).
 
-### Compute [#compute]
+### Compute
 
 See [the pipeline language reference](/en/docs/language-v2/passes#compute).
 
-### Custom pass pipelines  dsp [#custom-pass-pipelines--dsp]
+### Custom Pass pipelines — `.dsp`
 
 See [the pipeline language reference](/en/docs/language-v2/passes#custom-pass-pipelines--dsp).
 
-### Fullscreen [#fullscreen]
+### Fullscreen
 
 See [the pipeline language reference](/en/docs/language-v2/passes#fullscreen).
 
-### Injection points [#injection-points]
+### Injection points
 
 See [the pipeline language reference](/en/docs/language-v2/passes#injection-points).
 
-### Mesh [#mesh]
+### Mesh
 
 See [the pipeline language reference](/en/docs/language-v2/passes#mesh).
 
-### Passes [#passes]
+### Passes
 
 See [the pipeline language reference](/en/docs/language-v2/passes#passes).
 
-### Pipeline keys [#pipeline-keys]
+### Pipeline keys
 
 See [the pipeline language reference](/en/docs/language-v2/passes#pipeline-keys).
 
-### References [#references]
+### References
 
 See [the pipeline language reference](/en/docs/language-v2/passes#references).
 
-### The file [#the-file]
+### The file
 
 See [the pipeline language reference](/en/docs/language-v2/passes#the-file).
 
-### Tools [#tools]
+### Tools
 
 See [the pipeline language reference](/en/docs/language-v2/passes#tools).
 
-### What the compiler checks [#what-the-compiler-checks]
+### What the compiler checks
 
 See [the pipeline language reference](/en/docs/language-v2/passes#what-the-compiler-checks).

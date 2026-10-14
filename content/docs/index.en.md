@@ -159,6 +159,7 @@ screen-space effects, compute shaders writing data textures.
 | [Graph layout](/en/docs/plugin/generation/graph-layout) | Automatic placement and its limits |
 | [Regeneration](/en/docs/generation/regeneration) | What survives a rebuild and what does not |
 | [Divergence](/en/docs/plugin/generation/divergence) | Hand-edited assets: detection, and the three ways out |
+| [NoGeneration](/en/docs/generation/no-generation) | Sources only a compile that names them builds |
 | [Generated HLSL](/en/docs/plugin/generation/generated-hlsl) | The emitted `.ush` include |
 
 ---
@@ -199,6 +200,7 @@ screen-space effects, compute shaders writing data textures.
 | | |
 | :-- | :-- |
 | [Diagnostics index](/en/docs/diagnostics) | Every error and warning, with cause and fix |
+| [Disabling diagnostics](/en/docs/language-v2/disable-diagnostics) | `disable_warning` / `disable_error`, for a file or a line |
 | [Examples](/en/docs/plugin/examples) | Complete, copy-pasteable sources |
 | [Contributing](/en/docs/plugin/contributing) | Building the plugin |
 | [Testing](/en/docs/plugin/contributing/testing) | Automation suite and the fixture corpus |
@@ -215,4 +217,4 @@ screen-space effects, compute shaders writing data textures.
 | Documentation site | <https://shader.toolchain.64hz.cn/> |
 | VSCode extension | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider plugin | <https://github.com/tsdaer/dreamshader-language-support> |
-| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/CHANGELOG.md) |
+| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/5533fecff05dff170130ce5a4b8c7556742c5fd9/CHANGELOG.md) |

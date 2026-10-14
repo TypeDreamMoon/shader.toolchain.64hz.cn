@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "workingTree": false,
   "translationSnapshotHash": "309aa1423ddfc5d80d90f143680efb909c51571e3209d887745d9b576d01f27e",
   "pages": {
@@ -160,17 +160,17 @@
       }
     },
     "custom-pass/index": {
-      "hash": "a50823578cd0056b9644eb966a3d8225988da8b8b9585e2485fdcb1ca04ee4e2",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "5564dbee44d2b18e3a6a6492482e25d849644aa9e4b5fcc4e266bd8faefa4a96",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/custom-pass/index.en.md",
-      "outputHash": "8729dd1fbdf9cf22f351e4b75a14a8455e0e781f2680f6cfb959c80bd018a338",
+      "outputHash": "8c095b54b91e21751ca405885af0c100c5b043ba248606c283d40c5b31ae5822",
       "locale": "en",
       "format": "md",
       "title": "Custom Pass runtime",
       "sources": [
         {
           "path": "Docs/runtime/index.md",
-          "hash": "510cbdcdff623ca7bf8ccf1ba08bde953159707cea5bb13e8934c4d8b682f4ce"
+          "hash": "d30b9c3f51417df6299ac2772cfbd57c5acfbd2b1d329bfec6ea90d29cf45b55"
         }
       ],
       "translation": {
@@ -292,17 +292,17 @@
       }
     },
     "generation/asset-paths": {
-      "hash": "dffa21f04f779ca6167644c621b4bb5e40bce0ce3c284cb5165bd9f35eb89023",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "8ef40ed62585e3b179f2ff37c72319951b6c5521ac2f449337e0d8eda9f68d20",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/generation/asset-paths.en.md",
-      "outputHash": "a673a3d6a13c43b51116ac7a9a15bdcffa08b43eaaeef039bdf47c4fae743419",
+      "outputHash": "b18fa54deb2716da4eee0b5f66a2836f679b5139525a0b625a641c306bf3b07d",
       "locale": "en",
       "format": "md",
       "title": "Asset Paths",
       "sources": [
         {
           "path": "Docs/generation/asset-paths.md",
-          "hash": "ee16c16139050980de5670685a8e87b69282ac1d3f7bd931724d95cd9640900d"
+          "hash": "e73ef9124ee0c4337d3f8fa6169be852876d9f292cc6c4f3105022cf0f9e19d7"
         }
       ],
       "translation": {
@@ -335,6 +335,24 @@
         "bodyHash": "bd7678a36fe97c250a4d3009a758326e513a7d3033f646b98bee404a7687ea3b"
       }
     },
+    "generation/no-generation": {
+      "hash": "402fa2a520677be8a216d5bcb33af86ef67889a5dba1e52e17d574f6d00bfde2",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "output": "content/docs/generation/no-generation.en.md",
+      "outputHash": "4805afcae6cbbaab33d79acac3f6feb184f2249c58a8585840581e820d9f7468",
+      "locale": "en",
+      "format": "md",
+      "title": "NoGeneration",
+      "sources": [
+        {
+          "path": "Docs/generation/no-generation.md",
+          "hash": "75472bbf566ce68bffe74824b591e3d327df9863fa5abeb02c32e1350a98c307"
+        }
+      ],
+      "translation": {
+        "status": "missing"
+      }
+    },
     "generation/outputs": {
       "hash": "816f22f9df9d620f17f827b8f18630657f23f1f77bfe27477b2a9f9ea8daaa2c",
       "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
@@ -358,17 +376,17 @@
       }
     },
     "generation/pipeline": {
-      "hash": "cf30c39a4965f97179319369e1be48343ad58a88ee1a43016ea7ff7b0984bd84",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "60695483add45b795d7bdaa0822d49b69c145a4e5dc23d3b089a0f640062a021",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/generation/pipeline.en.md",
-      "outputHash": "f80fc2780201b57f8eee2bcb720ea6ce70ef6888b21ee80dfe0e6e259c1e0e4f",
+      "outputHash": "c2572e87fc2bf3a71e7d770a73d773062cc417227f4e112740d435a9b294e256",
       "locale": "en",
       "format": "md",
       "title": "The Pipeline",
       "sources": [
         {
           "path": "Docs/generation/index.md",
-          "hash": "73b612f5e450a6cd8548b5475ebb4af33a5f3d7daf49f1e50920cd8132cbb992"
+          "hash": "423c4b555f2a9607253a8d2d844694ff0fa7bfde76e07284e89b77c721d34bf2"
         }
       ],
       "translation": {
@@ -556,17 +574,17 @@
       }
     },
     "index": {
-      "hash": "4932e2e337eb373d7847aad8d09760e5de1e12c4a124be82d14e5c53b13f7b66",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "68083e68729d989a101f050888f9d3c8d3d42fe1bf9e6f75f347a7c9afbd5909",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/index.en.md",
-      "outputHash": "c6c84c1fb62420b17b9abd995d9c51d1621161f86ece955983c6b43e93469b1c",
+      "outputHash": "940f02ae9f970150a5ba20d1a5ad9a46cca99ccbc54d49784362be127f53b9fa",
       "locale": "en",
       "format": "md",
       "title": "Overview",
       "sources": [
         {
           "path": "Docs/index.md",
-          "hash": "aed470f5139fd12f95570d3013ff5b7ceb34cef2cd03ebde6c45cf0a434a087f"
+          "hash": "58faa98eaf79fadfebec407e8fffff1672ae0a330b977c09375331f24f3ebb03"
         }
       ],
       "translation": {
@@ -578,17 +596,17 @@
       }
     },
     "language/blocks": {
-      "hash": "b9d3dfa60a08fc6d47b9be24f68406e90b4a0cb25e0fa66515139ea096fda3b8",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "c06c77e7bc559bd60da073646eb84e50b800bb29055c128778081b21e72b1b89",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/language/blocks.en.md",
-      "outputHash": "c1d7d1cb10946eaf497fad7f8cd0d84479229e797d549a29ffdf0326f1b78af7",
+      "outputHash": "d3b02ddafc089783549f887ca344d257502e588ade1befa6d9c1667d5c06f5ec",
       "locale": "en",
       "format": "md",
       "title": "Top-level Blocks",
       "sources": [
         {
           "path": "Docs/language/blocks.md",
-          "hash": "e2e081f14ef6c60d5617f2078914e69a6d3d4d5b225a525239d9b2fbe31f70b1"
+          "hash": "d2587287b48476bfa34035f9a653b5c37a1277b5fe5ac7ca53a24bb9fd5e3043"
         }
       ],
       "translation": {
@@ -622,17 +640,17 @@
       }
     },
     "language/functions": {
-      "hash": "885ccb9ddd989c799aff0cd049eb4aa0014a454e7a88b98ca00b141a9fe0bda1",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "df7c2d61dc225f5828de0993cae7eaf359dd2d55698b3c38b5e4ff8d697e1ac9",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/language/functions.en.md",
-      "outputHash": "bc935490973c1c3c325279b04f5c4d7e205b0bc96e21639d3a013458aabb8b71",
+      "outputHash": "ddc7d8286c6f7a37f4a8ee0ff044721a47f274ca3608b41f77b65b1098fd77c2",
       "locale": "en",
       "format": "md",
       "title": "Functions",
       "sources": [
         {
           "path": "Docs/language/functions.md",
-          "hash": "096eabe9c32d2ccb66299206fdaa27d937b4c0e001501f66a911311479c3ed4b"
+          "hash": "49a35c923c781a58161f27790581a0fc952bc7495bc46fed6643323fd78f69d3"
         }
       ],
       "translation": {
@@ -753,18 +771,36 @@
         "bodyHash": "adf8d6ec6b6b235b68ffbd170d02e2abd0de46a5ecdd8659e7641fef3cef8c2f"
       }
     },
+    "language-v2/disable-diagnostics": {
+      "hash": "6bf8b283aaa587cfaca0ddf8fecaa5010e6ea33bf6c6c708876a9397aa32d709",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "output": "content/docs/language-v2/disable-diagnostics.en.md",
+      "outputHash": "acd45db9530a5e792690a347725e26501263b0264fe4bbb8b96d9bd906e74b0d",
+      "locale": "en",
+      "format": "md",
+      "title": "Disabling diagnostics",
+      "sources": [
+        {
+          "path": "Docs/language-v2/disable-diagnostics.md",
+          "hash": "0884f8d023a0ddae8322cb7f66451ad519a5748e1f19631c238335f9bd4a69ab"
+        }
+      ],
+      "translation": {
+        "status": "missing"
+      }
+    },
     "language-v2/index": {
-      "hash": "6de8c2f3e0e9bcb7307af30756b462681fc8f556bfdf86baaf7346b742708ed9",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "61cd843daf2c34a2c03bbf2a81fc062d594bd8b4c4350e103c243f4d763331cf",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/language-v2/index.en.md",
-      "outputHash": "d43f3938be4eef39eb1b0ee44c97e86d5fa3088b11bb1ca01e7cf1326042a63d",
+      "outputHash": "ffa1d05c2ac56fcc7eae67109744547fe86c946b9bac29471a16c7adf22aa10b",
       "locale": "en",
       "format": "md",
       "title": "DreamShaderLang 2.0",
       "sources": [
         {
           "path": "Docs/language-v2/index.md",
-          "hash": "4b2a5add4c9865c00585cb0d3bbf32950c288c136c994c854d9f62416bb04fca"
+          "hash": "d17b1e1abb1c4508bb1967535b8b938be6f5872e74fe6d75f528a2e28db04e73"
         }
       ],
       "translation": {
@@ -798,17 +834,17 @@
       }
     },
     "language-v2/migrate": {
-      "hash": "dc623e152b404415e0060786f73f0f960a2a75811cb1f438f241f753467472bf",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "68ca0f53b6d4a2495f5468fe4379479c020430244a2532c2a7a38e7954a314a2",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/language-v2/migrate.en.md",
-      "outputHash": "2b577265403ba540eba0a7ac16ea7e5e4e7e561ea27f7f524a9c52ed6091e67e",
+      "outputHash": "76176d138633b87586eea61d994209267d88439be1803c69720a6a8f924a178a",
       "locale": "en",
       "format": "md",
       "title": "Migrating from 1.x",
       "sources": [
         {
           "path": "Docs/tools/migrate.md",
-          "hash": "871318d657dcb963a390ee981fc92cc45b83f74b87f0fcf9d67893b52fad1251"
+          "hash": "f37c03b24ee1bf4542f3054f8be5d855fb02282cac90de5157c6ba75fef046c7"
         }
       ],
       "translation": {
@@ -1084,17 +1120,17 @@
       }
     },
     "start/project-layout": {
-      "hash": "33440eee8d656c6feac4b931aacdfc615aeb4c3f88c417f5cf0c45bccb324e97",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "d136685b5b2da9efc682be91ff4bbb9b3822f4b3058ffbf1d9646700886de3de",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/start/project-layout.en.md",
-      "outputHash": "377398efedae3e5cff311919f9c35d9611ed694377a614c93f3969193e865c13",
+      "outputHash": "619b74f0fd17c6ad4f075f261e9d8ee897ca80152afa7fc9822bfeaf5ed9a55f",
       "locale": "en",
       "format": "md",
       "title": "Project Layout",
       "sources": [
         {
           "path": "Docs/getting-started/project-layout.md",
-          "hash": "428ee9eab2bd86fbfe2e842cc7f14d71bad7cbaa458f8f0c0437dcbdfadfdd96"
+          "hash": "1cc37ce7eff852160a24f5c109c8758d1748d252068053c3bb300826cfabc897"
         }
       ],
       "translation": {
@@ -1128,17 +1164,17 @@
       }
     },
     "tools/commandlet": {
-      "hash": "02cc651acdcb628332a57053470930ed4533370d96c6970ca0bf22e53a6dacbf",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "bd8908107858cf49a49e282cfb6d3d165918332d2a95a5a133ac16794fb1e19b",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/tools/commandlet.en.md",
-      "outputHash": "3a623e5ae31752ad7b3043923b6bf2f726ba0a644d8e29a37e2966c4806468c0",
+      "outputHash": "e58133c31acf82d1e901343771f2fad2aca1c17fc9b1b4781826caac5ee4860c",
       "locale": "en",
       "format": "md",
       "title": "Commandlet",
       "sources": [
         {
           "path": "Docs/tools/commandlet.md",
-          "hash": "cd318bb244b0ae56fb899b9cabd03ee375b2aab3b75e2e664e33618046075197"
+          "hash": "f5dfe46052ed0d7c90f0c00c76564702759277870838b59bca20b37218f753b8"
         }
       ],
       "translation": {
@@ -1194,17 +1230,17 @@
       }
     },
     "tools/packages": {
-      "hash": "95323ce5b335013419944cc0e6d60b0d6d55d25ee42db625b210cf9662e2f665",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "0bea3e8e25e905da4b558d83b4b094c5589f5590cf29af93069065e4f973c5e3",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/tools/packages.en.md",
-      "outputHash": "671d309b5521e1af4c2a2c4959012ab1304863d795718bb97864f060541ae4d4",
+      "outputHash": "a96eeaea5c6f32848236e3c536118dfb1aea9023c8418badf8aebac077e484fe",
       "locale": "en",
       "format": "md",
       "title": "Packages",
       "sources": [
         {
           "path": "Docs/tools/packages.md",
-          "hash": "3863dad97907504d54eb37a068c970c9e6683db91885f9ec747a6b4ac70c7e62"
+          "hash": "b5f90b573329fc6041496fa8ec11ccda04dc00304f7a63fe3e52ee22f482133c"
         }
       ],
       "translation": {
@@ -1216,17 +1252,17 @@
       }
     },
     "tools/vscode": {
-      "hash": "3711142850e1cb1490852e4f2c027e790e7620d9814467205ceaa7ac576115a1",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "c3bf725edad4e6ffaa78a3ddb8be9f5f269a846484fa825b8d0d4ad51243e8df",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/tools/vscode.en.md",
-      "outputHash": "8035ea18b9ac20f5973097c8753a3c6981241b49a9e0044e22faa1717eb2329b",
+      "outputHash": "77fc13f759867371470354f9817d7c27fdf44c42aeb502255bb3910b9afc2576",
       "locale": "en",
       "format": "md",
       "title": "VSCode and Rider",
       "sources": [
         {
           "path": "Docs/tools/vscode.md",
-          "hash": "6dd16ea28fb23ec9b643a01570640abdfe51a1e45b4b1bcbe821e52e6710c415"
+          "hash": "e8c8aded39338e901d3fce22005cefc4e254dbd947c44a05a484f4d62a9d04b8"
         }
       ],
       "translation": {
@@ -1490,17 +1526,17 @@
       }
     },
     "plugin/contributing/release": {
-      "hash": "c3ea9bccd9b6c70759e78fce419a7ce294bbd0d446041569bcd13a6d4a472179",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "6779b5c15fcf593034e605eb7b28cc00a29ec720bfbbef42787785834cd8f068",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/contributing/release.en.md",
-      "outputHash": "9567cbf31ced749bb80a6695d71580d3cd8090d347859333ce96bc14a35efb34",
+      "outputHash": "c476c6a9122d6688739609b406fbf8de10b1ac7f10a070d2942ef92c2ef7ec72",
       "locale": "en",
       "format": "md",
       "title": "Release",
       "sources": [
         {
           "path": "Docs/contributing/release.md",
-          "hash": "801cdfbf3e4104aa0e5b266de1781bb864001905e6b10fbae43d9aafc23b7f8a"
+          "hash": "28d3af9ff6a6dcf18ba1ef7fa0f11b3fcdc923c594c764502ced3c890af5cba2"
         }
       ],
       "translation": {
@@ -1526,17 +1562,17 @@
       }
     },
     "plugin/diagnostics/dsh1xxx": {
-      "hash": "a8a7badba21f46ae197d08b5abd0748c693dc656d6d46f62481084568c494fab",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "cb4b1c43e7c35f02dc4e9e2b08ac2782ee968836d813258dcb3c2f1b85e950bb",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh1xxx.en.md",
-      "outputHash": "8f427723f2bbbdec2a2351d9ce78e261dd7740e36c5c1ef9e20fa9906b9e34bc",
+      "outputHash": "d8e79353f879b335888d2b5bdc3bc75fc0b0f88a23529732ad68d2a5fd7a7d2a",
       "locale": "en",
       "format": "md",
       "title": "DSH1xxx --- Driver, source files and imports",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH1xxx.md",
-          "hash": "219cafd9a57f087a6231d856c7e1ce423f5ecbfbff3b1432dbc2ec2954a8a60f"
+          "hash": "417b60a5009b391740a33003bb0b311d124705fc3814d58276d91ef8d8733658"
         }
       ],
       "translation": {
@@ -1544,17 +1580,17 @@
       }
     },
     "plugin/diagnostics/dsh2xxx": {
-      "hash": "0f5c719cc551e3629b9d453495e813eaa314ab587c8e8257ef8055489944e1cc",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "b9b65121cdba01e06f761ec95e3288c8c95d59edf028d9def182b5127e75d70f",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh2xxx.en.md",
-      "outputHash": "79a6733997b928d422718014bc3a49cbc3a60412a7f034658ac8cd030a152c1f",
+      "outputHash": "afe0bac927ee14dc8b6c516f384cfa920e3531b212b11b37ca0adc55a60d0710",
       "locale": "en",
       "format": "md",
       "title": "DSH2xxx --- Lexer and syntax",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH2xxx.md",
-          "hash": "902ea4e1ec8df92295af1cf44d5467cd78ee0361790dfb272cfdad1de319b0e3"
+          "hash": "4a99b813a2e50e5fae7953103066f9804218dc45f26481591da76f68d2d8988a"
         }
       ],
       "translation": {
@@ -1562,17 +1598,17 @@
       }
     },
     "plugin/diagnostics/dsh3xxx": {
-      "hash": "49ee8d1e4b8db5d6e9827ee8c3099e9f64edbaf3b81bf0bea089e3fa0a9a3473",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "65af98ab06bbb20af275deb363dd7280148802b800a49395bb1c35a7613950e8",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh3xxx.en.md",
-      "outputHash": "6531de0a474629cdfe0177f3b09dee73647db3b64f6e60eef9f9a59f75e2d672",
+      "outputHash": "77a3db7aead10113b68de070e8a483a50efddccb879e769dcf9b5ccb0d84f843",
       "locale": "en",
       "format": "md",
       "title": "DSH3xxx --- Sections and declarations",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH3xxx.md",
-          "hash": "df86554e874277a932cf6b95c615cfb7051aec434da6f73c8de72884f3992829"
+          "hash": "ac6e71454012e67a792612c9b318e5614f74c46d52b9ed4ec8d833e49c8a8231"
         }
       ],
       "translation": {
@@ -1580,17 +1616,17 @@
       }
     },
     "plugin/diagnostics/dsh4xxx": {
-      "hash": "361bf3bd95a3b188849bc21f2bf7556b49413c39bebd511f2489c15ed81846e5",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "550201c74ac1674bc13c5fdfc9bdcc2a81b8ac47651e0acbfa59435c07bdd5a8",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh4xxx.en.md",
-      "outputHash": "b664878ab359fdf358f410d2470424ef725a55891ae3a6af565314a1715c9852",
+      "outputHash": "b69f2625307fb3f5a14d6774a00db1bb79d8fa9e7d6138c4462cd5d483d99072",
       "locale": "en",
       "format": "md",
       "title": "DSH4xxx --- Graph statements and expressions",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH4xxx.md",
-          "hash": "0406af06b37d17512ababb7477ef3c82e082e7f51a5d0c29204154b32de98efc"
+          "hash": "ee5da36375199add18e1dc334df20686f2a5f3bfbba98a64e0b9b559185749b7"
         }
       ],
       "translation": {
@@ -1598,17 +1634,17 @@
       }
     },
     "plugin/diagnostics/dsh5xxx": {
-      "hash": "2d262d631c54d7cbb5da2c0f2f7e8b26352feadb1803d44de8c49d35534fdf06",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "e94e7b780c235204ecb473e93e51bdee61e90a3ab16685361789ba04dbcb4f93",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh5xxx.en.md",
-      "outputHash": "51829369133b105adf023b6ebe00136efbaa425bb2618b2fb12267605697945b",
+      "outputHash": "234ecdc63fac1bf6cd1624eeb14e90dd9bb03887b21afaf5391546fbb6b7eadd",
       "locale": "en",
       "format": "md",
       "title": "DSH5xxx --- Builtins -- UE.*, math, Substrate",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH5xxx.md",
-          "hash": "b0ce647e5bf96f95f7dfef58fb74a2fac9447e45249500787d8807c75e5e96a7"
+          "hash": "e843e6a764f69e906d5c6fdb159bce01338c97a8a465440c96d83b7dfc1c4637"
         }
       ],
       "translation": {
@@ -1616,17 +1652,17 @@
       }
     },
     "plugin/diagnostics/dsh6xxx": {
-      "hash": "b10dd221bd9c9497435eb51be70f6aa45b96e3cc90ebf83525eab681cf6399db",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "cbbeedba0ed273628d91d80b247788396dc2f8b1f772818c60701e1daab03a2c",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh6xxx.en.md",
-      "outputHash": "da4b991ac831944691a33c9bb7104797eb2e8a81e96b6ca7f631786e6de99415",
+      "outputHash": "430c6e28af12f21ddd3580657918838c1eb5a41828af49dc7ba2f29097766c97",
       "locale": "en",
       "format": "md",
       "title": "DSH6xxx --- Functions and HLSL codegen",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH6xxx.md",
-          "hash": "309df01222753fca7b7f4f4ad7ebd59fd4b9fcbe0ec1b92dfa3d45330bfd95cd"
+          "hash": "89a4dfee70e768c75d74c45e85404e98b0eddd3363fd3fd65d68bebe8ceec976"
         }
       ],
       "translation": {
@@ -1634,17 +1670,17 @@
       }
     },
     "plugin/diagnostics/dsh7xxx": {
-      "hash": "826b1d7f50759f67f728f80e0268391587c3522403a50a2281fe104d85757045",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "5909e484d50cce194fc21d01877e93d8a329d145b4e678d943983d4d1338918b",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh7xxx.en.md",
-      "outputHash": "6cd90f6078f1812dab6f3e34aff4aa7100e8d8df47b549168a0fede04cfa6092",
+      "outputHash": "3c03a408ab9629caf94fac47f0d88a3aad7518024891e520daf7bdbf87e87cce",
       "locale": "en",
       "format": "md",
       "title": "DSH7xxx --- Properties, parameters and settings",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH7xxx.md",
-          "hash": "743127c85de93215f4d51e564582b30529509d6c3822ec0e7700fbd15ba71430"
+          "hash": "2bb95037ed40972dbcdc53949c0bb32cfbc11b6462ff6ee3620ef675516ff190"
         }
       ],
       "translation": {
@@ -1652,17 +1688,17 @@
       }
     },
     "plugin/diagnostics/dsh8xxx": {
-      "hash": "bf6d81118b8ef9342c88929c7d3e04410eace58565f8f0c2d14726fc40809b54",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "d4b949d1443f137c24ab0aaec8eb2eaac1b967bd2785c1fb7e9ad276304a178c",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh8xxx.en.md",
-      "outputHash": "b9c9f9716aa8fa339d7554ee51c13270ca9c48c21346d77ff5c138f19959372c",
+      "outputHash": "2656f7ef19aec7830026d5a0f71e7e7d8f2cd410659cf86b1e6998a853a25ac5",
       "locale": "en",
       "format": "md",
       "title": "DSH8xxx --- Asset generation and saving",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH8xxx.md",
-          "hash": "5108ccf8c83e9f227a08d60e14383a54d79cc4559222f31b7a9480974a84c6fa"
+          "hash": "88d6a95bb78c2a99d66ba5e16dccbe839ddd3f882e8b936d0ef9fb6f9ece0757"
         }
       ],
       "translation": {
@@ -1670,17 +1706,17 @@
       }
     },
     "plugin/diagnostics/dsh9xxx": {
-      "hash": "9323337b2afb1adeb10906675bf2d36d3f0c795b8f6321d82356a541ae829fa2",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "62ccbef0674da52473e7b60f8e5449469b929fd5463f26ce7d397726ce0a8d36",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/dsh9xxx.en.md",
-      "outputHash": "f9fd5238e9b743ccb129c571d5e2664121c9c8ae89f024a12806683cf96f93bf",
+      "outputHash": "78c4e02f6d4406a5d3237d49b438f975ecccbd1961d6cddcba1d6ee57ded68d2",
       "locale": "en",
       "format": "md",
       "title": "DSH9xxx --- Tools, sync and internal invariants",
       "sources": [
         {
           "path": "Docs/diagnostics/DSH9xxx.md",
-          "hash": "2dfe14832690cb387ff47c0b2a27b0e829193c71f788a893c93ea73ba785f828"
+          "hash": "e7c3ab0be321713a904f4a00e2af82e5ad3bfd3b498eb1e42feacf6875bcb974"
         }
       ],
       "translation": {
@@ -1688,17 +1724,17 @@
       }
     },
     "plugin/diagnostics/readme": {
-      "hash": "c99721f3cb55fc1acc508e02de7a2693a7ab2c7aeb844aad9d596ac1ffd30b3f",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "1ac1ae950797529a300677337503a517026ca158da1a1cad2786c2be7104e0c3",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/diagnostics/readme.en.md",
-      "outputHash": "8f9b8537420b4e270e5474f5e22e1d4c4969135e49a73af754c96d85ddea3960",
+      "outputHash": "a7b0b22209d4eb3c2340224526785dd852253cab487f1d69642b817a515e7eab",
       "locale": "en",
       "format": "md",
       "title": "DreamShader diagnostics",
       "sources": [
         {
           "path": "Docs/diagnostics/README.md",
-          "hash": "1b6c30e91067811b68230ef41efa97e6a01cf64d84e932ea3ffff99ef7ce97a9"
+          "hash": "135387707d55e1cd3a22d57ce041b760f06600853813105541031a0e4366d368"
         }
       ],
       "translation": {
@@ -1742,17 +1778,17 @@
       }
     },
     "plugin/generation/divergence": {
-      "hash": "e5f0bfd5716be68d14c87803745e08258df5c39a564cebc602141757aeb0489a",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "474a66ddcfd1e0a82ce773014404522f5298bf792e4c6a99a4e88f7689120df3",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/generation/divergence.en.md",
-      "outputHash": "822dde5fd95241f58761934dbd2be74501347da647420902d597a3cd8c72409c",
+      "outputHash": "45d860ff21631610be51567419ca56eb2212546c79f1ded428068a3026426cab",
       "locale": "en",
       "format": "md",
       "title": "Divergence",
       "sources": [
         {
           "path": "Docs/generation/divergence.md",
-          "hash": "a0e17578ec04b0157ead1147b4d6659e299005910127f938dec626a505ec955a"
+          "hash": "2014caef3c8c180a993ca9e013172e907a2c2a1a6d644ef108523ce40fbefea9"
         }
       ],
       "translation": {
@@ -1760,17 +1796,17 @@
       }
     },
     "plugin/generation/generated-hlsl": {
-      "hash": "bcbef9a4714bf4da411f9cacc97c566c694582d2089a5efd4df40e7de64a35b2",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "58668f9763e4fa036a922d50593319c22a82ab44af29143d40078a050fc87604",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/generation/generated-hlsl.en.md",
-      "outputHash": "b755d81ba25fac9cfd9e4208083ff3beddf4774588f8d3df2ba2e1f92298390a",
+      "outputHash": "dd76853c3184cbd137960afc548c52575704edef4e49c2ad82f3bc740ab081b4",
       "locale": "en",
       "format": "md",
       "title": "Generated HLSL",
       "sources": [
         {
           "path": "Docs/generation/generated-hlsl.md",
-          "hash": "c460a42feae839f160651b74ac161d681a60ccf2f32c9ba77f3961d36e73d1b2"
+          "hash": "f36ae93592ff7a7be16a8c17d897243867dd47d9004f2d6c83db6047ab964b10"
         }
       ],
       "translation": {
@@ -1958,17 +1994,17 @@
       }
     },
     "plugin/language/function": {
-      "hash": "bbe78699a303bd4a2d18fe378b14170eacb4274c8b619e6b8f3adc82574605b4",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "67a7348fdd038ea92494fe2758c5b63a7f41aaa4b3e4da4e0e76917775af131a",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/function.en.md",
-      "outputHash": "f28fc93d84fcff2ee83299e2f6bdc9eda1dd85475f4ff07824665c13d3615d8e",
+      "outputHash": "625380b27434e7cf106501b49c3641e27203818ed03761a951784d6886e0efe4",
       "locale": "en",
       "format": "md",
       "title": "Function",
       "sources": [
         {
           "path": "Docs/language/function.md",
-          "hash": "096571cbe4ed9234036783d3d4da7739dbf2d631292388a93fd3aacab4661066"
+          "hash": "201df5b440f8c8349ff4d9a5bb91d2c8904d1e41078eb9e1e98dc2493a61b342"
         }
       ],
       "translation": {
@@ -1976,17 +2012,17 @@
       }
     },
     "plugin/language/graph-function": {
-      "hash": "adc076dbf7c168c24df98a61c5c4e3b585bf424659646c876b2c6513a0e1638c",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "d3ff0342e813e9855cbfae6b307379f980e07d1e970352900a595d1e4e4d6bb3",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/graph-function.en.md",
-      "outputHash": "d291b14634c1a28d915d98580eeb9ccf16e17d25a90b40caa0469fd13c04432f",
+      "outputHash": "c7ba2961bbd8f22320e2476c269a9e9d362d244433656eac5f42a89e64e7631d",
       "locale": "en",
       "format": "md",
       "title": "GraphFunction",
       "sources": [
         {
           "path": "Docs/language/graph-function.md",
-          "hash": "a4ba617e81107490a34c7b520f26073b4861ea260307b1137626484e2c6ffcb1"
+          "hash": "8968441e561f21f051d9e98f43dc9a66b0efbb97c24d5ec2d3dd50c5a22e7d81"
         }
       ],
       "translation": {
@@ -2048,17 +2084,17 @@
       }
     },
     "plugin/language/namespace": {
-      "hash": "906f60dc0e02e302202228070f0bbd34048ad05f6b7d64b8794bdf1ddf1be2dd",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "ba5d6aca7f390a45db6ae46fc8b96d6a5a4c789701419039c684b5df4b60bf5f",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/namespace.en.md",
-      "outputHash": "fbce914bf9b123e81850c165c2a83916487c0d68460e5ad79edece0fdb2d5a5f",
+      "outputHash": "d84b2e2f282b86a6233bf1a4577344c3f6a13efe3865323aaef0b4a8bdce645f",
       "locale": "en",
       "format": "md",
       "title": "Namespace",
       "sources": [
         {
           "path": "Docs/language/namespace.md",
-          "hash": "ce0d15e7e158b44999e5177d4261ca8f406b32d1e04a39b885d71e9f2d566914"
+          "hash": "1b036c3c484c1ea073407d2823759b98bca02c1d6a9469f0dcc325fe096a0c86"
         }
       ],
       "translation": {
@@ -2102,17 +2138,17 @@
       }
     },
     "plugin/language/preprocessor": {
-      "hash": "faadfa521e570971389bbaadb2f0601ada83c909a9fd39a5dbd0bcd6b07a81d2",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "6383eddd6f8a58472226c34496ba4176bb99bc1cb6b73d41f764feca1557879b",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/preprocessor.en.md",
-      "outputHash": "54e8faacf0a1f1ce71d6e1502063b36bc598218b245fbae5a34861f61f28ce35",
+      "outputHash": "66484c9a037b52d076f96833f824b4117e001b29c85e239bf7f99407b635009b",
       "locale": "en",
       "format": "md",
       "title": "Preprocessor",
       "sources": [
         {
           "path": "Docs/language/preprocessor.md",
-          "hash": "365f88ab605718dd365585ffb166f141e6e66f7bdc88c5e9161da895eb75ec4c"
+          "hash": "a61d9d92d2ce50571a88503eb4c9a16242ce08c5586e96df52038adf116d296a"
         }
       ],
       "translation": {
@@ -2120,17 +2156,17 @@
       }
     },
     "plugin/language/shader-function": {
-      "hash": "d345e4bb22552a26205a7137c4ae97d0bd92b5c97c48651d5a58147e79ac71c2",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "011e43b506ee175f21b5d57059ce116247883f7edef0b77d5c32cdda5d761ea9",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/shader-function.en.md",
-      "outputHash": "8e1277fa044d1edaab5048e82dce585c983eea4e34c4ac28721d9fa1940eb42c",
+      "outputHash": "b47687f8bdc025a5a9edafa1c3ec1545287de91ab60cdf70e24c95c9774dd1c0",
       "locale": "en",
       "format": "md",
       "title": "ShaderFunction",
       "sources": [
         {
           "path": "Docs/language/shader-function.md",
-          "hash": "7fc1783d9a35df1f1cc25c2e2e5f58f4d40701f5ee4f48d675f24b846e2c3f41"
+          "hash": "29b07baa95d11cefca0a0bd6fd4761b183099d9419a149c212394cbdf21fff44"
         }
       ],
       "translation": {
@@ -2138,17 +2174,17 @@
       }
     },
     "plugin/language/shader-layer": {
-      "hash": "70032a9116ff3401a90657f5d1fd19196d5e114adf5cbfb5cf9f68b63fd82084",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "cc66615ce3f689dd31bba06a0a5dff725353be08d7bb5bf2fd9a4e66a8253fd4",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/shader-layer.en.md",
-      "outputHash": "c8ac30a355a894471b93efe5698d1c8b14358a9d1249d54af450a3a6e1983171",
+      "outputHash": "075fb4a430b628adca8d74b4b5fc81343ece2d199409ad4ccd67593134dab833",
       "locale": "en",
       "format": "md",
       "title": "ShaderLayer / ShaderLayerBlend",
       "sources": [
         {
           "path": "Docs/language/shader-layer.md",
-          "hash": "79af1b38a774ec5461413db0b605a91ee335b2343f6759d6688846f08afa3fd9"
+          "hash": "cd2c698a99587d740aa158853ddad015daaaaaca894870e2bbecbcb8359d26a3"
         }
       ],
       "translation": {
@@ -2156,17 +2192,17 @@
       }
     },
     "plugin/language/shader": {
-      "hash": "fbbcefcd0b6ef80f020235563d407b7917e956818ee7285805f3f8044799365e",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "8dc30a27e8c775750e59dc5a3d1d2dd9cf08e234b4df33e2c563cd026019bc3e",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/language/shader.en.md",
-      "outputHash": "e0ccbbdf561323ba1545517d3480afb8dcdffb53e457c7b17d32abb726a42011",
+      "outputHash": "1b815eb2c101ecd75ee659f9dd097afbb21c2c340620891a036d5026ad8d0e89",
       "locale": "en",
       "format": "md",
       "title": "Shader",
       "sources": [
         {
           "path": "Docs/language/shader.md",
-          "hash": "e61434e62c97a2cd1b7c2661b50866c7a3a5ae9aa9969ba2cdebf075f528d747"
+          "hash": "3c73903faafc8e0d657adc9931b6f0205449e79b0a255a70bff11c2c2c53e58c"
         }
       ],
       "translation": {
@@ -2282,25 +2318,25 @@
       }
     },
     "plugin/readme": {
-      "hash": "e39f6e76e4626f4fa001c8087430fd5a22c678bb46d027479dbcde7de737f4f5",
-      "revision": "4b55a3664be4267415420d122c503660f2680ad2",
+      "hash": "ab3ba504e60bc51fa11d3ba4902fe4467870c170a8e58fc7cfdcfa966da1d548",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/readme.en.md",
-      "outputHash": "f15a5b16f2aae20cad337664004540117fb49d537370bc0b2c37ba52a6dcdb0d",
+      "outputHash": "aa90a98f933466f5759f40ce8e1bc76c9514cef87f7194f74532822cb6950e03",
       "locale": "en",
       "format": "md",
       "title": "DreamShader documentation",
       "sources": [
         {
           "path": "Docs/README.md",
-          "hash": "fb9e47ecbdced28e16bed48b4aad8ee3f4d419f2a87173b9553d5e3477cc31d5"
+          "hash": "4d4caf39da018432cbf1d22f037b2ee490649346500afc5899dfebc2b994a9e8"
         }
       ],
       "translation": {
         "status": "unreviewed",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "2fb2c79778d87eb8c610fc04f7c5eb5a967c7f95186aa5c82017e5d663193af3",
-        "bodyHash": "6206084144fdebda3b72f02cad84b9f3c7d4d891764e03cfa538b1b50689f19f"
+        "outputHash": "e1a9203574e7f681ed39981e9942be0da76a460e117b3c4b6e99eda3ae48fb05",
+        "bodyHash": "78239574770495285341bc62dc282b6bab120346208ba747802d912091cc1b83"
       }
     },
     "plugin/runtime/hlsl": {
@@ -2322,17 +2358,17 @@
       }
     },
     "plugin/runtime/index": {
-      "hash": "55f98db5199e4018d69a09ee91aee7eadc537eb78388b72b09d7e0cefba2ad2f",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "817d10dee9f70e0b1f75dfdb8fdff69738d90d0869877bf4fdd1d70cc5c95244",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/runtime/index.en.md",
-      "outputHash": "5d39603ef5ba598ef193a39faac2b415d232719557d674f0d1930e1f52a68ea9",
+      "outputHash": "96b10da4fae45e4c209e4a39cb48c0d12c96e49f880713507ab0ad25ffa210cb",
       "locale": "en",
       "format": "md",
       "title": "Custom Pass runtime",
       "sources": [
         {
           "path": "Docs/runtime/index.md",
-          "hash": "510cbdcdff623ca7bf8ccf1ba08bde953159707cea5bb13e8934c4d8b682f4ce"
+          "hash": "d30b9c3f51417df6299ac2772cfbd57c5acfbd2b1d329bfec6ea90d29cf45b55"
         }
       ],
       "translation": {
@@ -2434,17 +2470,17 @@
       }
     },
     "plugin/tools/material-browser": {
-      "hash": "b2eb971b7eea5bb6c41ed55e5b194d82b67d5e75768a6a62aaa02788ba0b76f4",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "739f94cea574237beb50123c81054c75680219b795aac087a94472a7d2545d2c",
+      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
       "output": "content/docs/plugin/tools/material-browser.en.md",
-      "outputHash": "4cad059fbbf183617ea79ee73fdf53e8d05a8a5f79036786239efb78c2ff0227",
+      "outputHash": "b3b0cd84515939e306db1212a353386740eb6fea9feb424ad2c68caf7b73c935",
       "locale": "en",
       "format": "md",
       "title": "Material Content Browser",
       "sources": [
         {
           "path": "Docs/tools/material-browser.md",
-          "hash": "3ccffc533ef8305eac4652ba50344f49331b183bd88f3150f1c6920622293516"
+          "hash": "83701381ac5c68254e2f4f625ca6b1ee7be237add2e33ca4b72f0aea687fe840"
         }
       ],
       "translation": {

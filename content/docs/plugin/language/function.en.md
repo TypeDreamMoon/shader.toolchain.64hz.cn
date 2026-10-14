@@ -23,15 +23,16 @@ with the `SelfContained` modifier or without it; [`dsc migrate`](/en/docs/langua
 ## Synopsis
 
 ```c
-Function [ { Inline | SelfContained } ] [ <return-type> ] <name> ( [ <parameter-list> ] )
+Function [ ( <generate-attributes> ) ] [ { Inline | SelfContained } ] [ <return-type> ] <name> ( [ <parameter-list> ] )
 {
     <hlsl>
 }
 ```
 
 ```c
-<parameter-list> ::= <parameter> [ , <parameter> ] …
-<parameter>      ::= [ { in | out } ] <type-token> <parameter-name>
+<parameter-list>      ::= <parameter> [ , <parameter> ] …
+<parameter>           ::= [ { in | out } ] <type-token> <parameter-name>
+<generate-attributes> ::= <key> = "<value>" [ , <key> = "<value>" ] …      // Generate, Library, Description
 ```
 
 The keyword `Function` is matched **case-sensitively**. `function`, `FUNCTION` and `Functions` are not
@@ -42,9 +43,16 @@ the keyword: the file reports [`DSH2240`](/en/docs/plugin/diagnostics/dsh2xxx#ds
 Everything else in the declaration — the `Inline` / `SelfContained` modifier, the `in` / `out`
 qualifiers, and every type token — is matched **case-insensitively**.
 
-There is no `(Key = Value)` header, no `Settings`, and no sections of any kind. The `{ … }` after the
-parameter list is raw HLSL, captured verbatim: only its braces are read, and a brace inside a string
-or a comment does not count.
+There is no `Settings` and no section of any kind. The `{ … }` after the parameter list is raw HLSL,
+captured verbatim: only its braces are read, and a brace inside a string or a comment does not count.
+
+The optional `( … )` header *(after 2.1.2)* asks a package to generate a material function from the
+function — `Function(Generate = "MF_BL_Checker", Library = "Blender|Texture") Checker(...)`. It means
+something only in a package's header: see [Packages ▸ Asset headers](/en/docs/tools/packages#asset-headers).
+`Generate = ""` opts a function out of its `Namespace`'s template. Another key is the warning
+[`DSH6331`](/en/docs/plugin/diagnostics/dsh6xxx#dsh6331) and is ignored; outside a package the header is
+[`DSH7234`](/en/docs/plugin/diagnostics/dsh7xxx#dsh7234) and generates nothing. 1.x had no header on this block, so
+no text that read before reads differently.
 
 ## Declaration order
 
@@ -378,6 +386,8 @@ code is raised; the code's page has the message.
 | `DSH6261` | the body calls a function that is not a `Function` |
 | `DSH6262` | a call to a texture-taking function passes the wrong number of arguments |
 | `DSH6263` | a texture argument of such a call is not a plain name |
+| `DSH6265` | a call to any other function passes another number of arguments than its HLSL takes |
+| `DSH6266` | the body reads the value of a call to a function whose HLSL returns nothing |
 | `DSH6327` | the body calls a `GraphFunction` with lifted `UE.*` calls |
 
 ### Call time
