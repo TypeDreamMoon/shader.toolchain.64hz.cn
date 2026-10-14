@@ -7,10 +7,10 @@ description: "DreamShaderPass"
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderPass**
 
-The Custom Pass runtime: the asset a [`.dsp`](/en/docs/custom-pass) compiles to, what decides which
+The Custom Pass runtime: the asset a [`.dsp`](/en/docs/language-v2/passes) compiles to, what decides which
 pipelines apply to a view, and the scene view extension that runs their passes inside the renderer. This
 page is the module's C++ and Blueprint surface; what the passes do at run time is
-[Custom Pass runtime](/en/docs/plugin/runtime).
+[Custom Pass runtime](/en/docs/custom-pass).
 
 | | |
 | :-- | :-- |
@@ -70,7 +70,7 @@ From Blueprints, the same calls are on `UDreamPassBlueprintLibrary` with a world
 
 Or place a source in the level — an `ADreamPassVolume`, a `UDreamPassComponent` — or list the pipeline in the
 project settings. How the four kinds combine is in
-[What makes a pipeline apply](/en/docs/plugin/runtime#what-makes-a-pipeline-apply).
+[What makes a pipeline apply](/en/docs/custom-pass#what-makes-a-pipeline-apply).
 
 ## `UDreamPassSubsystem`
 
@@ -190,8 +190,8 @@ raising one recompiles the two global shader types, nothing else. How the regist
 
 ## See also
 
-- [Custom Pass runtime](/en/docs/plugin/runtime)
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass)
+- [Custom Pass runtime](/en/docs/custom-pass)
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
 - [HLSL passes](/en/docs/plugin/runtime/hlsl)
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass)
 - [Project settings](/en/docs/settings/project#dreamshader-custom-pass)

@@ -25,7 +25,7 @@ source with no side files and no strip step.
 
 | | |
 | :-- | :-- |
-| Extensions | `.dss` — a 2.0 compilation unit · `.dsi` — a [material instance](/en/docs/language-v2/instances) · `.dsp` — a [Custom Pass pipeline](/en/docs/custom-pass) (UE 5.8) · `.dsh` — a shared header, which may hold both dialects |
+| Extensions | `.dss` — a 2.0 compilation unit · `.dsi` — a [material instance](/en/docs/language-v2/instances) · `.dsp` — a [Custom Pass pipeline](/en/docs/language-v2/passes) (UE 5.8) · `.dsh` — a shared header, which may hold both dialects |
 | 1.x extensions | `.dsm` / `.dsf` — read by the legacy front end, built by the same compiler |
 | Modules | [`DreamShaderLang`](/en/docs/plugin/api/lang-module) (`Core` only) — both front ends, binder, IR, decompile and migrate · `DreamShaderCompiler` (editor) — pipeline, emitter, assets · [`DreamShaderPass`](/en/docs/plugin/api/pass-module) (runtime) — the pipeline asset and its render passes |
 | Tests | `DreamShader.Lang2.*`, `DreamShader.Compiler2.*`, `DreamShader.Pass.*` |
@@ -194,7 +194,7 @@ What happens to a parsed file:
   builds what it always built while a `.dss` stays strict. Silent 1.x behaviour that was never
   documented is an error with a message that says what 1.x did (`DSH2200`–`DSH2222`).
 - **Material instances** as [`.dsi`](/en/docs/language-v2/instances) sources, checked against their parent's parameters.
-- **Custom Pass pipelines** as [`.dsp`](/en/docs/custom-pass) sources (UE 5.8): buffers and the passes that fill
+- **Custom Pass pipelines** as [`.dsp`](/en/docs/language-v2/passes) sources (UE 5.8): buffers and the passes that fill
   them — fullscreen, mesh, compute — at the injection points they name, checked against the materials
   and HLSL files they use, built into a `UDreamPassPipeline` asset.
 - **The way back.** `dsc decompile` reads a material, function, layer, blend, instance or pipeline into
@@ -328,13 +328,13 @@ Headless:
 
 To cover a new construct, drop a `.dss` (plus an optional `.expected.json`) into the corpus tree —
 no C++, no recompile. The golden schema is documented in
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/96cffa24e5a454147d7953256ed7d45afae7ac9f/Tests/Corpus/README.md).
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/Tests/Corpus/README.md).
 
 ## See also
 
 - [Substrate sugar](/en/docs/language-v2/substrate) — operators, legacy parameters on a slab, values built member by member, `Substrate =`
 - [Material instances](/en/docs/language-v2/instances) — `.dsi`
-- [Custom Pass pipelines](/en/docs/custom-pass) — `.dsp`, and the [runtime](/en/docs/plugin/runtime) that runs them
+- [Custom Pass pipelines](/en/docs/language-v2/passes) — `.dsp`, and the [runtime](/en/docs/custom-pass) that runs them
 - [`DreamShaderLang` C++ API](/en/docs/plugin/api/lang-module) — the module, its headers and entry points
 - [Language reference (1.x)](/en/docs/plugin/language) — the syntax that ships today
 - [Preprocessor](/en/docs/plugin/language/preprocessor) — `#if` and the define table, shared by both syntaxes

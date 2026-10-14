@@ -125,5 +125,5 @@ store are documented in the extension repository, not here.
 - [Installation](/en/docs/start/installation) — put it in a project
 - [Your first material](/en/docs/start/first-material) — write a `.dss` and find it
 - [Daily workflow](/en/docs/start/workflow) — the compile loop
-- [Custom Pass](/en/docs/custom-pass) — `.dsp` pipelines
+- [Custom Pass](/en/docs/language-v2/passes) — `.dsp` pipelines
 - [Changelog](/en/docs/changelog/dreamshader) — what changed in `2.1.2`

@@ -332,7 +332,7 @@ format spellings. The rest of the `.dsp` vocabulary is in [`pass-keys.json`](/en
 
 ## Custom Pass shader files
 
-*(since 2.1.0)* An HLSL pass of a [`.dsp`](/en/docs/custom-pass) compiles from a `.usf` that may live
+*(since 2.1.0)* An HLSL pass of a [`.dsp`](/en/docs/language-v2/passes) compiles from a `.usf` that may live
 anywhere: next to the `.dsp` is the usual place, but neither a source root nor a mapped shader directory is
 required, because the engine only ever compiles a snapshot of the file
 ([HLSL passes](/en/docs/plugin/runtime/hlsl#how-the-hlsl-gets-into-the-engine)). The source-directory watcher acts

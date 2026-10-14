@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/settings/material-enums.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "ccbb4e23646b3281691c6dec145d2e87f7b02b0f606e0b1c5b4bc404b87a5887"
+    }
+  ],
+  "translationFile": "content/docs/settings/enums.md",
+  "translationHash": "87bdb8ec840f334a0adaaf3c74457c6a5b79f895e1aea4e2047411aec9818540"
+}

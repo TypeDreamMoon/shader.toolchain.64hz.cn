@@ -274,7 +274,7 @@ The material-function usage is also re-stamped from the block kind on every rege
 ## Custom Pass pipelines
 
 *(since 2.1.0)* A pipeline has no graph to tear down. Its rebuild writes, onto the same object, the data
-its [`.dsp`](/en/docs/custom-pass) owns — the order, the default injection point, the views, the
+its [`.dsp`](/en/docs/language-v2/passes) owns — the order, the default injection point, the views, the
 requirements, the enabled parameter, the parameters, the buffers and the passes — then its export render
 targets and its source stamps, and tells the runtime, which runs the new pipeline from the next frame.
 

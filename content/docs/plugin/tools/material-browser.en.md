@@ -326,7 +326,7 @@ The companions are written first, so the watcher finds the materials the `.dsp` 
 the pipeline; and all of them or none — a write that fails takes back the files written before it. A
 pipeline runs only where something activates it: the global pipelines of *Project Settings ▸ DreamPlugin
 ▸ DreamShader Custom Pass*, a Dream Pass Volume, a component, or the API — see
-[Custom Pass runtime](/en/docs/plugin/runtime#what-makes-a-pipeline-apply).
+[Custom Pass runtime](/en/docs/custom-pass#what-makes-a-pipeline-apply).
 
 The dialog:
 
@@ -451,7 +451,7 @@ A source tree and what Sources mode shows for it:
 ## See also
 
 - [Editor integration](/en/docs/tools/editor) — the menu entries that open this tab, and the [details panel](/en/docs/tools/editor#pass-pipeline-details-panel) a pipeline opens in
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass) — what the pipeline templates are written in
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — what the pipeline templates are written in
 - [Preview](/en/docs/plugin/tools/preview) — the renderer behind the inspector's preview
 - [Divergence](/en/docs/plugin/generation/divergence) — Revert, Adopt, Detach
 - [Decompiler](/en/docs/tools/decompiler) — Export .dss / .dsi

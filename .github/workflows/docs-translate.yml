@@ -6,13 +6,12 @@ on:
   push:
     branches: [main, master]
     paths:
-      - docs-sync/translations/**
       - docs-sync/config.json
       - docs-sync/glossary.json
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
   issues: write
 
 concurrency:
@@ -29,20 +28,36 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
-          token: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+      - name: Resolve the plugin publishing branch
+        id: source
+        run: python3 -B scripts/docs_ci.py translation-source
+      - name: Checkout the latest merged plugin documents
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ steps.source.outputs.repository }}
+          ref: ${{ steps.source.outputs.plugin_branch }}
+          path: .docs-sync-tmp/plugin
+          fetch-depth: 0
+          # Read-only credentials may inspect status. A draft requires the
+          # explicit plugin-write token checked by prepare-translation.
+          token: ${{ secrets.DOCS_PR_TOKEN || secrets.DOCS_SOURCE_TOKEN || github.token }}
+          persist-credentials: true
+      - name: Preview the latest merged plugin documents locally
+        run: python3 -B scripts/docs_sync.py sync --plugin .docs-sync-tmp/plugin
       - name: Verify committed source snapshot
         run: python3 -B scripts/docs_sync.py validate
       - name: Update the persistent translation checklist
         env:
-          GH_TOKEN: ${{ secrets.DOCS_PR_TOKEN || github.token }}
-        run: python3 -B scripts/docs_ci.py issue
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -B scripts/docs_ci.py issue --plugin .docs-sync-tmp/plugin
       - name: Preserve any translation PR already under review
         id: prepare
         env:
-          GH_TOKEN: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+          DOCS_SITE_TOKEN: ${{ github.token }}
+          DOCS_PR_TOKEN: ${{ secrets.DOCS_PR_TOKEN }}
           DOCS_AI_API_KEY: ${{ secrets.DOCS_AI_API_KEY }}
           DOCS_AI_MODEL: ${{ vars.DOCS_AI_MODEL }}
-        run: python3 -B scripts/docs_ci.py prepare-translation
+        run: python3 -B scripts/docs_ci.py prepare-translation --plugin .docs-sync-tmp/plugin
       - uses: actions/setup-node@v5
         if: steps.prepare.outputs.ready == 'true'
         with:
@@ -51,6 +66,7 @@ jobs:
       - if: steps.prepare.outputs.ready == 'true'
         run: npm ci
       - name: AI translation drafts
+        id: translate
         if: steps.prepare.outputs.ready == 'true'
         env:
           DOCS_AI_BASE_URL: ${{ vars.DOCS_AI_BASE_URL }}
@@ -64,22 +80,25 @@ jobs:
           DOCS_AI_TIMEOUT: ${{ vars.DOCS_AI_TIMEOUT }}
           DOCS_AI_CHUNK_CHARS: ${{ vars.DOCS_AI_CHUNK_CHARS }}
           DOCS_AI_TOKEN_FIELD: ${{ vars.DOCS_AI_TOKEN_FIELD }}
-        run: python3 -B scripts/docs_sync.py translate
+        run: python3 -B scripts/docs_sync.py translate --plugin .docs-sync-tmp/plugin
       - name: Validate draft before opening a PR
         id: validation
         continue-on-error: true
         if: steps.prepare.outputs.ready == 'true'
+        env:
+          DOCS_TRANSLATION_PREVIEW: 'true'
         run: |
+          python3 -B scripts/docs_sync.py sync --plugin .docs-sync-tmp/plugin
           python3 -B scripts/docs_sync.py validate
           npm run typecheck
           npm run build
           python3 -B scripts/check-links.py
-      - name: Open a PR for human review (never merge or deploy here)
-        if: steps.prepare.outputs.ready == 'true' && !cancelled()
+      - name: Open a plugin PR for human review (never merge or deploy here)
+        if: steps.prepare.outputs.ready == 'true' && steps.translate.outcome == 'success' && !cancelled()
         env:
-          GH_TOKEN: ${{ secrets.DOCS_PR_TOKEN || github.token }}
+          DOCS_PR_TOKEN: ${{ secrets.DOCS_PR_TOKEN }}
           DOCS_DRAFT_VALIDATION: ${{ steps.validation.outcome }}
-        run: python3 -B scripts/docs_ci.py open-pr
+        run: python3 -B scripts/docs_ci.py open-pr --plugin .docs-sync-tmp/plugin
       - name: Report draft validation failure
         if: steps.validation.outcome == 'failure'
         run: exit 1

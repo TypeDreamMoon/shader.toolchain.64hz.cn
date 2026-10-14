@@ -537,7 +537,7 @@ Notes:
 
 ## See also
 
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass)
-- [Custom Pass runtime](/en/docs/plugin/runtime)
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
+- [Custom Pass runtime](/en/docs/custom-pass)
 - [HLSL passes](/en/docs/plugin/runtime/hlsl)
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass)

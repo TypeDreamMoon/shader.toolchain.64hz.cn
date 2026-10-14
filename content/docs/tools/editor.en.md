@@ -189,7 +189,7 @@ DreamShader's source metadata, so a hand-authored asset shows none of it.
 
 ## Pass pipeline details panel
 
-*(since 2.1.0)* The details panel of a `UDreamPassPipeline` — the asset a [`.dsp`](/en/docs/custom-pass)
+*(since 2.1.0)* The details panel of a `UDreamPassPipeline` — the asset a [`.dsp`](/en/docs/language-v2/passes)
 compiles to — with three categories above the pipeline's own properties that read the asset the way a
 frame runs it. The properties stay, and stay editable: the panel is where a pipeline is tuned, and
 *Adopt Into Source* writes the tuning back into its `.dsp`.

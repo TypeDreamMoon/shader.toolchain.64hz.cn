@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/examples/recipes.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "f585906ff50a52b94f67b1003b10ffeb0df509e2c79626099bc28dacb045ed71"
+    }
+  ],
+  "translationFile": "content/docs/examples/recipes.md",
+  "translationHash": "1dd3dbc1278f8300e25e184bc310ba4438630980a8231b15c38b462449c3e336"
+}

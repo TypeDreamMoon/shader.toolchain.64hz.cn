@@ -259,7 +259,7 @@ DREAMSHADER_API bool IsDreamShaderSourceFile(const FString& InPath);
 | `IsDreamShaderFunctionFile` | `.dsf` |
 | `IsDreamShaderLang2File` | `.dss` — a 2.0 compilation unit |
 | `IsDreamShaderInstanceFile` | `.dsi` — a 2.0 material instance |
-| `IsDreamShaderPipelineFile` *(since 2.1.0)* | `.dsp` — a [Custom Pass pipeline](/en/docs/custom-pass) |
+| `IsDreamShaderPipelineFile` *(since 2.1.0)* | `.dsp` — a [Custom Pass pipeline](/en/docs/language-v2/passes) |
 | `IsDreamShaderSourceFile` | any of the six: `.dsm`, `.dsh`, `.dsf`, `.dss`, `.dsi` **or** `.dsp` *(`.dsp` since 2.1.0)* |
 
 `IsDreamShaderSourceFile` is the one predicate everything that scans, watches or lists sources asks — the

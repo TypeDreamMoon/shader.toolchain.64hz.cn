@@ -357,7 +357,7 @@ Parity cases — ThinCustom and Graph twins of the same body, differing only in 
 
 `Tests/Corpus` lives under the **plugin**, not under the project's `DShader` tree, so it travels with
 the plugin and is never picked up by ordinary source discovery.
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/96cffa24e5a454147d7953256ed7d45afae7ac9f/Tests/Corpus/README.md) is the reference for the tree, every golden
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/Tests/Corpus/README.md) is the reference for the tree, every golden
 schema and every runner; this section is the map.
 
 | Layer | Sources | What a case does | Needs |
@@ -422,7 +422,7 @@ golden (`"entryPoint": "parse"`): since the 1.x parser retired in 2.0, its `defi
 read out of the legacy front end's AST and `FLegacyMigrationInfo` instead of an
 `FTextShaderDefinition`, under the same names. Every other layer has its own shape — `lang`, `ir`,
 `legacy`, `legacy-ir`, `decompile`, `migrate`, `compile`, `roundtrip` — documented in
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/96cffa24e5a454147d7953256ed7d45afae7ac9f/Tests/Corpus/README.md). Two conventions they share:
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/Tests/Corpus/README.md). Two conventions they share:
 `errorContains` / `warningsContain` / `infosContain` hold `DSHnnnn` codes rather than message text,
 and a `...Pending: true` flag (`textPending`, `irPending`, `graphPending`) skips the byte comparison
 of a golden nobody has reviewed yet — removing the flag is the reviewer's act, never the writer's.
@@ -511,7 +511,7 @@ Assertion and infrastructure messages the runners emit. Runtime substitutions ar
 
 The 1.x Generate runner and its `generation should …` messages are gone *(since 2.0.0)*: its fixtures
 are `Legacy/Compile/`, compiled through the 2.0 pipeline. The other layers' assertion messages are in
-their runners and in [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/96cffa24e5a454147d7953256ed7d45afae7ac9f/Tests/Corpus/README.md).
+their runners and in [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/Tests/Corpus/README.md).
 
 ## Example
 

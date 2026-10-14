@@ -2493,7 +2493,7 @@ type) and the spelling. The binder checks every one of these first, so the two d
 not at fault. Nothing was built.
 
 **Fix.** Report it with the `.dsp`. Until it is fixed, write the value as
-[Custom Pass pipelines](/en/docs/custom-pass) spells it.
+[Custom Pass pipelines](/en/docs/language-v2/passes) spells it.
 
 ## DSH8305
 

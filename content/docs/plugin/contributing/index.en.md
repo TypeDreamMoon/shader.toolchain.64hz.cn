@@ -130,7 +130,7 @@ by the legacy front end of `DreamShaderLang` — see [`DreamShaderLang`](/en/doc
 which pipelines apply to a view, and the scene view extension that runs their passes. The module builds
 on every engine; what needs the renderer is compiled only where
 [`DREAMSHADER_WITH_CUSTOM_PASS`](/en/docs/plugin/api/version-compat#dreamshader_with_custom_pass) is `1`. See
-[`DreamShaderPass`](/en/docs/plugin/api/pass-module) and [Custom Pass runtime](/en/docs/plugin/runtime).
+[`DreamShaderPass`](/en/docs/plugin/api/pass-module) and [Custom Pass runtime](/en/docs/custom-pass).
 
 | Path | Responsibility |
 | :-- | :-- |

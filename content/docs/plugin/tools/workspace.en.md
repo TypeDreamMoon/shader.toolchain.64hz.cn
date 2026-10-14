@@ -219,7 +219,7 @@ the loopback WebSocket endpoint. The full schemas are on [Editor bridge](/en/doc
 
 ### `pass-keys.json`
 
-*(since 2.1.0)* The vocabulary of a [`.dsp`](/en/docs/custom-pass), for an editor's completion:
+*(since 2.1.0)* The vocabulary of a [`.dsp`](/en/docs/language-v2/passes), for an editor's completion:
 `<Project>/Saved/DreamShader/Bridge/pass-keys.json`, schema `DreamShader.PassKeys`, version `1`, with a
 `generatedAt` timestamp. It is written with `settings.json` — at bridge startup and on *Open Dream Shader
 Workspace* — because the layer names it ends with are a project setting. It has no `bridge.db` table.
@@ -278,5 +278,5 @@ With *Open In New Window* turned off, the same line carries the extra flag:
 - [Decompiler](/en/docs/tools/decompiler) — the *Export* entries and the post-export open
 - [Project settings](/en/docs/settings/project) — `SourceDirectory` and `bOpenInNewWindow`
 - [Source files](/en/docs/language/file-model) — what `.dsm`, `.dsh` and `.dsf` may each contain
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass) — the language `pass-keys.json` describes
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — the language `pass-keys.json` describes
 - [Release](/en/docs/plugin/contributing/release) — how extension assets are attached to a plugin release

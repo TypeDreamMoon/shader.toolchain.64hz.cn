@@ -43,7 +43,7 @@ two ways a cook could abort, and the release archive finally carries the Chinese
   asset's own default.
 - **A Custom Pass buffer has one mip.** `Mips` above 1 was accepted, but only mip 0 was ever written and the rest
   were undefined; it is `DSH7308` now. Set existing pipelines' `Mips` to 1.
-  See [Custom Pass pipelines](/en/docs/custom-pass).
+  See [Custom Pass pipelines](/en/docs/language-v2/passes).
 - **`dsc -CleanNew` deletes only what the commandlet saved.** It took every `.uasset` that appeared in Content
   during the run for its own, an editor's import as well. The commandlet now records each package it saves and its
   MD5, and the driver deletes a new file only when that record names it and its content is unchanged; without a
@@ -122,8 +122,8 @@ sources, plus a set of 1.x text-compatibility fixes.
   keep their history across frames, and an exported buffer is a render target that ordinary materials
   (`UE.DreamPassBuffer`), Blueprints, UMG and Niagara read. Pipelines are activated by the project settings,
   `ADreamPassVolume`, `UDreamPassComponent` or the Blueprint / C++ API, which blend their parameter overrides as
-  post-process volumes do. See [Custom Pass pipelines](/en/docs/custom-pass),
-  [Runtime](/en/docs/custom-pass) and the [example](/en/docs/examples/custom-pass).
+  post-process volumes do. See [Custom Pass pipelines](/en/docs/language-v2/passes),
+  [Runtime](/en/docs/language-v2/passes) and the [example](/en/docs/examples/custom-pass).
 - **A pass's HLSL can be written in its `.dsp`** (`hlsl { }`): whole functions, or just the entry's statements with
   the function written for you; the file-level `hlsl { }` holds code every such pass shares. A pre-check error is
   reported at its line of the `.dsp`. See [HLSL passes](/en/docs/custom-pass/hlsl).

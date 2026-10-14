@@ -382,5 +382,5 @@ Shader(Name="Materials/M_Portable")
 - [Asset paths](/en/docs/generation/asset-paths) — `Root="Plugin.X"` and the 5.6 mount check
 - [Decompiler](/en/docs/tools/decompiler) — the version-gated round-trip properties
 - [`DreamShaderPass`](/en/docs/plugin/api/pass-module) — the module whose rules file defines `DREAMSHADER_WITH_CUSTOM_PASS`
-- [Custom Pass runtime](/en/docs/plugin/runtime) — what runs on 5.8
+- [Custom Pass runtime](/en/docs/custom-pass) — what runs on 5.8
 - [Diagnostics index](/en/docs/diagnostics) — every code, including the version-requirement ones

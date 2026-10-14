@@ -41,7 +41,7 @@ The codes below are the ones a stage raises for a 1.x source.
 | 11 | Compose result | one line per product, plus a `Warnings:` block — see [Success messages](#success-messages) | — |
 
 A `.dsi` resolves its parent after the parse (`DSH8260`–`DSH8265`) and a `.dsp` the materials and shader
-files its passes name; see [`.dsi`](/en/docs/language-v2/instances) and [`.dsp`](/en/docs/custom-pass).
+files its passes name; see [`.dsi`](/en/docs/language-v2/instances) and [`.dsp`](/en/docs/language-v2/passes).
 
 A compile that fails returns the first error as its first line, then every other diagnostic of the run:
 errors, then warnings, then infos. The result's code is the first error's.

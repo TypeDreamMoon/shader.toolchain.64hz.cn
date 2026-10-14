@@ -161,7 +161,7 @@ diagnostics appear and how to read one is on [Diagnostics](/en/docs/diagnostics)
 | [Graph language (1.x)](/en/docs/graph/overview) | What a 1.x `Graph = { … }` accepts — and what it does not |
 | [Editor tools](/en/docs/plugin/tools) | Browser, decompiler, VSCode workspace, headless commandlet |
 | [`dsc migrate`](/en/docs/language-v2/migrate) | Rewrite a 1.x source as `.dss`, proved before it is written |
-| [Custom Pass pipelines](/en/docs/custom-pass) | *(UE 5.8, since 2.1.0)* Render passes of your own from a `.dsp` source — fullscreen, compute and mesh passes, run by the [Custom Pass runtime](/en/docs/plugin/runtime) |
+| [Custom Pass pipelines](/en/docs/language-v2/passes) | *(UE 5.8, since 2.1.0)* Render passes of your own from a `.dsp` source — fullscreen, compute and mesh passes, run by the [Custom Pass runtime](/en/docs/custom-pass) |
 | [Project settings](/en/docs/settings/project) | Every setting and its default |
 
 ## See also

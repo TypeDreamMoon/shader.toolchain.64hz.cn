@@ -1,4 +1,4 @@
-"""Plugin-owned docs -> generated source pages -> reviewed translation PRs.
+"""Plugin-owned English and Chinese -> generated website pages.
 
 Python stdlib only. No command implicitly commits, pushes or deploys.
 See DOCS_SYNC.md. The same tool is vendored into each documentation repository.
@@ -12,6 +12,7 @@ import html
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import subprocess
 import sys
@@ -63,7 +64,7 @@ def git(root, *args):
                             encoding="utf-8", check=False)
     if result.returncode:
         raise ValueError(f"git {args[0]} failed (exit {result.returncode})")
-    return result.stdout.strip()
+    return result.stdout.rstrip('\r\n')
 
 
 def source_file(root, name):
@@ -180,6 +181,23 @@ def outside_code(text, transform):
     return "".join(lines)
 
 
+def split_notes(text):
+    """Only a standalone marker outside code starts website-owned notes."""
+    offset, fence = 0, None
+    for line in text.splitlines(keepends=True):
+        marker = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
+        if marker:
+            token = marker[1]
+            if fence is None:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence):
+                fence = None
+        elif fence is None and line.rstrip('\r\n') == NOTES:
+            return text[:offset], NOTES, text[offset + len(NOTES):]
+        offset += len(line)
+    return text, '', ''
+
+
 def route(page_id, locale="en"):
     slug = page_id[:-6] if page_id.endswith("/index") else "" if page_id == "index" else page_id
     return ("/en/docs/" if locale == "en" else "/docs/") + slug
@@ -244,7 +262,95 @@ def config(root):
     return value
 
 
-def sync(root, plugin, revision=None, check=False):
+def translation_files(plugin, source):
+    relative = Path(source).relative_to('Docs').as_posix()
+    mirror = plugin / 'Docs/zh-CN'
+    if mirror.is_symlink():
+        raise ValueError('Chinese documentation root cannot be a symlink')
+    return (within(mirror, relative), within(mirror, '.translations/' + relative + '.json'))
+
+
+def plugin_statuses(plugin):
+    """One translation unit per English file, independent of website routing."""
+    plugin = Path(plugin).resolve()
+    revision = git(plugin, 'rev-parse', 'HEAD')
+    rows = []
+    for path in sorted((plugin / 'Docs').rglob('*.md')):
+        name = path.relative_to(plugin).as_posix()
+        if name.startswith(('Docs/zh-CN/', 'Docs/Website/')):
+            continue
+        if name in ('Docs/DuiLanguage.md', 'Docs/FontsAndPackaging.md', 'Docs/Migration.md'):
+            continue  # Navigation compatibility pages, not independent manuals.
+        translated, record_path = translation_files(plugin, name)
+        record = load(record_path, {})
+        fingerprint = digest(read(source_file(plugin, name)))
+        status = ('missing' if not translated.exists() else 'unreviewed' if not record.get('sourceHash')
+                  else 'current' if record['sourceHash'] == fingerprint else 'outdated')
+        rows.append({'id': name.removeprefix('Docs/'), 'path': name, 'status': status,
+                     'hash': fingerprint, 'revision': revision})
+    return rows
+
+
+def explicit_to_html(body):
+    """Keep source IDs usable in GitHub and packaged ordinary Markdown."""
+    for level, title, offset in reversed(headings(body)):
+        match = re.search(r'\s+\[#([^\]]+)\]$', title)
+        if not match:
+            continue
+        end = body.find('\n', offset)
+        end = len(body) if end == -1 else end
+        replacement = f'<a id="{match[1]}"></a>\n\n' + '#' * level + ' ' + title[:match.start()]
+        body = body[:offset] + replacement + body[end:]
+    return body
+
+
+def html_to_explicit(body):
+    """Fumadocs drops raw HTML in .md; carry each anchor onto its heading."""
+    heading_offsets = {offset for _, _, offset in headings(body)}
+    return re.sub(r'<a (?:id|name)="([^"<>]+)"></a>\s*\n(#{1,6} [^\n]+)',
+                  lambda m: (m[2] if m[2].endswith('[#' + m[1] + ']') else m[2] + ' [#' + m[1] + ']') if m.start(2) in heading_offsets
+                  else m[0], body)
+
+
+def select_translation(body, entry, source):
+    body = html_to_explicit(body)
+    if entry.get('diagnosticPrefix'):
+        prefix = entry['diagnosticPrefix']
+        groups = [title for _, title, _ in headings(body)
+                  if re.match(re.escape(prefix) + r'xxx\b', title)]
+        if groups:
+            return '\n'.join(excerpt(body, title) for title in groups)
+        selected = [title for _, title, _ in headings(body)
+                    if re.match(re.escape(prefix) + r'\d\b', title)]
+        if selected:
+            return '\n'.join(excerpt(body, title) for title in selected)
+        return select_source(body, {'diagnosticPrefix': prefix})
+    if not entry.get('heading') and not entry.get('headingPrefix'):
+        return body
+    # Select against the version this Chinese file actually translated.
+    source_headings = headings(heading_ids(html_to_explicit(split_frontmatter(source)[1])))
+    wanted = []
+    for _, title, _ in source_headings:
+        match = re.search(r'\s+\[#([^\]]+)\]$', title)
+        original = title[:match.start()] if match else title
+        if (entry.get('heading') == original or
+                entry.get('headingPrefix') and original.startswith(entry['headingPrefix'])):
+            wanted.append(match[1])
+    titles = [title for _, title, _ in headings(body)
+              if any(title.endswith('[#' + anchor + ']') for anchor in wanted)]
+    if not titles:
+        raise ValueError('Translated section is missing; update the plugin translation: ' + entry['path'])
+    return '\n'.join(excerpt(body, title) for title in titles)
+
+
+def plugin_translation_snapshot(plugin):
+    directory = plugin / 'Docs/zh-CN'
+    return digest(json_text({path.relative_to(directory).as_posix(): digest(read(path))
+                             for path in sorted(directory.rglob('*'))
+                             if path.is_file() and path.suffix in ('.md', '.json')}))
+
+
+def sync(root, plugin, revision=None, check=False, adopt_existing=False):
     cfg = config(root)
     plugin = Path(plugin).resolve()
     revision = revision or git(plugin, "rev-parse", "HEAD")
@@ -253,8 +359,12 @@ def sync(root, plugin, revision=None, check=False):
     if git(plugin, "rev-parse", "HEAD") != revision:
         raise ValueError("Plugin checkout does not match the requested commit")
     old = load(root / "docs-sync/source-lock.json", {"pages": {}})
-    dirty_sources = bool(git(plugin, "status", "--porcelain", "--", "Docs", "README.md", "CHANGELOG.md"))
-    if dirty_sources and os.environ.get("GITHUB_ACTIONS"):
+    dirty = git(plugin, "status", "--porcelain", "--untracked-files=all", "--", "Docs", "README.md", "CHANGELOG.md")
+    dirty_sources = bool(dirty)
+    preview = os.environ.get('DOCS_TRANSLATION_PREVIEW') == 'true'
+    if preview and any(not line[3:].strip('"').startswith('Docs/zh-CN/') for line in dirty.splitlines()):
+        raise ValueError('Translation preview may change Chinese plugin files only')
+    if dirty_sources and os.environ.get("GITHUB_ACTIONS") and not preview:
         raise ValueError("CI requires committed plugin documentation")
     prior = old.get("revision")
     different_history = False
@@ -262,11 +372,16 @@ def sync(root, plugin, revision=None, check=False):
         result = subprocess.run(["git", "-C", str(plugin), "merge-base", "--is-ancestor", prior, revision],
                                 capture_output=True)
         different_history = result.returncode != 0
+        if different_history:
+            backwards = subprocess.run(['git', '-C', str(plugin), 'merge-base', '--is-ancestor', revision, prior],
+                                       capture_output=True)
+            if backwards.returncode == 0:
+                raise ValueError('Refusing an older plugin revision; Chinese must not roll back')
     definitions = list(cfg["pages"])
     known = {s["path"] for page in definitions for s in page["sources"]}
     for path in sorted((plugin / "Docs").rglob("*.md")):
         name = path.relative_to(plugin).as_posix()
-        if name in known or name.startswith("Docs/Website/") or name in cfg.get("exclude", []):
+        if name in known or name.startswith(("Docs/Website/", "Docs/zh-CN/")) or name in cfg.get("exclude", []):
             continue
         page_id = "plugin/" + path.relative_to(plugin / "Docs").with_suffix("").as_posix().lower()
         if any(p["id"] == page_id for p in definitions):
@@ -333,7 +448,12 @@ def sync(root, plugin, revision=None, check=False):
         raise ValueError("Pages removed from mapping; migrate routes/translations explicitly: " + ", ".join(sorted(removed)))
     if different_history and {key: page["hash"] for key, page in pages.items()} != {key: page["hash"] for key, page in old["pages"].items()}:
         raise ValueError("Refusing an older or unrelated plugin revision with different documentation; fetch full plugin history")
-    lock = {"version": 1, "repository": cfg["repository"], "revision": revision, "workingTree": dirty_sources, "pages": pages}
+    snapshot = plugin_translation_snapshot(plugin)
+    if different_history and old.get('translationSnapshotHash', snapshot) != snapshot:
+        raise ValueError('Refusing unrelated history with different Chinese documentation')
+    plan_chinese(root, plugin, cfg, definitions, pages, old, planned, removals, revision, adopt_existing)
+    lock = {"version": 1, "repository": cfg["repository"], "revision": revision, "workingTree": dirty_sources,
+            "translationSnapshotHash": snapshot, "pages": pages}
     planned[root / "docs-sync/source-lock.json"] = json_text(lock)
     changes = [str(p.relative_to(root)) for p, value in planned.items() if not p.exists() or read(p) != value]
     changes += [str(p.relative_to(root)) for p in removals]
@@ -344,6 +464,81 @@ def sync(root, plugin, revision=None, check=False):
         for path in removals:
             path.unlink()
     return changes
+
+
+def plan_chinese(root, plugin, cfg, definitions, pages, old, planned, removals, revision, adopt_existing):
+    units = {row['path']: row for row in plugin_statuses(plugin)}
+    source_routes = {}
+    for page in definitions:
+        for entry in page['sources']:
+            if not any(entry.get(key) for key in ('heading', 'headingPrefix', 'diagnosticPrefix')):
+                source_routes.setdefault(entry['path'], route(page['id']))
+                translated, _ = translation_files(plugin, entry['path'])
+                if translated.exists():
+                    source_routes.setdefault(translated.relative_to(plugin).as_posix(), route(page['id'], 'zh'))
+    imported = []
+    for definition in definitions:
+        page_id = definition['id']
+        page = pages[page_id]
+        previous = old['pages'].get(page_id, {}).get('translation', {})
+        unit_rows = [units.get(entry['path'], {'status': 'missing'}) for entry in definition['sources']]
+        state = next((name for name in ('missing', 'unreviewed', 'outdated')
+                      if any(row['status'] == name for row in unit_rows)), 'current')
+        if state == 'missing':
+            # An incomplete source set must never replace a complete existing page.
+            page['translation'] = {**previous, 'status': state}
+            continue
+        bodies, source_records, source_front = [], [], ''
+        for entry in definition['sources']:
+            translated, record_path = translation_files(plugin, entry['path'])
+            record = load(record_path, {})
+            front, body = split_frontmatter(read(source_file(plugin, translated.relative_to(plugin).as_posix())))
+            source_front = source_front or front
+            selected = select_translation(body, entry, record.get('source') or read(source_file(plugin, entry['path'])))
+            bodies.append(rewrite_links(selected, translated.relative_to(plugin).as_posix(), cfg['repository'],
+                                        revision, source_routes, bool(entry.get('heading'))))
+            source_records.append({'path': entry['path'], 'sourceHash': record.get('sourceHash'),
+                                   'sourceRevision': record.get('sourceRevision'),
+                                   'translationHash': digest(read(translated))})
+        old_path = translation_path(root, page_id)
+        old_text = read(old_path) if old_path.exists() else ''
+        old_prose, marker, notes = split_notes(old_text)
+        if previous.get('output'):
+            owned = within(root, previous['output'])
+            if not owned.exists() or digest(split_notes(read(owned))[0].rstrip()) != previous.get('bodyHash'):
+                raise ValueError('Generated Chinese was edited locally: ' + str(owned) + '; edit the plugin or notes instead')
+        elif old_text and not adopt_existing:
+            raise ValueError('Existing Chinese needs explicit migration: ' + page_id + '; use --adopt-existing locally after importing it into the plugin')
+        if adopt_existing and os.environ.get('GITHUB_ACTIONS'):
+            raise ValueError('CI cannot adopt existing website Chinese')
+        body = '\n\n'.join(bodies)
+        old_front = split_frontmatter(old_prose)[0]
+        scoped = len(definition['sources']) > 1 or any(len(entry) > 1 for entry in definition['sources'])
+        title = (definition.get('titleZh') or (field(old_front, 'title') if scoped else '') or
+                 field(source_front, 'title') or next((h[1] for h in headings(body)), page_id))
+        title = re.sub(r'\s+\[#[^\]]+\]$', '', title)
+        description = (definition.get('descriptionZh') or (field(old_front, 'description') if scoped else '') or
+                       field(source_front, 'description', title))
+        output = document(title, description, body)
+        if marker:
+            output += '\n' + marker + notes
+        destination = within(root, f'content/docs/{page_id}.md')
+        if old_path != destination and old_path.exists():
+            removals.append(old_path)
+        planned[destination] = output
+        record_path = within(root, f'docs-sync/translations/{page_id}.json')
+        page['translation'] = {'status': state, 'output': destination.relative_to(root).as_posix(),
+                               'record': record_path.relative_to(root).as_posix()}
+        imported.append((page_id, destination, record_path, source_records))
+    localize_translation_links(root, planned, removals)
+    for page_id, destination, record_path, source_records in imported:
+        page = pages[page_id]
+        text = planned[destination]
+        page['translation'].update(outputHash=digest(text), bodyHash=digest(split_notes(text)[0].rstrip()))
+        planned[record_path] = json_text({'version': 2, 'status': page['translation']['status'],
+            'sourceHash': page['hash'] if page['translation']['status'] == 'current' else None,
+            'sourceRevision': revision, 'sources': source_records,
+            'translationFile': page['translation']['output'], 'translationHash': digest(text)})
 
 
 def translation_path(root, page_id, preferred="mdx"):
@@ -360,14 +555,14 @@ def statuses(root):
     for page_id, page in lock["pages"].items():
         translated = load(within(root, f"docs-sync/translations/{page_id}.json"), {})
         exists = translation_path(root, page_id).exists()
-        status = "missing" if not exists else "unreviewed" if not translated else "current" if translated.get("sourceHash") == page["hash"] else "outdated"
+        status = page.get('translation', {}).get('status') or ("missing" if not exists else "unreviewed" if not translated else "current" if translated.get("sourceHash") == page["hash"] else "outdated")
         rows.append({"id": page_id, "status": status, "hash": page["hash"], "revision": page["revision"]})
     return rows
 
 
 def report(root):
     rows = statuses(root)
-    lines = ["# Translation status", "", "English/source updates do not overwrite approved Chinese pages.", "",
+    lines = ["# Translation status", "", "English and Chinese are imported from the plugin. Translation PRs are reviewed there.", "",
              "| Page | Status | Source revision |", "| --- | --- | --- |"]
     lines += [f"| `{r['id']}` | {r['status']} | `{r['revision'][:12]}` |" for r in rows if r["status"] != "current"]
     lines += ["", f"{sum(r['status'] != 'current' for r in rows)} pending / {len(rows)} managed pages.", ""]
@@ -400,6 +595,7 @@ def protect(text):
     text = re.sub(r"(`+)(.+?)\1", hold, text)
     text = re.sub(r"<!--.*?-->|</?[A-Za-z][\s\S]*?>|\{[^{}]*\}", hold, text)
     text = re.sub(r"https?://[^\s<>\"]+?(?=[)\s<>\"]|$)|(?<=\]\()[^\s)]+|\[#[-\w]+\]|\b(?:DSH|DFX|DUI|DNS)\d{4}\b", hold, text)
+    text = re.sub(r'(?m)^(\s*\[[^\]]+\]:\s*)([^\s]+)', lambda m: m[1] + hold(re.match(r'.+', m[2])), text)
     return text, values
 
 
@@ -456,7 +652,7 @@ def ai_request(prompt, settings, opener=None):
         "Keep all @@DOCS_KEEP_NNNNN@@ tokens in NEW_SOURCE with exactly the same counts, unchanged. "
         "Never copy tokens from context. Preserve Markdown/MDX structure and table delimiters. "
         "Do not add imports, exports, executable expressions, HTML, JSX or outer code fences. "
-        "Do not copy the notes section: it is appended unchanged by the program. Follow GLOSSARY."
+        "This is a plugin source document, not a website page. Do not add site-specific notes. Follow GLOSSARY."
     )
     payload = {"model": settings["model"]}
     if api_format == "chat-completions":
@@ -624,7 +820,8 @@ def localize_translation_links(root, planned, removals):
              if path.suffix in (".md", ".mdx") and not path.stem.endswith(".en")
              and path.resolve() not in removals}
     pages.update({path: value for path, value in planned.items()
-                  if path.is_relative_to(content) and path.suffix in (".md", ".mdx")})
+                  if path.is_relative_to(content) and path.suffix in (".md", ".mdx")
+                  and not path.stem.endswith('.en')})
     targets = {route(path.relative_to(content).with_suffix("").as_posix(), "zh").rstrip("/"):
                translation_anchors(value, path.suffix == ".mdx") for path, value in pages.items()}
 
@@ -650,37 +847,87 @@ def localize_translation_links(root, planned, removals):
     for path in pages.keys() & planned.keys():
         text = planned[path]
         body = split_frontmatter(text)[1]
-        prose, marker, notes = body.partition(NOTES)
+        prose, marker, notes = split_notes(body)
         planned[path] = text[:len(text) - len(body)] + outside_code(prose, convert) + marker + notes
 
 
-def translate(root, settings, page_ids=None, request_fn=ai_request):
-    lock = load(root / "docs-sync/source-lock.json")
+def plugin_links(body, source_name, plugin, candidates, cfg):
+    """Make translated files usable directly in the plugin, including image paths."""
+    chinese, _ = translation_files(plugin, source_name)
+    available = {}
+    for path in (plugin / 'Docs/zh-CN').rglob('*.md'):
+        original = 'Docs/' + path.relative_to(plugin / 'Docs/zh-CN').as_posix()
+        available[original] = translation_anchors(html_to_explicit(read(path)), True)
+    for name in candidates:
+        available[name] = translation_anchors(heading_ids(html_to_explicit(read(plugin / name))), True)
+    website_routes = {route(page['id']).rstrip('/'): page['sources'][0]['path']
+                      for page in cfg['pages'] if len(page['sources']) == 1
+                      and len(page['sources'][0]) == 1}
+
+    def target(url):
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme or parsed.netloc:
+            return url
+        if parsed.path.startswith('/en/docs') or parsed.path.startswith('/docs'):
+            path = parsed.path if parsed.path.startswith('/en/') else '/en' + parsed.path
+            name = website_routes.get(path.rstrip('/'))
+            if not name:
+                return cfg.get('siteUrl', 'https://' + ROOT.name).rstrip('/') + url
+        elif parsed.path.startswith('/'):
+            return url
+        else:
+            name = posixpath.normpath(posixpath.join(posixpath.dirname(source_name), urllib.parse.unquote(parsed.path))) if parsed.path else source_name
+        if name.startswith('../'):
+            raise ValueError('Link leaves plugin: ' + url)
+        fragment = urllib.parse.unquote(parsed.fragment)
+        localized = name in available and (not fragment or fragment in available[name])
+        destination = translation_files(plugin, name)[0] if localized else within(plugin, name)
+        relative = os.path.relpath(destination, chinese.parent).replace('\\', '/')
+        if localized and name == source_name and not parsed.path:
+            relative = ''
+        return urllib.parse.urlunsplit(('', '', urllib.parse.quote(relative, safe='/'), parsed.query, parsed.fragment))
+
+    def convert(line):
+        line = re.sub(r'(\]\(<?)([^\s)>]+)(>?)(?=[\s)])', lambda m: m[1] + target(m[2]) + m[3], line)
+        line = re.sub(r'(^\s*\[[^\]]+\]:\s*<?)([^\s>]+)', lambda m: m[1] + target(m[2]), line)
+        return re.sub(r'(\b(?:href|src)\s*=\s*)([\'"])([^\'"]+)(\2)',
+                      lambda m: m[1] + m[2] + target(m[3]) + m[4], line)
+    return outside_code(body, convert)
+
+
+def translate(root, settings, page_ids=None, request_fn=ai_request, plugin=None):
+    if plugin is None:
+        raise ValueError('Pass --plugin; Chinese translations are owned by the plugin repository')
+    plugin = Path(plugin).resolve()
+    cfg = config(root)
     glossary = load(root / "docs-sync/glossary.json", {})
-    pending = [r for r in statuses(root) if r["status"] != "current" and (not page_ids or r["id"] in page_ids)]
-    if page_ids and set(page_ids) - set(lock["pages"]):
-        raise ValueError("Unknown translation page ID")
-    planned, removals, done = {}, [], []
-    for row in pending[:settings["max_pages"]]:
-        page_id, page = row["id"], lock["pages"][row["id"]]
-        source = read(within(root, page["output"]))
-        if digest(source) != page["outputHash"]:
-            raise ValueError(f"Source page changed after sync: {page_id}")
+    rows = plugin_statuses(plugin)
+    pending = [r for r in rows if r['status'] != 'current' and (not page_ids or r['id'] in page_ids)][:settings['max_pages']]
+    if page_ids and set(page_ids) - {row['id'] for row in rows}:
+        raise ValueError('Unknown translation source ID; use the path relative to Docs, including .md')
+    planned, done = {}, []
+    candidates = {row['path'] for row in pending}
+    for row in pending:
+        page_id = row['id']
+        source = read(source_file(plugin, row['path']))
         front, body = split_frontmatter(source)
-        old_path = translation_path(root, page_id, page["format"])
-        current = read(old_path) if old_path.exists() else ""
-        prose, marker, notes = current.partition(NOTES)
-        previous = load(within(root, f"docs-sync/translations/{page_id}.json"), {})
-        masked, protected = protect(heading_ids(body))
+        destination, record_path = translation_files(plugin, row['path'])
+        current = read(destination) if destination.exists() else ''
+        if split_notes(current)[1] or split_notes(source)[1]:
+            raise ValueError('Website notes must stay in the website repository')
+        previous = load(record_path, {})
+        title = field(front, 'title') or next((h[1] for h in headings(body)), page_id)
+        body = plugin_links(heading_ids(html_to_explicit(body)), row['path'], plugin, candidates, cfg)
+        masked, protected = protect(explicit_to_html(body))
         parts = chunks(masked, settings.get("chunk_chars", 8000))
         results = []
         for index, part in enumerate(parts):
             attributes, locations = component_attributes(part, protected)
-            prompt = {"NEW_SOURCE": {"title": field(front, "title"), "description": field(front, "description"), "body": part},
+            prompt = {"NEW_SOURCE": {"title": title, "description": field(front, "description", title), "body": part},
                       "ATTRIBUTES": attributes,
                       "CHUNK": {"index": index + 1, "total": len(parts)},
                       "OLD_SOURCE": context_window(previous.get("source", ""), index, len(parts), 16000),
-                      "CURRENT_CHINESE": context_window(prose, index, len(parts), 16000), "GLOSSARY": glossary}
+                      "CURRENT_CHINESE": context_window(current, index, len(parts), 16000), "GLOSSARY": glossary}
             if len(json_text(prompt)) > settings["max_chars"]:
                 raise ValueError(f"{page_id} exceeds DOCS_AI_MAX_INPUT_CHARS; reduce context or raise the limit")
             result = request_fn(prompt, settings)
@@ -696,30 +943,17 @@ def translate(root, settings, page_ids=None, request_fn=ai_request):
         translated_body = restore("".join(r["body"].strip() + re.search(r"\s*$", part)[0]
                                           for r, part in zip(results, parts)), protected, masked)
         output = document(results[0]["title"], results[0]["description"], translated_body)
-        if marker:
-            output += "\n" + marker + notes  # Protected, user-owned website notes.
-        destination = within(root, f"content/docs/{page_id}.{page['format']}")
         planned[destination] = output
-        if old_path != destination and old_path.exists():
-            removals.append(old_path)
-        planned[within(root, f"docs-sync/translations/{page_id}.json")] = json_text({
-            "sourceHash": page["hash"], "sourceRevision": page["revision"], "source": source,
-            "translationFile": str(destination.relative_to(root)).replace("\\", "/"),
+        planned[record_path] = json_text({
+            'version': 1, 'origin': 'ai', 'sourceFile': row['path'],
+            "sourceHash": row["hash"], "sourceRevision": row["revision"], "source": source,
+            "translationFile": destination.relative_to(plugin).as_posix(),
             "translationHash": digest(output), "model": settings["model"],
         })
         done.append(page_id)
-    # Resolve links after every page is planned, including forward batch links.
-    localize_translation_links(root, planned, removals)
-    for page_id in done:
-        record_path = within(root, f"docs-sync/translations/{page_id}.json")
-        record = json.loads(planned[record_path])
-        record["translationHash"] = digest(planned[within(root, record["translationFile"])])
-        planned[record_path] = json_text(record)
     # A failed request/validation leaves the entire batch unchanged.
     for path, value in planned.items():
         write(path, value)
-    for path in removals:
-        path.unlink()
     return done
 
 
@@ -728,7 +962,7 @@ def validate(root):
     lock = load(root / "docs-sync/source-lock.json")
     if lock["repository"] != cfg["repository"]:
         raise ValueError("Source repository mismatch")
-    if lock.get("workingTree") and os.environ.get("GITHUB_ACTIONS"):
+    if lock.get("workingTree") and os.environ.get("GITHUB_ACTIONS") and os.environ.get('DOCS_TRANSLATION_PREVIEW') != 'true':
         raise ValueError("Source snapshot includes local plugin edits; commit/push the plugin and run Sync plugin documentation first")
     for page_id, page in lock["pages"].items():
         if digest(read(within(root, page["output"]))) != page["outputHash"]:
@@ -736,8 +970,11 @@ def validate(root):
         record = load(within(root, f"docs-sync/translations/{page_id}.json"))
         if record:
             within(root, record["translationFile"])
-            if not re.fullmatch(r"[a-f0-9]{64}", record["sourceHash"]):
+            if record.get('sourceHash') is not None and not re.fullmatch(r"[a-f0-9]{64}", record["sourceHash"]):
                 raise ValueError(f"Invalid translation baseline: {page_id}")
+        translation = page.get('translation', {})
+        if translation.get('output') and digest(split_notes(read(within(root, translation['output'])))[0].rstrip()) != translation['bodyHash']:
+            raise ValueError('Generated Chinese differs from plugin snapshot: ' + page_id)
     return len(lock["pages"])
 
 
@@ -747,6 +984,7 @@ def main(argv=None):
     parser.add_argument("--plugin")
     parser.add_argument("--revision")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument('--adopt-existing', action='store_true', help='Explicit local migration of existing Chinese pages')
     parser.add_argument("--page", action="append")
     parser.add_argument("--report")
     args = parser.parse_args(argv)
@@ -755,12 +993,12 @@ def main(argv=None):
         plugin = args.plugin or os.environ.get("DOCS_PLUGIN_PATH")
         if not plugin:
             raise ValueError("Pass --plugin or set DOCS_PLUGIN_PATH; CI checks out the plugin explicitly")
-        changes = sync(ROOT, plugin, args.revision, args.check)
+        changes = sync(ROOT, plugin, args.revision, args.check, args.adopt_existing)
         print(f"{len(changes)} source file changes" + (" (check only)" if args.check else ""))
         if args.check and changes:
             return 1
     elif args.command == "translate":
-        done = translate(ROOT, ai_settings(), args.page)
+        done = translate(ROOT, ai_settings(), args.page, plugin=args.plugin or os.environ.get('DOCS_PLUGIN_PATH'))
         print(f"{len(done)} translation drafts written (review/merge required)")
     elif args.command == "validate":
         print(f"{validate(ROOT)} generated pages verified")

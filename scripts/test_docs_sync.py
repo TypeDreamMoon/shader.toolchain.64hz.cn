@@ -36,11 +36,15 @@ class DocsSyncTests(unittest.TestCase):
     def sync(self):
         return docs.sync(self.root,self.plugin)
 
-    def test_sync_never_changes_chinese(self):
+    def translate_and_import(self, request_fn=None):
+        docs.translate(self.root,self.settings,request_fn=request_fn or self.fake_ai,plugin=self.plugin)
+        return docs.sync(self.root,self.plugin,adopt_existing=True)
+
+    def test_sync_without_plugin_translation_keeps_legacy_chinese(self):
         self.sync()
         self.assertEqual(docs.read(self.root/'content/docs/guide.mdx'),'中文原有内容\n')
         self.assertIn('English paragraph.',docs.read(self.root/'content/docs/guide.en.md'))
-        self.assertEqual(docs.statuses(self.root)[0]['status'],'unreviewed')
+        self.assertEqual(docs.statuses(self.root)[0]['status'],'missing')
 
     def test_check_is_read_only_and_sync_is_idempotent(self):
         changes=docs.sync(self.root,self.plugin,check=True)
@@ -51,7 +55,7 @@ class DocsSyncTests(unittest.TestCase):
 
     def test_detects_source_changes_even_with_same_commit(self):
         self.sync()
-        docs.translate(self.root,self.settings,request_fn=self.fake_ai)
+        self.translate_and_import()
         self.assertEqual(docs.statuses(self.root)[0]['status'],'current')
         docs.write(self.plugin/'Docs/guide.md','# Guide\n\nChanged source.\n')
         self.sync()
@@ -59,16 +63,21 @@ class DocsSyncTests(unittest.TestCase):
 
     def test_translation_keeps_its_actual_baseline_after_later_sync(self):
         self.sync()
-        docs.translate(self.root,self.settings,request_fn=self.fake_ai)
-        baseline=docs.read(self.root/'docs-sync/translations/guide.json')
+        self.translate_and_import()
+        baseline_path=self.plugin/'Docs/zh-CN/.translations/guide.md.json'
+        baseline=docs.read(baseline_path)
         docs.write(self.plugin/'Docs/guide.md','# Guide\n\nVersion B\n'); self.sync()
         docs.write(self.plugin/'Docs/guide.md','# Guide\n\nVersion C\n'); self.sync()
-        self.assertEqual(docs.read(self.root/'docs-sync/translations/guide.json'),baseline)
+        self.assertEqual(docs.read(baseline_path),baseline)
+        projection=docs.load(self.root/'docs-sync/translations/guide.json')
+        self.assertIsNone(projection['sourceHash'])
+        self.assertEqual(projection['sources'][0]['sourceHash'],json.loads(baseline)['sourceHash'])
         self.assertEqual(docs.statuses(self.root)[0]['status'],'outdated')
 
     def test_no_baseline_created_by_sync(self):
         self.sync()
         self.assertFalse((self.root/'docs-sync/translations').exists())
+        self.assertFalse((self.plugin/'Docs/zh-CN/.translations').exists())
 
     def test_local_generated_edits_are_not_overwritten(self):
         self.sync()
@@ -171,7 +180,7 @@ class DocsSyncTests(unittest.TestCase):
         notes='\n## 我的网站补充\n\n保持这个说明。\n'
         docs.write(self.root/'content/docs/guide.mdx','正文\n'+docs.NOTES+notes)
         self.sync()
-        docs.translate(self.root,self.settings,request_fn=self.fake_ai)
+        self.translate_and_import()
         self.assertTrue(docs.read(self.root/'content/docs/guide.md').endswith(docs.NOTES+notes))
 
     def test_translation_batch_links_use_final_chinese_pages_and_hashes(self):
@@ -187,27 +196,32 @@ class DocsSyncTests(unittest.TestCase):
         self.sync()
         original = docs.read(self.root/'content/docs/guide.en.md')
         lock = docs.load(self.root/'docs-sync/source-lock.json')
-        docs.translate(self.root,self.settings,request_fn=self.fake_ai)
+        self.translate_and_import()
         guide = docs.read(self.root/'content/docs/guide.md')
         self.assertIn('[Next](/docs/topic?view=full#details)',guide)
         self.assertIn('[Home](/docs/)',guide)
         self.assertIn('[Back](/docs/guide#guide)',docs.read(self.root/'content/docs/topic/index.md'))
-        for page_id in ('guide','topic/index','index'):
+        for page_id,source_id in (('guide','guide.md'),('topic/index','topic.md'),('index','index.md')):
             record = docs.load(self.root/f'docs-sync/translations/{page_id}.json')
             self.assertEqual(record['translationHash'],docs.digest(docs.read(self.root/record['translationFile'])))
             self.assertEqual(record['sourceHash'],lock['pages'][page_id]['hash'])
-        self.assertEqual(docs.load(self.root/'docs-sync/translations/guide.json')['source'],original)
+            self.assertNotIn('source',record)
+            plugin_record=docs.load(self.plugin/f'Docs/zh-CN/.translations/{source_id}.json')
+            source=docs.read(self.plugin/f'Docs/{source_id}')
+            self.assertEqual(plugin_record['source'],source)
+            self.assertEqual(plugin_record['sourceHash'],docs.digest(source))
+            self.assertEqual(plugin_record['translationHash'],docs.digest(docs.read(self.plugin/plugin_record['translationFile'])))
+            self.assertEqual(record['sources'][0]['sourceHash'],plugin_record['sourceHash'])
         self.assertEqual(docs.read(self.root/'content/docs/guide.en.md'),original)
 
     def test_translation_links_check_existing_pages_and_anchors(self):
-        self.cfg['pages'][0]['format'] = 'mdx'
-        docs.write(self.root/'docs-sync/config.json',docs.json_text(self.cfg))
         docs.write(self.root/'content/docs/existing/index.mdx',
                    '# 中文页面\n\n## Details\n\n## Details\n\n## Details 1 [#details-1]\n'
                    '\n## Details-1\n\n## 中文标题 [#stable]\n\n<span id="named" />\n')
         docs.write(self.root/'content/docs/index.md','# 首页\n')
         docs.write(self.root/'content/docs/english-only.en.md','# English only\n')
-        docs.write(self.plugin/'Docs/guide.md', '''# Guide
+        guide=self.root/'content/docs/guide.mdx'
+        planned={guide: '''# Guide
 
 [Plain](/en/docs/existing)
 [Angle](</en/docs/existing/?view=full#stable> "Title")
@@ -222,10 +236,9 @@ class DocsSyncTests(unittest.TestCase):
 [Missing page](/en/docs/missing)
 [English only](/en/docs/english-only)
 [Missing anchor](/en/docs/existing#absent)
-''')
-        self.sync()
-        docs.translate(self.root,self.settings,request_fn=self.fake_ai)
-        result = docs.read(self.root/'content/docs/guide.mdx')
+'''}
+        docs.localize_translation_links(self.root,planned,[])
+        result = planned[guide]
         for expected in ('[Plain](/docs/existing)',
                          '(</docs/existing/?view=full#stable> "Title")',
                          '](/docs/existing#details)',
@@ -255,11 +268,11 @@ class DocsSyncTests(unittest.TestCase):
 [External](https://example.com/en/docs/guide#guide)
 [Protocol relative](//example.com/en/docs/guide#guide)
 '''
-        docs.write(self.plugin/'Docs/guide.md','# Guide\n\n[Self](/en/docs/guide#guide)\n\n'+preserved+
-                   '\n[Code is not an anchor](/en/docs/guide#pretend)\n')
-        self.sync()
-        docs.translate(self.root,self.settings,request_fn=self.fake_ai)
-        result = docs.read(self.root/'content/docs/guide.md')
+        guide=self.root/'content/docs/guide.md'
+        planned={guide:'# Guide\n\n[Self](/en/docs/guide#guide)\n\n'+preserved+
+                 '\n[Code is not an anchor](/en/docs/guide#pretend)\n'+docs.NOTES+notes}
+        docs.localize_translation_links(self.root,planned,[self.root/'content/docs/guide.mdx'])
+        result = planned[guide]
         self.assertIn('[Self](/docs/guide#guide)',result)
         self.assertIn(preserved,result)
         self.assertIn('[Code is not an anchor](/en/docs/guide#pretend)',result)
@@ -282,16 +295,18 @@ class DocsSyncTests(unittest.TestCase):
     def test_ai_failure_leaves_entire_batch_unchanged(self):
         self.sync()
         def fail(prompt,settings): raise ValueError('provider unavailable')
-        with self.assertRaises(ValueError): docs.translate(self.root,self.settings,request_fn=fail)
+        with self.assertRaises(ValueError): docs.translate(self.root,self.settings,request_fn=fail,plugin=self.plugin)
         self.assertEqual(docs.read(self.root/'content/docs/guide.mdx'),'中文原有内容\n')
         self.assertFalse((self.root/'docs-sync/translations/guide.json').exists())
+        self.assertFalse((self.plugin/'Docs/zh-CN').exists())
 
     def test_ai_injected_jsx_is_rejected(self):
         self.sync()
         def unsafe(prompt,settings):
             return {'title':'test','description':'test','body':prompt['NEW_SOURCE']['body']+'\n<script>alert(1)</script>'}
         with self.assertRaisesRegex(ValueError,'executable markup'):
-            docs.translate(self.root,self.settings,request_fn=unsafe)
+            docs.translate(self.root,self.settings,request_fn=unsafe,plugin=self.plugin)
+        self.assertFalse((self.plugin/'Docs/zh-CN').exists())
 
     def test_custom_endpoint_key_and_model(self):
         class Opener:
@@ -356,11 +371,12 @@ class DocsSyncTests(unittest.TestCase):
         def fake(prompt,settings):
             calls.append(prompt)
             return self.fake_ai(prompt,settings)
-        docs.translate(self.root,self.settings,request_fn=fake)
-        result=docs.read(self.root/'content/docs/guide.md')
+        self.translate_and_import(request_fn=fake)
+        result=docs.read(self.plugin/'Docs/zh-CN/guide.md')
         self.assertGreater(len(calls),1)
         self.assertIn('| 20 | 中文段落。 |\n| 21 | 中文段落。 |',result)
         self.assertEqual(result.count('void DoThing();'),1)
+        self.assertIn('| 20 | 中文段落。 |\n| 21 | 中文段落。 |',docs.read(self.root/'content/docs/guide.md'))
 
     def test_later_chunk_failure_does_not_replace_chinese(self):
         docs.write(self.plugin/'Docs/guide.md','# Guide\n\n'+('English paragraph.\n\n'*100))
@@ -369,22 +385,21 @@ class DocsSyncTests(unittest.TestCase):
         def fail_later(prompt,settings):
             if prompt['CHUNK']['index']==2: raise ValueError('provider unavailable')
             return self.fake_ai(prompt,settings)
-        with self.assertRaises(ValueError): docs.translate(self.root,self.settings,request_fn=fail_later)
+        with self.assertRaises(ValueError): docs.translate(self.root,self.settings,request_fn=fail_later,plugin=self.plugin)
         self.assertEqual(docs.read(self.root/'content/docs/guide.mdx'),'中文原有内容\n')
+        self.assertFalse((self.plugin/'Docs/zh-CN').exists())
 
     def test_component_text_translated_but_markup_escaped(self):
-        self.cfg['pages'][0]['format']='mdx'
-        docs.write(self.root/'docs-sync/config.json',docs.json_text(self.cfg))
-        docs.write(self.plugin/'Docs/guide.md','# Guide\n\n<Card title="English" href="/en/docs/guide" />\n')
-        self.sync()
-        def fake(prompt,settings):
-            result=self.fake_ai(prompt,settings)
-            result['attributes']={key:'中文 "标题" <script>' for key in prompt['ATTRIBUTES']}
-            return result
-        docs.translate(self.root,self.settings,request_fn=fake)
-        result=docs.read(self.root/'content/docs/guide.mdx')
+        source='<Card title="English" href="/en/docs/guide" />\n'
+        masked,protected=docs.protect(source)
+        attributes,locations=docs.component_attributes(masked,protected)
+        self.assertEqual(list(attributes.values()),['English'])
+        translated={'attributes':{key:'中文 "标题" <script>' for key in attributes}}
+        docs.restore_attributes(translated,attributes,locations,protected)
+        result=docs.restore(masked,protected,masked)
         self.assertIn('title="中文 &quot;标题&quot; &lt;script&gt;"',result)
-        self.assertIn('href="/docs/guide"',result)
+        self.assertIn('href="/en/docs/guide"',result)
+        self.assertTrue(result.startswith('<Card '))
 
 
 if __name__=='__main__': unittest.main()

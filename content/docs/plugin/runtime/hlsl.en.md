@@ -5,7 +5,7 @@ description: "HLSL passes"
 
 # HLSL passes
 
-> [DreamShader](/en/docs/) » [Custom Pass runtime](/en/docs/plugin/runtime) » **HLSL passes**
+> [DreamShader](/en/docs/) » [Custom Pass runtime](/en/docs/custom-pass) » **HLSL passes**
 
 A `compute` pass, or a `fullscreen` pass without a `Material`, runs HLSL. The code is written in the `.dsp`
 itself — in an `hlsl { }` block of the pass, or as an entry of the file's `hlsl { }` block — or in a `.usf`
@@ -248,6 +248,6 @@ line numbers of the `.dsp`, so it recompiles no global shader.
 
 ## See also
 
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass)
-- [Custom Pass runtime](/en/docs/plugin/runtime)
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
+- [Custom Pass runtime](/en/docs/custom-pass)
 - [Custom Pass examples](/en/docs/examples/custom-pass)

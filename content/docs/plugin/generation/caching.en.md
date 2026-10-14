@@ -113,7 +113,7 @@ walk reached them; the compile rejects the cycle itself with
 
 ## Custom Pass pipelines
 
-*(since 2.1.0)* A [`.dsp`](/en/docs/custom-pass) is keyed like any 2.0 source — its preprocessed text,
+*(since 2.1.0)* A [`.dsp`](/en/docs/language-v2/passes) is keyed like any 2.0 source — its preprocessed text,
 the defines it read, and every setting and version above — plus what its compile read outside the file,
 because a pipeline whose text did not change still has to be rebuilt when one of those moves:
 

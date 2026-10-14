@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/generation/ephemeral.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "49c1599b00d4b4feb9fd719ea0a516c06484d98afc8f5133f81091a122c090fc"
+    }
+  ],
+  "translationFile": "content/docs/generation/in-memory.md",
+  "translationHash": "c7d782502ac22fd163ba507e780477996f94d5d889b372d01fc6f4c820f28a05"
+}

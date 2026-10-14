@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/getting-started/installation.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "4cf3788d06066f389f4c57284edc94a91fda9624c89927a82398eb4b242d68e8"
+    }
+  ],
+  "translationFile": "content/docs/start/installation.md",
+  "translationHash": "eaf7f5db677882b5deb7966c24da13c43cf03998bf9abe0691ab501241827c8f"
+}

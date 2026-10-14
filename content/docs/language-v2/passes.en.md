@@ -17,7 +17,7 @@ screen-space effect, a compute shader that writes a data texture.
 | Produces | one `UDreamPassPipeline`, named after the file, beside where a `.dss` of the same folder puts its product; plus one `UTextureRenderTarget2D` per exported buffer |
 | Runs in | the **DreamShaderPass** runtime module — Unreal Engine **5.8** and later. On an older engine a `.dsp` still parses, formats and binds; compiling it is refused |
 | Passes | `fullscreen` (a Post Process material, or HLSL), `compute` (HLSL), `mesh` (selected primitives drawn again), `clear`, `copy` |
-| Activated by | Project Settings, `ADreamPassVolume`, `UDreamPassComponent`, Blueprint / C++ — see [Custom Pass runtime](/en/docs/plugin/runtime) |
+| Activated by | Project Settings, `ADreamPassVolume`, `UDreamPassComponent`, Blueprint / C++ — see [Custom Pass runtime](/en/docs/custom-pass) |
 | Since | `2.1.0` |
 
 ```hlsl
@@ -152,11 +152,11 @@ depth. `R32U` and `RG32U` are reserved: no pass reads or writes an integer buffe
 | `Clear` | a scalar, `float4(...)`, or `None` — with `None`, a read before every write is an error | `0` |
 | `Mips` | `1` only; other counts are rejected because passes cannot initialize or update a mip chain | `1` |
 | `History` | `true`: kept from one frame to the next, per view; `<Name>.Previous` reads last frame's | `false` |
-| `Export` | `true`: copied, after the last pass that writes it, into a render target asset ordinary materials, Blueprints, UMG and Niagara read — see [Exported buffers](/en/docs/plugin/runtime#exported-buffers) | `false` |
+| `Export` | `true`: copied, after the last pass that writes it, into a render target asset ordinary materials, Blueprints, UMG and Niagara read — see [Exported buffers](/en/docs/custom-pass#exported-buffers) | `false` |
 
 Built-in names need no declaration: `SceneColor`, `SceneDepth`, `CustomDepth`, `CustomStencil`,
 `GBufferA`…`GBufferF`, `Velocity`, `Translucency`. Where each can be read and written is in
-[Custom Pass runtime](/en/docs/plugin/runtime#built-in-buffers).
+[Custom Pass runtime](/en/docs/custom-pass#built-in-buffers).
 
 ## Passes
 
@@ -287,7 +287,7 @@ buffer. The codes are `DSH2300`–`DSH2349`, `DSH3300`–`DSH3349`, `DSH4400`–
 
 ## See also
 
-- [Custom Pass runtime](/en/docs/plugin/runtime) — activation, injection points, buffers, views, debugging, limits
+- [Custom Pass runtime](/en/docs/custom-pass) — activation, injection points, buffers, views, debugging, limits
 - [HLSL passes](/en/docs/plugin/runtime/hlsl) — `DreamPass.ush`, slots, snapshots and the pre-check
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass) — `UE.DreamPassOutput`, `UE.DreamPassBuffer`
 - [Custom Pass examples](/en/docs/examples/custom-pass)

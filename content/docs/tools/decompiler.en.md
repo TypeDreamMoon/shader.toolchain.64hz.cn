@@ -22,7 +22,7 @@ equivalent DreamShaderLang source file.
 > and is kept behind `-Format=Legacy`. The **2.0 decompiler** is the default: it reads the
 > asset's graph into the compiler's own IR and prints a `.dss` — or a [`.dsi`](/en/docs/language-v2/instances)
 > for a material instance — and its output is *proved*: the text is compiled again and the two IRs are
-> compared. A Custom Pass pipeline, which has no graph, comes back as a [`.dsp`](/en/docs/custom-pass),
+> compared. A Custom Pass pipeline, which has no graph, comes back as a [`.dsp`](/en/docs/language-v2/passes),
 > read back and compared with the asset *(since 2.1.0)*. See [The 2.0 decompiler](#the-20-decompiler) at
 > the end of this page.
 
@@ -504,7 +504,7 @@ it overrides, and the parameters that differ from the parent.
 ### Pipelines (`.dsp`)
 
 *(since 2.1.0)* A `UDreamPassPipeline` has no graph to import. Its fields are read back into the payload a
-[`.dsp`](/en/docs/custom-pass) binds to — the mapping the emitter applies, run the other way — and the
+[`.dsp`](/en/docs/language-v2/passes) binds to — the mapping the emitter applies, run the other way — and the
 printer writes that payload as a `.dsp`: `#pragma pipeline`, the uniforms, the buffers and the passes, in
 the asset's order, with every key left out that would read back as the default.
 
@@ -572,5 +572,5 @@ as it is, and they are not copied into its head.
 - [Graph layout](/en/docs/plugin/generation/graph-layout) — what happens when no `Layout` block is present
 - [Project settings](/en/docs/settings/project) — *Export Decompiled Layout* and *Source Directory*
 - [Substrate builtins](/en/docs/builtins/substrate) — the UE 5.4 gate behind `Base.FrontMaterial`
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass) — the text a pipeline decompiles to
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — the text a pipeline decompiles to
 - [Divergence](/en/docs/plugin/generation/divergence#a-custom-pass-pipeline) — Adopt Into Source for a pipeline edited in its details panel

@@ -93,7 +93,7 @@
       "id": "custom-pass/index",
       "sources": [
         {
-          "path": "Docs/language-v2/passes.md"
+          "path": "Docs/runtime/index.md"
         }
       ],
       "format": "md",
@@ -1341,5 +1341,6 @@
       "format": "md",
       "locale": "en"
     }
-  ]
+  ],
+  "siteUrl": "https://shader.toolchain.64hz.cn"
 }

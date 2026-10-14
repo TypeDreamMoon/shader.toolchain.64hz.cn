@@ -220,7 +220,7 @@ When an asset already exists at the resolved path, the class must match:
 
 ## Custom Pass pipelines
 
-*(since 2.1.0)* A [`.dsp`](/en/docs/custom-pass) has no `Name=`, no `Root=` and no `/// @name`. Its one
+*(since 2.1.0)* A [`.dsp`](/en/docs/language-v2/passes) has no `Name=`, no `Root=` and no `/// @name`. Its one
 product, a `UDreamPassPipeline`, is named after the file and placed by the 2.0 default: the file's folder
 relative to its [source root](/en/docs/language/file-model#source-roots), under `/Game` — or under the
 plugin's mount point for a file under a plugin's source root, by the same
@@ -329,5 +329,5 @@ on disk                          <Project>/Plugins/MoonToon/Content/Mat/Test.uas
 - [Caching](/en/docs/plugin/generation/caching) — the provenance metadata that marks an asset as DreamShader-generated
 - [Path(Root, "…")](/en/docs/parameters/path) — the *other* path grammar, for referencing existing assets
 - [Backend](/en/docs/settings/backend) — which class a `Shader` produces
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass) — a source whose asset is named after its file
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — a source whose asset is named after its file
 - [Diagnostics index](/en/docs/diagnostics) — every message, by stage

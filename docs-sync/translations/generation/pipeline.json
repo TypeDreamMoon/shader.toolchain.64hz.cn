@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/generation/index.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "7f997787f37f5d70c2300e1c01a29817cd1d038dee2780204541d240f45babdc"
+    }
+  ],
+  "translationFile": "content/docs/generation/pipeline.md",
+  "translationHash": "d195ef28981856b7eec06d57947bc347a6f5cbe504ae7a5d2a6f41cb8fed4391"
+}

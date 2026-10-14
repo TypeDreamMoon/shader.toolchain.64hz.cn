@@ -454,7 +454,7 @@ are on [Editor Tools](/en/docs/tools/editor).
 `dreamshader-dss`, extension 2.0.0), with a grammar of their own, snippets, folding on `#pragma region` and
 `#if`, and `///` that continues on Enter. `.dsp` files open as `dreamshader-dsp` (extension 2.1.0)
 (since 2.1.0), completed from `pass-keys.json`, with a `pipeline` section in their symbol index — the
-language itself is on [Custom Pass (.dsp)](/en/docs/custom-pass).
+language itself is on [Custom Pass (.dsp)](/en/docs/language-v2/passes).
 
 The extension does not read 2.0 text for meaning. 2.0 has overloads, implicit conversions and a binder
 that knows the engine's node classes; a second implementation of that in JavaScript would be wrong in

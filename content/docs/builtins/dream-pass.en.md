@@ -8,8 +8,8 @@ description: "UE.DreamPassOutput writes the data a mesh pass draws, UE.DreamPass
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **Custom Pass material nodes**
 
 Two material expressions of the DreamShaderPass module, reached from a `.dss` like any other expression,
-through `UE.<Name>`: one writes the data a [mesh pass](/en/docs/custom-pass#mesh) draws, the other lets an
-ordinary material read an [exported buffer](/en/docs/plugin/runtime#exported-buffers).
+through `UE.<Name>`: one writes the data a [mesh pass](/en/docs/language-v2/passes#mesh) draws, the other lets an
+ordinary material read an [exported buffer](/en/docs/custom-pass#exported-buffers).
 
 | | |
 | :-- | :-- |
@@ -70,7 +70,7 @@ Samples an exported buffer's render target. `float4`.
 - A missing pipeline, a buffer the pipeline does not have or does not export, a built-in buffer, and an
   integer or depth buffer are errors — in DreamShader when the `.dss` compiles, and in the material editor.
 - What it reads depends on when the buffer's last writer runs — this frame's picture or last frame's; see the
-  table in [Exported buffers](/en/docs/plugin/runtime#exported-buffers).
+  table in [Exported buffers](/en/docs/custom-pass#exported-buffers).
 - The material depends on the `.dsp`: changing the buffer's export recompiles it.
 - The material editor's preview shows the render target's last contents.
 
@@ -83,6 +83,6 @@ material does.
 
 ## See also
 
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass)
-- [Custom Pass runtime](/en/docs/plugin/runtime)
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
+- [Custom Pass runtime](/en/docs/custom-pass)
 - [UE.Expression](/en/docs/builtins/ue-expression) — how reflected expressions are called

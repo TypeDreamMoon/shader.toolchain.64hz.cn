@@ -53,7 +53,7 @@ UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
 compilable source**: `.dss`, `.dsi`, `.dsp`, `.dsm` and `.dsf`. There is one compiler; a 1.x source is
 read by the legacy front end and a `.dsh` header is compiled through the sources that include it. `fmt`
 takes 2.0 text — `.dss`, `.dsi`, `.dsp`, and a `.dsh` that has no 1.x declarations left. What each verb
-does with a [Custom Pass pipeline](/en/docs/custom-pass) is in [`.dsp` sources](#dsp-sources).
+does with a [Custom Pass pipeline](/en/docs/language-v2/passes) is in [`.dsp` sources](#dsp-sources).
 
 Commandlet flags declared by the class: `IsClient = false`, `IsEditor = true`, `IsServer = false`,
 `LogToConsole = true`.
@@ -64,7 +64,7 @@ All commands accept optional `-AssetWritesManifest=<unused-json-path>` together 
 `-AssetWritesRunId=<run-id>`. These record successful `.uasset` saves performed by this commandlet,
 including their absolute filenames and MD5 content fingerprints, in a versioned JSON manifest.
 The output path must not already exist; failure to write the requested manifest exits `1`.
-The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/96cffa24e5a454147d7953256ed7d45afae7ac9f/.skill/README.md) uses this provenance and a pre-run snapshot for
+The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/.skill/README.md) uses this provenance and a pre-run snapshot for
 `-CleanNew`, retaining unrelated assets and files modified after the recorded save. The manifest
 does not authorize deletion of pre-existing assets or files outside the driver's Content roots.
 
@@ -486,7 +486,7 @@ list that cannot be written is `DSH9047`.
 
 ## `.dsp` sources
 
-*(since 2.1.0)* A [Custom Pass pipeline](/en/docs/custom-pass) is a compilable source like the others,
+*(since 2.1.0)* A [Custom Pass pipeline](/en/docs/language-v2/passes) is a compilable source like the others,
 with one product — a `UDreamPassPipeline` — and no graph. What each verb does with one:
 
 | Verb | On a `.dsp` |
@@ -896,7 +896,7 @@ LogDreamShader: Display: Generated Material /Game/Materials/M_Sample.M_Sample fr
 - [Decompiler](/en/docs/tools/decompiler) — the export the `decompile` command drives
 - [Packages](/en/docs/tools/packages) — why `DShader/Packages` is skipped by `-All`
 - [Source files](/en/docs/language/file-model) — `.dsm` / `.dsf` / `.dsh` roles
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass) — the source `pass-registry` keeps the slots of
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes) — the source `pass-registry` keeps the slots of
 - [HLSL passes](/en/docs/plugin/runtime/hlsl) — slots, snapshots and the pre-check
 - [Project settings](/en/docs/settings/project) — `SourceDirectory`, which path resolution depends on
 - [Testing](/en/docs/plugin/contributing/testing) — running the automation suite headlessly

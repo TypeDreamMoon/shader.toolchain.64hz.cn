@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/builtins/hlsl-library.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "4cb8c0041f46071c90e3b465fb7b4212b45a54ea8f3acfef4cc339e7306136af"
+    }
+  ],
+  "translationFile": "content/docs/custom-pass/hlsl.md",
+  "translationHash": "641f1e94610956afdd6880426215b1e66912f44b5ee4ac9cdcfa0172e846cd32"
+}

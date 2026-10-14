@@ -308,7 +308,7 @@ every fixture as its own sub-test.
 | Runner | `RunDreamShaderLangCorpusCase` in `Source/DreamShaderEditor/Private/Tests/DreamShaderTestCommon.h` |
 | Registration | `Source/DreamShaderEditor/Private/Tests/DreamShaderCorpusLangTests.cpp` |
 | Fixtures | `Tests/Corpus/Lang/{Lexical,Expressions,Statements,Declarations,Examples}/` — `.dss` and `.dsh`, plus one `.dsm` that pins front-end selection: it reaches the legacy front end and fails there (`DSH2241`) |
-| Golden schema | `"entryPoint": "lang"` — see [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/96cffa24e5a454147d7953256ed7d45afae7ac9f/Tests/Corpus/README.md) |
+| Golden schema | `"entryPoint": "lang"` — see [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/Tests/Corpus/README.md) |
 
 Each case is parsed once through `ParseDreamShaderLang`, then checked against its golden:
 
@@ -346,7 +346,7 @@ Alongside the corpus, each front-end unit has its own focused test file
 
 - [What the 2.0 pipeline does](/en/docs/language-v2) — the language surface and the pipeline's limits, from the author's side
 - [C++ API index](/en/docs/plugin/api) — the other four modules
-- [Custom Pass pipelines](/en/docs/custom-pass) — the `.dsp` language, from the author's side
+- [Custom Pass pipelines](/en/docs/language-v2/passes) — the `.dsp` language, from the author's side
 - [Preprocessor](/en/docs/plugin/language/preprocessor) — `#if` and the define table, documented from the language side
 - [Diagnostics index](/en/docs/diagnostics) — every `DSHnnnn` with cause and fix
 - [Testing](/en/docs/plugin/contributing/testing) — the automation suite and the fixture corpus

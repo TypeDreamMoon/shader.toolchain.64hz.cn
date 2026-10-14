@@ -7,7 +7,7 @@ description: "Custom Pass runtime"
 
 > [DreamShader](/en/docs/) » **Custom Pass runtime**
 
-What happens to a compiled [`.dsp` pipeline](/en/docs/custom-pass) at run time: what makes it apply to a
+What happens to a compiled [`.dsp` pipeline](/en/docs/language-v2/passes) at run time: what makes it apply to a
 view, when its passes run, what its buffers hold, and how to see what it did.
 
 | | |
@@ -44,7 +44,7 @@ names, or where its `Enabled` parameter is false.
 
 ## When passes run
 
-Each pass runs at its own [injection point](/en/docs/custom-pass#injection-points). Under the hood these
+Each pass runs at its own [injection point](/en/docs/language-v2/passes#injection-points). Under the hood these
 are the engine's scene view extension callbacks plus its post-opaque render delegate. Every point of one view
 family shares one render graph, so a buffer made at `BeginView` is still there at `EndOfView` — and is never
 seen by another view family, such as a scene capture rendered in the same frame.
@@ -144,7 +144,7 @@ still exports immediately after its pass.
 ## Limits
 
 - **Nanite primitives cannot be drawn again** by a mesh pass; see `Nanite =` in
-  [Passes](/en/docs/custom-pass#mesh).
+  [Passes](/en/docs/language-v2/passes#mesh).
 - **Primitives drawn only through dynamic mesh elements** — CPU-skinned skeletal meshes, procedural
   meshes — are skipped by mesh passes, with one warning. GPU-skinned skeletal meshes, static meshes,
   instanced static meshes and landscape are drawn.
@@ -156,7 +156,63 @@ still exports immediately after its pass.
 
 ## See also
 
-- [Custom Pass pipelines — `.dsp`](/en/docs/custom-pass)
+- [Custom Pass pipelines — `.dsp`](/en/docs/language-v2/passes)
 - [HLSL passes](/en/docs/plugin/runtime/hlsl)
 - [Custom Pass material nodes](/en/docs/builtins/dream-pass)
 - [Custom Pass examples](/en/docs/examples/custom-pass)
+
+## Pipeline syntax reference
+
+These links keep earlier documentation bookmarks useful. The pipeline language has its own reference.
+
+### Buffers [#buffers]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#buffers).
+
+### Clear and copy [#clear-and-copy]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#clear-and-copy).
+
+### Compute [#compute]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#compute).
+
+### Custom pass pipelines  dsp [#custom-pass-pipelines--dsp]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#custom-pass-pipelines--dsp).
+
+### Fullscreen [#fullscreen]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#fullscreen).
+
+### Injection points [#injection-points]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#injection-points).
+
+### Mesh [#mesh]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#mesh).
+
+### Passes [#passes]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#passes).
+
+### Pipeline keys [#pipeline-keys]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#pipeline-keys).
+
+### References [#references]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#references).
+
+### The file [#the-file]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#the-file).
+
+### Tools [#tools]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#tools).
+
+### What the compiler checks [#what-the-compiler-checks]
+
+See [the pipeline language reference](/en/docs/language-v2/passes#what-the-compiler-checks).

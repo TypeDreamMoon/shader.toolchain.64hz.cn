@@ -153,7 +153,7 @@ result is normalized to a full path.
 
 The 2.0 kinds are described under [DreamShaderLang 2.0](/en/docs/language-v2):
 [`.dsi`](/en/docs/language-v2/instances) material instances and *(UE 5.8)*
-[`.dsp`](/en/docs/custom-pass) Custom Pass pipelines.
+[`.dsp`](/en/docs/language-v2/passes) Custom Pass pipelines.
 
 | Directory | Default | Project setting |
 | :-- | :-- | :-- |

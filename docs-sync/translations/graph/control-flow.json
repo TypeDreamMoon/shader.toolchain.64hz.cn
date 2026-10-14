@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "unreviewed",
+  "sourceHash": null,
+  "sourceRevision": "4b55a3664be4267415420d122c503660f2680ad2",
+  "sources": [
+    {
+      "path": "Docs/graph/if.md",
+      "sourceHash": null,
+      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
+      "translationHash": "a6338c338703ee68cdc590232ad41c88c6a3bde259f4618df7c3d4615e7c8656"
+    }
+  ],
+  "translationFile": "content/docs/graph/control-flow.md",
+  "translationHash": "cdf878a9e2b9786568472ac430b0e74d7f36556f98e0772b997831c62e7633b5"
+}

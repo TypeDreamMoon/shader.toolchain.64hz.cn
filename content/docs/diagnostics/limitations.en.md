@@ -195,10 +195,10 @@ warning `DSH7204`.
 
 ## Custom Pass boundaries
 
-[Custom Pass](/en/docs/custom-pass) pipelines run on (since UE 5.8) only. A buffer's `Mips` must be `1`
+[Custom Pass](/en/docs/language-v2/passes) pipelines run on (since UE 5.8) only. A buffer's `Mips` must be `1`
 (`DSH7308` (since 2.1.2)); mesh passes cannot draw Nanite primitives and have no per-instance culling; HLSL passes
 cannot ship in a DLC; a material with `UE.DreamPassOutput` or `UE.DreamPassBuffer` cannot use the new material
-translator. The full list is on [Runtime ▸ Limits](/en/docs/custom-pass#what-the-compiler-checks).
+translator. The full list is on [Runtime ▸ Limits](/en/docs/language-v2/passes#what-the-compiler-checks).
 
 ## What is deliberately not a goal
 

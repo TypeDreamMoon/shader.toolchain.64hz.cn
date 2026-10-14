@@ -43,7 +43,7 @@ jobs:
           ref: ${{ steps.event.outputs.plugin_ref }}
           path: .docs-sync-tmp/plugin
           fetch-depth: 0
-          token: ${{ secrets.DOCS_SOURCE_TOKEN || github.token }}
+          token: ${{ secrets.DOCS_SOURCE_TOKEN || secrets.DOCS_PR_TOKEN || github.token }}
           persist-credentials: false
       - name: Require a commit on the plugin publishing branch
         env:
@@ -55,13 +55,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: python3 -B -m unittest discover -s scripts -p 'test_docs*.py'
-      - name: Generate English and source snapshots (Chinese stays unchanged)
+      - name: Generate both locales from merged plugin documents
         run: python3 -B scripts/docs_sync.py sync --plugin .docs-sync-tmp/plugin --report .docs-sync-tmp/status.md
       - run: python3 -B scripts/docs_sync.py validate
       - run: npm run typecheck
       - run: npm run build
       - run: python3 -B scripts/check-links.py
-      - name: Commit only generated source documents
+      - name: Commit only generated bilingual documents and source records
         id: commit
         run: python3 -B scripts/docs_ci.py commit-source
       - uses: actions/upload-artifact@v4
@@ -82,8 +82,8 @@ jobs:
   translations:
     needs: sync
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pull-requests: read
       issues: write
     uses: ./.github/workflows/docs-translate.yml
     secrets: inherit

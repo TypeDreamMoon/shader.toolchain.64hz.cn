@@ -205,7 +205,7 @@ the `+Key=((…))` form:
 A second settings object sits beside this one: `UDreamPassSettings`, in the `DreamShaderPass` runtime
 module, at *Project Settings ▸ DreamPlugin ▸ DreamShader Custom Pass*. It is saved to the same
 `DefaultEngine.ini`, section `[/Script/DreamShaderPass.DreamPassSettings]`, and configures the
-[Custom Pass runtime](/en/docs/plugin/runtime). It exists on every engine; below UE 5.8 nothing reads it.
+[Custom Pass runtime](/en/docs/custom-pass). It exists on every engine; below UE 5.8 nothing reads it.
 
 | Category | Config property | Type | Default | Effect |
 | :-- | :-- | :-- | :-- | :-- |
@@ -223,7 +223,7 @@ bEnabled=True
 
 ## See also
 
-- [Custom Pass runtime](/en/docs/plugin/runtime) — what `GlobalPipelines` and the layers feed
+- [Custom Pass runtime](/en/docs/custom-pass) — what `GlobalPipelines` and the layers feed
 - [Settings](/en/docs/plugin/settings) — the per-file `Settings` section this page's defaults interact with
 - [Preprocessor](/en/docs/plugin/language/preprocessor) — what *Preprocessor Defines* feeds, and the four other tiers
 - [Backend](/en/docs/settings/backend) — how *Default Compiler Backend* is overridden per file
