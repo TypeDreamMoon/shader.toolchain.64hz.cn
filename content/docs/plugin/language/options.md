@@ -50,7 +50,7 @@ asset-reference := Path( <root> , "<relative-path>" )
 | *任何其他键* | — | 任意 | **读取并忽略**，不产生诊断。 |
 
 > [!NOTE]
-> [VirtualFunction 同步服务](/en/docs/plugin/tools/virtual-function-tools)在生成或刷新声明时，会在 `Asset` 旁写入一个 `Description` 键。
+> [VirtualFunction 同步服务](/docs/plugin/tools/virtual-function-tools)在生成或刷新声明时，会在 `Asset` 旁写入一个 `Description` 键。
 
 ### 优先级 [#precedence]
 
@@ -68,7 +68,7 @@ VirtualFunction(Name="BufferWriter", Asset=Path(Game, "MaterialFunctions/F_Buffe
 
 ## 语句文法 [#statement-grammar]
 
-与 [`Settings`](/en/docs/plugin/settings) 文法相同。
+与 [`Settings`](/docs/plugin/settings) 文法相同。
 
 | 规则 | 详情 |
 | :-- | :-- |
@@ -197,10 +197,10 @@ Asset  Path(Game, "MaterialFunctions/F_BufferWriter")
 
 - [VirtualFunction](/docs/plugin/language/virtual-function) — `Options` 所属的块
 - [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) — `VirtualFunction` 的接口部分
-- [设置](/en/docs/plugin/settings) — 相同的语句语法
+- [设置](/docs/plugin/settings) — 相同的语句语法
 - [`Path(...)`](/docs/parameters/path) — 每种根写法以及两个解析器
 - [调用](/docs/graph/calls) — 从 `Graph` 调用 `VirtualFunction`
-- [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) — 编辑器操作与同步服务
+- [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) — 编辑器操作与同步服务
 - [源文件](/docs/language/file-model) — `.dsh` / `.dsf` / `.dsm` 可包含哪些块类型
 - [DreamShaderLang 2.0](/docs/language-v2) — `/// @asset` 与 `extern`，`.dss` 写法
 - [诊断索引](/docs/diagnostics) — 每个代码

@@ -844,7 +844,7 @@ export void M_RVTSurface(inout material m)
 ```
 
 把 `-Source=` 换成 `-All` 就能编译项目的每个源文件：先编译所有 `.dsf`，再按路径顺序编译其余的；`.dsh` 经由 include 它的文件编译。
-命令行会 Materialize 每个 `ThinCustom` 产物，所以每个材质都会写出一个 package。见[命令行](/docs/tools/commandlet#-all-的发现与排序)。
+命令行会 Materialize 每个 `ThinCustom` 产物，所以每个材质都会写出一个 package。见[命令行](/docs/tools/commandlet)。
 
 ## 接下来 [#接下来]
 

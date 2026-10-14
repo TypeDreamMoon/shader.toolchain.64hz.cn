@@ -15,7 +15,7 @@ description: "调用"
 | 种类 | 表达式形式和语句形式 |
 | 生成 | `UMaterialExpressionCustom`（`Function`、`GraphFunction`）、`UMaterialExpressionMaterialFunctionCall`（`ShaderFunction`、`VirtualFunction`）、`UMaterialExpressionStaticSwitchParameter`（静态开关调用），或参数自身的节点并接好其输入引脚（参数调用） |
 
-`.dsm` / `.dsf` 由 legacy 前端读取，由 2.0 绑定器绑定 *(自 2.0.0 起)*。本页的调用写法构建的节点和以前一样；1.x 调用与 `.dss` 调用读法不同的地方，由编号的 legacy 规则处理，并用自己的码说明。每种调用的 `.dss` 写法见 [`dsc migrate`](/en/docs/language-v2/migrate#what-the-rewrite-does)。
+`.dsm` / `.dsf` 由 legacy 前端读取，由 2.0 绑定器绑定 *(自 2.0.0 起)*。本页的调用写法构建的节点和以前一样；1.x 调用与 `.dss` 调用读法不同的地方，由编号的 legacy 规则处理，并用自己的码说明。每种调用的 `.dss` 写法见 [`dsc migrate`](/docs/language-v2/migrate#what-the-rewrite-does)。
 
 ## 语法概要 [#synopsis]
 
@@ -449,7 +449,7 @@ StaticSwitchParameter  UseTint         -> Color
 - [`VirtualFunction`](/docs/plugin/language/virtual-function) —— 声明现有的 `UMaterialFunction`
 - [`Namespace`](/docs/plugin/language/namespace) —— `::` 限定名与禁止嵌套规则
 - [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) —— `in` / `out` / `opt` 与声明的默认值
-- [图中的参数](/en/docs/plugin/parameters/graph-usage) —— 读取参数与引脚调用形式
+- [图中的参数](/docs/plugin/parameters/graph-usage) —— 读取参数与引脚调用形式
 - [UE.Expression](/docs/builtins/ue-expression) —— 通用节点内置及其输出选择器
 - [节点复用](/docs/plugin/graph/node-reuse) —— 哪些调用节点会被去重
 - [`dsc migrate`](/docs/language-v2/migrate) —— 本页每条 legacy 规则在 `.dss` 中的写法

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "a1a8862100755cbac7520a36f2f839107cfcf4ec7d6b05ffb09dc309ccb3412b",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sources": [
+    {
+      "path": "Docs/tools/bridge.md",
+      "sourceHash": "8d90edda29e8d9c1de6e283547a55536956837d34768cdd887457cf13c4e740b",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "44477f1e0ac6c8599c8616dc2dedaface14de6f679198cecc10ade86a150cb42"
+    }
+  ],
+  "translationFile": "content/docs/plugin/tools/bridge.md",
+  "translationHash": "428a8e5c77520fa27e3d0a36b6cafe0aee0911c24a632b162a46cbbe29da94dd"
+}

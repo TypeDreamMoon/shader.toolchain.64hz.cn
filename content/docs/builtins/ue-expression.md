@@ -309,7 +309,7 @@ UE.Expression(Class = "TextureSample", TextureObject = <arg0>, Coordinates = <ar
 
 用纹理采样参数 token（`TextureSampleParameter2D` 及其同类）声明的 property，则改用它的 pin 调用 ——
 `BaseTex(Coordinates = uv)`。参见
-[Graph 中的参数](/en/docs/plugin/parameters/graph-usage)。
+[Graph 中的参数](/docs/plugin/parameters/graph-usage)。
 
 ## 声明形式 [#declaration-form]
 
@@ -338,7 +338,7 @@ UE.Expression(Class = "TextureSample", TextureObject = <arg0>, Coordinates = <ar
   `UE.Expression(Class = "VertexColor").rgb`。参见
   [Swizzle](/docs/plugin/graph/swizzle#swizzling-a-call-result)。
 - `dsc export-catalog` 写出每个类的 pin、属性、别名和输出 —— 这是查参数名最实用的办法。编辑器也会把清单导出到
-  `Saved/DreamShader/Bridge/material-expressions.json`；参见[Bridge](/en/docs/plugin/tools/bridge)。
+  `Saved/DreamShader/Bridge/material-expressions.json`；参见[Bridge](/docs/plugin/tools/bridge)。
 
 ## 诊断 [#diagnostics]
 
@@ -433,10 +433,10 @@ Add, Multiply                                                       (Color)
 - [Substrate](/docs/builtins/substrate) —— 共用这条路径的姊妹命名空间
 - [Substrate 语法糖](/docs/language-v2/substrate) —— 虚拟参数和运算符
 - [`Path(…)`](/docs/parameters/path) —— 对象属性的资产引用语法
-- [图中的参数](/en/docs/plugin/parameters/graph-usage) —— 参数的 pin 调用形式
+- [图中的参数](/docs/plugin/parameters/graph-usage) —— 参数的 pin 调用形式
 - [材质属性](/docs/plugin/graph/material-attributes) —— `material` 值种类
 - [转换](/docs/plugin/graph/conversions) —— 宽度以及值如何适配
 - [节点复用](/docs/plugin/graph/node-reuse) —— 相同的节点
 - [图函数](/docs/plugin/language/graph-function) —— `UE.*` 调用提升为 Custom 节点 pin
-- [Bridge](/en/docs/plugin/tools/bridge) —— 导出的反射表达式清单
+- [Bridge](/docs/plugin/tools/bridge) —— 导出的反射表达式清单
 - [诊断索引](/docs/diagnostics) —— 每个码

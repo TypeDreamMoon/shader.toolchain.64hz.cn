@@ -110,7 +110,7 @@ GLSL 拼写在 1.x 源码里按 HLSL 名字读取，并给出警告
 
 | # | 候选 | 参考 |
 | :-- | :-- | :-- |
-| 1 | 在 1.x `Graph` 中，由 legacy 前端在读入调用时改写的写法：`SampleTexture2D`、已声明 property 的 pin 调用形式、`UE.SceneTexture` 以及其他 1.x 调用形状 | [`UE.*` 目录](/docs/builtins/ue-nodes) · [在 `Graph` 中使用参数](/en/docs/plugin/parameters/graph-usage) |
+| 1 | 在 1.x `Graph` 中，由 legacy 前端在读入调用时改写的写法：`SampleTexture2D`、已声明 property 的 pin 调用形式、`UE.SceneTexture` 以及其他 1.x 调用形状 | [`UE.*` 目录](/docs/builtins/ue-nodes) · [在 `Graph` 中使用参数](/docs/plugin/parameters/graph-usage) |
 | 2 | 类型名 —— 诸如 `float3(…)`、`vec4(…)` 的构造器 | [构造器](/docs/plugin/graph/constructors) |
 | 3 | 以 `UE.` 和 `Substrate.` 为前缀的被调用者 | [`UE.*` 目录](/docs/builtins/ue-nodes) · [`Substrate.*`](/docs/builtins/substrate) |
 | 4 | `Texture2DSample`、`Texture2DSampleLevel` | |

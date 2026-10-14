@@ -98,8 +98,8 @@ ThinCustom 产物刻意做成临时的：`.dsm` 文件才是创作面，而磁�
 - `IsAsset()` 返回 `false`，所以它不出现在 Content Browser 或任何资产选择器里。
 - 生成结束时它的 package 被标记为非脏，因此 *Save All* 和退出提示都无法
   悄悄把它落盘。
-- 产物通过 [Material Content Browser](/en/docs/plugin/tools/material-browser)、
-  [预览](/en/docs/plugin/tools/preview) 以及任何持有活指针的东西完全可用。
+- 产物通过 [Material Content Browser](/docs/plugin/tools/material-browser)、
+  [预览](/docs/plugin/tools/preview) 以及任何持有活指针的东西完全可用。
 
 ### 可见性开关 [#the-visibility-toggle]
 
@@ -137,7 +137,7 @@ Hidden {Count} Ephemeral material(s) from the Content Browser and asset pickers.
 
 | 入口 | 操作 |
 | :-- | :-- |
-| [Material Content Browser](/en/docs/plugin/tools/material-browser#inspector)的检查器 | **Materialize** 按钮 —— *"Write this memory-only material (and its base) to disk."*（按钮自身的措辞） |
+| [Material Content Browser](/docs/plugin/tools/material-browser#inspector)的检查器 | **Materialize** 按钮 —— *"Write this memory-only material (and its base) to disk."*（按钮自身的措辞） |
 | Content Browser 右键菜单 | DreamShader 的 materialize 操作 |
 | 隐式 | 为 Ephemeral 父材质创建子材质实例时，会先把父级落盘 |
 
@@ -210,7 +210,7 @@ Run Tools > DreamShader > Make Ephemeral to remove them.
 | 谁来生成 | **只有 cook director** —— 以 `-cookworker` 启动的进程跳过生成，直接加载 director 保存的结果 |
 | 何时 | post-engine-init，即引擎子系统就绪之后、commandlet 的 `Main` 之前 |
 | 生成什么 | 除 `.dsh` 外的所有工程 DreamShader 源文件，强制生成并 Materialized |
-| 顺序 | 与 [`compile -All`](/en/docs/tools/commandlet#-all-discovery-and-ordering) 相同：`.dsf` 在前，然后**分轮**，调用别的源文件所生成函数的源文件会在那个函数建好之后重试*（自 2.1.2 起）* |
+| 顺序 | 与 [`compile -All`](/docs/tools/commandlet#-all-discovery-and-ordering) 相同：`.dsf` 在前，然后**分轮**，调用别的源文件所生成函数的源文件会在那个函数建好之后重试*（自 2.1.2 起）* |
 | 资产注册表 | 生成实际写出的每个 package 都会在 commandlet 的 `Main` 之前交给 `IAssetRegistry::ScanModifiedAssetFiles` |
 | 失败时 | **中止整个 cook** —— 除非源文件属于一个本工程不往里写的插件，见下 |
 
@@ -296,6 +296,6 @@ on disk        <Project>/Content/Materials/M_Emissive.uasset
 - [缓存](/docs/plugin/generation/caching) —— 来源元数据与重新生成短路
 - [重新生成](/docs/generation/regeneration) —— 重建会销毁什么，又会放回什么
 - [图形布局](/docs/plugin/generation/graph-layout) —— 节点放置，以及大图保护
-- [材质内容浏览器](/en/docs/plugin/tools/material-browser) —— Compile、Materialize、缩略图
+- [材质内容浏览器](/docs/plugin/tools/material-browser) —— Compile、Materialize、缩略图
 - [命令行](/docs/tools/commandlet) —— 无界面地实体化资产
 - [生成](/docs/generation/pipeline) —— 完整流水线

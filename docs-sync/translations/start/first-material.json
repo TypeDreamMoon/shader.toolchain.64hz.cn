@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "8a5ad46f08362e9c70fca5e3af1d3c64269b2e38f10a9bd4d6c235629f64bef2",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/getting-started/first-material.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/start/first-material.md",
-  "translationHash": "9aa214c5bfb9ab70024d1cbece1fde332dc5e2853ce946b398d44f1f893836ff"
+  "translationHash": "a211b5b4b78881aac732c4965062fdc50c9da0df3758da38861aa7d216b49526"
 }

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "8ad0bd3c6c11310354ff875ff0fb345cbb0387f488d08af0920aa814b1b8e751",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sources": [
+    {
+      "path": "Docs/tools/virtual-function-tools.md",
+      "sourceHash": "8e9d0ffacd54d830bfda217866f7ed17ada53261d8dd251a9f524ff8e356f80e",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "98bbd2e3e278072963dc70962ea60a2c262c20af39a1a28d5a8cdbcc6dc34830"
+    }
+  ],
+  "translationFile": "content/docs/plugin/tools/virtual-function-tools.md",
+  "translationHash": "e3a8622c1cf22e06999d27e90c82caefd344eb75430e6db3bc0b19b5e230adae"
+}

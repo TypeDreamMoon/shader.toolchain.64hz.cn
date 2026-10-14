@@ -251,7 +251,7 @@ pwsh -NoProfile -File Tools\Tests\Invoke-DreamShaderTests.ps1 -Preset Suite -Wit
 | `DreamShader.Lang.Import.ExtractImportPath` | `TryExtractImportPathFromLine`：引号规则、注释拒绝、尾部垃圾拒绝 |
 | `DreamShader.Lang.Import.NormalizeSpecifier` | `NormalizeImportSpecifier`：无扩展名的说明符获得 `.dsh`，反斜杠和前导 `./` 被剥离 |
 | `DreamShader.Commandlet.Args.SplitAndGet` | Commandlet 键/值规范化以及 `Params → Switches → Tokens` 搜索顺序，基于来自 `UCommandlet::ParseCommandLine` 的列表 |
-| `DreamShader.Commandlet.Args.FlagValues` | `HasCommandletFlag`：逐行验证 [布尔标志](/en/docs/tools/commandlet#boolean-flags) 表格行，任何其他值均为 `DSH9110` |
+| `DreamShader.Commandlet.Args.FlagValues` | `HasCommandletFlag`：逐行验证 [布尔标志](/docs/tools/commandlet#boolean-flags) 表格行，任何其他值均为 `DSH9110` |
 
 ### 语料运行器 — 13 个声明 [#corpus-runners--13-declarations]
 
@@ -275,7 +275,7 @@ pwsh -NoProfile -File Tools\Tests\Invoke-DreamShaderTests.ps1 -Preset Suite -Wit
 
 ## 图基线 *(自 1.9.0 起)* [#graph-baseline-since-190]
 
-自动化套件说编译仍然*成功*。它并没说编译器仍然产生**相同的图**——而对于编译器重写来说，这是唯一重要的问题。[`dump-graph`](/en/docs/tools/commandlet#dump-graph-since-190) commandlet 动词填补了这一空白：它为每个生成的资产写出一份规范化 JSON（节点类、反射属性、连接、引脚顺序；不含坐标、颜色或 GUID），然后通过普通文本 diff 比较两次捕获。
+自动化套件说编译仍然*成功*。它并没说编译器仍然产生**相同的图**——而对于编译器重写来说，这是唯一重要的问题。[`dump-graph`](/docs/tools/commandlet#dump-graph-since-190) commandlet 动词填补了这一空白：它为每个生成的资产写出一份规范化 JSON（节点类、反射属性、连接、引脚顺序；不含坐标、颜色或 GUID），然后通过普通文本 diff 比较两次捕获。
 
 为整个项目捕获基线。编译步骤不是可选的——`dump-graph` 从不写入资产，因此磁盘上已有的资产会按现状转储，而不是重新构建：
 
@@ -332,7 +332,7 @@ git diff --no-index -- I:/Baseline/before I:/Baseline/after
 ## 语料库 [#the-corpus]
 
 `Tests/Corpus` 位于**插件**之下，而不是项目的 `DShader` 树之下，因此它随插件一起分发，并且永远不会被普通的源文件发现机制拾取。
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/Tests/Corpus/README.md) 是该树、每个黄金基准模式以及每个运行器的参考；本节是地图。
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/83b99e8d8c388735e7b903ffe7c03b7ab089859a/Tests/Corpus/README.md) 是该树、每个黄金基准模式以及每个运行器的参考；本节是地图。
 
 | 层 | 源文件 | 用例做什么 | 需求 |
 | :-- | --: | :-- | :-- |
@@ -392,7 +392,7 @@ DreamShader.Compiler2.CorpusLegacy.Material.M_Surface
 每个字段都是选择加入的；缺失的字段不做任何断言。下表是 **`Parse/` 层**的黄金基准（`"entryPoint": "parse"`）：由于 1.x 解析器已在 2.0 中退役，其 `definition` 字段是从旧版前端的 AST 和 `FLegacyMigrationInfo` 中读取的，而不是从
 `FTextShaderDefinition` 中读取，字段名相同。其他每一层都有自己的形态 — `lang`、`ir`、
 `legacy`、`legacy-ir`、`decompile`、`migrate`、`compile`、`roundtrip` — 记录在
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/Tests/Corpus/README.md) 中。它们共享两个约定：
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/83b99e8d8c388735e7b903ffe7c03b7ab089859a/Tests/Corpus/README.md) 中。它们共享两个约定：
 `errorContains` / `warningsContain` / `infosContain` 保存 `DSHnnnn` 代码而非消息文本，
 以及 `...Pending: true` 标志（`textPending`、`irPending`、`graphPending`）会跳过尚未有人审核的黄金基准的字节比较 — 移除该标志是审核者的行为，绝不是编写者的行为。
 
@@ -478,7 +478,7 @@ DreamShader.Compiler2.CorpusLegacy.Material.M_Surface
 
 1.x Generate 运行器及其 `generation should …` 消息已消失 *(自 2.0.0 起)*：其夹具
 为 `Legacy/Compile/`，通过 2.0 管线编译。其他层的断言消息位于
-其运行器中，以及 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/Tests/Corpus/README.md) 中。
+其运行器中，以及 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/83b99e8d8c388735e7b903ffe7c03b7ab089859a/Tests/Corpus/README.md) 中。
 
 ## 示例 [#example]
 
@@ -530,8 +530,8 @@ DreamShader.Lang.Parse.TopLevel.T_TwoShaders.bad
 - [贡献](/docs/plugin/contributing) — 构建插件及源码树布局
 - [发布](/docs/plugin/contributing/release) — 发布归档中为何不含 `Tests/`
 - [Commandlet](/docs/tools/commandlet) — `-run=DreamShader`，另一个无头入口点
-- [编辑器桥接](/en/docs/plugin/tools/bridge) — `-NoDreamShaderEditorBridge` 会关闭什么
-- [预览](/en/docs/plugin/tools/preview) — 一致性测试所驱动的渲染器
+- [编辑器桥接](/docs/plugin/tools/bridge) — `-NoDreamShaderEditorBridge` 会关闭什么
+- [预览](/docs/plugin/tools/preview) — 一致性测试所驱动的渲染器
 - [后端](/docs/settings/backend) — `Graph` 与 `ThinCustom`，一致性用例所比较的维度
 - [项目设置](/docs/settings/project) — `DefaultBackend`，`Compile/` 运行器将其固定为 `Graph`
 - [`DreamShaderLang`](/docs/plugin/api/lang-module) — `ParseDreamShaderLang` 以及文本层调用的所有其他入口点

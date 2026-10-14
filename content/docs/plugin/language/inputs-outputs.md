@@ -353,5 +353,5 @@ UMaterialFunction  /Game/Functions/F_Opt.F_Opt
 - [元数据](/docs/parameters/metadata) — `[ … ]` 代码块语法
 - [调用](/docs/graph/calls) — 从 `Graph` 调用 `ShaderFunction` 或 `VirtualFunction`
 - [MaterialAttributes](/docs/plugin/graph/material-attributes) — 成员写入与 Substrate 互操作
-- [函数设置](/en/docs/plugin/settings/function) — 函数的 `Settings` 所遵循的键
+- [函数设置](/docs/plugin/settings/function) — 函数的 `Settings` 所遵循的键
 - [诊断索引](/docs/diagnostics) — 按阶段列出的每个代码

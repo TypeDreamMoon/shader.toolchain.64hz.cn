@@ -283,6 +283,6 @@ Generated Material /Game/Materials/M_Emissive.M_Emissive from I:/.../M_Emissive.
 - [Backend](/docs/settings/backend) —— `Graph` 与 `ThinCustom`，以及已弃用的 `Instance` 别名
 - [项目设置](/docs/settings/project) —— 自动编译、防抖、默认 backend、路径
 - [Commandlet](/docs/tools/commandlet) —— `-run=DreamShader`，无界面生成入口点
-- [Material Content Browser](/en/docs/plugin/tools/material-browser) —— Compile / Materialize 界面
+- [Material Content Browser](/docs/plugin/tools/material-browser) —— Compile / Materialize 界面
 - [DreamShaderLang 2.0](/docs/language-v2) —— 该流水线的各阶段和代码范围
 - [诊断索引](/docs/diagnostics) —— 每一个码

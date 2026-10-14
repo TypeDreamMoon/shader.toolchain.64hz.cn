@@ -8,7 +8,7 @@ description: "Custom Pass 示例"
 > [DreamShader](/docs/) » [示例](/docs/plugin/examples) » **Custom Pass 示例**
 
 几条完整的管线，各自带着用到的 `.dss` 材质；HLSL pass 的代码都直接写在 `.dsp`
-里，用的是 [HLSL pass](/en/docs/plugin/pass-runtime/hlsl#where-the-code-is) 讲的三种写法。每一条都在测试宿主的演示关卡里跑过 —— 从这些源码构建、在游戏视口里渲染（`Tools/TestHost/PassDemo`）。材质浏览器 **New Source** 的管线模板有两个是它们的精简版 —— 描边的 mesh 遮罩和风场；后处理模板是一个自己的柔光。
+里，用的是 [HLSL pass](/docs/plugin/pass-runtime/hlsl#where-the-code-is) 讲的三种写法。每一条都在测试宿主的演示关卡里跑过 —— 从这些源码构建、在游戏视口里渲染（`Tools/TestHost/PassDemo`）。材质浏览器 **New Source** 的管线模板有两个是它们的精简版 —— 描边的 mesh 遮罩和风场；后处理模板是一个自己的柔光。
 
 | | |
 | :-- | :-- |
@@ -517,5 +517,5 @@ export void PP_TaggedComposite(inout material m)
 
 - [Custom Pass 管线 — `.dsp`](/docs/language-v2/passes)
 - [Custom Pass 运行时](/docs/custom-pass)
-- [HLSL pass](/en/docs/plugin/pass-runtime/hlsl)
+- [HLSL pass](/docs/plugin/pass-runtime/hlsl)
 - [Custom Pass 材质节点](/docs/builtins/dream-pass)

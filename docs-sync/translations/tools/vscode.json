@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "status": "current",
+  "sourceHash": "c3bf725edad4e6ffaa78a3ddb8be9f5f269a846484fa825b8d0d4ad51243e8df",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/tools/vscode.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "4b52de0894eb6a833abd57229f361ff45dc87941368d9905072c000428e603fa"
+      "sourceHash": "e493c8d7a2f55e2802359d26b1012229ec7b184bc844c455039f6aa5735a1862",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "ec5ed53e4cdd71edac7adfa5124440635833578cffb867fb0690268d9bcfc62a"
     }
   ],
   "translationFile": "content/docs/tools/vscode.md",
-  "translationHash": "7c7bc6caac30cfab991021760477f4329c81c99ba38f9665d88059110cc7c030"
+  "translationHash": "450dd0fbd6a151e29d0046f1e94fb1c3f1a752147ee274c59c884205daab1ed0"
 }

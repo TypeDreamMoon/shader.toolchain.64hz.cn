@@ -225,7 +225,7 @@ UseTint               -> (bare read) ERROR: DSH4200
 - [数学内置项](/docs/builtins/math) — 保留的内置项拼写
 - [UE 内置项](/docs/builtins/ue-nodes) — 按前缀声明的 `UE.*` 表面
 - [Substrate 内置项](/docs/builtins/substrate) — `Substrate.*` 表面
-- [Graph 中的参数](/en/docs/plugin/parameters/graph-usage) — 读取参数和引脚调用形式
+- [Graph 中的参数](/docs/plugin/parameters/graph-usage) — 读取参数和引脚调用形式
 - [`Namespace`](/docs/plugin/language/namespace) — 声明 `Namespace::Name` 以及禁止嵌套规则
 - [词法元素](/docs/language/lexical) — 声明语法的完整大小写敏感性矩阵
 - [节点复用](/docs/plugin/graph/node-reuse) — 相等节点如何合并

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "8ef40ed62585e3b179f2ff37c72319951b6c5521ac2f449337e0d8eda9f68d20",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/generation/asset-paths.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/generation/asset-paths.md",
-  "translationHash": "76702e587daa2170ac34f68f3fbb262fc70d43ad42bf7f0e20f662907b552aa9"
+  "translationHash": "9d3a04f5a3426fba0e141bd062f2ad7c5290d7e91751c2458d42dc320c40042b"
 }

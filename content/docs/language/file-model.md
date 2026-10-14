@@ -98,7 +98,7 @@ DreamShaderLang 的三种文件类型 —— `.dsm`、`.dsf` 和 `.dsh` —— �
 
 只有项目根是**可写**的。插件根和其他源码一样被发现、解析和编译，
 但编辑器从不改写它下面的文件：[VirtualFunction
-同步](/en/docs/plugin/tools/virtual-function-tools) 会跳过它们，而每一个写源文件的编辑器操作都以项目根为目标。
+同步](/docs/plugin/tools/virtual-function-tools) 会跳过它们，而每一个写源文件的编辑器操作都以项目根为目标。
 
 > [!NOTE]
 > 一个插件的 `DShader` 文件夹如果和已有的根重叠，会被忽略，并给出同时点名两者的警告。
@@ -110,7 +110,7 @@ DreamShaderLang 的三种文件类型 —— `.dsm`、`.dsf` 和 `.dsh` —— �
 
 > [!NOTE]
 > 根列表是缓存的。编辑器打开期间创建的 `DShader` 文件夹，会在
-> [材质内容浏览器](/en/docs/plugin/tools/material-browser) 里按下 **Refresh**（`F5`）时出现；它的
+> [材质内容浏览器](/docs/plugin/tools/material-browser) 里按下 **Refresh**（`F5`）时出现；它的
 > **watch** 只在启动时注册一次，会在下次编辑器启动时挂上，那个根的 *Auto
 > Compile On Save* 从那时起才开始工作。
 
@@ -178,7 +178,7 @@ DreamShaderLang 的三种文件类型 —— `.dsm`、`.dsf` 和 `.dsh` —— �
   自 2.0.0 起，header 被单独读取，根本不能放 `Shader`，所以 import 永远不会带入一个。
 - `.dsh` 是放 `VirtualFunction` 声明的自然位置；编辑器的 *Create Virtual
   Function* 动作会在 `DShader/VirtualFunctions` 下写一个。见
-  [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools)。
+  [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools)。
 - 只有 `.dsh` 可以被导入 *(自 2.0.0 起)*。导入 `.dsf` 或 `.dsm` 的
   `import` 是 [`DSH2252`](/docs/plugin/diagnostics/dsh2xxx#dsh2252)：材质文件或函数文件各自
   单独编译，其他文件通过 [`VirtualFunction`](/docs/plugin/language/virtual-function) 使用它们产出的资产。

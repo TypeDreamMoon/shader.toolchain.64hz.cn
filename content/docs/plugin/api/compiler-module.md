@@ -158,11 +158,11 @@ namespace UE::DreamShader::Editor::Compiler
 
 ## `DreamShaderPassPipelines.h` [#dreamshaderpasspipelinesh]
 
-*（自 2.1.0 起）* 编译器在编辑器工具所接触到的 Custom Pass 部分：HLSL 槽注册表，如 [`dsc pass-registry`](/en/docs/tools/commandlet#pass-registry) 所列、收集并重建它；槽预检查，如 `check -Shaders` 在 `.dsp` 上运行它；以及 `.dsp` 编译所依据的着色器文件，[桥接](/en/docs/plugin/tools/bridge#custom-pass-shader-files)会监视它们。此处不构建任何资产。仅游戏线程。一切都在 `UE::DreamShader::Editor::Compiler` 中。
+*（自 2.1.0 起）* 编译器在编辑器工具所接触到的 Custom Pass 部分：HLSL 槽注册表，如 [`dsc pass-registry`](/docs/tools/commandlet#pass-registry) 所列、收集并重建它；槽预检查，如 `check -Shaders` 在 `.dsp` 上运行它；以及 `.dsp` 编译所依据的着色器文件，[桥接](/docs/plugin/tools/bridge#custom-pass-shader-files)会监视它们。此处不构建任何资产。仅游戏线程。一切都在 `UE::DreamShader::Editor::Compiler` 中。
 
 | 声明 | |
 | :-- | :-- |
-| `EDreamPassSlotState` | `Live`、`Reserved`、`SnapshotMissing`、`PipelineGone`、`PassGone`、`Unknown`——一个槽位是什么（[清单](/en/docs/tools/commandlet#the-listing)） |
+| `EDreamPassSlotState` | `Live`、`Reserved`、`SnapshotMissing`、`PipelineGone`、`PassGone`、`Unknown`——一个槽位是什么（[清单](/docs/tools/commandlet#the-listing)） |
 | `LexDreamPassSlotState(State)` | 该状态的名称。故意不是 `LexToString` 的重载：在该命名空间中声明的重载会从其中每个非限定调用中隐藏引擎的重载 |
 | `FDreamPassSlotReport` | 一个槽位，既包含 `Registry.json` 记录它的样子，也包含它被判定时的样子：`bCompute`、`Slot`、`Pipeline`（对象路径）、`Pass`、`Source`（`.dsp`，项目相对路径）、`Shader`（项目相对路径）、`Entry`、`Hash`、`Formats`（其快照通过预检查的着色器格式）、`State`，以及对于资产仍然存在的 `PipelineGone` 槽位，`bPipelineAssetExists` |
 | `FDreamPassRegistryReport` | `RegistryJsonPath`、`ComputeSlotCount`、`PixelSlotCount` 和 `Slots`——先是计算槽位，然后是像素槽位，各自按槽位顺序 |
@@ -315,6 +315,6 @@ bool Check(const FString& InPath)
 - [临时材质](/docs/generation/in-memory) — 这两种状态在实践中意味着什么
 - [缓存](/docs/plugin/generation/caching) — `bForce` 绕过的构建键
 - [命令行工具](/docs/tools/commandlet) — `-run=DreamShader`，即持久化调用方
-- [编辑器桥接](/en/docs/plugin/tools/bridge) — 仅内存调用方和 JSON 诊断
+- [编辑器桥接](/docs/plugin/tools/bridge) — 仅内存调用方和 JSON 诊断
 - [诊断索引](/docs/diagnostics) — 按阶段列出的每条消息
 - [`DreamShaderPass`](/docs/plugin/api/pass-module) — `.dsp` 所编译目标的运行时模块

@@ -205,8 +205,8 @@ HLSL 槽 —— 着色器源映射、预检查的进程内编译、它按名称�
 
 | 插件 | 已启用 | 实际使用位置 |
 | :-- | :-- | :-- |
-| `WebSocketNetworking` | 是 | 仅一处：实时预览 WebSocket 服务器。编辑器桥接按名称加载 `IWebSocketNetworkingModule`，在端口 **17864** 上启动服务器，并将预览帧作为原始二进制 WebSocket 帧流式传输，这些帧携带 `[4-byte length][1-byte type tag][payload]` 信封。见 [编辑器桥接](/en/docs/plugin/tools/bridge)。 |
-| `SQLiteCore` | 是 | 两个翻译单元，一个文件：`<Project>/Saved/DreamShader/Bridge/bridge.db`。工作区服务创建架构并写入设置别名、材质表达式和 Substrate 内置表；诊断存储写入 `diagnostics` 表。该数据库是 **VSCode 和 Rider 语言扩展的缓存** —— 插件中没有任何内容会读回它。见 [工作区](/en/docs/plugin/tools/workspace)。 |
+| `WebSocketNetworking` | 是 | 仅一处：实时预览 WebSocket 服务器。编辑器桥接按名称加载 `IWebSocketNetworkingModule`，在端口 **17864** 上启动服务器，并将预览帧作为原始二进制 WebSocket 帧流式传输，这些帧携带 `[4-byte length][1-byte type tag][payload]` 信封。见 [编辑器桥接](/docs/plugin/tools/bridge)。 |
+| `SQLiteCore` | 是 | 两个翻译单元，一个文件：`<Project>/Saved/DreamShader/Bridge/bridge.db`。工作区服务创建架构并写入设置别名、材质表达式和 Substrate 内置表；诊断存储写入 `diagnostics` 表。该数据库是 **VSCode 和 Rider 语言扩展的缓存** —— 插件中没有任何内容会读回它。见 [工作区](/docs/plugin/tools/workspace)。 |
 
 ## 页面 [#pages]
 
@@ -297,6 +297,6 @@ void InspectSource(const FString& InPath)
 - [项目设置](/docs/settings/project) —— 从用户角度看的 `UDreamShaderSettings`
 - [生成](/docs/generation/pipeline) —— 生成的资源是什么样子
 - [Commandlet](/docs/tools/commandlet) —— `-run=DreamShader`，无头入口点
-- [编辑器桥接](/en/docs/plugin/tools/bridge) —— WebSocket 服务器和请求文件协议
-- [工作区](/en/docs/plugin/tools/workspace) —— `bridge.db` 缓存和导出的清单
+- [编辑器桥接](/docs/plugin/tools/bridge) —— WebSocket 服务器和请求文件协议
+- [工作区](/docs/plugin/tools/workspace) —— `bridge.db` 缓存和导出的清单
 - [贡献](/docs/plugin/contributing) —— 从源码构建插件

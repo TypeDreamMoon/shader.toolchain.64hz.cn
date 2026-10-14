@@ -255,8 +255,8 @@ Substrate 门控是一个单独的宏，因此可以独立覆盖，但其默认
 | `DreamShaderCompiler` | HLSL 槽预检查 | 为活动功能级别和目标平台的着色器格式编译每个更改的槽 | [`DSH8323`](/docs/plugin/diagnostics/dsh8xxx#dsh8323) |
 | `DreamShaderCompiler` | 在 `.dsp` 上的 `dsc check -Shaders` | 预检查其槽 | [`DSH8338`](/docs/plugin/diagnostics/dsh8xxx#dsh8338) |
 | `DreamShaderCompiler` | 注册表提交后槽着色器的热重载 | 在编辑器中，从不在 commandlet 中 | 无 |
-| `DreamShaderEditor` | [管线详情面板](/en/docs/tools/editor#pass-pipeline-details-panel) | 按文档 | 在管线概览中多一行：`Custom Pass runs on Unreal Engine 5.8 and later. This engine loads and saves the pipeline, and runs none of it.` |
-| `DreamShaderEditor` | [`pass-keys.json`](/en/docs/plugin/tools/workspace#pass-keysjson) | `supported: true` | `supported: false` 和 `unsupportedReason: "Custom Pass pipelines run on Unreal Engine 5.8 and later."`；键、注入点和格式在两种情况下都会被写入 |
+| `DreamShaderEditor` | [管线详情面板](/docs/tools/editor#pass-pipeline-details-panel) | 按文档 | 在管线概览中多一行：`Custom Pass runs on Unreal Engine 5.8 and later. This engine loads and saves the pipeline, and runs none of it.` |
+| `DreamShaderEditor` | [`pass-keys.json`](/docs/plugin/tools/workspace#pass-keysjson) | `supported: true` | `supported: false` 和 `unsupportedReason: "Custom Pass pipelines run on Unreal Engine 5.8 and later."`；键、注入点和格式在两种情况下都会被写入 |
 | `DreamShaderEditor` | 渲染自动化测试（`DreamShaderPassRenderTests.cpp`） | 已编译进来 | 已编译排除 |
 
 ## “自 UE 5.x 起”摘要 [#since-ue-5x-summary]

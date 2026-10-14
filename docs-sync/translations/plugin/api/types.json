@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "44ef5cb1cc1fd6cd8f5ffc53894dc6a197233ea4d8085846faab026e653a6dfd",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/api/types.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/api/types.md",
-  "translationHash": "9fea792f19dc3ea9657ddb3bd9928a4495103c8478e68b16ecadfcec0f128d17"
+  "translationHash": "7919f4294658dd856557a98cb93e77faf53fb09291dadb0902be45db3f032e5a"
 }

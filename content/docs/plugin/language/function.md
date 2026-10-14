@@ -47,7 +47,7 @@ Function [ ( <generate-attributes> ) ] [ { Inline | SelfContained } ] [ <return-
 逐字捕获：只读取其中的花括号，字符串或注释内的花括号不计入。
 
 可选的 `( … )` 头部 *（2.1.2 之后）* 要求包根据该函数生成一个材质函数 —— `Function(Generate = "MF_BL_Checker", Library = "Blender|Texture") Checker(...)`。它
-仅在包的头部中有意义：参见 [Packages ▸ Asset headers](/en/docs/tools/packages#asset-headers)。
+仅在包的头部中有意义：参见 [Packages ▸ Asset headers](/docs/tools/packages#asset-headers)。
 `Generate = ""` 使一个函数退出其 `Namespace` 的模板。另一个键是警告
 [`DSH6331`](/docs/plugin/diagnostics/dsh6xxx#dsh6331)，会被忽略；在包之外，该头部是
 [`DSH7234`](/docs/plugin/diagnostics/dsh7xxx#dsh7234)，不生成任何内容。1.x 在此块上没有头部，因此

@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "status": "current",
+  "sourceHash": "816ab485eec2c5269976d81a36bef7f35c5f2d291445f790795883c030d8361e",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/settings/project.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "c88b08aa857208eb4290872dcfb489419f77fd072aae95604801fc6d9014c152"
+      "sourceHash": "6f3fadf3e4eeb882b7d5473de8d1978c3d14865ed11bfc0cfddc7f02cbef3464",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "3ec6ca68e6e224744c769a2fea5b737a37f4cbcd66c8e8ddab2e5a6e4bc2dbd8"
     }
   ],
   "translationFile": "content/docs/settings/project.md",
-  "translationHash": "8df1ce4c78a82e925f688c8b07bab2405d9e8f9a92135adac416ac4fbf758995"
+  "translationHash": "f069d5a56724b67f44424b202b244605d3471ff5583e0c2c16659f2c92d467de"
 }

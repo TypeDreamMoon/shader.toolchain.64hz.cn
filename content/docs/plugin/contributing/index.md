@@ -167,20 +167,20 @@ description: "贡献"
 | :-- | :-- |
 | `DreamShaderEditorModule.cpp` | 模块入口。在 `IsRunningCommandlet()`、cook-director 检查和 `-NoDreamShaderEditorBridge` 上控制桥接；拥有 cook 时实现阶段。 |
 | `DreamShaderEditorPersistenceUtils.h` | `BindAndExecute` — 两个 SQLite 写入器共享的预处理语句辅助工具。 |
-| `Bridge/` | [编辑器桥接](/en/docs/plugin/tools/bridge)：请求文件轮询、目录监视器、去抖和编译队列、材质编译诊断，以及预览 WebSocket 服务器。 |
-| `Commandlet/` | `UDreamShaderCommandlet` 以及 `compile` / `decompile` / `dump-graph` 运行器和共享参数辅助工具；`DreamShaderMigrate.{h,cpp}`，即 `migrate` 动词 *(2.0)*。参见 [Commandlet](/docs/tools/commandlet)。*(自 2.1.0 起)* `DreamShaderPassRegistryCommandlet.{h,cpp}`：[`pass-registry`](/en/docs/tools/commandlet#pass-registry) 动词 — 列表、`-Gc` 和 `-Rebuild`。 |
+| `Bridge/` | [编辑器桥接](/docs/plugin/tools/bridge)：请求文件轮询、目录监视器、去抖和编译队列、材质编译诊断，以及预览 WebSocket 服务器。 |
+| `Commandlet/` | `UDreamShaderCommandlet` 以及 `compile` / `decompile` / `dump-graph` 运行器和共享参数辅助工具；`DreamShaderMigrate.{h,cpp}`，即 `migrate` 动词 *(2.0)*。参见 [Commandlet](/docs/tools/commandlet)。*(自 2.1.0 起)* `DreamShaderPassRegistryCommandlet.{h,cpp}`：[`pass-registry`](/docs/tools/commandlet#pass-registry) 动词 — 列表、`-Gc` 和 `-Rebuild`。 |
 | `Tools/` *(2.0)* | 其他 2.0 动词（`check`、`dump-ir`、`dump-layout`、`index`、`export-catalog`、`fmt`、`list-generated`）、`check -Shaders` 的 HLSL 着色器检查、反编译请求辅助工具和目录清单。 |
 | `Decompiler/` | 2.0 反编译器（`DreamShaderIRDecompiler`、`DreamShaderGraphImport`、`DreamShaderInstanceDecompiler`）：图 → IR → `.dss` / `.dsi`；保留在 `-Format=Legacy` 之后的 1.x `.dsm` / `.dsf` 导出（`DreamShaderGraphDecompiler*`）；反编译服务。参见 [反编译器](/docs/tools/decompiler)。*(自 2.1.0 起)* `DreamShaderPipelineDecompiler.{h,cpp}`：将 `UDreamPassPipeline` 读回 `.dsp` 绑定到的负载中 — 对于 `dsc decompile`，它打印该负载并通过再次解析和绑定来检查文本；对于 Adopt，它将负载拼接到现有 `.dsp` 中。 |
 | `Diagnostics/` | `FDreamShaderDiagnosticsStore`：错误位置解析、`diagnostics.json`、每文件的 `diagnostics/` 树和 SQLite `diagnostics` 表。 |
 | `Navigation/` | 基于编译所标记的 `DreamShader.SourceSpans` 元数据进行节点 ↔ 源码行导航。 |
 | `Provenance/` | *Revert to Source*、*Adopt Into Source* 和 *Detach* — 参见 [分歧](/docs/plugin/generation/divergence)。 |
-| `Pass/` *(自 2.1.0 起)* | `FDreamPassPipelineCustomization` — [`UDreamPassPipeline` 的细节面板](/en/docs/tools/editor#pass-pipeline-details-panel)，注册到资产类型所基于的每个引擎上 — 以及 `DreamPassSpellings`，即反编译器、图转储、细节面板和 `pass-keys.json` 所写入的每个 DreamShaderPass 枚举的 `.dsp` 拼写。 |
-| `Preview/` | `FDreamShaderPreviewRenderer`：缩略图场景、渲染目标、轨道和网格处理、PNG 编码、阻塞和异步回读；流式会话和断点探测。参见 [预览](/en/docs/plugin/tools/preview)。 |
-| `SourceFiles/` | [资产重命名同步](/en/docs/plugin/tools/asset-rename-sync)服务。源发现本身在 2.0 中移至 `DreamShaderCompiler/Private/Sources/`。 |
+| `Pass/` *(自 2.1.0 起)* | `FDreamPassPipelineCustomization` — [`UDreamPassPipeline` 的细节面板](/docs/tools/editor#pass-pipeline-details-panel)，注册到资产类型所基于的每个引擎上 — 以及 `DreamPassSpellings`，即反编译器、图转储、细节面板和 `pass-keys.json` 所写入的每个 DreamShaderPass 枚举的 `.dsp` 拼写。 |
+| `Preview/` | `FDreamShaderPreviewRenderer`：缩略图场景、渲染目标、轨道和网格处理、PNG 编码、阻塞和异步回读；流式会话和断点探测。参见 [预览](/docs/plugin/tools/preview)。 |
+| `SourceFiles/` | [资产重命名同步](/docs/plugin/tools/asset-rename-sync)服务。源发现本身在 2.0 中移至 `DreamShaderCompiler/Private/Sources/`。 |
 | `Tests/` | 自动化测试套件和语料库运行器。参见 [测试](/docs/plugin/contributing/testing)。 |
-| `UI/` | [材质内容浏览器](/en/docs/plugin/tools/material-browser)标签页 — 导航、Sources 和 Assets 视图、检查器及其实时预览、*新建*源、实例工厂和生成资产路径辅助工具。 |
-| `VirtualFunction/` | `VirtualFunction` 声明编写和启动同步服务。参见 [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools)。 |
-| `Workspace/` | `FDreamShaderWorkspaceService`：`.code-workspace` 写入器、三个桥接清单、`bridge.db` 以及外部编辑器启动辅助工具。参见 [工作区](/en/docs/plugin/tools/workspace)。 |
+| `UI/` | [材质内容浏览器](/docs/plugin/tools/material-browser)标签页 — 导航、Sources 和 Assets 视图、检查器及其实时预览、*新建*源、实例工厂和生成资产路径辅助工具。 |
+| `VirtualFunction/` | `VirtualFunction` 声明编写和启动同步服务。参见 [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools)。 |
+| `Workspace/` | `FDreamShaderWorkspaceService`：`.code-workspace` 写入器、三个桥接清单、`bridge.db` 以及外部编辑器启动辅助工具。参见 [工作区](/docs/plugin/tools/workspace)。 |
 
 ### `MaterialAssetGeneration/` 内部 [#inside-materialassetgeneration]
 
@@ -307,7 +307,7 @@ pwsh -File Tools/Localization/localization_lint.ps1
 
 - **`DreamShaderEditor` 不导出任何内容。** 它没有 `Public/` 文件夹，且 `DREAMSHADEREDITOR_API`
   从不出现于源码中，因此第三方 C++ 无法链接到 bridge 或 decompiler。受支持的 C++ 扩展点是 `IDreamShaderCompiler` —— 声明于 `DreamShader`，实现于
-  `DreamShaderCompiler`，通过 `GetDreamShaderCompiler()` 访问；其他一切只能通过编辑器 UI、[commandlet](/docs/tools/commandlet) 或 [bridge](/en/docs/plugin/tools/bridge) 访问。
+  `DreamShaderCompiler`，通过 `GetDreamShaderCompiler()` 访问；其他一切只能通过编辑器 UI、[commandlet](/docs/tools/commandlet) 或 [bridge](/docs/plugin/tools/bridge) 访问。
 - **没有模块单例。** 没有模块类具有 `Get()` / `IsAvailable()` 访问器。请使用
   `FModuleManager::LoadModuleChecked<FDreamShaderModule>(TEXT("DreamShader"))`。公开委托包括
   `OnDreamShaderSourceGenerated`（编译完成，位于 `DreamShaderCompiler`）、`DreamShaderDefineResolution.h` 的 define-provider
@@ -362,7 +362,7 @@ D:\Work\Out\DreamShader\
 - [编译器模块](/docs/plugin/api/compiler-module) —— `IDreamShaderCompiler`，受支持的扩展点
 - [版本兼容性](/docs/plugin/api/version-compat) —— 兼容宏与所有受门控行为
 - [Commandlet](/docs/tools/commandlet) —— `-run=DreamShader`，无头入口点
-- [编辑器 bridge](/en/docs/plugin/tools/bridge) —— 请求文件、`bridge.db`、预览 WebSocket
+- [编辑器 bridge](/docs/plugin/tools/bridge) —— 请求文件、`bridge.db`、预览 WebSocket
 - [生成管线](/docs/generation/pipeline) —— 一次编译从端到端做了什么
 - [项目设置](/docs/settings/project) —— `UDreamShaderSettings`，包括源目录
 </content>

@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "status": "current",
+  "sourceHash": "68ca0f53b6d4a2495f5468fe4379479c020430244a2532c2a7a38e7954a314a2",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/tools/migrate.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "17fe6b1c0fd2e54fae0a2559ee6c28cca5281a95bdfd8bd264bd06758ba63d83"
+      "sourceHash": "f37c03b24ee1bf4542f3054f8be5d855fb02282cac90de5157c6ba75fef046c7",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "2ca62bee6dbfb035f0846d3b7eb69b579bbf9bfe4cd400b9210f614bb0a61df6"
     }
   ],
   "translationFile": "content/docs/language-v2/migrate.md",
-  "translationHash": "92e2af7216751d57d612a30eb712c3e50c4f38682f3cc6e736d5502db263bd0b"
+  "translationHash": "cab20fd63fc99982a676e1f73f710849007a2e707ddcd8ef1577b631b4597ea6"
 }

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "d7494e83d7a7a7860ca9f98c680fc62d9ebc15c9d6a96cbd30eed4e4c33d2bd7",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sources": [
+    {
+      "path": "Docs/tools/asset-rename-sync.md",
+      "sourceHash": "5380f5476317b0be0e3c4651b3aa0761ee1c9b22ff55692ec17d23b12fbf3e5f",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "cd0f42c6f41f7d14f77fe76e3a3081efef6cd1168c980649b71c15b9177d78b3"
+    }
+  ],
+  "translationFile": "content/docs/plugin/tools/asset-rename-sync.md",
+  "translationHash": "e8260607687b1145b16609c457f6ed078f7f51f14e9b3cd1aa8bce58fb99b010"
+}

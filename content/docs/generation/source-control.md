@@ -43,7 +43,7 @@ description: "版本控制"
 | `DreamShader.OutputDigest` | 生成器写下的内容，用于 [divergence](/docs/plugin/generation/divergence) 检测 |
 
 > [!NOTE]
-> 引擎自带的类没法由插件添加 registry tag，所以在编辑器外没有任何东西能向 asset registry 询问「哪些资产是 DreamShader 的」。在编辑器里，[Material Content Browser](/en/docs/plugin/tools/material-browser) 按出身筛选；在编辑器外，去问**源码** —— ``list-generated`` 做的正是这件事。
+> 引擎自带的类没法由插件添加 registry tag，所以在编辑器外没有任何东西能向 asset registry 询问「哪些资产是 DreamShader 的」。在编辑器里，[Material Content Browser](/docs/plugin/tools/material-browser) 按出身筛选；在编辑器外，去问**源码** —— ``list-generated`` 做的正是这件事。
 
 ## 列出生成资产 [#listing-the-generated-assets]
 
@@ -173,7 +173,7 @@ git status --porcelain -- Content   # must print nothing
 
 - **`DShader/.dreampass/` 在两种做法下都是源码。** 它装着 `.usf` 文件的快照
   —— `.dsp` 管线的 HLSL pass 用的就是这些文件 —— 以及全局 shader 据以构建的 slot 注册表
-  （[HLSL pass](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)）。那些 shader 是从快照而不是从正在编辑的文件编译的，
+  （[HLSL pass](/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)）。那些 shader 是从快照而不是从正在编辑的文件编译的，
   所以队友的编辑器和 cook 跑的就是快照：一份缺少这些快照的检出会让每个 slot 都跑到空桩上，
   直到它的 `.dsp` 文件被重新编译。请把这个文件夹和产生它的 `.dsp` 和 `.usf` 改动一起提交；它里面的冲突靠任取一边、
   再重新编译 `.dsp` 文件解决，永远不要手改。
@@ -187,7 +187,7 @@ git status --porcelain -- Content   # must print nothing
   生成资产（做法 B）能让工程在不编译插件的情况下使用它；`-All` 也覆盖
   插件源码根，所以一份清单两边都够用。
 - **给源文件改名会挪动它的资产。** 在做法 B 下，把改名、新资产和旧资产的删除
-  放进同一个提交；[资产改名同步](/en/docs/plugin/tools/asset-rename-sync)会让引用
+  放进同一个提交；[资产改名同步](/docs/plugin/tools/asset-rename-sync)会让引用
   指向新路径。
 - **`list-generated` 列的是源码会构建的东西，不是磁盘上躺着的东西。** 源文件被删掉的生成资产
   是孤儿，不在清单里；Material Content Browser 会显示它们。

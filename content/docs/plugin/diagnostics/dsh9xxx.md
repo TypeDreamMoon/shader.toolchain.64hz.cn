@@ -26,7 +26,7 @@ DSH9001: '{0}' uses conditional compilation, and VirtualFunction sync rewrites a
 
 **修复。** 将 `VirtualFunction` 定义保存在没有指令的源文件中，或手动刷新它们：材质函数上的 **Copy VirtualFunction Definition** 会给出当前声明以供粘贴。该拒绝是按文件生效的，不会阻止其他文件的同步
 
-**另见** [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools)、[预处理器](/docs/plugin/language/preprocessor)
+**另见** [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools)、[预处理器](/docs/plugin/language/preprocessor)
 
 ## DSH9011 [#dsh9011]
 
@@ -86,7 +86,7 @@ Could not back up '%s' to '%s'; its asset references were left pointing at the o
 
 **修复。** 什么都没写入：源文件仍然指向旧路径，并将在下次编译时无法加载该资产。清除任何阻碍复制的东西——签出该文件、去掉只读标志、关闭占用 `<file>.bak` 的程序——然后来回重命名该资产，或手动编辑路径。在项目设置中关闭 *Sync Source References On Asset Rename* 可完全阻止插件尝试此操作
 
-**另见** [资产重命名同步](/en/docs/plugin/tools/asset-rename-sync#backups)
+**另见** [资产重命名同步](/docs/plugin/tools/asset-rename-sync#backups)
 
 ## DSH9021 [#dsh9021]
 
@@ -106,7 +106,7 @@ Could not write '%s' after renaming an asset it references; the file as it was i
 
 **修复。** 文件的原样保存在 `<file>.bak` 中；磁盘上的源文件未被改动，因为失败的步骤正是写入本身。恢复或忽略 `.bak`，使文件可写，然后手动编辑路径或来回重命名该资产以再次触发同步
 
-**另见** [资产重命名同步](/en/docs/plugin/tools/asset-rename-sync#backups)
+**另见** [资产重命名同步](/docs/plugin/tools/asset-rename-sync#backups)
 
 ## DSH9022 [#dsh9022]
 
@@ -298,7 +298,7 @@ DreamShader failed to create graph dump directory '%s'.
 
 **修复。** 检查 `-Out` 路径是否存在且可写，并确认没有任何文件已经占用转储所需的某个目录名。没有 `-Out` 时，目标是 `<Project>/Saved/DreamShader/GraphBaseline`，只有 `Saved/` 本身为只读时才会失败
 
-**另见** [Commandlet](/en/docs/tools/commandlet#dump-graph-since-190)
+**另见** [Commandlet](/docs/tools/commandlet#dump-graph-since-190)
 
 ## DSH9031 [#dsh9031]
 
@@ -318,7 +318,7 @@ DreamShader failed to write graph dump '%s'.
 
 **修复。** 关闭占用该文件的内容，或清除只读标志，然后重新运行。捕获到一个全新的空目录可以同时绕开这两者——基线是整体写入的，因此旧目录中没有需要保留的内容
 
-**另见** [Commandlet](/en/docs/tools/commandlet#dump-graph-since-190)
+**另见** [Commandlet](/docs/tools/commandlet#dump-graph-since-190)
 
 ## DSH9032 [#dsh9032]
 
@@ -338,7 +338,7 @@ DreamShader could not work out which assets '%s' builds, so there is no graph to
 
 **修复。** 如果消息带有解析错误，请修复源码；对同一文件运行 `compile` 会以自己的代码报告相同的失败。如果文件是一个合理地不产生任何资产的辅助文件，它就没有可转储的内容，可以排除在捕获之外——`-All` 会访问它并报告它，这就是为什么对一棵辅助源码树运行 `-All` 会以 `1` 退出，而这棵树本身并没有任何问题
 
-**另见** [Commandlet](/en/docs/tools/commandlet#dump-graph-since-190)
+**另见** [Commandlet](/docs/tools/commandlet#dump-graph-since-190)
 
 ## DSH9033 [#dsh9033]
 
@@ -358,7 +358,7 @@ DreamShader could not resolve generated asset '%s' from '%s' after generation.
 
 **修复。** 在源上运行 `compile -Force`，查看编译器对同一路径的反馈；无法加载的包在那里也会失败，并给出关于该包而非关于转储的消息。如果资产是被手动删除的，编译一次即可重新创建它
 
-**另见** [Commandlet](/en/docs/tools/commandlet#dump-graph-since-190)
+**另见** [Commandlet](/docs/tools/commandlet#dump-graph-since-190)
 
 ## DSH9034 [#dsh9034]
 
@@ -378,7 +378,7 @@ DreamShader cannot dump '%s': %s is not a Material, MaterialFunction, material i
 
 **修复。** 查看消息所指的资产，要么将其移开，要么更改源的 `Name=` / `Root=`，使两者不再冲突。转储报告的冲突与生成会报告的是同一个；只是它通过不同途径到达那里，因为它不必写入
 
-**另见** [Commandlet](/en/docs/tools/commandlet#dump-graph-since-190)
+**另见** [Commandlet](/docs/tools/commandlet#dump-graph-since-190)
 
 ## DSH9035 [#dsh9035]
 
@@ -814,7 +814,7 @@ The source file '{File}' this node was generated from is not on disk any more, s
 
 **原因。** *Open Source Line*（或 *Open Call Site*）无法为该文件启用文本编辑器。两种不同的原因共用此代码，因为二者的用户下一步操作相同：跨度中指明的文件已不在磁盘上，或者链中的每个启动器都拒绝了——VSCode、该扩展名的操作系统默认编辑器以及记事本。
 
-**修复。** 如果文件缺失，说明资产的寿命长于其源：重新生成它，或从版本控制恢复该文件。如果文件存在，则问题出在启动器链上——检查该扩展名是否有默认应用程序，并参阅 [Workspace](/en/docs/plugin/tools/workspace) 了解 VSCode 是如何被发现的。
+**修复。** 如果文件缺失，说明资产的寿命长于其源：重新生成它，或从版本控制恢复该文件。如果文件存在，则问题出在启动器链上——检查该扩展名是否有默认应用程序，并参阅 [Workspace](/docs/plugin/tools/workspace) 了解 VSCode 是如何被发现的。
 
 ## DSH9059 [#dsh9059]
 
@@ -1776,7 +1776,7 @@ Expected a '#pragma instance(...)' line in this .dsi file, found none; the file 
 
 **修复。** 单独写入该标志以将其开启（`-Force`），或使用八个词之一写入；将其省略，或写入 `=false`，以使其保持关闭。仅检查动词所读取的标志：它不接受的标志会被忽略，无论其值为何。
 
-**另见** [Commandlet——布尔标志](/en/docs/tools/commandlet#boolean-flags)
+**另见** [Commandlet——布尔标志](/docs/tools/commandlet#boolean-flags)
 
 ## DSH9111 [#dsh9111]
 
@@ -1813,7 +1813,7 @@ The Custom Pass slot registry cannot be read: {0}. 'dsc pass-registry -Rebuild' 
 **原因。** `pass-registry` 无法读取 `Registry.json` 以列出它：该文件无法打开，它不是有效的 JSON——其中残留的合并冲突是常见原因——或者某个条目没有槽位编号、管线或通道。不会列出任何内容，运行失败（退出码 `1`）。任何 `.dsp` 的编译都会拒绝同一个文件（DSH8315）。
 
 **修复。** 运行 `./dsc.ps1 pass-registry -Rebuild`：它会将该文件移至一旁，保存为 `Registry.json.unreadable`，并编译每一个 `.dsp`，从而再次为每个 HLSL 通道分配槽位。选择冲突的任意一方并再次编译 `.dsp` 文件同样可行；切勿手动合并该 JSON。参见
-[`pass-registry`](/en/docs/tools/commandlet#pass-registry)。
+[`pass-registry`](/docs/tools/commandlet#pass-registry)。
 
 ## DSH9201 [#dsh9201]
 

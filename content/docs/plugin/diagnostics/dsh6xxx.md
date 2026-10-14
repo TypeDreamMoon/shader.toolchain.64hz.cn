@@ -1075,7 +1075,7 @@ Expected '(' to open the parameter list of '{0}', found {1}.
 **由以下抛出** `Source/DreamShaderLang/Private/Lang/LangLegacyParser.cpp:1933`
 <!-- generated:end DSH6331 -->
 
-**原因.** 1.x 的 `Function` 或 `GraphFunction` 头 *(2.1.2 之后)* 命名了一个并非 `Generate`、`Library` 和 `Description` 的键——通常是拼写错误。其他 1.x 块会像 1.x 那样静默忽略未知键；此头是新增的，因此会提示拼写错误。参见 [Packages ▸ Asset headers](/en/docs/tools/packages#asset-headers)。
+**原因.** 1.x 的 `Function` 或 `GraphFunction` 头 *(2.1.2 之后)* 命名了一个并非 `Generate`、`Library` 和 `Description` 的键——通常是拼写错误。其他 1.x 块会像 1.x 那样静默忽略未知键；此头是新增的，因此会提示拼写错误。参见 [Packages ▸ Asset headers](/docs/tools/packages#asset-headers)。
 
 **修复.** 将该键拼写为三者之一，或删除它。
 

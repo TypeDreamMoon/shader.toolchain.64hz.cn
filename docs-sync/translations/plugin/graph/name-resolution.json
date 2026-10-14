@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "e6d1fc3c496bcbee0214aa1323d4449f22c3da9235e6dbb96cf18ca44d4b7011",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/graph/name-resolution.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/graph/name-resolution.md",
-  "translationHash": "0d6995363861071783141f2e7d446e9adee3c5889a548cae1eca4a3d42b8f67a"
+  "translationHash": "6995fdfb16111649a8d527db6e7fc77da4ae8ccf6c3258ff540d42b7c0559c88"
 }

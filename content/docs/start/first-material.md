@@ -135,7 +135,7 @@ package 在生成结束时被标记为非 dirty，所以 *Save All* 也不会把
 
 选中一个条目后，你可以使用 **Compile**、**Create instance**、**Open**、**Materialize** 和 **Open source**；
 检查器会显示每条诊断信息、导入项和依赖项、继承链以及实时预览。这是
-处理生成材质的常规方式。见[编辑器工具](/en/docs/tools/editor#material-submenu)。
+处理生成材质的常规方式。见[编辑器工具](/docs/tools/editor#material-submenu)。
 
 ### 2. 让它们可见 [#2-make-them-visible]
 

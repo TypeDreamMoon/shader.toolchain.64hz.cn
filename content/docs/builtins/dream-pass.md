@@ -9,7 +9,7 @@ description: "Custom Pass 材质节点"
 
 DreamShaderPass 模块的两个材质表达式，可以像其他表达式一样从 `.dss` 访问，
 通过 `UE.<Name>`：一个写入 [mesh pass](/docs/language-v2/passes#mesh) 绘制的数据，另一个让
-普通材质读取[导出的缓冲区](/en/docs/custom-pass#exported-buffers)。
+普通材质读取[导出的缓冲区](/docs/custom-pass#exported-buffers)。
 
 | | |
 | :-- | :-- |
@@ -70,7 +70,7 @@ export void M_Ground(inout material m)
 - 缺失的管线、管线没有或未导出的缓冲区、内置缓冲区，以及
   整数或深度缓冲区都是错误 —— 在 `.dss` 编译时由 DreamShader 报出，材质编辑器中也会报出。
 - 它读取的内容取决于缓冲区最后一个写入者何时运行 —— 是这一帧的画面还是上一帧的；请参阅
-  [导出的缓冲区](/en/docs/custom-pass#exported-buffers)中的表格。
+  [导出的缓冲区](/docs/custom-pass#exported-buffers)中的表格。
 - 该材质依赖 `.dsp`：更改缓冲区的导出会使其重新编译。
 - 材质编辑器的预览会显示渲染目标的最后内容。
 

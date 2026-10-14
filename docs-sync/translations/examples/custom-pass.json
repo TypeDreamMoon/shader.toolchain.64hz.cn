@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "281efc40c59ae4820d134c3dbac22ba91a893f4a96b00b2a47b5fecdc792efa5",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/examples/custom-pass.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/examples/custom-pass.md",
-  "translationHash": "335032cf1c2f94090cac2b0ffef1adbb0b3897c320a411f6003a8f9c19ab3502"
+  "translationHash": "6181d7988c9a2f830197defbd17fb2a00fa66de4506eefbc439dc557ddfb37a4"
 }

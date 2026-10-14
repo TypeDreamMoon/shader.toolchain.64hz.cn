@@ -77,7 +77,7 @@ ShaderLayerBlend(Name = "<asset-path>" [, Root = "<root>"])
 | `Inputs` | 是 — 受约束，见下文 | 追加 | [Inputs / Outputs / Results](/docs/plugin/language/inputs-outputs) |
 | `Outputs` | 是 — 一个 `MaterialAttributes` 输出 | 追加 | [Inputs / Outputs / Results](/docs/plugin/language/inputs-outputs) |
 | `Results` | 是 — `Outputs` 的别名，无警告 | 追加 | [Inputs / Outputs / Results](/docs/plugin/language/inputs-outputs) |
-| `Settings` | 是 — `ShaderFunction` 认可的键 | 合并；重复写入同一个键会产生警告（[`DSH3262`](/docs/plugin/diagnostics/dsh3xxx#dsh3262)） | [Function settings](/en/docs/plugin/settings/function) |
+| `Settings` | 是 — `ShaderFunction` 认可的键 | 合并；重复写入同一个键会产生警告（[`DSH3262`](/docs/plugin/diagnostics/dsh3xxx#dsh3262)） | [Function settings](/docs/plugin/settings/function) |
 | `Graph` | 是 | 后写的生效，并伴有警告（[`DSH2258`](/docs/plugin/diagnostics/dsh2xxx#dsh2258)） | [Graph](/docs/graph/overview) |
 | `Layout` | 是 | 后写的替换先写的，并伴有 `DSH2258` | [Layout](/docs/language/layout) |
 | `Code` | **否** — [`DSH2246`](/docs/plugin/diagnostics/dsh2xxx#dsh2246) | — | — |
@@ -271,7 +271,7 @@ parameters  WearAmount  ScalarParameter, slider 0..1
 - [属性](/docs/parameters/properties) — `Properties` 节语法、`Group(…)` 作用域和 `const`
 - [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) — 完整的类型化参数语法
 - [MaterialAttributes](/docs/plugin/graph/material-attributes) — 这些块所围绕构建的值类型
-- [函数设置](/en/docs/plugin/settings/function) — 材质函数 `Settings` 所支持的键
+- [函数设置](/docs/plugin/settings/function) — 材质函数 `Settings` 所支持的键
 - [资源路径](/docs/generation/asset-paths) — `Name=` + `Root=` → 包路径
 - [重新生成](/docs/generation/regeneration) — 重新构建时哪些内容会保留、哪些不会
 - [诊断索引](/docs/diagnostics) — 按阶段列出的每个代码

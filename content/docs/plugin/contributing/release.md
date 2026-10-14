@@ -216,7 +216,7 @@ zip layout   DreamShader/Source/  DreamShader/Resources/  DreamShader/Shaders/
 - [Contributing](/docs/plugin/contributing) — 构建插件、源码树和引擎版本矩阵
 - [Testing](/docs/plugin/contributing/testing) — 打标签前要运行的测试套件，以及为什么语料库不包含在归档中
 - [HLSL library](/docs/custom-pass/hlsl) — `DreamShaderBuiltins.ush`，自 `1.5.1` 起随归档发布
-- [Workspace and editor extensions](/en/docs/plugin/tools/workspace) — 随插件一起发布的 VSCode 扩展
+- [Workspace and editor extensions](/docs/plugin/tools/workspace) — 随插件一起发布的 VSCode 扩展
 - [DreamShader module](/docs/plugin/api/dreamshader-module) — 启动时注册的 `/Plugin/DreamShader` 着色器映射
 - [DreamShader reference](/docs/) — `Docs/` 文件夹所变成的手册
 </content>

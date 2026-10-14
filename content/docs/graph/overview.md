@@ -162,7 +162,7 @@ Add       (.., Ratio)     -> Base.EmissiveColor
 - [Layout](/docs/language/layout) — `#Region` / `#EndRegion` 与节点放置指令
 - [UE 内置](/docs/builtins/ue-nodes) — 可从 `Graph` 调用的完整 `UE.*` 目录
 - [数学内置](/docs/builtins/math) — `lerp`、`dot`、`saturate`、`frac`、`fmod`、……
-- [在 Graph 中读取参数](/en/docs/plugin/parameters/graph-usage) — 裸读取与引脚调用形式
+- [在 Graph 中读取参数](/docs/plugin/parameters/graph-usage) — 裸读取与引脚调用形式
 - [Graph 布局](/docs/plugin/generation/graph-layout) — 生成的节点如何摆放
 - [2.0 语言](/docs/language-v2) — 同一个编译器，带 HLSL 控制流
 - [错误速查](/docs/diagnostics) — 每个码，按阶段分类

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "d136685b5b2da9efc682be91ff4bbb9b3822f4b3058ffbf1d9646700886de3de",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/getting-started/project-layout.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/start/project-layout.md",
-  "translationHash": "c31724abdb8a040469deb2fe91d1b90df7fce795616429fd38d3d4c4560bd520"
+  "translationHash": "cdaea9344f58a002fe7cb76b45e748a9e0c27d2598b076861627595ad040e975"
 }

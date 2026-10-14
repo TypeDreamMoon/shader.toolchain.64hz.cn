@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ccab6054dc486077d091589412cc710a31ce3144a5c8deeeb4acc793cf28c306",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/properties.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/parameters/properties.md",
-  "translationHash": "7b028e4f57db6d99bf5de21a243c9e487fd385a3d31be6786a776e1a33514714"
+  "translationHash": "8a7d9735bdaf5157da415a389b745431cadd243ac7d57e008aacfd86bbf07177"
 }

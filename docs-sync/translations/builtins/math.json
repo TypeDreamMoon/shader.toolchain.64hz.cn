@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "16533a53138634cc549c9862221a96a6b983a5be443905c23df7c95864e7dc90",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/builtins/math.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/builtins/math.md",
-  "translationHash": "66a2e60724936e7d6fa2429f9de792ac17153d2ec36d6ff6da14a42658ff00f0"
+  "translationHash": "22f7b21ec56967f0921599bdec0eb0eb25d60a6371fc12baec2e6f01ab16b2dc"
 }

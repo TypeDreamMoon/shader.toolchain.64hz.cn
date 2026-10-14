@@ -44,7 +44,7 @@ Substrate 类，而 UE 5.4 之前的引擎一个都没有。
 > 编辑器工具链跟随引擎。UE 5.4 以下，Bridge 清单
 > `Saved/DreamShader/Bridge/substrate-builtins.json` 被写成空条目数组、
 > `supported: false` 和一个 `unsupportedReason` —— 所以编辑器扩展的补全里
-> 什么都没有。参见 [Bridge](/en/docs/plugin/tools/bridge)。
+> 什么都没有。参见 [Bridge](/docs/plugin/tools/bridge)。
 
 ## 语法概要 [#synopsis]
 
@@ -579,7 +579,7 @@ Graph = {
   —— 参见[反编译](/docs/language-v2/substrate#decompiling)。
 - `Substrate.*` 接口导出给编辑器工具，以 `Saved/DreamShader/Bridge/substrate-builtins.json`
   （schema `DreamShader.SubstrateBuiltins`，版本 1），每个名字一条，含其 `qualifiedName`、`className`、`outputType`、
-  `isSubstrateOutput` 和精选的 `parameters`。参见 [Bridge](/en/docs/plugin/tools/bridge)。
+  `isSubstrateOutput` 和精选的 `parameters`。参见 [Bridge](/docs/plugin/tools/bridge)。
 
 ## 诊断 [#diagnostics]
 
@@ -691,6 +691,6 @@ SubstrateAdd                          -> Surface                 (Substrate valu
 - [枚举值](/docs/settings/enums) — `ShadingModel = "Substrate"` / `"Strata"`
 - [调用](/docs/graph/calls) — 命名参数语法
 - [节点复用](/docs/plugin/graph/node-reuse) — 相同的调用与节点
-- [Bridge](/en/docs/plugin/tools/bridge) — `substrate-builtins.json` 与编辑器补全清单
+- [Bridge](/docs/plugin/tools/bridge) — `substrate-builtins.json` 与编辑器补全清单
 - [反编译器](/docs/tools/decompiler) — 把已有的 Substrate 图导回源码
 - [诊断索引](/docs/diagnostics) — 每一种代码

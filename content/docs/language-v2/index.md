@@ -93,7 +93,7 @@ export float2 MF_ToonUV(float UVChannel = 0.0, float4 ScaleOffset = float4(1, 1,
 | `#pragma material(Key = Value, …)` | 文件级材质设置。 |
 | `#pragma layout(Node\|Comment, Key = Value, …)` | 反编译器写下的节点坐标。 |
 | `#pragma region Name` · `#pragma endregion` | 1.x `#Region` 注释框的 2.0 拼写。 |
-| `#pragma generate(Functions = "MF_{Name}", Library = …, Desc = …)` | *（2.1.2 之后）* 在包的头部：它之后的每个辅助函数都生成一个材质函数。见 [打包 ▸ 资产头文件](/en/docs/tools/packages#asset-headers)。 |
+| `#pragma generate(Functions = "MF_{Name}", Library = …, Desc = …)` | *（2.1.2 之后）* 在包的头部：它之后的每个辅助函数都生成一个材质函数。见 [打包 ▸ 资产头文件](/docs/tools/packages#asset-headers)。 |
 | `#pragma nogeneration` | *（2.1.2 之后）* 只有点名该文件的编译才会构建它的资产。见 [NoGeneration](/docs/generation/no-generation)。 |
 | `#pragma disable_warning(DSH…, …)` · `#pragma disable_error(DSH…, …)` | *（2.1.2 之后）* 该文件不报告的诊断码。见 [禁用诊断](/docs/language-v2/disable-diagnostics)。 |
 
@@ -119,7 +119,7 @@ export float2 MF_ToonUV(float UVChannel = 0.0, float4 ScaleOffset = float4(1, 1,
 [NoGeneration](/docs/generation/no-generation)。
 `@generate <name>` *（2.1.2 之后）* 要求一个包从这个函数生成一个材质函数
 （`@generate none` 让它从 `#pragma generate` 中退出）；它只在包的头部有意义，
-在其他任何地方都是 `DSH7234` —— 见 [打包 ▸ 资产头文件](/en/docs/tools/packages#asset-headers)。
+在其他任何地方都是 `DSH7234` —— 见 [打包 ▸ 资产头文件](/docs/tools/packages#asset-headers)。
 
 ### 语句与表达式 [#statements-and-expressions]
 
@@ -241,7 +241,7 @@ Description），否则就是函数名。
 | :-- | :-- |
 | [Substrate 语法糖](/docs/language-v2/substrate) | 对 Substrate 值使用 `A + B`、`A * w`、`lerp(A, B, t)`；`Substrate.Slab(BaseColor = ..., Metallic = ...)`；对 Substrate 值的运行时 `if`；`Substrate S = Substrate.Slab(); S.Roughness = r;`；`#pragma material(Substrate = Legacy \| Bridge \| Native)` |
 | 一种读取源码的布局 | *Project Settings ▸ DreamShader ▸ Graph Layout Style* —— [Blocks（默认）、Source Bands 或 Layered](/docs/plugin/generation/graph-layout#layout-styles)，或 1.x 的 `Classic`；`dsc dump-layout` 不构建任何东西就能画出全部三种 |
-| 一个格式化器 | [`dsc fmt`](/en/docs/tools/commandlet#fmt) —— 打印器，带有检查，拒绝写入它无法担保的文件 |
+| 一个格式化器 | [`dsc fmt`](/docs/tools/commandlet#fmt) —— 打印器，带有检查，拒绝写入它无法担保的文件 |
 | 生成的资产，列表 | [`dsc list-generated`](/docs/tools/commandlet#list-generated)，用于[源代码管理](/docs/generation/source-control) |
 
 ## 管线*还*没做的事 [#what-the-pipeline-does-not-do-yet]
@@ -337,7 +337,7 @@ Description），否则就是函数名。
 
 要覆盖新的构造，往语料库树里放一个 `.dss`（外加一个可选的 `.expected.json`）——
 不需要 C++，不需要重新编译。基准格式记录在
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/Tests/Corpus/README.md) 中。
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/83b99e8d8c388735e7b903ffe7c03b7ab089859a/Tests/Corpus/README.md) 中。
 
 ## 另见 [#see-also]
 

@@ -434,4 +434,4 @@ UDreamShaderSettings::BuildDefaultBlendModeMappings(Aliases);   // 12 entries: 8
 - [`DreamShaderMaterialInstance.h`](/docs/plugin/api/material-instance) — 其 `IsAsset()` 读取 `bShowEphemeralMaterials` 的类
 - [`DreamShaderVersionCompat.h`](/docs/plugin/api/version-compat) — `DREAMSHADER_WITH_SUBSTRATE_BUILTINS`，即 `Strata` 门控
 - [着色器设置](/docs/settings/material) — 这些解析器所服务的 `Settings` 键
-- [工作区](/en/docs/plugin/tools/workspace) — 导出的别名清单和 `bridge.db`
+- [工作区](/docs/plugin/tools/workspace) — 导出的别名清单和 `bridge.db`

@@ -66,7 +66,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | [`Properties`](/docs/parameters/properties) | 参数声明和组作用域 |
 | [`Inputs` / `Outputs`](/docs/plugin/language/inputs-outputs) | 函数签名和材质输出 |
 | [输出绑定](/docs/plugin/language/output-bindings) | `Base.<Target> = <value>;` |
-| [`Settings`](/en/docs/plugin/settings) | 材质和函数设置 |
+| [`Settings`](/docs/plugin/settings) | 材质和函数设置 |
 | [`Options`](/docs/plugin/language/options) | `VirtualFunction` 资产绑定 |
 | [`Layout`](/docs/language/layout) | 节点放置、注释框、`#Region` |
 
@@ -107,15 +107,15 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | [Custom Pass 节点](/docs/builtins/dream-pass) | `UE.DreamPassOutput`、`UE.DreamPassBuffer`（UE 5.8） |
 | [`DreamShaderBuiltins.ush`](/docs/custom-pass/hlsl) | 随附的 HLSL 辅助头文件 |
 
-### [参数](/en/docs/plugin/parameters) [#parametersparametersindexmd]
+### [参数](/docs/plugin/parameters) [#parametersparametersindexmd]
 
 | | |
 | :-- | :-- |
 | [紧凑类型](/docs/plugin/parameters/compact-types) | `float`、`float3`、`Texture2D`…… |
-| [参数节点](/en/docs/plugin/parameters/parameter-nodes) | `ScalarParameter`、`StaticSwitchParameter`…… |
+| [参数节点](/docs/plugin/parameters/parameter-nodes) | `ScalarParameter`、`StaticSwitchParameter`…… |
 | [元数据块](/docs/parameters/metadata) | `Group`、`SortPriority`、`Slider`、反射属性 |
-| [`SamplerType`](/en/docs/plugin/parameters/sampler-type) | 纹理采样器配置 |
-| [在 `Graph` 中使用参数](/en/docs/plugin/parameters/graph-usage) | 值读取和引脚调用形式 |
+| [`SamplerType`](/docs/plugin/parameters/sampler-type) | 纹理采样器配置 |
+| [在 `Graph` 中使用参数](/docs/plugin/parameters/graph-usage) | 值读取和引脚调用形式 |
 | [`Path(...)`](/docs/parameters/path) | 资产引用 |
 
 ---
@@ -129,7 +129,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | :-- | :-- |
 | [管线——`.dsp`](/docs/language-v2/passes) | 缓冲区、pass、注入点、绑定、网格选择、编译器检查的内容 |
 | [运行时](/docs/custom-pass) | 什么使管线生效、pass 何时运行、内置和导出的缓冲区、视图、调试、限制 |
-| [HLSL pass](/en/docs/plugin/pass-runtime/hlsl) | 固定参数、槽位、快照和预检查 |
+| [HLSL pass](/docs/plugin/pass-runtime/hlsl) | 固定参数、槽位、快照和预检查 |
 | [材质节点](/docs/builtins/dream-pass) | 用于网格 pass 的 `UE.DreamPassOutput`，用于读取导出缓冲区的 `UE.DreamPassBuffer` |
 | [示例](/docs/examples/custom-pass) | 高亮描边、UI 毛玻璃、透视、风场 |
 | [`DreamShaderPass`](/docs/plugin/api/pass-module) | 该模块的 C++ 和蓝图 API |
@@ -138,14 +138,14 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 ## 构建与输出 [#build-and-output]
 
-### [设置](/en/docs/plugin/settings) [#settingssettingsindexmd]
+### [设置](/docs/plugin/settings) [#settingssettingsindexmd]
 
 | | |
 | :-- | :-- |
 | [材质设置](/docs/settings/material) | 特殊键加上反射的 `UMaterial` 属性 |
 | [枚举取值](/docs/settings/enums) | 每一个 `ShadingModel`、`BlendMode`、`Domain` |
 | [`Backend`](/docs/settings/backend) | `ThinCustom` 对比 `Graph` |
-| [函数设置](/en/docs/plugin/settings/function) | 材质函数支持的键 |
+| [函数设置](/docs/plugin/settings/function) | 材质函数支持的键 |
 | [项目设置](/docs/settings/project) | *DreamPlugin ▸ Dream Shader* |
 
 ### [生成](/docs/generation/pipeline) [#generationgenerationindexmd]
@@ -165,19 +165,19 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 ## 工具链 [#tooling]
 
-### [编辑器工具](/en/docs/plugin/tools) [#editor-toolstoolsindexmd]
+### [编辑器工具](/docs/plugin/tools) [#editor-toolstoolsindexmd]
 
 | | |
 | :-- | :-- |
 | [编辑器集成](/docs/tools/editor) | 菜单、工具栏、上下文菜单 |
-| [材质 Content Browser](/en/docs/plugin/tools/material-browser) | 浏览、筛选、实例化、实体化 |
-| [预览](/en/docs/plugin/tools/preview) | 缩略图和流式预览 |
+| [材质 Content Browser](/docs/plugin/tools/material-browser) | 浏览、筛选、实例化、实体化 |
+| [预览](/docs/plugin/tools/preview) | 缩略图和流式预览 |
 | [反编译器](/docs/tools/decompiler) | 把已有的材质、实例和 Custom Pass 管线导出为源文件 |
-| [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) | 声明并同步已有的函数 |
-| [工作区与编辑器扩展](/en/docs/plugin/tools/workspace) | VSCode 工作区、VSCode 与 Rider 插件 |
+| [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) | 声明并同步已有的函数 |
+| [工作区与编辑器扩展](/docs/plugin/tools/workspace) | VSCode 工作区、VSCode 与 Rider 插件 |
 | [Package](/docs/tools/packages) | `DShader/Packages` 共享库 |
 | [Commandlet](/docs/tools/commandlet) | 无头编译与反编译 |
-| [编辑器 bridge](/en/docs/plugin/tools/bridge) | 请求文件、WebSocket 协议、产物 |
+| [编辑器 bridge](/docs/plugin/tools/bridge) | 请求文件、WebSocket 协议、产物 |
 
 ### [C++ API](/docs/plugin/api) [#c-apiapiindexmd]
 
@@ -216,4 +216,4 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | 文档站点 | <https://shader.toolchain.64hz.cn/> |
 | VSCode 扩展 | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider 插件 | <https://github.com/tsdaer/dreamshader-language-support> |
-| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/7b4f0e91699288981cabb57468fbcdd5ddbd2d10/CHANGELOG.md) |
+| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/83b99e8d8c388735e7b903ffe7c03b7ab089859a/CHANGELOG.md) |

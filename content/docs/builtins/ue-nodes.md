@@ -794,7 +794,7 @@ VertexColor                                   <- vcol
 - [Substrate](/docs/builtins/substrate) — 同级的命名空间
 - [数学内置](/docs/builtins/math) — `pow`、`fmod`、`min`、`max` 以及其他
 - [Properties](/docs/parameters/properties) — 声明形式所在的段语法
-- [参数节点](/en/docs/plugin/parameters/parameter-nodes) — 显式的 `*Parameter` token
+- [参数节点](/docs/plugin/parameters/parameter-nodes) — 显式的 `*Parameter` token
 - [`Path(…)`](/docs/parameters/path) — `UE.CollectionParameter` 的资产引用
 - [节点复用](/docs/plugin/graph/node-reuse) — 相同的调用与节点
 - [转换](/docs/plugin/graph/conversions) — 加宽与截短

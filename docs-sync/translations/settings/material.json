@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "status": "current",
+  "sourceHash": "ec8b4390dc6ef64696c34618b4b04615f86a93556b1f28501ef2e63021e57fc2",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/settings/material.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "782953650b3021d2de69942d76c4d16383a4164269165a72b83702088450114b"
+      "sourceHash": "697369227926199a489c47ae46dc8a336fd3763e05491a2ec7e98c3b62a5d492",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "8f4046db76d417e96a5b14513ce90c65c91710a88083bb32f9523461a0dfba8d"
     }
   ],
   "translationFile": "content/docs/settings/material.md",
-  "translationHash": "49e27e701f6c990c6a8a1901cec5e3e3c346b0b401be3d268db89b3045387b1f"
+  "translationHash": "14d0e2849d75a0bfda0dad15fd4e7486f2a4ef07183f8f556417e7644627d1da"
 }

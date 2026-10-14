@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "60695483add45b795d7bdaa0822d49b69c145a4e5dc23d3b089a0f640062a021",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/generation/index.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/generation/pipeline.md",
-  "translationHash": "48b2b7dcfeb2f92819ad380d12e697bc324b479096e67a159fdc27351a1e291b"
+  "translationHash": "ec54cc69dcc210d816f57a06a9d58fa70f1e6825eac4db4709cca53caa384661"
 }

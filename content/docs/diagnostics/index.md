@@ -27,7 +27,7 @@ DreamShader 的诊断出现在哪里、如何读懂一条诊断，以及 1.x 生
 | 界面 | 显示什么 | 实现方 |
 | :-- | :-- | :-- |
 | **Output Log** | 分类 `LogDreamShader` 下的编译报告：失败时记 `Error`——每条记录一行线上格式，先错误、再警告、再 note——成功时记 `Display`——`Generated …` / `Skipped …` 行，再跟一个 `Warnings:` 块 | 插件 |
-| **[Material Content Browser](/en/docs/plugin/tools/material-browser)** | 每个源文件的记录，从 bridge 的内存诊断存储读出；源文件那一行显示第一个错误 | 插件 |
+| **[Material Content Browser](/docs/plugin/tools/material-browser)** | 每个源文件的记录，从 bridge 的内存诊断存储读出；源文件那一行显示第一个错误 | 插件 |
 | **`Bridge/diagnostics.json`** | `{ version, updatedAtUtc, files[] }`，每个文件一项 | 插件 |
 | **`Bridge/diagnostics/`** | 每个文件一个 `<md5-of-normalized-path>.json` 分片，外加 `index.json`；每次写入都会删掉过期分片 | 插件 |
 | **`Bridge/bridge.db`** | SQLite 表 `diagnostics(path, json, updated_at_utc)`，在一个事务里整体替换 | 插件 |
@@ -45,7 +45,7 @@ DreamShader 的诊断出现在哪里、如何读懂一条诊断，以及 1.x 生
 | 启动时的 VirtualFunction 扫描 | 它对所扫文件的记录 |
 | 删除一个文件 | 这个文件拥有的一切记录，来自每种运行，以及登记在它上面的每条记录，无论谁登记 |
 
-同一个文件里，记录按「编译、shader 编译、VirtualFunction 扫描」排序，各自内部按源文件排，所以一个文件的第一个错误是它编译时的错误。见 [Bridge](/en/docs/plugin/tools/bridge)。
+同一个文件里，记录按「编译、shader 编译、VirtualFunction 扫描」排序，各自内部按源文件排，所以一个文件的第一个错误是它编译时的错误。见 [Bridge](/docs/plugin/tools/bridge)。
 
 > [!NOTE]
 > bridge 从不在 commandlet 里运行。`-run=DreamShader`、`-run=Cook` 以及任何其他 commandlet
@@ -55,7 +55,7 @@ DreamShader 的诊断出现在哪里、如何读懂一条诊断，以及 1.x 生
 
 ## 严重级别 [#severity]
 
-一次编译按每条记录被报出时的级别登记它自己的记录——失败的编译登记全部，成功的编译登记它的警告和 note*（自 2.1.0 起；在此之前，每条入库的诊断都是 `error`，成功编译的警告只到达 Output Log）*。编译不解释的记录——`generate-error`、`material-compile`、`virtual-function-sync`——是 `error`。该字段及其取值见 [Bridge](/en/docs/plugin/tools/bridge)。
+一次编译按每条记录被报出时的级别登记它自己的记录——失败的编译登记全部，成功的编译登记它的警告和 note*（自 2.1.0 起；在此之前，每条入库的诊断都是 `error`，成功编译的警告只到达 Output Log）*。编译不解释的记录——`generate-error`、`material-compile`、`virtual-function-sync`——是 `error`。该字段及其取值见 [Bridge](/docs/plugin/tools/bridge)。
 
 不属于任何编译记录、只写日志的警告（`UE_LOG(LogDreamShader, Warning, …)`）从不进入存储。客户端遇到缺失或未知的严重级别时，按 error 处理。
 
@@ -197,22 +197,22 @@ I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200: 'Tin' is not declared 
 
 | 消息 | 原因 | 修复 | 参见 |
 | :-- | :-- | :-- | :-- |
-| `Created VirtualFunction file but could not open it: {File}` | `.dsh` 已写入，但 VSCode 无法启动 | 手动打开该文件 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader could not find a VirtualFunction definition for {Asset}.` | 对没有声明的资产执行 *Open VirtualFunction* | 改用 *CreateVirtualFunction* | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader could not find the selected Material Function.` | 所选资产在菜单构建与执行操作之间消失了 | 重新选择该资产 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader could not open VirtualFunction file: {File}` | 编辑器启动失败 | 手动打开该文件 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader could not read VirtualFunction source file '{File}'.` | 源文件不可读；报在第 1 行第 1 列 | 检查文件锁和权限 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader failed to build VirtualFunction call: {Detail}` | 无法生成调用片段 | 看内层消息 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader failed to build VirtualFunction reference: {Detail}` | 无法生成引用片段 | 看内层消息 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader failed to build VirtualFunction: {Detail}` | 无法生成声明文本 | 看内层消息 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader failed to create directory: {Dir}` | 无法创建 `DShader/VirtualFunctions` | 检查权限 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader failed to update VirtualFunction source file '{File}'.` | 刷新后的声明写不回去；报在第 1 行第 1 列 | 检查文件锁和版本控制 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
-| `DreamShader failed to write VirtualFunction file: {File}` | 无法写入新的 `.dsh` | 检查权限 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
+| `Created VirtualFunction file but could not open it: {File}` | `.dsh` 已写入，但 VSCode 无法启动 | 手动打开该文件 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader could not find a VirtualFunction definition for {Asset}.` | 对没有声明的资产执行 *Open VirtualFunction* | 改用 *CreateVirtualFunction* | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader could not find the selected Material Function.` | 所选资产在菜单构建与执行操作之间消失了 | 重新选择该资产 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader could not open VirtualFunction file: {File}` | 编辑器启动失败 | 手动打开该文件 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader could not read VirtualFunction source file '{File}'.` | 源文件不可读；报在第 1 行第 1 列 | 检查文件锁和权限 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader failed to build VirtualFunction call: {Detail}` | 无法生成调用片段 | 看内层消息 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader failed to build VirtualFunction reference: {Detail}` | 无法生成引用片段 | 看内层消息 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader failed to build VirtualFunction: {Detail}` | 无法生成声明文本 | 看内层消息 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader failed to create directory: {Dir}` | 无法创建 `DShader/VirtualFunctions` | 检查权限 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader failed to update VirtualFunction source file '{File}'.` | 刷新后的声明写不回去；报在第 1 行第 1 列 | 检查文件锁和版本控制 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
+| `DreamShader failed to write VirtualFunction file: {File}` | 无法写入新的 `.dsh` | 检查权限 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
 | `Expected exactly one VirtualFunction block.` | 重新解析的声明区域得到零个或多个块 | 每个声明区域只保留一个 `VirtualFunction` | [VirtualFunction](/docs/plugin/language/virtual-function) |
-| `MaterialFunction '{Name}' does not have a valid package path.` | 资产最外层的包名为空，或不以 `/` 开头 | 把资产重新保存到已挂载内容根目录下的某处 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
+| `MaterialFunction '{Name}' does not have a valid package path.` | 资产最外层的包名为空，或不以 `/` 开头 | 把资产重新保存到已挂载内容根目录下的某处 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
 | `MaterialFunction '{Name}' does not expose any outputs.` | 资产没有 `FunctionOutput` 节点 | 给材质函数加一个输出 | [VirtualFunction](/docs/plugin/language/virtual-function) |
 | `VirtualFunction '{Name}' asset reference is invalid: {Detail}` | `Options.Asset` 解析不了；原始字面量作为诊断的 `assetPath` 报出 | 改正 `Path( … )` | [Path](/docs/parameters/path) |
-| `VirtualFunction '{Name}' could not be refreshed from MaterialFunction '{Path}': {Detail}` | 声明构建器失败 | 看内层消息 | [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) |
+| `VirtualFunction '{Name}' could not be refreshed from MaterialFunction '{Path}': {Detail}` | 声明构建器失败 | 看内层消息 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) |
 | `VirtualFunction '{Name}' references missing MaterialFunction '{Path}'.` | `LoadObject` 返回 null | 恢复资产，或者更新 `Options.Asset` | [VirtualFunction](/docs/plugin/language/virtual-function) |
 | `VirtualFunction attributes are missing a closing ')'.` | 头部中 `(` 不配平 | 配平圆括号 | [VirtualFunction](/docs/plugin/language/virtual-function) |
 | `VirtualFunction body is missing a closing '}'.` | 主体中 `{` 不配平 | 配平花括号 | [VirtualFunction](/docs/plugin/language/virtual-function) |
@@ -293,8 +293,8 @@ LogDreamShader: Error: I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200:
 ## 另请参阅 [#see-also]
 
 - [README.md](/docs/plugin/diagnostics/readme) — 每个码，及其严重级别和消息
-- [桥接](/en/docs/plugin/tools/bridge) — 请求文件、WebSocket 协议和诊断产物
-- [Material Content Browser](/en/docs/plugin/tools/material-browser) — 显示每个源文件记录的那个标签页
+- [桥接](/docs/plugin/tools/bridge) — 请求文件、WebSocket 协议和诊断产物
+- [Material Content Browser](/docs/plugin/tools/material-browser) — 显示每个源文件记录的那个标签页
 - [命令行](/docs/tools/commandlet) — `-run=DreamShader`、`-DiagnosticsOut`、它的开关和退出码
 - [DreamShaderLang 2.0](/docs/language-v2#diagnostics) — 完整的码范围
 - [`dsc migrate`](/docs/language-v2/migrate) — 以 2.0 文本写出的 legacy 规则

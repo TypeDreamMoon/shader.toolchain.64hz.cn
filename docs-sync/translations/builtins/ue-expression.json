@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "0fead446b97d5af3ce469f97dfda33db5648651fcfe9a7e8e2cfa023a97b1bc5",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/builtins/ue-expression.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/builtins/ue-expression.md",
-  "translationHash": "c9bfa100d5112d988ed2bd83fef1bf60b9cdb46f57fd87b6a676cb582fd0d548"
+  "translationHash": "2598bb3be5ad1452d71e2071bebc9bffd7e90b6d615471f287cabf2d1f2c3d0a"
 }

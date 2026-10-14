@@ -77,7 +77,7 @@ description: "关键字索引"
 | `Outputs` | `Shader` | 输出声明和绑定 — **不同的语法** | [Output bindings](/docs/plugin/language/output-bindings) |
 | `Results` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend`, `VirtualFunction` | `Outputs` 的别名 | [Inputs / Outputs](/docs/plugin/language/inputs-outputs) |
 | `Settings` | `Shader` | 材质设置 — 特殊键加上反射的 `UMaterial` 属性 | [Material settings](/docs/settings/material) |
-| `Settings` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | 材质函数键 | [Function settings](/en/docs/plugin/settings/function) |
+| `Settings` | `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | 材质函数键 | [Function settings](/docs/plugin/settings/function) |
 | `Settings` | `VirtualFunction` | `Options` 的别名 | [Options](/docs/plugin/language/options) |
 | `Options` | `VirtualFunction` | 声明的资产和其他存储的键 | [Options](/docs/plugin/language/options) |
 | `Graph` | `Shader`, `ShaderFunction`, `ShaderLayer`, `ShaderLayerBlend` | 节点图主体 | [Graph](/docs/graph/overview) |

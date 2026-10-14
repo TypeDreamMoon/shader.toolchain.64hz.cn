@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "686a5b63b8b03d937e7440418fa7e60c0eb1a6ea833cc0dcf09d07687401c98f",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/virtual-function.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/virtual-function.md",
-  "translationHash": "57008e24c2d000ad19b7ecdcd0735830fc9e57f5512af986125ba7383af8a5f2"
+  "translationHash": "46a9d341149ea431f0e752d9a01698bdacc31838cc440aec1e1c64cfb9f9d5d9"
 }

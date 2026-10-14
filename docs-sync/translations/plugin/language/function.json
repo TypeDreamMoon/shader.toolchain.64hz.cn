@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "67a7348fdd038ea92494fe2758c5b63a7f41aaa4b3e4da4e0e76917775af131a",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/function.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/function.md",
-  "translationHash": "8d82e1a9771457c87fabba241a8e966e9c56983ed3323173f083277f0a58d01e"
+  "translationHash": "69d6fdb5ce0a9a9c5ec6f414431c7ae78598e1c59aa9d44a80eb8ab949678018"
 }

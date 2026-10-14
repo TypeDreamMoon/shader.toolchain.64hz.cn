@@ -88,7 +88,7 @@ source path    ->  project-relative, forward slashes  ->  DreamShader.SourceFile
 | 每个 `Shader = "..."`：引用、其虚拟路径，以及快照输入的哈希——文件及其按相对路径包含的所有内容的文本和相对路径，以及每个按虚拟路径包含的内容背后的文本，该虚拟路径既不是 `/Engine/` 也不是 `/Plugin/` | 编辑了 `.usf` 或它包含的任何内容 |
 | 每个被 `hlsl` 块包含的文件：其相对于 `.dsp` 文件夹的路径，以及其输入的相同哈希——写在 `.dsp` 中的 HLSL 已在键中，作为 `.dsp` 的文本 | 编辑了被包含的文件，或它包含的任何内容 |
 
-这正是让 [bridge](/en/docs/plugin/tools/bridge#custom-pass-shader-files) 能在每次
+这正是让 [bridge](/docs/plugin/tools/bridge#custom-pass-shader-files) 能在每次
 `.usf` 保存时以及每次重建其命名的材质后，排队一个非强制的 `.dsp` 的原因：不会移动上述任何一项的更改会被跳过。
 预检查插槽所用的着色器格式不在键中。
 
@@ -258,5 +258,5 @@ DreamShader.SourceHash   9f2c41ab
 - [`UDreamShaderMaterialInstance`](/docs/plugin/api/material-instance)——`SourceFilePath` 和 `SourceHash`
 - [生成的 HLSL](/docs/plugin/generation/generated-hlsl)——Custom 节点代码，以及它所取代的 1.x 包含文件
 - [Commandlet](/docs/tools/commandlet)——无头编译和强制
-- [HLSL 通道](/en/docs/plugin/pass-runtime/hlsl)——其输入由 `.dsp` 的键覆盖的快照
+- [HLSL 通道](/docs/plugin/pass-runtime/hlsl)——其输入由 `.dsp` 的键覆盖的快照
 - [项目设置](/docs/settings/project)——自动编译和防抖

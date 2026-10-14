@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "d0c66cf6716ad26d711d9a3e53d6d96b3461c85cbd1b7444faea8a1871ffe7c6",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/options.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/options.md",
-  "translationHash": "872dc38c26727b33471db1ac1426cd32575ec7ad6f265a7089d5bcfb0beb2b20"
+  "translationHash": "8f803a98ad7f23c75d9fc48e174624566f490cd400f7398ca4922853f3b16d5b"
 }

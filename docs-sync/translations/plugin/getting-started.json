@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "778e9059daf9d35a1c027953bb76d39e90e34ad4c92d981fcdddaf420008b842",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/getting-started.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/getting-started.md",
-  "translationHash": "4991d4d1cf2fb36ae6ce44cf326bafef35add8a25f60a10bc5c54bd2f0893ba3"
+  "translationHash": "3dbe58a60939ddd6ed71fb1e8724a892297e107b4b4aaeb4aca1f1193e4e03b6"
 }

@@ -39,7 +39,7 @@ description: "预处理器"
 
 ## 用途 [#what-this-is-for]
 
-`#if` 做了[静态开关](/en/docs/plugin/parameters/parameter-nodes)无法做的一件事：切开**声明**层。
+`#if` 做了[静态开关](/docs/plugin/parameters/parameter-nodes)无法做的一件事：切开**声明**层。
 
 静态开关是一个节点。它存在于 `Graph = { … }` 内部，并在两个值之间进行选择。当材质两个构建之间的差异不是一个值，而是一个*声明*时——一个不同的 `ShadingModel`、一组不同的 `Outputs`、一个不同的 `import`、一整块根本不该存在的 `ShaderFunction` 块——静态开关就无处立足。在 Substrate 下，材质可能需要上述全部四项，而任何开关节点的排列都无法表达其中任何一项。
 
@@ -555,7 +555,7 @@ import "Shared/LegacyHelpers.dsh";
 
 ### VirtualFunction 同步会拒绝相同的源文件 [#virtualfunction-sync-refuses-the-same-sources]
 
-[启动同步服务](/en/docs/plugin/tools/virtual-function-tools#startup-sync-service) 会就地重写 `VirtualFunction` 声明，并且会以 `DSH9001` 拒绝包含指令的源文件。其原因比 Adopt 的更尖锐，风险也更大。
+[启动同步服务](/docs/plugin/tools/virtual-function-tools#startup-sync-service) 会就地重写 `VirtualFunction` 声明，并且会以 `DSH9001` 拒绝包含指令的源文件。其原因比 Adopt 的更尖锐，风险也更大。
 
 同步会使用记录的**字节**偏移量将新文本拼接到声明上。行数守恒只能保证行对齐，仅此而已：被剪切的行会变成*更短的*空行，因此第一个剪切点之后的每个字节偏移量都会指向别处。契约中没有可用于纠正的偏移量映射，而如果预处理后的字符串曾经到达文件写入器，它将**永久**压平文件中的每一个死分支。
 
@@ -785,7 +785,7 @@ Shader(Name="Materials/M_Foo", Root="Game")
 - [命令行工具](/docs/tools/commandlet) — `-Define=NAME=VALUE`
 - [缓存](/docs/plugin/generation/caching) — 受影响的定义所并入的构建键
 - [分歧](/docs/plugin/generation/divergence) — 采用、还原和分离
-- [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools) — 以 `DSH9001` 拒绝的启动同步
+- [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) — 以 `DSH9001` 拒绝的启动同步
 - [反编译](/docs/tools/decompiler) — 无法往返转换的方向
-- [参数节点](/en/docs/plugin/parameters/parameter-nodes) — `StaticSwitchParameter`，另一种分支方式
+- [参数节点](/docs/plugin/parameters/parameter-nodes) — `StaticSwitchParameter`，另一种分支方式
 - [诊断索引](/docs/diagnostics) — 按阶段列出的每条消息

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "69d8e388a155f72af298dee528d5b8bcf297e56f327b6d3e5230162e27483aa3",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/generation/graph-layout.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/generation/graph-layout.md",
-  "translationHash": "b6e75b3e8edfdbedf5b4bea2d95f90a9a328c9b8e2c9a2c9b3ba9c2f7df83216"
+  "translationHash": "76607b4e52904c9de99e96867d4b2acc26003633a777224e07253d37eff470dd"
 }

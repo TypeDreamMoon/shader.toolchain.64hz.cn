@@ -59,7 +59,7 @@ Passes->RemovePipeline(Handle);
 
 从蓝图中，相同的调用位于 `UDreamPassBlueprintLibrary` 上，带有世界上下文，另外还有 `SetFloatParameter`、`SetColorParameter`、`SetBoolParameter`、`SetIntParameter`、`SetTextureParameter` 以及 `Make…Value` 辅助函数。
 
-或者在关卡中放置一个来源 — `ADreamPassVolume`、`UDreamPassComponent` — 或者在项目设置中列出该管线。这四种方式如何组合，请参阅[什么使管线生效](/en/docs/custom-pass#what-makes-a-pipeline-apply)。
+或者在关卡中放置一个来源 — `ADreamPassVolume`、`UDreamPassComponent` — 或者在项目设置中列出该管线。这四种方式如何组合，请参阅[什么使管线生效](/docs/custom-pass#what-makes-a-pipeline-apply)。
 
 ## `UDreamPassSubsystem` [#udreampasssubsystem]
 
@@ -168,12 +168,12 @@ Subsystem->UnregisterSource(Owner);
 
 这些计数可以从 `Target.cs`（`GlobalDefinitions.Add("DREAMSHADER_PASS_COMPUTE_SLOTS=48")`）覆盖；
 提高其中一个会重新编译两个全局着色器类型，仅此而已。注册表的编写方式参见
-[HLSL 通道](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)。
+[HLSL 通道](/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)。
 
 ## 另请参阅 [#see-also]
 
 - [Custom Pass 运行时](/docs/custom-pass)
 - [Custom Pass 管线——`.dsp`](/docs/language-v2/passes)
-- [HLSL 通道](/en/docs/plugin/pass-runtime/hlsl)
+- [HLSL 通道](/docs/plugin/pass-runtime/hlsl)
 - [Custom Pass 材质节点](/docs/builtins/dream-pass)
 - [项目设置](/docs/settings/project#dreamshader-custom-pass)

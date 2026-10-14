@@ -5,7 +5,7 @@ description: "紧凑类型标记"
 
 # 紧凑类型标记 [#compact-type-tokens]
 
-> [DreamShader](/docs/) » [参数](/en/docs/plugin/parameters) » **紧凑类型标记**
+> [DreamShader](/docs/) » [参数](/docs/plugin/parameters) » **紧凑类型标记**
 
 `Properties` 声明可以在不指定 Unreal 表达式类的情况下使用的 39 个内置类型标记：7 个标量拼写、27 个向量拼写和 5 个纹理拼写。
 
@@ -142,7 +142,7 @@ float A = 0.5;      float B = -2;      float C = 2.5f;      float D = true;
 
 紧凑纹理声明会生成一个纹理**对象**参数——而不是采样节点。要对其进行采样，
 需通过 `TextureSample` 内建函数从 `Graph` 中调用它，或改为声明一个
-[`TextureSampleParameter2D`](/en/docs/plugin/parameters/parameter-nodes)。
+[`TextureSampleParameter2D`](/docs/plugin/parameters/parameter-nodes)。
 
 ### 纹理默认值文法 [#texture-default-grammar]
 
@@ -157,7 +157,7 @@ Texture2D C = "/Game/Textures/T_X";            // bare quoted absolute path (sin
 解析后无法加载任何内容的引用会产生 [`DSH8218`](/docs/plugin/diagnostics/dsh8xxx#dsh8218)。`const`
 纹理的默认值则改为写入其 `TextureObject` 节点的 `Texture` 属性，此时一个
 无法加载的资产会被写入为空，且没有任何诊断信息——参见
-[Metadata](/en/docs/parameters/metadata#object-properties)。
+[Metadata](/docs/parameters/metadata#object-properties)。
 
 ### 未分配资产时的默认值 [#defaults-when-no-asset-is-assigned]
 
@@ -179,15 +179,15 @@ Texture2D C = "/Game/Textures/T_X";            // bare quoted absolute path (sin
 在任何东西加载之前，是内容浏览器引用在其 `Class'…'`
 外壳中指定的类：另一维度的纹理类会产生 [`DSH1044`](/docs/plugin/diagnostics/dsh1xxx#dsh1044)，
 而 DreamShader 知道但不是纹理的类（`MaterialFunction`、`CurveLinearColor`、`Font`……）会产生
-[`DSH1043`](/docs/plugin/diagnostics/dsh1xxx#dsh1043)。参见 [Path(…)](/en/docs/parameters/path#class-checking)。
+[`DSH1043`](/docs/plugin/diagnostics/dsh1xxx#dsh1043)。参见 [Path(…)](/docs/parameters/path#class-checking)。
 
 资产被分配后，除非声明中指定 `SamplerType`，否则会运行 `AutoSetSampleType()`，因此
-采样器类型会跟随该资产——参见 [SamplerType](/en/docs/plugin/parameters/sampler-type)。
+采样器类型会跟随该资产——参见 [SamplerType](/docs/plugin/parameters/sampler-type)。
 
 > [!NOTE]
 > 纹理采样标记会获得相同的外壳检查，而 `TextureObjectParameter` 只会获得其
 > “非纹理”那一半检查。参见
-> [Parameter node tokens](/en/docs/plugin/parameters/parameter-nodes#dimension-validation-asymmetry)。
+> [Parameter node tokens](/docs/plugin/parameters/parameter-nodes#dimension-validation-asymmetry)。
 
 ## 在 `Properties` 中无效的标记 [#tokens-that-are-not-valid-in-properties]
 
@@ -221,7 +221,7 @@ Texture2D C = "/Game/Textures/T_X";            // bare quoted absolute path (sin
   描述会被丢弃，而 `Group`、`SortPriority` 和 `Slider`——无论
   是显式写出，还是从 `Group(…)` 作用域继承——都会产生 [`DSH7224`](/docs/plugin/diagnostics/dsh7xxx#dsh7224) 警告。
 - 从 `Graph` 读取的 `const` **向量**是其常量节点的整个值，而不是命名的
-  `R` / `RG` / `RGB` 分量输出。参见 [Using parameters in Graph](/en/docs/plugin/parameters/graph-usage#value-reads)。
+  `R` / `RG` / `RGB` 分量输出。参见 [Using parameters in Graph](/docs/plugin/parameters/graph-usage#value-reads)。
 
 ## 诊断 [#diagnostics]
 
@@ -278,16 +278,16 @@ TextureCoordinate                    UV          CoordinateIndex = 0
 （[`DSH4390`](/docs/plugin/diagnostics/dsh4xxx#dsh4390)，信息）。纹理对象参数必须
 被某物消费——一个采样节点，或
 [`ShaderFunction`](/docs/plugin/language/shader-function) 的 `Texture2D` 输入。要声明一个会采样自身的纹理，请使用
-[`TextureSampleParameter2D`](/en/docs/plugin/parameters/parameter-nodes)。
+[`TextureSampleParameter2D`](/docs/plugin/parameters/parameter-nodes)。
 
 ## 另请参阅 [#see-also]
 
-- [参数](/en/docs/plugin/parameters) — 中心节点与决策表
-- [参数节点标记](/en/docs/plugin/parameters/parameter-nodes) — 22 个显式 `*Parameter` 标记
+- [参数](/docs/plugin/parameters) — 中心节点与决策表
+- [参数节点标记](/docs/plugin/parameters/parameter-nodes) — 22 个显式 `*Parameter` 标记
 - [元数据块](/docs/parameters/metadata) — `[ … ]` 条目、`Slider(min, max)`、反射属性
 - [Path(…)](/docs/parameters/path) — 纹理默认资产引用
-- [SamplerType](/en/docs/plugin/parameters/sampler-type) — 采样器类型推断与覆盖
-- [在图表中使用参数](/en/docs/plugin/parameters/graph-usage) — 声明的组件计数读取哪个节点输出
+- [SamplerType](/docs/plugin/parameters/sampler-type) — 采样器类型推断与覆盖
+- [在图表中使用参数](/docs/plugin/parameters/graph-usage) — 声明的组件计数读取哪个节点输出
 - [属性（章节）](/docs/parameters/properties) — 所属章节的语法
 - [类型标记](/docs/language/types-and-values) — 完整的跨上下文标记矩阵
 - [构造函数](/docs/plugin/graph/constructors) — 这些字面量所类似的一侧构造函数形式 `Graph`

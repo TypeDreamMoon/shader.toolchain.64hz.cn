@@ -664,4 +664,4 @@ LogDreamShader:   ShaderFunction 'Functions/F_Tint'
 - [布局](/docs/language/layout) —— `Node`、`Comment` 和 `#Region`
 - [元数据块](/docs/parameters/metadata) —— 落入 `FTextShaderMetadata` 的内容
 - [类型](/docs/language/types-and-values) —— 填充 `Type` 字段之前应用的标记规范化
-- [设置](/en/docs/plugin/settings) —— 从语言侧进行的键规范化
+- [设置](/docs/plugin/settings) —— 从语言侧进行的键规范化

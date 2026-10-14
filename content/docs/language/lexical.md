@@ -76,7 +76,7 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 | 保留字 —— `in`、`out`、`const`、`return`、`true`、`import`、… | **是**，作为保留字；`In`、`Const`、`True` 是普通单词，1.x 语法在需要关键字的地方仍会把它们读成关键字 | [关键字索引](/docs/plugin/language/keywords#reserved-words) |
 | Section 名 —— `Properties`、`Settings`、`Outputs`、`Inputs`、`Results`、`Options`、`Graph`、`Code`、`Layout` | 否 | [关键字索引](/docs/plugin/language/keywords) |
 | Header 属性键 —— `Name=`、`Root=`、`Asset=` | 否 | [Shader](/docs/plugin/language/shader) |
-| `Settings` / `Options` 键、元数据键、`Expression( … )` 参数键、`Layout` 参数键 | 否 | [Settings](/en/docs/plugin/settings) |
+| `Settings` / `Options` 键、元数据键、`Expression( … )` 参数键、`Layout` 参数键 | 否 | [Settings](/docs/plugin/settings) |
 | `UE.*` 参数名 | 否，`DSH5276` 除外 | [`UE.*` 目录](/docs/builtins/ue-nodes) |
 | 类型 token —— `float3`、`vec3`、`Texture2D`、`ScalarParameter`、… | 否 | [类型](/docs/language/types-and-values) |
 | `Properties` 中的 `const` 前缀 | 否 | [属性](/docs/parameters/properties) |

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "5ce7384ceddbc630e53374325a4b6288a13fe925c1a6fe791cbfccb4713f0834",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/examples/index.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/examples/index.md",
-  "translationHash": "4946bc3805e67225b2036650ad837ddbfd2f41d0a7a6587a5da3a6ce2ef97bcc"
+  "translationHash": "efa3c93aea77a050931af21f309ff36802fdbd9db2f575d9463062b6bdbe63be"
 }

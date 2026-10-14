@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "334a3e055d6bd8f10cafb5520a26549c74f504e152a02292ca2f9b4169d46a5f",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/api/settings.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/api/settings.md",
-  "translationHash": "f30ae5730d6a422725ee63818f4098e821f2a4dc78ee2910cdbd3236982390e8"
+  "translationHash": "ef2e821aa604fd26c326a444e47a9ac85334314ea6273cd84426dd8b9dddf19e"
 }

@@ -92,7 +92,7 @@ Function [ <type> ] <name> ( [ { in | out } ] <type> <name> , … ) { … }
 9. 在 `Properties` 里，`StaticBoolParameter` 是**参数节点 token**，不是类型 token：它
    生成一个 `UMaterialExpressionStaticBoolParameter`，默认值只接受 `true` / `false`
    （[`DSH3254`](/docs/plugin/diagnostics/dsh3xxx#dsh3254)）。见
-   [Parameter nodes](/en/docs/plugin/parameters/parameter-nodes)。
+   [Parameter nodes](/docs/plugin/parameters/parameter-nodes)。
 
 *(自 2.0.0 起)* `SamplerState` 是独立的类型；1.x 在接受它的地方都把它读成 `Texture2D`。
 它在 `Properties` 里被拒绝（`DSH3252`），作为材质函数输入被拒绝
@@ -263,7 +263,7 @@ Function float Luma(in vec3 color)          // vec3 -> float3 in the generated H
 - [Constructors](/docs/plugin/graph/constructors) —— 构造器名称
 - [MaterialAttributes](/docs/plugin/graph/material-attributes) —— 读取和写入属性成员
 - [Compact parameter types](/docs/plugin/parameters/compact-types) —— 每个紧凑 token 生成哪种节点
-- [Parameter nodes](/en/docs/plugin/parameters/parameter-nodes) —— 22 个显式 `*Parameter` token
+- [Parameter nodes](/docs/plugin/parameters/parameter-nodes) —— 22 个显式 `*Parameter` token
 - [OutputType / ResultType](/docs/plugin/builtins/output-type) —— `UE.*` 调用接受的 token 集
 - [Substrate builtins](/docs/builtins/substrate) —— UE 5.4+ 的 `Substrate.*` 接口
 - [DreamShaderLang 2.0](/docs/language-v2) —— `.dss` 写出的类型名

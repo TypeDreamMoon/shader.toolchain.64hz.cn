@@ -154,7 +154,7 @@ bool IsPathUnderSourceDirectory(const FString& InPath, const FString& InDirector
 | `RefreshSourceShaderRoots()` | 丢弃缓存。仅在插件于会话中途挂载或卸载时需要 |
 | `IsPathUnderSourceDirectory(InPath, InDirectory)` | 当路径是目录本身或其下级时返回 `true`；两者都用 `NormalizeSourceFilePath` 规范化并进行不区分大小写的比较 |
 
-只有项目根目录可写：那些就地重写源文件的编辑器功能（VirtualFunction 同步、[资产重命名同步](/en/docs/plugin/tools/asset-rename-sync)）绝不会触碰插件根目录。
+只有项目根目录可写：那些就地重写源文件的编辑器功能（VirtualFunction 同步、[资产重命名同步](/docs/plugin/tools/asset-rename-sync)）绝不会触碰插件根目录。
 
 `FDreamShaderSourceRoot::bIsProjectPlugin` 携带关于插件根目录的第二个独立答案——
 即其产物是否属于项目应构建的内容，通过 `IsProjectContentPlugin` 计算。cook 会对生成失败的源文件读取此信息：在非项目插件的插件下，失败会被报告且 cook 继续进行，因为这些资产随该插件一同发布。参见
@@ -279,7 +279,7 @@ public:
 
 - 此头文件包含了 `DreamShaderVersionCompat.h`，因此任何包含 `DreamShaderModule.h` 的内容也会获得那十三个版本宏。参见 [`DreamShaderVersionCompat.h`](/docs/plugin/api/version-compat)。
 - 所有自由函数都不记录日志、不抛出异常、不断言。失败以回退值表示 —— 默认路径、`DreamShaderSymbol` 或 `false`。
-- 此头文件不声明任何委托。编译完成的通知是 `DreamShaderCompiler` 模块中的 `OnDreamShaderSourceGenerated` —— 参见 [编译器模块](/docs/plugin/api/compiler-module)；编辑器外的工具则改为读取桥接模块的诊断文件 —— 参见 [编辑器桥接](/en/docs/plugin/tools/bridge)。
+- 此头文件不声明任何委托。编译完成的通知是 `DreamShaderCompiler` 模块中的 `OnDreamShaderSourceGenerated` —— 参见 [编译器模块](/docs/plugin/api/compiler-module)；编辑器外的工具则改为读取桥接模块的诊断文件 —— 参见 [编辑器桥接](/docs/plugin/tools/bridge)。
 
 ## 示例 [#example]
 

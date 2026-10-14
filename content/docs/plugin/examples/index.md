@@ -159,7 +159,7 @@ Shader(Name="Materials/M_Params")
 }
 ```
 
-- `float`/`vec3`/`Texture2D` 是**紧凑**拼写；`ScalarParameter`/`VectorParameter`/`TextureSampleParameter2D` 显式命名 Unreal 节点。两者都在 [紧凑类型](/docs/plugin/parameters/compact-types) 和 [参数节点](/en/docs/plugin/parameters/parameter-nodes) 中记录。
+- `float`/`vec3`/`Texture2D` 是**紧凑**拼写；`ScalarParameter`/`VectorParameter`/`TextureSampleParameter2D` 显式命名 Unreal 节点。两者都在 [紧凑类型](/docs/plugin/parameters/compact-types) 和 [参数节点](/docs/plugin/parameters/parameter-nodes) 中记录。
 - `Group("…") { … }` 作用域将其名称标记到其中的参数上，并从**每个 `Properties` 节一个计数器**开始将它们编号为 `0, 10, 20, …`；显式 `SortPriority` 优先，并且不占用编号。这里 `Roughness` 获得 0，`Albedo` 获得 10。嵌套组通过 `|`（`Outer|Inner`）组合。
 - *（自 2.0.0 起）* 该标记会作用到标量、向量、纹理和静态布尔参数。带引脚或开关的参数 —— `DetailMap`、`UseDetail` —— 在每次使用时都写为节点，该节点只携带其自身 `[ … ]` 中的元数据：`DetailMap` 获得 `SortPriority = 99` 而没有组，`UseDetail` 两者都没有。
 - `const` 声明一个任何人都无法覆盖的值 —— 一个编译期常量，而不是参数。它接受标量、向量或纹理类型；任何其他类型都会产生 [`DSH3253`](/docs/plugin/diagnostics/dsh3xxx#dsh3253)。
@@ -226,8 +226,8 @@ export void M_Params(inout material m)
   写入每个参数的组和优先级；`static const` 是 1.x 的 `const`。
 
 *另请参阅：* [`Properties`](/docs/parameters/properties) · [元数据](/docs/parameters/metadata) ·
-[`SamplerType`](/en/docs/plugin/parameters/sampler-type) · [`Path(...)`](/docs/parameters/path) ·
-[在 `Graph` 中读取参数](/en/docs/plugin/parameters/graph-usage)
+[`SamplerType`](/docs/plugin/parameters/sampler-type) · [`Path(...)`](/docs/parameters/path) ·
+[在 `Graph` 中读取参数](/docs/plugin/parameters/graph-usage)
 
 ---
 
@@ -471,7 +471,7 @@ export void M_Calls(inout material m)
 ```
 
 `.dss` 会将调用的每个 `out` 传递给一个它首先声明的变量。无返回类型的函数的 1.x 值调用 `Remap01(L)` 是一条遗留规则（L3b）；`dsc migrate` 会将其写成
-上面的语句——参见[重写做了什么](/en/docs/language-v2/migrate#what-the-rewrite-does)。
+上面的语句——参见[重写做了什么](/docs/language-v2/migrate#what-the-rewrite-does)。
 
 *另见：* [图调用](/docs/graph/calls) · [名称解析](/docs/plugin/graph/name-resolution) ·
 [数学内建函数](/docs/builtins/math) · [语句](/docs/graph/statements)
@@ -958,7 +958,7 @@ export void M_UsesTint(inout material m)
 *另请参见：* [`ShaderFunction`](/docs/plugin/language/shader-function) ·
 [`VirtualFunction`](/docs/plugin/language/virtual-function) ·
 [`Inputs` / `Outputs`](/docs/plugin/language/inputs-outputs) ·
-[函数设置](/en/docs/plugin/settings/function) · [图表调用](/docs/graph/calls)
+[函数设置](/docs/plugin/settings/function) · [图表调用](/docs/graph/calls)
 
 ---
 
@@ -1111,7 +1111,7 @@ Shader(Name="Materials/M_Buffered")
 > 你项目中存在的路径，或让编辑器为你编写声明：
 > `UMaterialFunction` 右键菜单中的 **CreateVirtualFunction** 条目会在
 > `DShader/VirtualFunctions` 下写入一个匹配的 `.dsh`，而 **Create extern Prototype (2.0)** 会写入
-> `.dss` 所包含的 `extern` 形式。参见 [VirtualFunction tools](/en/docs/plugin/tools/virtual-function-tools)。
+> `.dss` 所包含的 `extern` 形式。参见 [VirtualFunction tools](/docs/plugin/tools/virtual-function-tools)。
 
 - 该资产可以来自 `Options = { Asset = … }` 或来自头属性
   `VirtualFunction(Name="…", Asset="…")`。没有其中之一时该模块为
@@ -1157,7 +1157,7 @@ export void M_Buffered(inout material m)
 
 *另见：* [`VirtualFunction`](/docs/plugin/language/virtual-function) ·
 [`Options`](/docs/plugin/language/options) · [`Path(...)`](/docs/parameters/path) ·
-[VirtualFunction tools](/en/docs/plugin/tools/virtual-function-tools)
+[VirtualFunction tools](/docs/plugin/tools/virtual-function-tools)
 
 ---
 
@@ -1341,7 +1341,7 @@ export void M_Glass(inout material m)
 `#pragma material` 接受与 `Settings` 相同的键和值，并且可以拆分为多行；
 在其中同一个键设置两次会报错，[`DSH7200`](/docs/plugin/diagnostics/dsh7xxx#dsh7200)。
 
-*另请参阅：* [`Settings`](/en/docs/plugin/settings) · [着色器设置](/docs/settings/material) ·
+*另请参阅：* [`Settings`](/docs/plugin/settings) · [着色器设置](/docs/settings/material) ·
 [材质枚举](/docs/settings/enums) · [后端](/docs/settings/backend) ·
 [项目设置](/docs/settings/project)
 
@@ -1531,7 +1531,7 @@ Shader(Name="Materials/M_RVTSurface", Root="Game")
 | 节点 | `Class` 说明符 | 写法 |
 | :-- | :-- | :-- |
 | Runtime Virtual Texture Sample | `RuntimeVirtualTextureSample` | 在 `Graph` 中的 `UE.…` |
-| Runtime Virtual Texture Sample Parameter | `RuntimeVirtualTextureSampleParameter` | 在 `Properties` 中的[参数声明](/en/docs/plugin/parameters/parameter-nodes) |
+| Runtime Virtual Texture Sample Parameter | `RuntimeVirtualTextureSampleParameter` | 在 `Properties` 中的[参数声明](/docs/plugin/parameters/parameter-nodes) |
 | Runtime Virtual Texture Replace | `RuntimeVirtualTextureReplace` | 在 `Graph` 中的 `UE.…` |
 | Virtual Texture Feature Switch | `VirtualTextureFeatureSwitch` | 在 `Graph` 中的 `UE.…` |
 | Runtime Virtual Texture Output | `RuntimeVirtualTextureOutput` | 在 `Outputs` 中的 `Expression( … ).Pin[i]` |
@@ -1620,9 +1620,9 @@ export void M_RVTSurface(inout material m)
 - [图语言](/docs/graph/overview) — `Graph` 内部的语句和表达式语言
 - [内置项](/docs/plugin/builtins) — `UE.*`、`Substrate.*`、数学以及 HLSL 库
 - [Custom Pass 示例](/docs/examples/custom-pass) — 带有材质和着色器的 `.dsp` 管线
-- [参数](/en/docs/plugin/parameters) — 每个参数标记、元数据键以及 `Path` 根
-- [设置](/en/docs/plugin/settings) — 按文件和项目范围的配置
+- [参数](/docs/plugin/parameters) — 每个参数标记、元数据键以及 `Path` 根
+- [设置](/docs/plugin/settings) — 按文件和项目范围的配置
 - [生成](/docs/generation/pipeline) — 源文件如何变成资产
-- [工具](/en/docs/plugin/tools) — 编辑器集成、反编译器、命令行工具、桥接
+- [工具](/docs/plugin/tools) — 编辑器集成、反编译器、命令行工具、桥接
 - [诊断](/docs/diagnostics) — 诊断出现的位置、如何阅读代码、1.x 消息
 - [测试](/docs/plugin/contributing/testing) — `.dss` 形式所参照的 `Tests/Corpus` 夹具

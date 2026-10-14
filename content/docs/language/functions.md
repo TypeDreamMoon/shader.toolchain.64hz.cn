@@ -40,7 +40,7 @@ GraphFunction [ ( <attributes> ) ]                                [ <return-type
 唯一的 `(Key = Value)` 头部是关键字之后那个可选头部（2.1.2 之后）：`Generate`、`Library` 和
 `Description`，它们只在包的头部里有意义 —— 指包从函数生成的材质函数；`Generate = ""` 让函数退出其命名空间的模板。另一个键
 是 `DSH6331`，即模板 `DSH6332` 里非 `{Name}` 的 `{...}`。见
-[包 ▸ 资产头部](/en/docs/tools/packages#asset-headers)。它没有 `Settings`，也没有任何 section。参数列表之后的 `{ … }`
+[包 ▸ 资产头部](/docs/tools/packages#asset-headers)。它没有 `Settings`，也没有任何 section。参数列表之后的 `{ … }`
 是原始 HLSL，原样保留：只读它的花括号，字符串和注释里的花括号不算。
 
 关键字 `Function` 和 `GraphFunction` **大小写敏感**（`function` 是 `DSH2240`）；修饰符、
@@ -337,7 +337,7 @@ Namespace(Name = "Common") { Function ApplyTint(…) }   →   Common::ApplyTint
 | 查找 | 限定名，或它压平后的拼法 `Common_ApplyTint`。没有 `using`，也没有不限定的回退：裸的 `ApplyTint(…)` 是 `DSH4208`。 |
 | 大小写 | 名字大小写敏感 （自 2.0.0 起）。`common::applytint(…)` 只与一个函数匹配时仍能解析，并给出警告 `DSH5275`。 |
 | 缺名字 | `Common::` 后面什么都没有是 `DSH5260`。 |
-| `Generate`、`Library`、`Description` | （2.1.2 之后）在包的 header 里：每个成员都会生成一个以 `Generate` 模板命名的材质函数（`MF_BL_{Name}`），默认值为 `Library` 和 `Description`。见 [包 ▸ 资产 header](/en/docs/tools/packages#asset-headers)。 |
+| `Generate`、`Library`、`Description` | （2.1.2 之后）在包的 header 里：每个成员都会生成一个以 `Generate` 模板命名的材质函数（`MF_BL_{Name}`），默认值为 `Library` 和 `Description`。见 [包 ▸ 资产 header](/docs/tools/packages#asset-headers)。 |
 | 从 `.dss` | （2.1.2 之后）包含了该 header 的 `.dss` 也能以 `Common::ApplyTint(…)` 调用成员。 |
 
 ```c

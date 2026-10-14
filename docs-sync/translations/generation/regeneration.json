@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "2864a09a401ae60ed1acbf63f3ff2d81cd2946047e1369260c54744ec29ca96f",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/generation/regeneration.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/generation/regeneration.md",
-  "translationHash": "498486f341888c16478ec2b8e1ebdcb0618e12001f83d1a34c79997635bd2d68"
+  "translationHash": "ce94587a5105bd16fc8d7b3cc3bfdc1fcace01b7b5d2b5aa36266d3109eb8e05"
 }

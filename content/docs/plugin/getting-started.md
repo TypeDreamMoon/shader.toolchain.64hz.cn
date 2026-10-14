@@ -111,7 +111,7 @@ Shader(Name="Materials/M_Minimal")
 | 部分 | 参考 |
 | :-- | :-- |
 | `Shader(Name=…)` | [`Shader`](/docs/plugin/language/shader) |
-| `Properties = { … }` | [`Properties`](/docs/parameters/properties)、[参数目录](/en/docs/plugin/parameters) |
+| `Properties = { … }` | [`Properties`](/docs/parameters/properties)、[参数目录](/docs/plugin/parameters) |
 | `Settings = { … }` | [材质设置](/docs/settings/material) |
 | `Base.EmissiveColor = …` | [输出绑定](/docs/plugin/language/output-bindings) |
 | `Graph = { … }` | [图形语言](/docs/graph/overview) |
@@ -159,7 +159,7 @@ I:/MyProject/DShader/Materials/M_Minimal.dss(8,24): DSH4200: 'Tnt' is not declar
 | [材质实例](/docs/language-v2/instances) | `.dsi` — 作为源文件的实例 |
 | [语言参考 (1.x)](/docs/plugin/language) | 1.x 声明语法，用于 `.dsm` / `.dsf` 源文件 |
 | [图形语言 (1.x)](/docs/graph/overview) | 1.x `Graph = { … }` 接受什么——以及不接受什么 |
-| [编辑器工具](/en/docs/plugin/tools) | 浏览器、反编译器、VSCode 工作区、无头命令行工具 |
+| [编辑器工具](/docs/plugin/tools) | 浏览器、反编译器、VSCode 工作区、无头命令行工具 |
 | [`dsc migrate`](/docs/language-v2/migrate) | 将 1.x 源文件重写为 `.dss`，在写入之前先证明 |
 | [自定义 Pass 管线](/docs/language-v2/passes) | *（UE 5.8，自 2.1.0 起）* 从 `.dsp` 源文件创建你自己的渲染通道——全屏、计算和网格通道，由 [自定义 Pass 运行时](/docs/custom-pass) 运行 |
 | [项目设置](/docs/settings/project) | 每个设置及其默认值 |

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "e594c6613195db6edc9da9429a7454b7b71eb4f7412bd65f27645d6ebb7aadec",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/generation/ephemeral.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/generation/in-memory.md",
-  "translationHash": "c07d73c63e542880ed7e22b0d60d967416dfab585bf9efdb199ede559c26d6ba"
+  "translationHash": "b7f928419e9c90b085dfd99d667f8ec066dd276be26834d69aeb2a442e6ec113"
 }

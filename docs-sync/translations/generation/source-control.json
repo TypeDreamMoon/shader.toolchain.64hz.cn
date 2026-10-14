@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "69a099080e218ee314f1a3307f869bee1cc90c9d65c4e6dfc5e169162a90dfbb",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/generation/source-control.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/generation/source-control.md",
-  "translationHash": "d4e609573395a9e8d2d7e16321b5e8dfc18823049844b4f22b9837bffac8c265"
+  "translationHash": "96ffecf71d879180c524eb34796213863f9b7d52b5819f89876b49c2d466560c"
 }

@@ -72,7 +72,7 @@ DreamShaderLang 覆盖的是那些值得以可评审文本形式保留下来的�
 
 **警告：**
 
-**仍有一处不报：加载失败的纹理。** 写到名为 `Texture` 或 `TextureObject` 的纹理属性上的资产加载失败时，写入的是空值，并被当作成功报告——`[Texture = Path(Game, "Typo")]` 不产生任何诊断地构建，留下一个未绑定的采样器；纹理采样 token 和 `const` 纹理的默认值也走同一条路。采样器出来不对时，先检查资产路径。见[元数据](/en/docs/parameters/metadata#object-properties)。
+**仍有一处不报：加载失败的纹理。** 写到名为 `Texture` 或 `TextureObject` 的纹理属性上的资产加载失败时，写入的是空值，并被当作成功报告——`[Texture = Path(Game, "Typo")]` 不产生任何诊断地构建，留下一个未绑定的采样器；纹理采样 token 和 `const` 纹理的默认值也走同一条路。采样器出来不对时，先检查资产路径。见[元数据](/docs/parameters/metadata#object-properties)。
 
 ## 反编译器是迁移辅助，不是往返系统 [#the-decompiler-is-a-migration-aid-not-a-round-trip]
 
@@ -86,8 +86,8 @@ DreamShaderLang 覆盖的是那些值得以可评审文本形式保留下来的�
 | 写出的路径指向 `Decompiled/…` | 重新编译会创建**第二个**资产，而不是替换原来的那个 —— 2.0 反编译器的 `-KeepAssetPath` 会写一行 `/// @name`，接管原路径 |
 | 节点布局取决于 *Export Decompiled Layout* 设置 | 关闭时，重新生成的图会自动布局 |
 
-请把一次导出当作草稿：先编译它，在编辑器中对比两个材质，等确认可靠之后再接管原路径。完整清单见 [反编译器 ▸ 已知缺口](/en/docs/tools/decompiler#known-round-trip-gaps)和
-[2.0 反编译器](/en/docs/tools/decompiler#the-20-decompiler)。
+请把一次导出当作草稿：先编译它，在编辑器中对比两个材质，等确认可靠之后再接管原路径。完整清单见 [反编译器 ▸ 已知缺口](/docs/tools/decompiler#known-round-trip-gaps)和
+[2.0 反编译器](/docs/tools/decompiler#the-20-decompiler)。
 
 ## 材质图层只到函数级 [#material-layers-are-function-level-only]
 
@@ -146,7 +146,7 @@ Substrate 还要求项目启用 Substrate，这一点与引擎版本无关。`Dr
 | 每个文件一个 `Shader` | `DSH2250`；现在按文件算，不再跨 import 闭包 |
 | 只能 import 一个 `.dsh` | import 一个 `.dsf` / `.dsm` 是 `DSH2252`；另一个文件生成的函数通过 `VirtualFunction` / `extern` 原型调用 |
 | 一个 `.dsh` 只放函数和 `VirtualFunction` | 按声明判定，`DSH2249` —— 注释里出现 `Shader(` 没问题 |
-| `DShader/Packages` 下的源文件 | `Library/*.dsh` 从不直接编译，可以被 import；`Examples/*.dsm` 在任何路径下都不编译；其余见 [Package](/en/docs/tools/packages#source-file-enumeration) |
+| `DShader/Packages` 下的源文件 | `Library/*.dsh` 从不直接编译，可以被 import；`Examples/*.dsm` 在任何路径下都不编译；其余见 [Package](/docs/tools/packages#source-file-enumeration) |
 | 解析是相对源码根的 | 机器绝对路径带不走；请让 import 相对文件、源码根或 package |
 
 ## Custom Pass 边界 [#custom-pass-boundaries]

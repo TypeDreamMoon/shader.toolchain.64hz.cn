@@ -1,140 +1,132 @@
 ---
-title: "材质 Settings"
-description: "Settings 块 —— 语句怎么解析、Shader 的特殊键、能触达任意 UMaterial 属性的反射解析器、重新生成时会被重置成什么，以及材质函数的四个键。"
+title: "着色器设置"
+description: "着色器设置"
 ---
 
-`Settings` 把 `<key> = <value>;` 写到外层块生成的资产上。在 `Shader` 块里这个资产是 `UMaterial`，本页主要描述的就是
-你可以往里写什么；材质函数块上的 `Settings` 完全是另一回事，见[材质函数的 Settings](#材质函数的-settings)。
+# 着色器设置 [#shader-settings]
 
-**提示：**
+> [DreamShader](/docs/) » [设置](/docs/plugin/settings) » **着色器设置**
 
-**`Shader` 的 `Settings` 不是一份固定的受支持键列表。** 只有少数键是手写处理的，其余任何键都通过 Unreal 反射解析到
-生成的 `UMaterial` 上。任何表格都无法穷尽这个面，因为那是引擎的属性集合，不是插件的。
+[`Shader`](/docs/plugin/language/shader) 块的 `Settings` 段：少数几个手工处理的键，外加一个反射解析器，它会把其他任何键写入生成的 `UMaterial`。
 
-```text
-Settings key
-   ├── Backend, Substrate
-   │      └── 绑定源码时由编译器读取；永远到不了材质
-   ├── blendmode rendertype shadingmodel materialdomain domain
-   │      └── 手写处理：值经项目的别名表解析
-   └── anything else
-          └── 别名表  →  UMaterial / UMaterialInterface / UObject 属性查找
-                           （名字、去掉 b 前缀的名字，或 DisplayName）
-                       →  按属性的 C++ 类型解析值
-```
+| | |
+| :-- | :-- |
+| 声明位置 | `.dsm` —— 位于 `Shader( … ) { … }` 块内 |
+| 类型 | 段 |
+| 生成 | 在生成的 `UMaterial` 上写入属性（在 ThinCustom 后端下，写入隐藏的基础材质） |
 
-`Shader` 的 `Settings` 就是 2.0 的 `#pragma material(…)` —— 见 [DreamShaderLang 2.0](/docs/language-v2)。
-
-## 块的形状 [#块的形状]
+## 概要 [#synopsis]
 
 ```c
-Settings [=] { <setting-statement> … }
-
-<setting-statement> := <name> = <value> ;
-<name>              := <identifier>
-<value>             := <到下一个 ; 为止的 token> | "<text>"
+Shader(Name = "<asset-path>")
+{
+    Settings [=] {
+        [BlendMode     = <blend-mode>;]     // or RenderType
+        [ShadingModel  = <shading-model>;]
+        [MaterialDomain = <domain>;]        // or Domain
+        [Backend       = { Graph | ThinCustom };]
+        [Substrate     = { Legacy | Bridge | Native };]
+        [<property-name> = <literal>;] …
+    }
+}
 ```
 
-段名与 `{ … }` 之间的 `=` 是可选糖 （自 1.5.0 起）。最后一条语句后的 `;` 可省略。
+块语法、注释处理、语句拆分和引号规则对每个 `Settings` 段都是通用的，其规定见[设置](/docs/plugin/settings#how-a-statement-is-parsed)。自 2.0.0 起，一个键就是一个名字：嵌套路径或下标属于 [`DSH3261`](/docs/plugin/diagnostics/dsh3xxx#dsh3261)。
 
-（自 2.0.0 起） legacy 前端用和文件其余部分相同的 token 读取 `Settings` 段：
+这些键和值就是 2.0 `#pragma material(…)` 的那些；一个 `Shader` 的 `Settings` 变成一个。
 
-| # | 步骤 | 后果 |
-| --: | :-- | :-- |
-| 1 | `//` 和 `/* … */` 注释是空白 | 注释可以出现在任意两个 token 之间，包括语句中间 |
-| 2 | 一条语句是名字、`=` 和值；值一直到 `( )`、`[ ]`、`{ }` 深度为 0 的下一个 `;`，或到结束本段的 `}` | `Color = (R=1,G=0,B=0);` 是一条语句；空语句被跳过，所以最后的 `;` 可省略 |
-| 3 | 名字是**一个**标识符 | `Foo.Bar = 1;` 和 `Foo[2] = 1;` 报 `DSH3261`，没有 `=` 的语句、`=` 后没有值也是 |
-| 4 | 值恰好是一个字符串字面量时取其内容（转义由词法分析器处理）；其他值就是写下的文本 | **所有 setting 的引号都是可选的** |
-| 5 | 同一个名字写两次（忽略大小写比较），保留后写的值 | 警告 `DSH3262` |
+## 特殊键 [#special-keys]
 
-所以 `TwoSided = true;` 和 `TwoSided = "true";` 完全相同，`Domain = Surface;` 与 `Domain = "Surface";` 行为一致。一个块里
-可以有**多个** `Settings` 段；它们合并成一个列表，同一个键写两次保留最后一个值，并给出 `DSH3262` （自 2.0.0 起）。
-
-**警告：**
-
-（自 2.0.0 起） 名字只能是**一个标识符**。1.x 还能把嵌套路径（`Lightmass.DiffuseBoost`）和定长数组下标
-（`PhysicalMaterialMap[2]`）当作 `Shader` 的键；legacy 前端在 `.` 或 `[` 处停下并报 `DSH3261`。
-
-## 特殊键 [#特殊键]
-
-下面这些键永远不会走到反射解析器。发射器跳过这六个名字 —— 在 trim、小写**并且**删除空格、`_`、`-` 之后比较：
+这些键永远不会到达反射解析器。发射器会跳过六个名字——在修剪、转为小写**并**删除空格、`_` 和 `-` 之后——其结果为以下之一：
 
 ```text
 blendmode   rendertype   shadingmodel   materialdomain   domain   backend
 ```
 
-| 规范键 | 同义键 | 取值 | 不写时的值 | 效果 |
+| 规范键 | 同义键 | 取值语法 | 键缺失时的值 | 效果 |
 | :-- | :-- | :-- | :-- | :-- |
-| `BlendMode` | `RenderType` | [混合模式拼写](/docs/settings/enums#blendmode)之一 | `Opaque` | 设置 `UMaterial::BlendMode` |
-| `ShadingModel` | —— | [ShadingModel 拼写](/docs/settings/enums#shadingmodel)之一 | `DefaultLit` | 调用 `SetShadingModel` |
-| `MaterialDomain` | `Domain` | [Domain 拼写](/docs/settings/enums#domain)之一 | `Surface` | 设置 `UMaterial::MaterialDomain` |
-| `Backend` | —— | `Graph` 或 `ThinCustom`；`Instance` 是 `ThinCustom` 的旧写法 | 项目的 *Default Compiler Backend* | 选择物化策略 —— 见 [Backend](/docs/settings/backend) |
+| **`BlendMode`** | `RenderType` | [混合模式拼写](/docs/settings/enums#blendmode)之一 | `Opaque` | 设置 `UMaterial::BlendMode` |
+| **`ShadingModel`** | — | [着色模型拼写](/docs/settings/enums#shadingmodel)之一 | `DefaultLit` | 调用 `SetShadingModel` |
+| **`MaterialDomain`** | `Domain` | [域拼写](/docs/settings/enums#domain)之一 | `Surface` | 设置 `UMaterial::MaterialDomain` |
+| **`Backend`** | — | `Graph` 或 `ThinCustom`；`Instance` 是 `ThinCustom` 的旧拼写 | 项目的 *Default Compiler Backend* | 选择物化策略——见[后端](/docs/settings/backend) |
 
-另有一个键由编译器读取、永远到不了材质 （自 2.0.0 起）：
+还有一个键由编译器读取，永远不会到达材质*（自 2.0.0 起）*：
 
-| 键 | 取值 | 不写时的值 | 效果 |
+| 键 | 取值语法 | 键缺失时的值 | 效果 |
 | :-- | :-- | :-- | :-- |
-| `Substrate` | `Legacy`、`Bridge`、`Native` | `Legacy` | 按旧属性写的材质在开了 Substrate 的工程里怎么读 —— `Bridge` 把 Surface 材质的着色属性折叠进 `FrontMaterial` 上的一个 `Substrate.ShadingModels` 节点。见[一份源码，两种工程](/docs/language-v2/substrate)。未知模式报 `DSH7232` |
+| **`Substrate`** | `Legacy`、`Bridge`、`Native` | `Legacy` | 在启用了 Substrate 的项目中，如何读取按旧属性编写的材质——`Bridge` 把 Surface 材质的着色属性折叠到 `FrontMaterial` 上的一个 `Substrate.ShadingModels` 节点中。见 [Substrate 语法糖](/docs/language-v2/substrate#one-source-two-kinds-of-project--substrate-)。未知模式会 [`DSH7232`](/docs/plugin/diagnostics/dsh7xxx#dsh7232)。 |
 
-`Backend` 和 `Substrate` 在绑定源码时取出（忽略大小写匹配）；其余在构建材质时应用。规范键与同义键同时出现时，**规范键**
-胜出：`BlendMode` 压过 `RenderType`，`MaterialDomain` 压过 `Domain`，没有诊断。这几个键的拼写只做 trim 加小写匹配，所以
-`blendmode`、`BlendMode`、`BLENDMODE` 都行。
+在绑定源码时，`Backend` 和 `Substrate` 会从设置中取出，匹配时忽略大小写；其余的在构建材质时应用。
 
-**警告：**
+当规范键和它的同义键同时存在时，**规范**键胜出：`BlendMode` 胜过 `RenderType`，`MaterialDomain` 胜过 `Domain`。这种冲突没有诊断。
 
-**只在下划线上与特殊键不同的拼写会被静默丢弃。** `Blend_Mode = "Translucent";` 并不会设置混合模式：直接探测 `BlendMode`
-匹配不到存储的键 `blend_mode`，而反射循环又因为它去分隔符后的形式在特殊键名单上而跳过它。没有错误，没有警告，也没有效果。
-`Render_Type`、`Shading_Model`、`Material_Domain`、`Back_end` 同理。这些名字请不带分隔符地写。（（自 2.0.0 起） 起
-键里根本不能有空格或连字符：`DSH3261`。）
+这些键的拼写只通过修剪并转小写来查找，因此 `blendmode`、`BlendMode` 和 `BLENDMODE` 都可以。
 
-### 应用顺序 [#应用顺序]
+> [!WARNING]
+> 仅以下划线区别于特殊键的拼写会被**静默丢弃**。
+> `Blend_Mode = "Translucent";` 不会设置混合模式：对 `BlendMode` 的直接探测匹配不到
+> 所存储的键 `blend_mode`，而反射遍历会跳过它，因为其去分隔符后的形式
+> 在特殊键列表上。没有错误，没有警告，没有效果。`Render_Type`、
+> `Shading_Model`、`Material_Domain` 和 `Back_end` 同理。请写成不带分隔符的名字。（自 2.0.0 起，
+> 空格或连字符不能充当键中的分隔符：[`DSH3261`](/docs/plugin/diagnostics/dsh3xxx#dsh3261)。）
 
-1. 材质被重置为[默认值](#不写某个设置时会重置成什么)。
-2. 先校验**整个**块 —— 解析每个特殊值，并把每个通用值写到一份临时 `UMaterial` 上。只要有一个值不合法，就在真正的材质被
-   改动之前中止，这次重建被回滚。
-3. 先 `BlendMode`，再 `ShadingModel`，再 `MaterialDomain`；然后 `bUsedWithVolumetricCloud` 跟随 domain。
-4. 通用键，按设置的迭代顺序。
+### 应用顺序 [#application-order]
 
-**提示：**
+1. 材质被重置为[默认值](#defaults--what-an-omitted-setting-resets-to)。
+2. 校验**整个**块——解析每个特殊值，并把每个通用值写入一个一次性的临时 `UMaterial`。任何一个坏值都会在真正的材质被触及之前停止构建，并且这次重建会被回滚。
+3. 先 `BlendMode`，再 `ShadingModel`，再 `MaterialDomain`；然后 `bUsedWithVolumetricCloud` 跟随域。
+4. 按设置的迭代顺序写入通用键。
 
-**两个通用键之间没有任何顺序保证。** 特殊键总是先写，所以像 `TranslucencyLightingMode` 这种与混合模式相关的属性看到的是
-最终的混合模式。
+> [!NOTE]
+> **两个通用键之间不保证任何顺序**，因此不要依赖某个键先于另一个键被写入。特殊键总是先于任何通用键写入，因此像 `TranslucencyLightingMode` 这样与 `BlendMode` 相邻的通用属性会看到最终的混合模式。
 
-`Backend` 在任何材质对象存在之前就被消费 —— 无法识别的 `Backend` 值是绑定错误，编译在应用 `Settings` 其余部分之前就停下，
-因此该文件不会再报构建期的设置诊断。
+`Backend` 在任何材质存在之前就被消费——无法识别的 `Backend` 值是绑定错误，它会在应用 `Settings` 其余部分之前停止编译，因此该文件不会报告本次构建的任何设置诊断。
 
-### 与 `Base.FrontMaterial` 的关系 [#与-basefrontmaterial-的关系]
+### 与 `Base.FrontMaterial` 的交互 [#interaction-with-basefrontmaterial]
 
-（自 2.0.0 起） 1.x 对 `Base.FrontMaterial` 绑定的两条检查 —— 显式写了不是 `Substrate` 或 `Strata` 的 `ShadingModel`，
-以及同一个 `Shader` 上同时有 `Base.FrontMaterial` 和 `Base.MaterialAttributes` —— 在 2.0 里没有诊断，编译器也不再把
-着色模型强制设为 Substrate：显式写的 `ShadingModel` 照写应用。见[输出绑定](/docs/generation/outputs#basefrontmaterial)、
-[Substrate 节点](/docs/builtins/substrate)，以及 `Substrate = Bridge` 的 [Substrate 语法糖](/docs/language-v2/substrate)。
+*（自 2.0.0 起）* 对 `Base.FrontMaterial` 绑定的两项 1.x 检查——一个不是 `Substrate` 或 `Strata` 的显式 `ShadingModel`，以及在同一个 `Shader` 上同时有 `Base.FrontMaterial` 和 `Base.MaterialAttributes`——在 2.0 中没有诊断，并且编译器不会强制把着色模型设为 Substrate：显式的 `ShadingModel` 会按所写的方式应用。见[输出绑定](/docs/plugin/language/output-bindings)、[Substrate 内置项](/docs/builtins/substrate)，以及关于 `Substrate = Bridge` 的 [Substrate 语法糖](/docs/language-v2/substrate)。
 
-## 反射解析器 [#反射解析器]
+## 反射解析器 [#the-reflection-resolver]
 
-所有非特殊键都通过 Unreal 反射解析到生成的材质上：键名先过[别名表](#别名表)，然后在 `UMaterial` 上扫描
-`TFieldIterator<FProperty>`，**包含父类** —— 所以 `UMaterial`、`UMaterialInterface` 和 `UObject` 的属性都可达 —— 最后按
-解析出的属性的 C++ 类型写入值。没有属性匹配报 `DSH7118`。
+每个非特殊的键都会由 Unreal 反射针对生成的材质进行解析。
 
-解析器本身仍能走 `A.B`（结构体属性的成员）和 `A[N]`（定长 C 数组的元素），但 1.x 的 `Settings` 键已经到不了它们（见上）。
-仍然够得着的检查是：命名定长数组属性（`ArrayDim` 大于 1）却不写下标，比如 `PhysicalMaterialMap = …`，报 `DSH7121`。
-`TArray`、`TMap`、`TSet` 属性不能按下标访问 —— 它们落到[取值语法](#取值语法)里的 import 文本兜底分支。
+| # | 步骤 | 详情 |
+| --: | :-- | :-- |
+| 1 | 在方括号深度为 0 处按 `.` 将键拆分为多个段 | 自 2.0.0 起，1.x 的键就是一个段（见[嵌套和索引路径](#nested-and-indexed-paths)） |
+| 2 | 解析每个段可选的末尾 `[<integer>]` | 同上 |
+| 3 | 通过[别名表](#alias-table)映射段名 | 在字段扫描之前**按段**应用 |
+| 4 | 在当前结构体上扫描 `TFieldIterator<FProperty>`，**包括超类** | 因此 `UMaterial`、`UMaterialInterface` 和 `UObject` 属性都可达 |
+| 5 | 向下进入 | 非末尾段必须是 `FStructProperty`；遍历在该结构体内部继续 |
+| 6 | 写入值 | 根据解析出的属性的 C++ 类型进行解析——见[取值语法](#value-grammar) |
 
-### 属性名匹配 [#属性名匹配]
+没有该名称的属性会 [`DSH7118`](/docs/plugin/diagnostics/dsh7xxx#dsh7118)。
 
-以下三者中任意一个在删除空格、`_`、`-` 并小写后与键相等，就算匹配：
+### 属性名匹配 [#property-name-matching]
+
+当以下三者中的任意一个在删除空格、`_` 和 `-` 并转为小写之后等于该段时，该段就匹配一个属性：
 
 | 规则 | 示例 |
 | :-- | :-- |
-| 原始 `FProperty` 名 | `TwoSided` ← `TwoSided`、`two_sided`、`TWOSIDED` |
-| **去掉开头 `b` 后的**属性名，前提是名字是 `b` 加一个大写字母 | `bFullyRough` ← `FullyRough`；`bIsSky` ← `IsSky`；`bIsThinSurface` ← `IsThinSurface` |
-| 属性的 `DisplayName` 元数据 | 引擎为该属性声明的任何值 |
+| 原始的 `FProperty` 名称 | `TwoSided` ← `TwoSided`、`two_sided`、`TWOSIDED` |
+| 属性名**去掉开头的 `b`**，当该名称是 `b` 后跟一个大写字母时 | `bFullyRough` ← `FullyRough`；`bIsSky` ← `IsSky`；`bIsThinSurface` ← `IsThinSurface` |
+| 属性的 `DisplayName` 元数据 | 引擎为该属性声明的任何内容 |
 
-去 `b` 规则是单向且宽松的：完整名字同样能匹配，所以 `bFullyRough = true;` 和 `FullyRough = true;` 解析到同一个属性。
+去掉 `b` 的规则是单向且宽松的：完整名称仍然匹配，因此 `bFullyRough = true;` 和 `FullyRough = true;` 都会解析到同一个属性。名称以小写 `b` 后跟非大写字符开头的属性（例如 `bias`）不会被去掉 b 前缀。
 
-### 别名表 [#别名表]
+### 嵌套和索引路径 [#nested-and-indexed-paths]
 
-字段扫描之前会应用十个固定的键别名，按去分隔符、小写后的形式比较，所以 `Lighting_Mode` 和 `LIGHTINGMODE` 都命中第一行。
+解析器本身仍会遍历 `A.B`（结构体属性的成员）、`A[N]`（定长 C 数组的元素 `N`）以及两者的任意组合。*（自 2.0.0 起）* 1.x 的 `Settings` 键无法到达它们：旧版前端只读取一个名称，并在 `.` 或 `[` 处报出 `DSH3261`。解析器仍有两项检查可达：
+
+| 写法 | 代码 |
+| :-- | :-- |
+| 命名定长数组（`ArrayDim` 大于 1）却不写下标，例如 `PhysicalMaterialMap = …` | [`DSH7121`](/docs/plugin/diagnostics/dsh7xxx#dsh7121) |
+| 没有属性使用的名称 | `DSH7118` |
+
+`TArray`、`TMap` 和 `TSet` 属性根本不能按下标访问 —— 它们落入[取值语法](#value-grammar)中的 `ImportText` 兜底分支。
+
+### 别名表 [#alias-table]
+
+字段扫描之前会按每个路径段应用十个固定的键别名。别名键按去分隔符、小写后的形式比较，所以 `Lighting_Mode` 和 `LIGHTINGMODE` 都命中第一行。
 
 | 别名 | 解析为 |
 | :-- | :-- |
@@ -149,42 +141,49 @@ blendmode   rendertype   shadingmodel   materialdomain   domain   backend
 | `ResponsiveAA` | `bEnableResponsiveAA` |
 | `ThinSurface` | `bIsThinSurface` |
 
-## 取值语法 [#取值语法]
+## 取值语法 [#value-grammar]
 
-解析出的属性的 C++ 类型决定值文本怎么解析。值此时已经去过引号，所以 `true` 和 `"true"` 是同一个输入。
+解析出的属性的 C++ 类型决定值文本怎么解析。值此时已经被解析器去过引号，所以 `true` 和 `"true"` 是同一个输入。
 
 | 属性类型 | 接受的字面量 | 失败时的码 |
 | :-- | :-- | :-- |
-| `bool` | `true` / `false`，不区分大小写 | `DSH7132` |
-| `int32` | 有符号整数字面量 | `DSH7133` |
-| `uint32` | `[0, 4294967295]` 内的整数 | `DSH7134` |
-| `float` | 数值字面量 —— 这里 `true` / `false` 不算数字 | `DSH7135` |
-| `double` | 同 `float` | `DSH7136` |
+| `bool` | `true` / `false`，不区分大小写，trim 后 | [`DSH7132`](/docs/plugin/diagnostics/dsh7xxx#dsh7132) |
+| `int32` | 有符号整数字面量 | [`DSH7133`](/docs/plugin/diagnostics/dsh7xxx#dsh7133) |
+| `uint32` | `[0, 4294967295]` 内的整数 | [`DSH7134`](/docs/plugin/diagnostics/dsh7xxx#dsh7134) |
+| `float` | 数值字面量 —— 这里 `true` / `false` 不算数字 | [`DSH7135`](/docs/plugin/diagnostics/dsh7xxx#dsh7135) |
+| `double` | 同 `float` | [`DSH7136`](/docs/plugin/diagnostics/dsh7xxx#dsh7136) |
 | `FString` | 任意文本，trim 后写入 —— **从不失败** | —— |
 | `FName` | 任意文本，trim 后写入 —— **从不失败** | —— |
-| 对象引用 | `Path( … )`、`/Game/Textures/T_Noise` 这样的绝对对象路径，或 `Class'…'` 引用 | `DSH7137`（不是引用）、`DSH7138`（加载不了）、`DSH7139`（类不对），或解析器自己的码 —— 见 [Path 资产引用](/docs/parameters/path#诊断) |
-| `enum class`（`FEnumProperty`） | [枚举字面量](#枚举字面量) | `DSH7140` |
-| 以枚举为底的 `uint8` | [枚举字面量](#枚举字面量) | `DSH7141` |
-| 普通 `uint8` | `[0, 255]` 内的整数 | `DSH7142` |
-| 其他 | Unreal 的结构体字面量文本，如 `(R=1.0,G=0.0,B=0.0,A=1.0)` | `DSH7143` |
+| 对象引用 | `Path( … )`、`/Game/Textures/T_Noise` 这样的绝对对象路径，或 `Class'…'` 引用 | [`DSH7137`](/docs/plugin/diagnostics/dsh7xxx#dsh7137)（不是引用）、[`DSH7138`](/docs/plugin/diagnostics/dsh7xxx#dsh7138)（加载不了）、[`DSH7139`](/docs/plugin/diagnostics/dsh7xxx#dsh7139)（类不对），或解析器自己的码 —— 见 [Path](/docs/parameters/path#diagnostics) |
+| `enum class`（`FEnumProperty`） | [枚举字面量](#enum-literals) | [`DSH7140`](/docs/plugin/diagnostics/dsh7xxx#dsh7140) |
+| `uint8` 枚举（带枚举的 `FByteProperty`） | [枚举字面量](#enum-literals) | [`DSH7141`](/docs/plugin/diagnostics/dsh7xxx#dsh7141) |
+| 普通 `uint8` | `[0, 255]` 内的整数 | [`DSH7142`](/docs/plugin/diagnostics/dsh7xxx#dsh7142) |
+| 其他 | Unreal 的结构体字面量文本，如 `(R=1.0,G=0.0,B=0.0,A=1.0)` | [`DSH7143`](/docs/plugin/diagnostics/dsh7xxx#dsh7143) |
 
-数字按 Unreal 的 `LexTryParseString` 读，遇到第一个用不了的字符就停：`OpacityMaskClipValue = "0.5abc";` 是 `0.5`。类型的
-消息在校验块时被包成 `DSH7125`（真实材质随后拒绝时是 `DSH7126`），再以 `DSH8215` 到达你，`DSH8215` 指出材质并引用这个码。
+数字按 Unreal 的 `LexTryParseString` 读，遇到第一个用不了的字符就停：`OpacityMaskClipValue = "0.5abc";` 是 `0.5`。
 
-**提示：**
+类型的消息在校验块时被包成 [`DSH7125`](/docs/plugin/diagnostics/dsh7xxx#dsh7125)（真实材质随后拒绝时是 [`DSH7126`](/docs/plugin/diagnostics/dsh7xxx#dsh7126)），再以 [`DSH8215`](/docs/plugin/diagnostics/dsh8xxx#dsh8215) 到达你，它指出材质并引用这个码。
 
-如果对象类型属性的类派生自 `UTexture`，**且**属性名恰好是 `Texture` 或 `TextureObject`，那么资产加载失败时会写入 `nullptr`
-而不是报错。这是材质表达式的惯例，这里同样适用。
+> [!NOTE]
+> 如果对象类型属性的类派生自 `UTexture`，**且**属性名恰好是 `Texture` 或 `TextureObject`，那么资产加载失败时会写入 `nullptr` 而不是报错。
+> 这是材质表达式的惯例；这里同样适用。
 
-### 枚举字面量 [#枚举字面量]
+当对象类型的值是引用 —— 以 `Path(` 或 `/` 开头，或以 `'` 结尾 —— 且解析失败时，`DSH7125` 句号之后那句就是解析器的消息。
 
-枚举类型的值在 trim、小写并删除所有空格、`_`、`-`、`:`、`.`、`/` 之后匹配。带 `Hidden` 元数据的值会被跳过。候选可以是
-枚举短名（`TLM_Surface`）、全限定名（`ETranslucencyLightingMode::TLM_Surface`）、display name（`Surface`），或短名去掉第一个
-`_` 及之前部分（`Surface`）。
+### 枚举字面量 [#enum-literals]
 
-这套匹配与[枚举取值](/docs/settings/enums)里 `ShadingModel` / `BlendMode` / `Domain` 的别名表是**两回事** —— 那三个键走不到这里。
+枚举类型的值在 trim、小写并删除所有空格、`_`、`-`、`:`、`.` 和 `/` 之后匹配。带 `Hidden` 元数据的值会被跳过。候选可以是以下任意一种：
 
-### `Path( … )` 取值 [#path---取值]
+| 形式 | `ETranslucencyLightingMode::TLM_Surface` 的示例 |
+| :-- | :-- |
+| 枚举短名 | `TLM_Surface` |
+| 全限定名 | `ETranslucencyLightingMode::TLM_Surface` |
+| display name | `Surface` |
+| 短名去掉第一个 `_` 及之前部分 | `Surface` |
+
+这套匹配与 [Material enums](/docs/settings/enums) 里描述的 `ShadingModel` / `BlendMode` / `Domain` 别名表是**两回事**；那三个键永远走不到这段代码。
+
+### `Path( … )` 取值 [#path---values]
 
 | 形式 | 含义 |
 | :-- | :-- |
@@ -192,19 +191,17 @@ blendmode   rendertype   shadingmodel   materialdomain   domain   backend
 | `Path(Game, "Foo/Bar")` | `/Game/Foo/Bar` |
 | `Path(Engine, "Foo/Bar")` | `/Engine/Foo/Bar` |
 | `Path(Plugin.PluginName, "Foo/Bar")` | 指定插件的内容根 |
-| `/Game/Foo/Bar` | 裸的绝对路径，不带 `Path( … )` |
+| `/Game/Foo/Bar` | 裸的绝对路径，不带 `Path( … )` 包裹 |
 
-完整的 root 目录及其错误码见 [Path 资产引用](/docs/parameters/path)。对象类型的值是引用（以 `Path(` 或 `/` 开头，或以 `'`
-结尾）却解析失败时，`DSH7125` 句号之后那句话就是解析器的消息。
+反斜杠会被规范化为 `/`，周围的引号会被去除。完整的根目录清单及其错误码见 [Path](/docs/parameters/path)。
 
-## 校验 [#校验]
+## 校验 [#validation]
 
-在写入真正的材质之前，每个通用键值对都会先应用到一份临时探针 `UMaterial` 上。探针写入和真实写入用的是同一段代码，所以
-校验通过的值一定能应用成功。这一阶段独有的失败只有 `DSH7124`：探针创建不出来。
+在写入真正的材质之前，每个通用键值对都会先应用到一份在 transient 包中创建的临时探针 `UMaterial` 上。探针写入和真实写入用的是同一段代码，所以校验通过的值一定能应用成功。这一阶段独有的失败只有 [`DSH7124`](/docs/plugin/diagnostics/dsh7xxx#dsh7124)：探针创建不出来。
 
-## 不写某个设置时会重置成什么 [#不写某个设置时会重置成什么]
+## 默认值 —— 不写某个设置时会重置成什么 [#defaults--what-an-omitted-setting-resets-to]
 
-生成的材质会在应用 `Settings` 之前被重置。因此没写的键**不是**“沿用上次生成的值”，而是取下表的值。
+生成的材质会在应用 `Settings` 之前立即被重置。因此没写的键**不是**“沿用上次生成的值”，而是取下表的值。
 
 | 属性 | 重置值 |
 | :-- | :-- |
@@ -234,23 +231,26 @@ blendmode   rendertype   shadingmodel   materialdomain   domain   backend
 | `bIsSky` | `false` |
 | `bIsThinSurface` | `false` |
 | `MaterialDecalResponse` | `MDR_ColorNormalRoughness` |
-| `bHasPixelAnimation` （自 UE 5.4 起） | `false` |
+| `bHasPixelAnimation` | `false` *（自 UE 5.4 起）* |
 | `NumCustomizedUVs` | `0` |
-| `bUsedWithVolumetricCloud` （自 1.8.0 起） | `Domain="Volume"` 时为 `true`，否则 `false` |
+| `bUsedWithVolumetricCloud` | 当 `Domain="Volume"` 时为 `true`，否则为 `false` |
 
-`bUsedWithVolumetricCloud` 是上表里唯一**不是常量**的一项：由 domain 决定。`Volume` domain 的材质就是体积材质，而体积云
-渲染器会拒绝一个没打这个标志的材质 —— 所以你永远不需要手写它。显式写出来可以覆盖 domain 的选择：一个只喂体积雾的
-`Volume` 材质可以用 `bUsedWithVolumetricCloud = "false";` 把标志关掉，省下云的 shader 排列。
+其余所有 `UMaterial` 属性都保持新构造材质所具有的值。
 
-其余 `UMaterial` 属性保持新构造材质的样子。凡是必须在重新生成后仍然存在的设置，都要写在 `Settings` 里，而不是在生成的
-资产上手改。
+`bUsedWithVolumetricCloud` 是上表中唯一一个不是常量的条目：它由 domain 决定。一个
+`Volume` domain 的材质是体积材质，而体积云渲染器会拒绝一个
+未为此标记的材质 —— 所以你永远不需要手写这个标志。显式写出它可以
+覆盖 domain 的选择；一个只喂给体积雾的 `Volume` 材质可以用 `bUsedWithVolumetricCloud = "false";` 把
+标志重新关掉，并省下云的着色器排列组合。
 
-## 哪些设置能挺过反编译往返 [#哪些设置能挺过反编译往返]
+## 往返集合 [#the-round-trip-set]
 
-[反编译器](/docs/tools/decompiler)无条件写出 `Domain`、`ShadingModel` 和 `BlendMode`，另外只在与 `UMaterial` 类默认值不同
-时写出下面这些。这是往返能保证保留的集合；它是 `Settings` 可接受范围的子集，而不是上限。
+[反编译器](/docs/tools/decompiler)会无条件写出 `Domain`、`ShadingModel` 和 `BlendMode`，
+另外还会在与 `UMaterial` 类默认值不同时写出以下各项。这
+是保证能挺过一次 `UMaterial` → `.dsm` → `UMaterial` 往返的集合；它是
+`Settings` 所接受内容的子集，而不是对其的限制。
 
-**布尔（40 个，按写出顺序）**
+**布尔值（40 个，按写出顺序）**
 
 ```text
 TwoSided                    Wireframe                     DitheredLODTransition
@@ -269,96 +269,65 @@ bCastRayTracedShadows       bWriteOnlyAlpha               BlendableOutputAlpha
 bAlwaysEvaluateWorldPositionOffset                        bUsedWithVolumetricCloud
 ```
 
-`bHasPixelAnimation` 只在 （自 UE 5.4 起） 上写出。`bUsedWithVolumetricCloud` 是这里唯一**不**与 `UMaterial` 类默认值
-比较的布尔：它比较的是 domain 会给它的值，所以 `Domain="Volume"` 材质上真正被写出的是 `false`。
+`bHasPixelAnimation` 仅在 UE 5.4 及更新版本上写出。
+
+`bUsedWithVolumetricCloud` 是唯一一个不与 `UMaterial` 类默认值比较的布尔值：它
+会与 domain 会赋予它的值进行比较（见上表）。在一个 `Volume` domain
+材质上，无需写出该行的值是 `true`，因此被写出的是 `false` —— 这
+正是让一个仅用于雾的 `Volume` 材质不会带着开启的标志回来的原因。
 
 **枚举（1 个）** —— `MaterialDecalResponse`。
 
-可达但从不写出、因而在往返中丢失的：`OpacityMaskClipValue`、`NumCustomizedUVs`、`TranslucencyLightingMode`、
-`RefractionMethod`、`RefractionDepthBias`、`TranslucencyPass`、`ShadingRate`、`FloatPrecisionMode`、`BlendableLocation`、
-`BlendablePriority`、`bIsBlendable`、`UserSceneTexture`、`StencilCompare`、`StencilRefValue`、`bEnableStencilTest`、
-`MaxWorldPositionOffsetDisplacement`、`PhysMaterial`、`PhysMaterialMask`，以及解析器能触达的其他所有引擎属性。
+可达但反编译器从不写出、从而在往返中丢失的：
+`OpacityMaskClipValue`、`NumCustomizedUVs`、`TranslucencyLightingMode`、`RefractionMethod`、
+`RefractionDepthBias`、`TranslucencyPass`、`ShadingRate`、`FloatPrecisionMode`、`BlendableLocation`、
+`BlendablePriority`、`bIsBlendable`、`UserSceneTexture`、`StencilCompare`、`StencilRefValue`、
+`bEnableStencilTest`、`MaxWorldPositionOffsetDisplacement`、`PhysMaterial`、`PhysMaterialMask`，以及
+解析器能按名称触达的其他所有引擎属性。确切的可用性取决于引擎版本
+—— 解析器是对引擎自身属性集的纯反射。
 
-## 材质函数的 Settings [#材质函数的-settings]
+## 备注 [#notes]
 
-`ShaderFunction`、`ShaderLayer` 或 `ShaderLayerBlend`（以及弃用的 `MaterialLayer` / `MaterialLayerBlend`）上的 `Settings`
-与上面这一切**毫无关系**。那里只读四个键，它们向材质函数库描述生成的 `UMaterialFunction`；在 2.0 里它们是导出函数的
-`/// @desc` 和 `/// @library` 指令。
+- 反射的面是**引擎的**，不是插件的。自定义或修改过的引擎构建
+  会通过同一个解析器暴露它自己的属性和自己的枚举值，所以本手册的
+  表格只描述原版 UE 5.3 – 5.8 的面。
+- 在 [ThinCustom 后端](/docs/settings/backend)下，每个设置都落在**隐藏的基础 `UMaterial`** 上，
+  而不是写出的 `UDreamShaderMaterialInstance` 上。从实例上读取混合模式看到的是
+  继承来的值。
+- [`ShaderFunction`](/docs/plugin/settings/function) 上的 `Settings` 块**不**共享这种行为。那里
+  只读取四个键，而本页上的每个键在那里都是一个
+  [`DSH3263`](/docs/plugin/diagnostics/dsh3xxx#dsh3263) 警告。
+- 跨多个 `Settings` 段的重复键会合并，后者胜出，并给出
+  一个 [`DSH3262`](/docs/plugin/diagnostics/dsh3xxx#dsh3262) 警告。见
+  [设置](/docs/plugin/settings#how-a-statement-is-parsed)。
+- 一个设置失败会对该材质只报告一次，即 `DSH8215`；消息会指出材质
+  并引用反射写入器的代码和消息。
 
-| 键 | 设置 | 取值 | 不写时的值 |
-| :-- | :-- | :-- | :-- |
-| `Description` | `UMaterialFunction::Description` | 自由文本 | 清空为空字符串 |
-| `UserExposedCaption` | **什么都不设置** （自 2.0.0 起）：警告 `DSH3264` 说明它不被应用，资产的标题保持原样 | 自由文本 | —— |
-| `ExposeToLibrary` | `UMaterialFunction::bExposeToLibrary`，与 `LibraryCategories` 一起 | `true` / `false`，不区分大小写；其他值是警告 `DSH3265`，该设置被忽略 | `false` |
-| `LibraryCategories` | `UMaterialFunction::LibraryCategoriesText`，与 `ExposeToLibrary` 一起 | 逗号分隔列表，每项 trim，空项丢弃 | 清空分类列表 |
+## 诊断 [#diagnostics]
 
-```c
-Settings = {
-    Description        = "Multiplies a colour by a tint.";
-    ExposeToLibrary    = true;
-    LibraryCategories  = "DreamShader, Color";
-}
-```
+因为键在到达发射器时会被转为小写，这些消息中引用的键是
+**小写**拼写，而不是源码写出的。
 
-（自 2.0.0 起） `ExposeToLibrary` 和 `LibraryCategories` 合起来是**一个**设置 —— 2.0 的 `/// @library <categories>`：
-只有 `ExposeToLibrary` 为 `true` **并且** `LibraryCategories` 非空时，函数才以这些分类进入函数库。单独的
-`ExposeToLibrary = true;` 不会把函数放进库里，没有 `ExposeToLibrary = true;` 的 `LibraryCategories` 被丢弃。
-`LibraryCategories` 解析前先清空，所以总是替换资产的分类而不是追加：`LibraryCategories = "A,,  B ,";` 恰好得到 `A` 和 `B`。
+| 代码 | 触发条件 |
+| :-- | :-- |
+| [`DSH7127`](/docs/plugin/diagnostics/dsh7xxx#dsh7127) | `BlendMode` / `RenderType` 值没有匹配到任何别名 |
+| [`DSH7129`](/docs/plugin/diagnostics/dsh7xxx#dsh7129) | `ShadingModel` 值没有匹配到任何别名 |
+| [`DSH7128`](/docs/plugin/diagnostics/dsh7xxx#dsh7128) | 该值在 trim 并折叠大小写后在 UE 5.3 上为 `Substrate` 或 `Strata` |
+| [`DSH7130`](/docs/plugin/diagnostics/dsh7xxx#dsh7130) | `MaterialDomain` / `Domain` 值没有匹配到任何别名 |
+| `DSH7118` | 没有属性匹配 —— 常见的“未知键”错误 |
+| `DSH7121` | 命名了一个定长数组属性却没有下标 |
+| `DSH7124` | 探针材质无法分配 |
+| `DSH7125` / `DSH7126` | 字面量写入在探针 / 真实材质上失败；其后那句话是来自[取值语法](#value-grammar)的类型特定代码的消息 |
+| `DSH8215` | 上述每个代码都会在其中到达你的构建期诊断 |
+| [`DSH7200`](/docs/plugin/diagnostics/dsh7xxx#dsh7200) | 一个键在 `#pragma material` 行中被设置了两次（1.x 的 `Settings` 块会报告 `DSH3262`） |
+| `DSH7232` | `Substrate` 不是 `Legacy`、`Bridge` 或 `Native` |
+| `DSH3261` | 键不是一个名称 —— 包括嵌套路径或下标 |
 
-这里的键忽略大小写匹配，但下划线**不会**被折叠 —— `Expose_To_Library` 不是 `ExposeToLibrary`。不写的键会被重置：省略
-`ExposeToLibrary` 就设为 `false`，省略 `Description` 就清空；在生成资产上手改的值在下次重新生成时丢失 —— 2.0 根本不写的
-标题除外。
+`Backend` 值在源码被绑定时检查 —— 见 [后端](/docs/settings/backend#diagnostics)。
+`DSH7112`–`DSH7117`、`DSH7119`、`DSH7120`、`DSH7122` 和 `DSH7123` 涉及嵌套和带下标的路径以及
+解析器自身的不变量；1.x 键不会触及它们。
 
-**警告：**
-
-**其他任何键都被忽略，并给出警告 `DSH3263`** （自 2.0.0 起）（1.x 什么都不说）。只查这四个名字：`Backend`、`Domain`、
-`ShadingModel`、`BlendMode`、`TwoSided` 以及本页其他所有 `Shader` 键在 `ShaderFunction` 块里**什么都不做**，把这四个键拼错
-—— `Descriptions`、`Expose_To_Library`、`LibraryCategory` —— 也是同一个警告。
-
-**警告：**
-
-反编译器把 `UMaterialFunction` 导出成 `.dsf` 时不会写出 `Settings` 块。这些值在那次往返中全部丢失，必须手工补回。
-
-和这些设置错误最容易混淆的检查：材质函数至少要有一个输出（`DSH4315`）；`ShaderLayer` 或 `ShaderLayerBlend` 要有
-`MaterialAttributes` 输出（`DSH3278`）；`ShaderLayer` 的唯一输入和输出就是这个材质（`DSH6204`）；`ShaderLayerBlend` 除了材质
-输出只有输入，且至少一个是 `MaterialAttributes`（`DSH6205`）；函数体段是 `Graph` 不是 `Code`（`DSH2246`）。
-
-`VirtualFunction` 块也接受名为 `Settings` 的段，但那是 `Options` 的同义词，键集完全不同 —— `Asset`（必需）和 `Description`。
-`Function` 和 `GraphFunction` 根本没有 `Settings` 段。
-
-## 备注 [#备注]
-
-- 反射的面是**引擎的**，不是插件的。自定义或修改过的引擎会通过同一个解析器暴露它自己的属性和枚举值，所以本页只描述原版
-  UE 5.3 – 5.8 的面。
-- 在 [ThinCustom 后端](/docs/settings/backend)下，所有设置都落在**隐藏的基础 `UMaterial`** 上，而不是导出的实例上。从实例上
-  读混合模式看到的是继承来的值。
-- 键在到达发射器时被小写，所以构建期诊断里引用的键是**小写**拼写，不是源码里写的。
-- 设置失败对每个材质只报一次，即 `DSH8215`；消息指出材质并引用反射写入器的码和消息。
-
-## 诊断 [#诊断]
-
-| 消息 | 原因 | 处理 |
-| --- | --- | --- |
-| `DSH3261: Expected a setting name such as 'BlendMode', found {0}.` | Settings 后面没有 {、语句不以名字开头、名字后没有 =（键里有 . 或 \[ 时就是这样），或 = 后没有值。 | 一个键只写一个名字；嵌套路径和下标在 1.x 键里已经不可用。 |
-| `DSH3262: The setting '{0}' is written twice; the later value wins, as it did in 1.x.` | 警告：同一个名字写了两次（忽略大小写比较）。 |  |
-| `DSH7127: Unsupported BlendMode/RenderType '%s'.` | BlendMode / RenderType 的值没有匹配到任何别名。 |  [详解](/docs/settings/enums) |
-| `DSH7129: Unsupported ShadingModel '%s'.` | ShadingModel 的值没有匹配到任何别名。 |  [详解](/docs/settings/enums) |
-| `DSH7128: ShadingModel="Substrate" requires Unreal Engine 5.4 or newer.` | 在 UE 5.3 上值 trim 并折叠大小写后是 Substrate 或 Strata。 |  |
-| `DSH7130: Unsupported MaterialDomain '%s'.` | MaterialDomain / Domain 的值没有匹配到任何别名。 |  [详解](/docs/settings/enums) |
-| `DSH7118: Unsupported material setting '%s'.` | 没有属性匹配这个键 —— 常见的未知键错误。 | 到 UMaterial 上核对属性名，或确认该键是否需要别名。 |
-| `DSH7121: Setting '%s' requires an explicit [index].` | 命名了定长数组属性却没有下标。 |  |
-| `DSH7124: Failed to create a transient material for Settings validation.` | 探针材质无法分配。 |  |
-| `DSH7125: Invalid value '%s' for setting '%s'. %s` | 字面量写到探针上失败（DSH7126：写到真实材质上失败）；句号之后是按类型的码和消息。 |  |
-| `DSH8215: A material setting on '{0}' was refused. {1}` | 以上每个构建期码都包在它里面到达你。 |  |
-| `DSH7232: 'Substrate = {0}' is not a Substrate mode; the modes are 'Legacy', 'Bridge' and 'Native'.` | Substrate 不是 Legacy、Bridge 或 Native。 |  |
-| `DSH7200: '{0}' is set twice by '#pragma material'; it was already set on line {1}.` | .dss 里同一个键被 #pragma material 设了两次（1.x 的 Settings 块报 DSH3262）。 |  |
-| `DSH3263: '{0}' is not a setting of '{1}'; 1.x ignored it and so does this front end.` | 警告：材质函数块上四个键以外的键。 |  |
-| `DSH3264: 'UserExposedCaption' has no 2.0 spelling and is not applied; its value is kept for migration.` | 警告：材质函数上写了 UserExposedCaption。 |  |
-| `DSH3265: Expected 'true' or 'false' for 'ExposeToLibrary', found '{0}'; 1.x ignored the setting and so does this front end.` | 警告：ExposeToLibrary 不是布尔字面量，该设置被忽略。 |  |
-
-`Backend` 的值在绑定源码时检查 —— 见 [Backend](/docs/settings/backend#诊断)。完整清单见[错误速查](/docs/diagnostics)。
-
-## 示例 [#示例]
+## 示例 [#example]
 
 ```c
 Shader(Name="Docs/M_ShaderSettings", Root="Game")
@@ -369,24 +338,24 @@ Shader(Name="Docs/M_ShaderSettings", Root="Game")
     }
 
     Settings {
-        // 特殊键。
+        // Special keys.
         Domain       = "Surface";
         ShadingModel = "DefaultLit";
         BlendMode    = "Masked";
 
-        // 反射布尔；b 前缀可写可不写。
+        // Reflected booleans; the b-prefix is optional.
         TwoSided   = true;
         FullyRough = true;
         bIsSky     = false;
 
-        // 反射的数值与枚举。
-        OpacityMaskClipValue  = 0.25;
+        // Reflected scalar and enum.
+        OpacityMaskClipValue = 0.25;
         MaterialDecalResponse = "ColorNormalRoughness";
 
-        // 别名 -> TranslucencyLightingMode，按 display name 匹配。
+        // Alias -> TranslucencyLightingMode, matched by display name.
         LightingMode = "Surface";
 
-        // 对象引用。
+        // Object reference.
         PhysicalMaterial = Path(Engine, "EngineMaterials/DefaultPhysicalMaterial");
     }
 
@@ -394,9 +363,9 @@ Shader(Name="Docs/M_ShaderSettings", Root="Game")
         vec3  Color;
         float Rough;
         float Mask;
-        Base.BaseColor   = Color;
-        Base.Roughness   = Rough;
-        Base.OpacityMask = Mask;
+        Base.BaseColor      = Color;
+        Base.Roughness      = Rough;
+        Base.OpacityMask    = Mask;
     }
 
     Graph {
@@ -407,7 +376,7 @@ Shader(Name="Docs/M_ShaderSettings", Root="Game")
 }
 ```
 
-生成后的材质状态：
+生成的材质状态：
 
 ```text
 BlendMode                = BLEND_Masked
@@ -422,9 +391,17 @@ TranslucencyLightingMode = TLM_Surface
 PhysMaterial             = /Engine/EngineMaterials/DefaultPhysicalMaterial
 ```
 
-## 下一步 [#下一步]
+## 另见 [#see-also]
 
-- [枚举取值](/docs/settings/enums) —— 全部可接受的 `ShadingModel`、`BlendMode`、`Domain` 拼写
-- [Backend](/docs/settings/backend) —— 物化策略，以及每种后端产出什么
-- [项目设置](/docs/settings/project) —— 扩展枚举拼写的映射表
+- [设置](/docs/plugin/settings) —— 每种块类型共享的块语法和键规范化
+- [材质枚举](/docs/settings/enums) —— 每个可接受的 `ShadingModel`、`BlendMode` 和 `Domain` 值
+- [后端](/docs/settings/backend) —— 物化键
+- [函数设置](/docs/plugin/settings/function) —— 为什么这一切都不适用于 `ShaderFunction` 内部
+- [项目设置](/docs/settings/project) —— 扩展枚举拼写的映射映射
+- [着色器](/docs/plugin/language/shader) —— 外层块
+- [输出绑定](/docs/plugin/language/output-bindings) —— `Base.FrontMaterial` 和 `Base.MaterialAttributes`
+- [路径](/docs/parameters/path) —— 对象类型设置使用的 `Path( … )` 语法
+- [元数据](/docs/parameters/metadata) —— 参数上类似的反射属性块
+- [反编译器](/docs/tools/decompiler) —— 哪些设置能挺过往返
 - [重新生成](/docs/generation/regeneration) —— 一次重建会重置什么
+- [诊断索引](/docs/diagnostics) —— 每个代码

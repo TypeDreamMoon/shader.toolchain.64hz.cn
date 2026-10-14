@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "47a171dba4b212928355100b577a226782fb539ff74166e9be2744b7feae3087",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sources": [
+    {
+      "path": "Docs/parameters/parameter-nodes.md",
+      "sourceHash": "140ccf92f02a40659a07597aed5a63845b5173b05de666ba1463cd1b38437741",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "46d3927b281ede10175b0a81d1f5481e03a61554c5228e9698b6b097fa98eb41"
+    }
+  ],
+  "translationFile": "content/docs/plugin/parameters/parameter-nodes.md",
+  "translationHash": "ee696cc1e98ea483da3f3327f6a87cca57f8a5ad1643306424ce25af987fb5d0"
+}

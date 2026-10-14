@@ -71,7 +71,7 @@ ShaderFunction(Name = "<asset-path>" [, Root = "<root>"])
 | `Inputs` | 是 — `UMaterialExpressionFunctionInput` 引脚 | 追加 | [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) |
 | `Outputs` | 是 — `UMaterialExpressionFunctionOutput` 引脚 | 追加 | [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) |
 | `Results` | 是 — `Outputs` 的别名，无警告 | 追加 | [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) |
-| `Settings` | 是 — 三个键被支持，参见[下文](#generated-asset) | 合并；重复写入的键是警告（[`DSH3262`](/docs/plugin/diagnostics/dsh3xxx#dsh3262)），后一个值生效 | [函数设置](/en/docs/plugin/settings/function) |
+| `Settings` | 是 — 三个键被支持，参见[下文](#generated-asset) | 合并；重复写入的键是警告（[`DSH3262`](/docs/plugin/diagnostics/dsh3xxx#dsh3262)），后一个值生效 | [函数设置](/docs/plugin/settings/function) |
 | `Graph` | 是 | 后一个生效，并给出警告（[`DSH2258`](/docs/plugin/diagnostics/dsh2xxx#dsh2258)） | [图](/docs/graph/overview) |
 | `Layout` | 是 | 后一个替换前一个，并给出 `DSH2258` | [布局](/docs/language/layout) |
 | `Code` | **否** — [`DSH2246`](/docs/plugin/diagnostics/dsh2xxx#dsh2246) | — | — |
@@ -204,7 +204,7 @@ DreamShader 来源元数据，生成会拒绝改动它
 （[`DSH3265`](/docs/plugin/diagnostics/dsh3xxx#dsh3265)）并按 `false` 计。其他每个键都会产生警告
 （[`DSH3263`](/docs/plugin/diagnostics/dsh3xxx#dsh3263)）并被忽略——此处没有通用的
 反射属性路径，这一点与 [`Shader` 设置](/docs/settings/material) 不同。参见
-[Function settings](/en/docs/plugin/settings/function)。
+[Function settings](/docs/plugin/settings/function)。
 
 ### 重新生成时的输入与输出标识 [#input-and-output-identity-across-regeneration]
 
@@ -369,7 +369,7 @@ parameters  Boost         ScalarParameter, group "Tint", slider 0..4
 - [布局](/docs/language/layout) — `Node` / `Comment` 放置指令和 `#Region`
 - [图表](/docs/graph/overview) — `Graph` 内部的语句/表达式语言
 - [调用](/docs/graph/calls) — 从 `Graph` 调用函数、参数形式、`default`
-- [函数设置](/en/docs/plugin/settings/function) — 材质函数 `Settings` 所遵循的键
+- [函数设置](/docs/plugin/settings/function) — 材质函数 `Settings` 所遵循的键
 - [资产路径](/docs/generation/asset-paths) — `Name=` + `Root=` → 包路径
 - [重新生成](/docs/generation/regeneration) — 重建后哪些内容会保留、哪些不会
 - [缓存](/docs/plugin/generation/caching) — 源哈希跳过

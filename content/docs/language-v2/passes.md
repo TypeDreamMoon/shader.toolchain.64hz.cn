@@ -85,7 +85,7 @@ HLSL pass 的代码像 `Blur` 这样直接写在 `.dsp` 里，或者放在 pass 
 | `uniform` | `uniform <type> <Name> [= <value>];` | 激活方可以覆盖的参数：`float`–`float4`、`int`、`bool`、`Texture2D`（配 `/// @default <资产>`）。`///` 接受 `@group`、`@desc`、`@slider`、`@sort` |
 | `static const` | `static const <type> <Name> = <value>;` | 常量，在用到的地方折叠 |
 | `buffer` | `buffer <Name> : <Format>[(<Key> = <Value>, ...)];` | [缓冲区](#缓冲区) |
-| `hlsl` | `hlsl { <HLSL> }`，至多一个 | 所有代码写在 `.dsp` 里的 pass 都带着它编译的 HLSL（共享函数），以及 pass 用 `Entry = <函数>;` 挑选的入口。见 [HLSL pass](/docs/custom-pass/hlsl#reachability) |
+| `hlsl` | `hlsl { <HLSL> }`，至多一个 | 所有代码写在 `.dsp` 里的 pass 都带着它编译的 HLSL（共享函数），以及 pass 用 `Entry = <函数>;` 挑选的入口。见 [HLSL pass](/docs/custom-pass/hlsl) |
 | `pass` | `pass <Name> : <kind> { ... }` | [Pass](#pass)；同一注入点内按声明顺序运行 |
 
 `buffer`、`pass`、`hlsl` 只在 `.dsp` 里是关键字，`read`、`write`、`param`、`hlsl` 只在 pass 体内是关键字，所以 `.dss` 读起来和以前完全一样。
@@ -109,7 +109,7 @@ DreamShader 自己的预处理器不碰它。注释经得起 `dsc fmt` 和 Adopt
 
 | 注入点 | 在帧里的位置 | 那里有的场景纹理 |
 | :-- | :-- | :-- |
-| `BeginView` | 可见性之前，什么都还没画 | 没有 —— 没有 SceneColor、SceneDepth，也没有 `View` uniform buffer（见 [HLSL pass](/docs/custom-pass/hlsl#notes)） |
+| `BeginView` | 可见性之前，什么都还没画 | 没有 —— 没有 SceneColor、SceneDepth，也没有 `View` uniform buffer（见 [HLSL pass](/docs/custom-pass/hlsl)） |
 | `BeforeBasePass` | depth prepass 之后 | SceneDepth |
 | `AfterBasePass` | GBuffer 已写、尚未光照 | GBuffer A–F、Velocity、SceneDepth；SceneColor 只有自发光；`r.CustomDepth.Order` 把它排在前面时（开了 DBuffer 贴花的默认）还有 CustomDepth |
 | `AfterOpaque` | 光照、雾、天空已完成，半透明还没有 | 所有不透明的东西、CustomDepth / CustomStencil |
@@ -140,14 +140,14 @@ buffer <Name> : <Format>[(<Key> = <Value>, ...)];
 | `Clear` | 标量、`float4(...)` 或 `None` —— `None` 时，任何写之前的读都是错误 | `0` |
 | `Mips` | 只能是 `1`：pass 无法初始化或更新 mip 链，其他值是 `DSH7308` （自 2.1.2 起） | `1` |
 | `History` | `true`：按视图跨帧保留；`<Name>.Previous` 读上一帧的 | `false` |
-| `Export` | `true`：在最后一个写它的 pass 之后复制进一个渲染目标资产，普通材质、蓝图、UMG、Niagara 都能读 —— 见[导出的缓冲区](/docs/custom-pass#导出的缓冲区) | `false` |
+| `Export` | `true`：在最后一个写它的 pass 之后复制进一个渲染目标资产，普通材质、蓝图、UMG、Niagara 都能读 —— 见[导出的缓冲区](/docs/custom-pass#exported-buffers) | `false` |
 
 **警告：**
 
 2.1.2 之前 `Mips` 大于 1 也能通过，但只有 mip 0 被写过、其余是未定义内容。现有管线请把 `Mips` 改成 `1`。
 
 内置名字不用声明：`SceneColor`、`SceneDepth`、`CustomDepth`、`CustomStencil`、`GBufferA`…`GBufferF`、`Velocity`、`Translucency`。
-各自在哪里能读、能写，见 [Custom Pass 运行时](/docs/custom-pass#内置缓冲区)。
+各自在哪里能读、能写，见 [Custom Pass 运行时](/docs/custom-pass#built-in-buffers)。
 
 ## Pass [#pass]
 
@@ -231,7 +231,7 @@ pass <Name> : <kind>
 
 `Material` 和 `.dsi` 的 `Parent` 一样，要么是**裸名字** —— 同一源码根下某个 `.dss` 的材质或某个 `.dsi` 的实例，资产不存在或比源码旧时先被编译 ——
 要么是指向任意材质的**对象路径**。`Shader` 是相对 `.dsp` 所在目录的路径（通常就放在 `.dsp` 旁边），或者 `/Project/Passes/Blur.usf` 这样的虚拟路径；
-`hlsl` 块里的 `#include` 也一样。这个文件不需要映射着色器目录：引擎编译的是它的快照（见 [HLSL 怎么进入引擎](/docs/custom-pass/hlsl#example)）。
+`hlsl` 块里的 `#include` 也一样。这个文件不需要映射着色器目录：引擎编译的是它的快照（见 [HLSL 怎么进入引擎](/docs/custom-pass/hlsl)）。
 
 ## 编译器检查什么 [#编译器检查什么]
 

@@ -183,7 +183,7 @@ import "@typedreammoon/dream-noise/Library/Noise.dsh";
 | 包中的其他任何内容 —— `Examples/`、`Assets` 之外的 `.dss` 或 `.dsf` | 什么都不会构建，在任何路径上 |
 
 要以示例为例，把它从 `DShader/Packages` 复制到 `DShader/` 下的某处。直到 2.1.2，包中 `Assets` 之外的 `.dsf`、`.dss`、`.dsi` 或 `.dsp` 会被文件监视器和 *Recompile DSM* 编译，但不会被 `compile -All`、cook 和 Material Content Browser 编译；请把这类源文件移到 `Assets` 下。见
-[包 ▸ 包资产](/en/docs/tools/packages#package-assets)。
+[包 ▸ 包资产](/docs/tools/packages#package-assets)。
 
 **注意：**
 

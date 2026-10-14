@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ba5d6aca7f390a45db6ae46fc8b96d6a5a4c789701419039c684b5df4b60bf5f",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/namespace.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/namespace.md",
-  "translationHash": "05b72f2809e3c832ae1ec2811d16e892ef589f380c192edb967ca5f096aa61bb"
+  "translationHash": "10fd7192db127272a0703d420a510315277ae9c643f830f594c26b058e5da9a1"
 }

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "a02a443254d3ba3b1c4354aac081b317e9c13c6674e532a0396143b90558f59a",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sources": [
+    {
+      "path": "Docs/parameters/graph-usage.md",
+      "sourceHash": "dd0069159c9f2717994a94f92f5e7a56c6f19878c548a91d523b4bebf1f092b2",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "cdeb8cd801bedf42d77e8c8ed4dfa73c8ed6ea9f630da9b0f8e2f1017d1e8ea9"
+    }
+  ],
+  "translationFile": "content/docs/plugin/parameters/graph-usage.md",
+  "translationHash": "de096ee631395a5b142c20262fc1d5093a28fcf36857fe309e4e1be27b2bdfa8"
+}

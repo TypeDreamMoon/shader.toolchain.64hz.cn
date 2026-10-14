@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "8dc30a27e8c775750e59dc5a3d1d2dd9cf08e234b4df33e2c563cd026019bc3e",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/shader.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/shader.md",
-  "translationHash": "81dd1826bfd668f5c423160a8ee20b951e763171959b6fd305a5cc7a27394c7c"
+  "translationHash": "572478ab4083271aa3425f81f045bdf8a307192594849736e3323302c69c958c"
 }

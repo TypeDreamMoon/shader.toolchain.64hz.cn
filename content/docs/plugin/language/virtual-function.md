@@ -192,7 +192,7 @@ BufferWriter(Color, Alpha, OutResult);            // statement call: inputs, the
   `VirtualFunction` 块的文件会被接受并且不产生任何内容。
 - 一个 `VirtualFunction` 通常保存在一个 `.dsh` 中，并在需要的地方导入，这正是
   编辑器的 *Create VirtualFunction* 操作所做的 —— 它会在
-  `DShader/VirtualFunctions` 下写入一个声明。见 [VirtualFunction 工具](/en/docs/plugin/tools/virtual-function-tools)。
+  `DShader/VirtualFunctions` 下写入一个声明。见 [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools)。
 - 头部 `Asset=` 属性优先于 `Options.Asset`；只有在
   该属性缺失或修剪后为空时，才会查询 `Options` 条目。
 - 头部会被独立解析，其声明会声明到导入文件中，因此声明在被导入的
@@ -325,5 +325,5 @@ M_Buffered.dsm       ->  /Game/Materials/M_Buffered
 - [import](/docs/language/imports) — `.dsh` 声明如何到达调用它的文件
 - [Calls](/docs/graph/calls) — 参数形式、`default`、语句调用与表达式调用
 - [Path](/docs/parameters/path) — 所有可接受的 `Path(...)` 拼写形式
-- [VirtualFunction tools](/en/docs/plugin/tools/virtual-function-tools) — 从编辑器创建、打开和刷新声明
+- [VirtualFunction tools](/docs/plugin/tools/virtual-function-tools) — 从编辑器创建、打开和刷新声明
 - [Diagnostics index](/docs/diagnostics) — 按阶段列出的每一个代码

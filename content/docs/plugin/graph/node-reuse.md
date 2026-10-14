@@ -165,6 +165,6 @@ swizzle 无论被读取多少次都是一个 `ComponentMask`。
 - [调用](/docs/graph/calls) —— 调用节点及其参数列表
 - [`if` / `else`](/docs/graph/control-flow) —— 为什么复用不以分支为作用域
 - [MaterialAttributes](/docs/plugin/graph/material-attributes) —— Make/Set/读取节点
-- [图中的参数](/en/docs/plugin/parameters/graph-usage) —— 参数节点是如何生成的
+- [图中的参数](/docs/plugin/parameters/graph-usage) —— 参数节点是如何生成的
 - [图布局](/docs/plugin/generation/graph-layout) —— 保留下来的节点被放置在何处
 - [UE.Expression](/docs/builtins/ue-expression) —— `Class=` 参数以及节点的属性

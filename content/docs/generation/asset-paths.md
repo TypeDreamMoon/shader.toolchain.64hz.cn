@@ -105,7 +105,7 @@ ShaderFunction(Name = "<name-path>" [, Root = "<root>"]) { … }
 
 2.0 的源把它的文件夹加在 `Assets` 下，就像工程源把它的文件夹加在源码根下一样；
 1.x 的 `Name=` 则说出它想要的每一个文件夹。显式的 `Root` 仍然优先。见
-[Packages ▸ package 资产](/en/docs/tools/packages#package-assets)。
+[Packages ▸ package 资产](/docs/tools/packages#package-assets)。
 
 默认值只在产物变成资产路径的那一处应用，所以编译、产物解析（Material Content Browser、`dsc list-generated`）
 和预览渲染器指的是同一个资产。
@@ -248,7 +248,7 @@ render target 放在管线所在的文件夹里，叫
 想换管线位置，唯一的办法就是挪 `.dsp` 文件本身，这也是为什么反编译出来的
 `.dsp` 无法保留它资产原本在别处的路径（`DSH9224`）。移动或重命名文件会在新路径上新建一条
 管线；旧的管线及其 render target 留在原地，它的 HLSL 槽位会一直占用，直到
-[`dsc pass-registry -Gc`](/en/docs/tools/commandlet#pass-registry) 回收它们。
+[`dsc pass-registry -Gc`](/docs/tools/commandlet#pass-registry) 回收它们。
 
 ## 磁盘映射 [#on-disk-mapping]
 
@@ -273,7 +273,7 @@ Materialized 之后才有文件 —— 见 [内存材质](/docs/generation/in-me
 - 空段会被丢弃：`Name="A//B"` 就是 `A/B`，`Root="Game//Sub"` 就是 `/Game/Sub`。
 - Content Browser 的状态列和 *Materialize* 操作使用的也是同一个解析器，因此在这里失败的
   路径在 [Material Content
-  Browser](/en/docs/plugin/tools/material-browser) 中也会显示为无法解析。
+  Browser](/docs/plugin/tools/material-browser) 中也会显示为无法解析。
 
 ## 诊断 [#diagnostics]
 

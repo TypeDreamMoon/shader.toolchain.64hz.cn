@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "95992aca322c878ec2ef95f40f21aaf703a156c1419783be2c9575ed9b0f9f64",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/builtins/dream-pass.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/builtins/dream-pass.md",
-  "translationHash": "a7e823c92d09a3bfca1cd9cd9fc5f12e69c724488cb14856c5bee21b899552fa"
+  "translationHash": "58dda6494b7e6f956da0428a325f414e0de5df16fd3bb9b7f4764b8d7f2850aa"
 }

@@ -13,7 +13,7 @@ description: "NoGeneration"
 | :-- | :-- |
 | 写法 | `#pragma nogeneration`（整个文件）· 在 `export` 上写 `/// @nogeneration`（该资产）· 在 1.x 块的头部写 `NoGeneration = true`（该块的资产）|
 | 适用于 | 源构建的每个资产：材质、实例（`.dsi`）、材质函数、图层与混合、Custom Pass 管线（`.dsp`）|
-| 由谁构建 | [材质内容浏览器](/en/docs/plugin/tools/material-browser)中的*编译*、*还原为源*、创建材质的实例、针对该文件的桥接请求、[`compile -Source`](/docs/tools/commandlet)、`check -Source -Shaders` |
+| 由谁构建 | [材质内容浏览器](/docs/plugin/tools/material-browser)中的*编译*、*还原为源*、创建材质的实例、针对该文件的桥接请求、[`compile -Source`](/docs/tools/commandlet)、`check -Source -Shaders` |
 | 不受影响 | 编辑器启动时的扫描、保存、它所依赖的源的重新构建（一个头部、某个 `.dsi` 的父级、某个 `.dsp` 的材质）、*全部重新编译*、`compile -All`、`check -All -Shaders`、cook |
 
 用于重建代价高昂的资产，或由某人在编辑器中手动调整、不应在共享头部每次更改时被重建的资产。

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ab809743e037bc7b8eea0fe348c083bb8f94c5812c7e55bcdaed07a040fbe481",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/language/inputs-outputs.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/inputs-outputs.md",
-  "translationHash": "a085dcb71ee5c18587a859751ab1467e052efee7a8de652f0364c87c7fb34b67"
+  "translationHash": "e79e7a83ce86da117b7d3cf2dc41c86595a50318d0e7e5953ae78144a82ebc57"
 }

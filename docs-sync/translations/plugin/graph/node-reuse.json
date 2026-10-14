@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ff0adb534885b689b757c56ece717d579997914ee3edae2a44a21a98a6bfd3e7",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/graph/node-reuse.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/graph/node-reuse.md",
-  "translationHash": "0297a0e2d21409648ac31cf393e788ccd3703d79e509c7272f37d4a3d864645a"
+  "translationHash": "15fe26c97bb9bce0a6430a8ac1ea274f32a91b4981d007220658ed00b4110ae4"
 }

@@ -225,7 +225,7 @@ DreamShader 拒绝覆盖不是自己生成的资产。
 | :-- | :-- |
 | 闸门 | 同上，顺序相同：另一个编辑器持有写入权（跳过）、[构建键](/docs/plugin/generation/caching#custom-pass-pipelines)（跳过）、开在资产编辑器中（`DSH8206`）、[手改检测](/docs/plugin/generation/divergence#a-custom-pass-pipeline)（`DSH8207`） |
 | 归属 | 路径上放着另一个类会被拒绝（`DSH8302`），或是一个并非 DreamShader 生成的已保存管线（`DSH8303`） |
-| 原子性 | 一切都在首次写入前暂存好：管线数据写到一份临时副本上，HLSL 槽位在内存中规划并[预先检查](/en/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)，每个渲染目标在内存中查找或创建。一次失败的预先检查，或在写入前的取消（`DSH8298`），会让资产、槽位注册表和快照保持原样，上一个版本继续运行 |
+| 原子性 | 一切都在首次写入前暂存好：管线数据写到一份临时副本上，HLSL 槽位在内存中规划并[预先检查](/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)，每个渲染目标在内存中查找或创建。一次失败的预先检查，或在写入前的取消（`DSH8298`），会让资产、槽位注册表和快照保持原样，上一个版本继续运行 |
 | 写入顺序 | 快照和注册表文件；渲染目标的设置；管线数据；编辑器中同步重新编译槽位着色器；标记；对管线及其触及的每个渲染目标各保存一次 |
 | 保存失败 | `DSH8311`。槽位已在注册表中；下次编译会保存资产 |
 
@@ -311,7 +311,7 @@ Color node dragged to (900, 400)                 back to (-400, 0), pinned by La
 - [图布局](/docs/plugin/generation/graph-layout) — 节点位置为何会移动，以及 `Layout` 如何固定它们
 - [布局](/docs/language/layout) — 为生成的框命名的 `Comment(Name=…)` 指令
 - [着色器设置](/docs/settings/material) — 在属性重置后幸存的每一个键
-- [函数设置](/en/docs/plugin/settings/function) — 每次重建都会重新应用的材质函数字段
+- [函数设置](/docs/plugin/settings/function) — 每次重建都会重新应用的材质函数字段
 - [ShaderFunction](/docs/plugin/language/shader-function) — pin 标识，以及重命名输入为何会破坏调用方
 - [手改检测](/docs/plugin/generation/divergence) — 当资产不再与所生成的内容匹配时会发生什么
 - [反编译器](/docs/tools/decompiler) — 把手改捕回源码

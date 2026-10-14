@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "f0e4acd14c95012d25fcf2249cdea6b90bb71ed7bf9352ffe48e00beb3e3b752",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/builtins/output-type.md",

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "b3247ace809b31fc021e549925ca6468c38e0ce82923417838e2e8a528889e05",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/api/compiler-module.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/api/compiler-module.md",
-  "translationHash": "b93f4cd53e7b6a747d04da09531e2d18d7bc02ab0a316f5e50fda01ba2633079"
+  "translationHash": "5622c051f357adbcb64e05dd0f0339050db7f2e5ec221003a432f30487cfbffd"
 }

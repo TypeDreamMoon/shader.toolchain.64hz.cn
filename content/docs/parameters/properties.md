@@ -85,7 +85,7 @@ UE.TexCoord(Index = 0) UV;      // type = UE.TexCoord(Index = 0), name = UV
 | 紧凑标量 | `float` `half` `double` `int` `uint` `bool`，以及各自带 `1` 后缀的版本（`float1` …） | `UMaterialExpressionScalarParameter` | [紧凑类型](/docs/plugin/parameters/compact-types) |
 | 紧凑向量 | `float2..4` `half2..4` `double2..4` `int2..4` `uint2..4` `bool2..4` `vec2..4` `ivec2..4` `uvec2..4` `bvec2..4` | `UMaterialExpressionVectorParameter` | [紧凑类型](/docs/plugin/parameters/compact-types) |
 | 紧凑纹理 | `Texture2D` `TextureCube` `Texture2DArray` `Texture3D` `VolumeTexture` —— 5 个 token | `UMaterialExpressionTextureObjectParameter` | [紧凑类型](/docs/plugin/parameters/compact-types) |
-| 显式参数节点 | 22 个 `*Parameter` / 采样器 token | 指定的 `UMaterialExpression` 子类 | [参数节点](/en/docs/plugin/parameters/parameter-nodes) |
+| 显式参数节点 | 22 个 `*Parameter` / 采样器 token | 指定的 `UMaterialExpression` 子类 | [参数节点](/docs/plugin/parameters/parameter-nodes) |
 | `UE.<Function>[( … )]` | 任意内置名称，带实参列表 | 该内置的节点，或在给出 `OutputType=` 时使用反射节点 | [UE 内置](/docs/builtins/ue-nodes)、[`UE.Expression`](/docs/builtins/ue-expression) |
 
 其他任何内容都是 [`DSH3252`](/docs/plugin/diagnostics/dsh3xxx#dsh3252)。在 22 个显式 token 中，有七个没有
@@ -153,7 +153,7 @@ Texture2D D = Texture2D'/Game/Textures/T_X.T_X';               // Content Browse
   为一个常量节点。
 - **`const` 向量在 `Graph` 中按其整个节点输出（索引 0）读取**，而非 `const`
   向量参数则通过与其分量数匹配的命名输出读取（`R`、`RG`、`RGB`、
-  `RGBA`）。请参阅[在图（Graph）中读取参数](/en/docs/plugin/parameters/graph-usage)。
+  `RGBA`）。请参阅[在图（Graph）中读取参数](/docs/plugin/parameters/graph-usage)。
 
 ```c
 Properties = {
@@ -406,11 +406,11 @@ UV          -> UMaterialExpressionTextureCoordinate  ungrouped, not auto-sorted
 - [输入 / 输出 / 结果](/docs/plugin/language/inputs-outputs) —— 带类型参数的区段语法
 - [类型](/docs/language/types-and-values) —— 完整的类型 token 目录和逐上下文有效性矩阵
 - [紧凑类型](/docs/plugin/parameters/compact-types) —— 每个紧凑 token 及它生成的节点
-- [参数节点](/en/docs/plugin/parameters/parameter-nodes) —— 全部 22 个显式 `*Parameter` token
+- [参数节点](/docs/plugin/parameters/parameter-nodes) —— 全部 22 个显式 `*Parameter` token
 - [元数据](/docs/parameters/metadata) —— `[ … ]` 块、`Slider(…)`、反射透传
-- [采样器类型](/en/docs/plugin/parameters/sampler-type) —— `SamplerType` 的值和拼写
+- [采样器类型](/docs/plugin/parameters/sampler-type) —— `SamplerType` 的值和拼写
 - [`Path(...)`](/docs/parameters/path) —— 纹理默认值的资产引用语法
-- [在 Graph 中读取参数](/en/docs/plugin/parameters/graph-usage) —— 裸读取和引脚调用形式
+- [在 Graph 中读取参数](/docs/plugin/parameters/graph-usage) —— 裸读取和引脚调用形式
 - [UE 内置](/docs/builtins/ue-nodes) —— 每个可作为属性类型接受的 `UE.*` 名字
 - [输出绑定](/docs/plugin/language/output-bindings) —— 把 graph 值连到材质属性
 - [布局](/docs/language/layout) —— 钉住生成的节点位置

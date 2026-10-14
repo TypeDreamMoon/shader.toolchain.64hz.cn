@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "07204c8c8b487056cc5e6f24b3d517ef199a5509a4534df0be0118f97d32fa77",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sources": [
+    {
+      "path": "Docs/tools/material-browser.md",
+      "sourceHash": "83701381ac5c68254e2f4f625ca6b1ee7be237add2e33ca4b72f0aea687fe840",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "914fc3d6df1023f2234ada43f6f0fb4b4f75faf9dd04e17126291d4374a3ac87"
+    }
+  ],
+  "translationFile": "content/docs/plugin/tools/material-browser.md",
+  "translationHash": "30f1410b5ccd15944acf8438a238ac0426fe24b2a72fe1331eebb9d40482e63f"
+}

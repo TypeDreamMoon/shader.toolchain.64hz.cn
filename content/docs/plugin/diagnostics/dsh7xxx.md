@@ -1182,7 +1182,7 @@ A slider range ('@slider', or 'Slider(min, max)' in a 1.x property) is for a sca
 **引发自** `Source/DreamShaderLang/Private/Semantic/LangBinder.cpp:893`
 <!-- generated:end DSH7234 -->
 
-**原因。** 一个函数带有 `@generate` —— 即 2.0 `/// @generate` 或 1.x `Generate =` 头 —— 但该文件不在包中。只有包的头才会生成材质函数（[包 ▸ 资源头](/en/docs/tools/packages#asset-headers)）；在其他任何位置，该注解都不起任何作用。
+**原因。** 一个函数带有 `@generate` —— 即 2.0 `/// @generate` 或 1.x `Generate =` 头 —— 但该文件不在包中。只有包的头才会生成材质函数（[包 ▸ 资源头](/docs/tools/packages#asset-headers)）；在其他任何位置，该注解都不起任何作用。
 
 **修复。** 要创建项目自有的材质函数，请在 `.dss` 中编写 `export` 函数（或在 `.dsf` 中编写 1.x `ShaderFunction`）。如果该头本应属于某个包，请将其安装到 `DShader/Packages` 下。
 

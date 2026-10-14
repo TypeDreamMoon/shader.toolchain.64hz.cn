@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "6779b5c15fcf593034e605eb7b28cc00a29ec720bfbbef42787785834cd8f068",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/contributing/release.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/contributing/release.md",
-  "translationHash": "515e646ff40cf1c1f55d96a105b80b9573005d7b4e2f4411685cf0fece9b1778"
+  "translationHash": "46b36f53ee04bd7f06619f3a00062ea15434d79c59ffea942ff9703aebf81e78"
 }

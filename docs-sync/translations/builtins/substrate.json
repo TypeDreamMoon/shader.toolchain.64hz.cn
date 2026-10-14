@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "fe79865d2900c2509ca2b60abdc7cca7e8250dbf184ffecc9fd4e0547dd98a39",
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/builtins/substrate.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/builtins/substrate.md",
-  "translationHash": "0158f690e3071bc36720304bfc5f4a7acf1d6e8d630c6adb1f624994fe905458"
+  "translationHash": "66e5ec57bc6e57463bd9f3b3eb40cf98c0f5f55d30a96e2f4154d0c05cb087cc"
 }

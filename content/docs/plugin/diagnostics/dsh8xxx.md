@@ -2644,7 +2644,7 @@ The Custom Pass slot registry cannot be read: {0}. Nothing was written, because 
 
 **修复。** 采用冲突的任一方并再次编译 `.dsp` 文件——绝不要手动合并 JSON——
 或运行 `./dsc.ps1 pass-registry -Rebuild`，它会将该文件移到一旁并再次为每个 HLSL pass 分配
-槽位（[`pass-registry`](/en/docs/tools/commandlet#pass-registry)）。
+槽位（[`pass-registry`](/docs/tools/commandlet#pass-registry)）。
 
 ## DSH8316 [#dsh8316]
 

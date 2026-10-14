@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+  "status": "current",
+  "sourceHash": "10fd04ea5cd6c7b846f704647a0cd37e7be9d1a44a2702b60f5857cf60be0fcb",
+  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
   "sources": [
     {
       "path": "Docs/tools/commandlet.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "46eaa161c2bd2c0282cbc7a21405316e0fbd597857a97720fa331d3fba520c8d"
+      "sourceHash": "f5dfe46052ed0d7c90f0c00c76564702759277870838b59bca20b37218f753b8",
+      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "translationHash": "6bb18ee723c06915047402ecb6323c57717ad7990f0e47fbe688e5aed9737b7c"
     }
   ],
   "translationFile": "content/docs/tools/commandlet.md",
-  "translationHash": "d350795410fc20586f6170447d3ca6d633482fd6830e784ff96cfc8bbb88f1e9"
+  "translationHash": "4a3c2b9541b268fa4bda6348c1e3e026acc8ea7c37bf1f2532681ea8ccab5820"
 }

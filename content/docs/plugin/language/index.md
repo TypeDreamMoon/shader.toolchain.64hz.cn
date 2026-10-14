@@ -116,7 +116,7 @@ description: "DreamShaderLang"
 | [`Properties`](/docs/parameters/properties) | 参数、`const` 和 `UE.*` 声明、`Group("…")` 作用域 |
 | [`Inputs` / `Outputs` / `Results`](/docs/plugin/language/inputs-outputs) | 材质函数的类型化参数 |
 | [输出绑定](/docs/plugin/language/output-bindings) | `Base.<Property> = <value>;` 和 `Expression( … ).Pin[<i>]` |
-| [`Settings`](/en/docs/plugin/settings) | 材质和材质函数设置 |
+| [`Settings`](/docs/plugin/settings) | 材质和材质函数设置 |
 | [`Options`](/docs/plugin/language/options) | `VirtualFunction` 资源绑定 |
 | [`Layout`](/docs/language/layout) | `Node` / `Comment` 放置与 `#Region` |
 
