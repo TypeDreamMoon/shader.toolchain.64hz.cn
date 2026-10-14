@@ -4,7 +4,7 @@ description: 写给 DreamShaderLang 作者的 HLSL 背景 —— HLSL 究竟在�
 ---
 
 HLSL 是 Unreal 材质 `Custom` 节点使用的着色语言。DreamShaderLang 不是 HLSL 编译器，但这里的 HLSL 也不是摆设：
-`.dss` 里的 [`/// @custom`](/docs/language-v2#函数是什么) 函数，以及 1.x 的 [`Function`](/docs/language/functions) /
+`.dss` 里的 [`/// @custom`](/en/docs/language-v2#-custom-bodies) 函数，以及 1.x 的 [`Function`](/docs/language/functions) /
 `GraphFunction`，函数体**就是** HLSL，几乎原样写进生成的 `Custom` 节点，由 Unreal 编译。`.dss` 的其余代码长得像 HLSL，
 却会被降级成一张材质节点图。
 
@@ -85,7 +85,7 @@ Function float3 Rotate(in mat3 basis, in vec3 v) { return mul(basis, v); }
 ```
 
 矩阵运算可以写在 `/// @custom` / `Function` 体**内部**，作为局部变量；或者通过 transform 内置 ——
-`UE.TransformVector` 和 `UE.TransformPosition`，见 [UE.\* 节点](/docs/builtins/ue-nodes#变换内置)。
+`UE.TransformVector` 和 `UE.TransformPosition`，见 [UE.\* 节点](/en/docs/builtins/ue-nodes#uetransformvector)。
 
 ## 签名
 

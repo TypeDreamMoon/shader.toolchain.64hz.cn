@@ -131,7 +131,7 @@ Graph = {
 | `sampler2D` + `texture(s, uv)` | `.dss` 里 `uniform Texture2D Tex;` 加 `Tex.Sample(uv)`；1.x 用纹理 property 加 `SampleTexture2D(tex, uv)`，或者用 `TextureSampleParameter2D` 调用 `Tex(Coordinates = uv)` |
 | `layout(…)`、`lowp` / `mediump` / `highp` | 没有 |
 | `mat3 m; m * v` | 图里没有矩阵值（`DSH4361`）—— 用 `UE.TransformVector` / `UE.TransformPosition`，或者在 `/// @custom` / `Function` 体里算 |
-| `#version`、`#extension` | 没有；预处理器只有 [`#if` / `#define`](/docs/language/lexical#预处理器) 那一组 |
+| `#version`、`#extension` | 没有；预处理器只有 [`#if` / `#define`](/en/docs/plugin/language/preprocessor) 那一组 |
 | `for`、`while` | `.dss` 有（次数在运行时才知道的循环要写进 `/// @custom` 函数）；1.x `Graph` 没有（`DSH2208`） |
 | `discard` | 只在 `/// @custom` / `Function` 的 HLSL 体内部有效 |
 
@@ -189,7 +189,7 @@ Graph = {
 </Callout>
 
 `/// @custom` / `Function` 版本是一个 Custom 节点；图代码版本产出可以在材质图里查看、也可以接参数的真实节点。按场景选择 ——
-见[函数](/docs/language/functions)和 [DreamShaderLang 2.0](/docs/language-v2#函数是什么)。
+见[函数](/docs/language/functions)和 [DreamShaderLang 2.0](/en/docs/language-v2#declarations)。
 
 ## GLSL 常见关键字
 
