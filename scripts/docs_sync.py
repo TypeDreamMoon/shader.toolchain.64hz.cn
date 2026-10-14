@@ -250,6 +250,17 @@ def source_anchors(body):
             if m.start(2) in offsets}
 
 
+# The production server answers any path with a segment named like a framework's
+# private directory with its own 404 (seen with runtime), so no route may use one.
+BLOCKED_SEGMENTS = {"runtime", "vendor"}
+
+
+def check_route(page_id):
+    blocked = BLOCKED_SEGMENTS & set(page_id.lower().split("/"))
+    if blocked:
+        raise ValueError(f"Route {page_id} uses a path segment the web server blocks: {', '.join(sorted(blocked))}")
+
+
 def config(root):
     value = load(root / "docs-sync/config.json")
     if not value or value.get("version") != 1:
@@ -259,6 +270,7 @@ def config(root):
         raise ValueError("Duplicate page IDs")
     for page_id in ids:
         within(root / "content/docs", page_id)
+        check_route(page_id)
     return value
 
 
@@ -386,6 +398,7 @@ def sync(root, plugin, revision=None, check=False, adopt_existing=False):
         page_id = "plugin/" + path.relative_to(plugin / "Docs").with_suffix("").as_posix().lower()
         if any(p["id"] == page_id for p in definitions):
             raise ValueError(f"New source collides with route: {page_id}")
+        check_route(page_id)
         definitions.append({"id": page_id, "sources": [{"path": name}], "format": "md", "locale": cfg.get("sourceLocale", "en")})
     source_routes = {}
     anchors = {entry['path']: source_anchors(split_frontmatter(read(source_file(plugin, entry['path'])))[1])

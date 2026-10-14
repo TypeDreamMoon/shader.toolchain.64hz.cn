@@ -298,7 +298,7 @@ class PluginI18nTests(unittest.TestCase):
         self.cfg['pages'] = [
             {'id': 'install', 'format': 'md',
              'sources': [{'path': 'Docs/guide.md', 'heading': 'Install'}]},
-            {'id': 'runtime', 'format': 'md',
+            {'id': 'run', 'format': 'md',
              'sources': [{'path': 'Docs/guide.md', 'headingPrefix': 'Runtime'}]},
         ]
         self.save_config()
@@ -306,9 +306,9 @@ class PluginI18nTests(unittest.TestCase):
         self.sync()
         self.assertIn('安装说明。', self.chinese('install'))
         self.assertNotIn('运行说明。', self.chinese('install'))
-        self.assertIn('运行说明。', self.chinese('runtime'))
-        self.assertIn('第二段中文。', self.chinese('runtime'))
-        self.assertNotIn('安装说明。', self.chinese('runtime'))
+        self.assertIn('运行说明。', self.chinese('run'))
+        self.assertIn('第二段中文。', self.chinese('run'))
+        self.assertNotIn('安装说明。', self.chinese('run'))
 
     def test_stale_section_uses_its_recorded_source_not_new_heading_positions(self):
         original = '# Guide\n\n## Install\n\nInstall instructions.\n'

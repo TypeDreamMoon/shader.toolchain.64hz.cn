@@ -189,6 +189,11 @@ class DocsSyncTests(unittest.TestCase):
         self.assertEqual(docs.introduced_markup(masked,masked+'\nimport x from "y"\n'),['esm'])
         self.assertEqual(docs.introduced_markup(masked,masked+'\n`{code}` 与 a < b\n'),[])
 
+    def test_routes_avoid_segments_the_server_blocks(self):
+        docs.check_route('custom-pass/index')
+        for page_id in ('plugin/runtime/index', 'Runtime', 'a/vendor/b'):
+            with self.assertRaisesRegex(ValueError, 'blocks'): docs.check_route(page_id)
+
     def test_notes_remain_exact(self):
         notes='\n## 我的网站补充\n\n保持这个说明。\n'
         docs.write(self.root/'content/docs/guide.mdx','正文\n'+docs.NOTES+notes)
