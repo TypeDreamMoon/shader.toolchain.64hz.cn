@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import os
 from pathlib import Path
 import tempfile
@@ -180,6 +181,19 @@ class DocsSyncTests(unittest.TestCase):
         masked, values=docs.protect(body)
         self.assertEqual(docs.restore(masked,values,masked),body)
         with self.assertRaises(ValueError): docs.restore(masked.replace('@@DOCS_KEEP_00000@@',''),values,masked)
+
+    def test_restore_compares_what_tokens_stand_for(self):
+        masked, values=docs.protect('Before `if`, after `if`; see [x](a.md) and\n\n```c\ncode\n```\n')
+        tokens=re.findall(r'@@DOCS_KEEP_\d{5}@@',masked)
+        first,second=[t for t in tokens if docs.restore(t,values,t)=='`if`']
+        link=next(t for t in tokens if 'a.md' in docs.restore(t,values,t))
+        code=next(t for t in tokens if 'code' in docs.restore(t,values,t))
+        swapped=masked.replace(second,first)  # both are `if`
+        self.assertIn('Before `if`, after `if`',docs.restore(swapped,values,masked))
+        self.assertIn('`if` `if` `if`',docs.restore(masked.replace(first,f'{first} {second} {first}'),values,masked))
+        for broken in (masked.replace(link,link+' '+link), masked.replace(code,code+code), masked.replace(link,''),
+                       masked+' @@DOCS_KEEP_99999@@', masked+' @DOCS_KEEP_00000@@'):
+            with self.assertRaises(ValueError): docs.restore(broken,values,masked)
 
     def test_adjacent_protected_spans_become_one_token(self):
         body='<a id="x"></a>\n\n## Title\n\nSee `a``b` and <b>c</b>.\n'

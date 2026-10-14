@@ -655,14 +655,23 @@ def introduced_markup(masked, translated):
 def restore(text, values, masked):
     tokens = re.findall(r"@@DOCS_KEEP_\d{5}@@", text)
     expected = re.findall(r"@@DOCS_KEEP_\d{5}@@", masked)
-    if collections.Counter(tokens) != collections.Counter(expected):
+
+    def value(token):
+        index = int(token[12:17])
+        return values[index] if index < len(values) else None
+
+    # Compare what the tokens stand for: spans with the same content are interchangeable, and a
+    # short inline code said once more (`if` repeated by a Chinese sentence) changes nothing.
+    got = collections.Counter(map(value, tokens))
+    want = collections.Counter(map(value, expected))
+    missing = want - got
+    extra = {v for v in got - want if v is None or not re.fullmatch(r"`[^`\n]+`", v)}
+    stray = len(re.findall(r"DOCS_KEEP", text)) - len(tokens)
+    if missing or extra or stray:
         # Token numbers only (never their content), so a log says which spans the model broke.
-        missing = sorted((collections.Counter(expected) - collections.Counter(tokens)).elements())
-        extra = sorted((collections.Counter(tokens) - collections.Counter(expected)).elements())
-        stray = len(re.findall(r"DOCS_KEEP", text)) - len(tokens)
         detail = "; ".join(part for part in (
-            "missing " + " ".join(t[12:17] for t in missing[:12]) if missing else "",
-            "extra " + " ".join(t[12:17] for t in extra[:12]) if extra else "",
+            "missing " + " ".join(sorted({t[12:17] for t in expected if value(t) in missing})[:12]) if missing else "",
+            "extra " + " ".join(sorted({t[12:17] for t in tokens if value(t) in extra})[:12]) if extra else "",
             f"{stray} malformed" if stray else "") if part)
         raise ValueError(f"AI changed protected code, links or identifiers ({detail}); no translation was written")
     # Nested protected spans are expanded in reverse masking order.
