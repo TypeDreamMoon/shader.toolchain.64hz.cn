@@ -154,7 +154,7 @@ Substrate 还要求项目启用 Substrate，这一点与引擎版本无关。`Dr
 [Custom Pass](/docs/language-v2/passes) 管线仅在（自 UE 5.8 起）上运行。缓冲区的 `Mips` 必须是 `1`
 （`DSH7308`（自 2.1.2 起））；mesh pass 无法绘制 Nanite 图元，也没有逐实例剔除；HLSL pass
 无法随 DLC 发布；带 `UE.DreamPassOutput` 或 `UE.DreamPassBuffer` 的材质无法使用新的材质
-翻译器。完整清单见[运行时 ▸ 限制](/docs/language-v2/passes)。
+翻译器。完整清单见[运行时 ▸ 限制](/docs/language-v2/passes#what-the-compiler-checks)。
 
 ## 刻意不做的事 [#what-is-deliberately-not-a-goal]
 

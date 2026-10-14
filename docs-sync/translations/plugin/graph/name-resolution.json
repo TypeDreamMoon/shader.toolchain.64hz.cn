@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "e6d1fc3c496bcbee0214aa1323d4449f22c3da9235e6dbb96cf18ca44d4b7011",
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/graph/name-resolution.md",

@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "status": "current",
+  "sourceHash": "4b51842670f1a2da8b1025e04ae66bb79ef72271eef9b6d6303115c6c65d121f",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/graph/if.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "a6338c338703ee68cdc590232ad41c88c6a3bde259f4618df7c3d4615e7c8656"
+      "sourceHash": "518b88097f8a138b3eab24b495c8042d99e0342777c524ff97896f02f2620b60",
+      "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+      "translationHash": "fcc07fc03f438848100f4d77d84fba2cc93c4155ece7a231dc859676c22ce97c"
     }
   ],
   "translationFile": "content/docs/graph/control-flow.md",
-  "translationHash": "a542ae6e2dfaee4a909dba5cff3af94a755fe8b35c66c4d5e6e81678369777d5"
+  "translationHash": "cdbcf701922a82402a6c88bb43e0df4e152a689d7e77daac27bb68c7e71a7e88"
 }

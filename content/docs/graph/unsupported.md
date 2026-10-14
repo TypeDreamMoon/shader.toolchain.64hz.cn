@@ -44,7 +44,7 @@ legacy 前端用 2.0 的语句与表达式解析器读取 `Graph` 块体，它�
 | `a && b`、`a \|\| b`、`!a` | [`DSH2200`](/docs/plugin/diagnostics/dsh2xxx#dsh2200) | 嵌套 `if` 语句，或对 0/1 掩码用 `max` / `min` |
 | `a & b`、`a \| b`、`a ^ b`、`~a` | `DSH2201` | 带 HLSL 函数体的 `Function` |
 | `a << 2`、`a >> 2` | `DSH2201` | `a * 4.0`、`a / 4.0`，或一个 `Function` |
-| `a < b`、`a > b`、`a <= b`、`a >= b`、`a == b`、`a != b`，位于 `if` 条件之外 | `DSH2200` | 一个 [`if` 条件](/docs/graph/control-flow) |
+| `a < b`、`a > b`、`a <= b`、`a >= b`、`a == b`、`a != b`，位于 `if` 条件之外 | `DSH2200` | 一个 [`if` 条件](/docs/graph/control-flow#operators) |
 | `a ? b : c` | `DSH2200` | `if` / `else`、`lerp(c, b, mask)`，或一次 `StaticSwitchParameter` 调用 |
 | `v[0]` | [`DSH2202`](/docs/plugin/diagnostics/dsh2xxx#dsh2202) | 一个 [swizzle](/docs/plugin/graph/swizzle)：`v.x` |
 | `if` 条件里的第二个比较、`&&` 或 `\|\|` | [`DSH2210`](/docs/plugin/diagnostics/dsh2xxx#dsh2210) | 嵌套 `if` 语句 |

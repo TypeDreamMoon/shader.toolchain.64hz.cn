@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "10fd04ea5cd6c7b846f704647a0cd37e7be9d1a44a2702b60f5857cf60be0fcb",
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/tools/commandlet.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/tools/commandlet.md",
-  "translationHash": "4a3c2b9541b268fa4bda6348c1e3e026acc8ea7c37bf1f2532681ea8ccab5820"
+  "translationHash": "e1fd34b7494f8f39b83be4505bd386c5bb7f6bacc545df3127a73a794b09053b"
 }

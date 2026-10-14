@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "a6563a18631200f28de37d80acbe38f162a6ae62af63404e53cd2e8521c0048b",
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/graph/declarations.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/graph/declarations.md",
-  "translationHash": "06b6d5316f1ff1b554f58a7dfde303692e9c7cebbe9762238e7a20ff0fa9b3d0"
+  "translationHash": "eed182d2034ef8de53059ed449620f7d92239dd76efb836f799a3fb2bc4e61e9"
 }

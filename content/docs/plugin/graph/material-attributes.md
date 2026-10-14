@@ -168,7 +168,7 @@ MaterialAttributes <name> = <material-attributes-expression> ;
 | `Base.MaterialAttributes = Attrs;` | 将值绑定到材质并开启 *Use Material Attributes*。 |
 | `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` / `VirtualFunction` 输入和输出 | 接受。该参数必须已经是 `MaterialAttributes` 值；不会进行任何转换（输入会 `DSH4226`，另一种类型的输出变量会 [`DSH4218`](/docs/plugin/diagnostics/dsh4xxx#dsh4218)）。 |
 | `GraphFunction` 结果类型 | 接受 — `MaterialAttributes` 是可识别的结果类型标记之一。 |
-| `if` / `else` | 各分支的属性会逐一合并：分支之间不一致的每个属性对应一个条件节点。在两个分支中赋值不同的完整集合是 [`DSH4375`](/docs/plugin/diagnostics/dsh4xxx#dsh4375) — 参见 [if / else](/docs/graph/control-flow)。 |
+| `if` / `else` | 各分支的属性会逐一合并：分支之间不一致的每个属性对应一个条件节点。在两个分支中赋值不同的完整集合是 [`DSH4375`](/docs/plugin/diagnostics/dsh4xxx#dsh4375) — 参见 [if / else](/docs/graph/control-flow#what-cannot-be-selected)。 |
 | `StaticSwitchParameter` 调用分支 | 当两个分支都是属性值时接受。 |
 | 构造函数参数 | 拒绝 — `DSH4226`。 |
 | 算术操作数 | 拒绝 — `DSH4226`。 |
@@ -186,7 +186,7 @@ MaterialAttributes <name> = <material-attributes-expression> ;
 | `Substrate` 值赋给 `MaterialAttributes` 目标，或反过来 | `DSH4228` |
 | `Substrate` 值赋给任意数值目标，包括属性成员 | `DSH4228` |
 | 带 `.member` 的 `Substrate` 值 | `DSH4207`，例外是仍在构建中的 `Substrate` 值 — 参见 [Substrate 内置项](/docs/builtins/substrate) |
-| `Substrate` 值作为 `if` 分支值 | 静态条件下为 `StaticSwitch`，否则为 `Substrate.Select`（UE 5.6+）或 [`DSH4378`](/docs/plugin/diagnostics/dsh4xxx#dsh4378) — 参见 [if / else](/docs/graph/control-flow) |
+| `Substrate` 值作为 `if` 分支值 | 静态条件下为 `StaticSwitch`，否则为 `Substrate.Select`（UE 5.6+）或 [`DSH4378`](/docs/plugin/diagnostics/dsh4xxx#dsh4378) — 参见 [if / else](/docs/graph/control-flow#what-cannot-be-selected) |
 | `Attrs.FrontMaterial` | 该成员在 UE 5.4+ 上可解析，类型为 **`Substrate`** *（自 2.0.0 起；1.x 将其类型定为单个数字）*。Substrate 表面的常规路径仍是 `Base.FrontMaterial` 输出绑定。 |
 | 同一个 `Shader` 中的 `Base.MaterialAttributes` 和 `Base.FrontMaterial` | 不会拒绝 *（自 2.0.0 起）*。两者都会连线，而第一个开启的 *Use Material Attributes* 会使材质读取属性集而不是其各个引脚。 |
 | 在不支持它的引擎上使用 `Substrate` 节点 | [`DSH5294`](/docs/plugin/diagnostics/dsh5xxx#dsh5294) |

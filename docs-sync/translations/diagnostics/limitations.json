@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "d31d762ab712ea5757291131af74f7ce0fcc9204f72988054900c6cbfe11c44d",
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/diagnostics/limitations.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/diagnostics/limitations.md",
-  "translationHash": "df143a2bbebfa2e6515c67a1e8ffcaabff588af5c20fb4bd76d7b0376929d401"
+  "translationHash": "3215f671e2c31c4e596e6c5c5c75a23004c034717985ee0d9190ed9ec408cfa2"
 }

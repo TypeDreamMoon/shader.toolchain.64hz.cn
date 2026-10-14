@@ -152,7 +152,7 @@ Graph = {
 [`DSH5275`](/docs/plugin/diagnostics/dsh5xxx#dsh5275)。
 
 对现有名称赋值不是重复声明——省略类型标记即可重新赋值。参见
-[语句](/en/docs/graph/statements#assignment)。
+[语句](/docs/graph/statements#assignment)。
 
 ## 作用域 [#scope]
 

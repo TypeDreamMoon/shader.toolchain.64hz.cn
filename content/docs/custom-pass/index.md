@@ -38,7 +38,7 @@ description: "Custom Pass 运行时"
 
 ## pass 何时运行 [#when-passes-run]
 
-每个 pass 在自己的[注入点](/docs/language-v2/passes)运行。底层是引擎的 scene view extension 回调加上它的 post-opaque 渲染委托。
+每个 pass 在自己的[注入点](/docs/language-v2/passes#injection-points)运行。底层是引擎的 scene view extension 回调加上它的 post-opaque 渲染委托。
 同一个 view family 的所有注入点共用一个 render graph，所以 ``BeginView`` 建的缓冲区到 ``EndOfView`` 还在 —— 而另一个 view family
 （例如同一帧里渲染的场景捕获）永远看不到它。
 
@@ -145,11 +145,11 @@ description: "Custom Pass 运行时"
 
 ### 缓冲区 [#buffers]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#buffers)。
 
 ### 清除与复制 [#clear-and-copy]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#clear-and-copy)。
 
 ### 计算 [#compute]
 
@@ -157,7 +157,7 @@ description: "Custom Pass 运行时"
 
 ### Custom Pass 管线 — `.dsp` [#custom-pass-pipelines--dsp]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#custom-pass-pipelines--dsp)。
 
 ### 全屏 [#fullscreen]
 
@@ -165,7 +165,7 @@ description: "Custom Pass 运行时"
 
 ### 注入点 [#injection-points]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#injection-points)。
 
 ### 网格 [#mesh]
 
@@ -173,24 +173,24 @@ description: "Custom Pass 运行时"
 
 ### Pass [#passes]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#passes)。
 
 ### 管线键 [#pipeline-keys]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#pipeline-keys)。
 
 ### 引用 [#references]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#references)。
 
 ### 文件 [#the-file]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#the-file)。
 
 ### 工具 [#tools]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#tools)。
 
 ### 编译器检查什么 [#what-the-compiler-checks]
 
-见[管线语言参考](/docs/language-v2/passes)。
+见[管线语言参考](/docs/language-v2/passes#what-the-compiler-checks)。

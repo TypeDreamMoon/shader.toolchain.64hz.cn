@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "835fcd5678a70c1498c0de853a6c6c5774fd72f6bda35c977217fd54762e5e6f",
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/graph/material-attributes.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/graph/material-attributes.md",
-  "translationHash": "9323a55e2053d82329eb3eafb1bfb33e25ab047922c253f98888d5178fa81a99"
+  "translationHash": "d4a03a62e53fc5c69bb0c634c4f12e4fe9ee06e3ce1cff6bc1d8586dd3d88b31"
 }

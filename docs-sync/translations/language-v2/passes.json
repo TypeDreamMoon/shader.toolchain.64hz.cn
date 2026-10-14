@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "unreviewed",
-  "sourceHash": null,
-  "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+  "status": "current",
+  "sourceHash": "31795edc658f13936d598c5f49bfdd00b74f9e3550268f06bb080233a4ca30ac",
+  "sourceRevision": "63a758dc372b83f054fc995487f26840b421e500",
   "sources": [
     {
       "path": "Docs/language-v2/passes.md",
-      "sourceHash": null,
-      "sourceRevision": "96cffa24e5a454147d7953256ed7d45afae7ac9f",
-      "translationHash": "46dcae9732fb7797c161bb840569bc41867d5e0e9f9b9bc11d503dd100471784"
+      "sourceHash": "0bb4564992a9ba0e24091c6f5ac16e5c9180d9fb584ab67d910ed6704b55032e",
+      "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
+      "translationHash": "e75a1de029b493b0b69f9998fdefa618b3f10b2cae96d3836c90ddf3cb5e7db9"
     }
   ],
   "translationFile": "content/docs/language-v2/passes.md",
-  "translationHash": "d272fb9d12da48aa8359ad7065e81df5cf3a7f912841bb7c3ca5f67ace8d45c2"
+  "translationHash": "89754a6f591f0f54226bd06634c56eebdcb74582d74c3790125a021ee806d742"
 }
