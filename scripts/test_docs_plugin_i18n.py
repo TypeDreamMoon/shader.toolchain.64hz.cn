@@ -493,6 +493,22 @@ class PluginI18nTests(unittest.TestCase):
                     self.sync(adopt_existing=True)
             self.assertEqual(self.snapshot(self.root), before)
 
+    def test_retry_replaces_a_rejected_draft_and_pages_run_concurrently(self):
+        docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')
+        self.settings.update(retries=1, concurrency=4)
+        calls = []
+
+        def flaky(prompt, settings):
+            calls.append(prompt)
+            if len(calls) == 1:
+                return {**self.fake_ai(prompt, settings), 'body': '<script>x</script>'}
+            return self.fake_ai(prompt, settings)
+
+        self.assertEqual(sorted(self.translate(request_fn=flaky)), ['guide.md', 'second.md'])
+        self.assertEqual(len(calls), 3)
+        self.assertIn('中文段落。', docs.read(self.translated_path()))
+        self.assertIn('第二段中文。', docs.read(self.translated_path('second.md')))
+
     def test_failed_ai_batch_leaves_plugin_and_site_unchanged(self):
         docs.write(self.plugin / 'Docs/second.md', '# Second\n\nSecond paragraph.\n')
         plugin_before = self.snapshot(self.plugin)
