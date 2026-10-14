@@ -1,9 +1,9 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "63a758dc372b83f054fc995487f26840b421e500",
+  "revision": "8bd41da94a076dda0ba993a8381f8bbd43c61734",
   "workingTree": false,
-  "translationSnapshotHash": "0e4bdb1f1bb18a8c71d814ac0aa5b1c28bf4659c023ec71bb11fbcbeb6504a30",
+  "translationSnapshotHash": "fc53aad89cea3aa4707a355d558e0024b871055fda0093e44d03da4e6a9acdbf",
   "pages": {
     "builtins/dream-pass": {
       "hash": "95992aca322c878ec2ef95f40f21aaf703a156c1419783be2c9575ed9b0f9f64",
@@ -284,11 +284,11 @@
         }
       ],
       "translation": {
-        "status": "unreviewed",
+        "status": "current",
         "output": "content/docs/examples/recipes.md",
         "record": "docs-sync/translations/examples/recipes.json",
-        "outputHash": "417ab5324617a0be6da97cd3d8d9fe920ec44f128e78d27b9b14ea3cc19db177",
-        "bodyHash": "c759ce98907146af475e6050715e785c5aef59be61b6b57e1da24ecf3e1b1645"
+        "outputHash": "35f4ea5cdee0170b8b96928898c6d7bab043cb88db8ed6a56b07dd222a957f85",
+        "bodyHash": "ae976d68e7224fbdd27eb304ef4fc4ab28338adcee11717b0b316ab2805d62d4"
       }
     },
     "generation/asset-paths": {
@@ -595,8 +595,8 @@
         "status": "current",
         "output": "content/docs/index.md",
         "record": "docs-sync/translations/index.json",
-        "outputHash": "a38918416477a8bff7786149b98c714bd8a99ffafee4447e90f39b25cdbe2752",
-        "bodyHash": "23aa51937211c3c3ce2f3e599c686fc5e322b797389078498d8dcdccf6dbe4d9"
+        "outputHash": "02e0d8eb9b8ca8a3c12a01ae9c0c00d730eedf121ac76675a3a689142d8254f8",
+        "bodyHash": "3de4b77a84d06ad65530c9de48623082c194bf4230424d2c510ab75c2dd0cfec"
       }
     },
     "language/blocks": {
@@ -815,8 +815,8 @@
         "status": "current",
         "output": "content/docs/language-v2/index.md",
         "record": "docs-sync/translations/language-v2/index.json",
-        "outputHash": "aa448953cceef952497698af1e5e42ae146f6a6408e29c5ab25b097c16d909a8",
-        "bodyHash": "7f04a401806dababc473f9ae906bf914b0b02cf691a5c98840e931816a5882a2"
+        "outputHash": "e8d6116b690f425b2c9b1c483c5ac20e52da4ab9a8ae798f08bff177a1238837",
+        "bodyHash": "50469520dd6feed72052c85f4ce2f529e1d5693fda8c509e6dbc3f1239f474e4"
       }
     },
     "language-v2/instances": {
@@ -1189,8 +1189,8 @@
         "status": "current",
         "output": "content/docs/tools/commandlet.md",
         "record": "docs-sync/translations/tools/commandlet.json",
-        "outputHash": "e1fd34b7494f8f39b83be4505bd386c5bb7f6bacc545df3127a73a794b09053b",
-        "bodyHash": "97623360fdec71addf56006e82e580b1b919ec513295c8d226093d27acff4ab9"
+        "outputHash": "863f2c302f8b23d88162e6911c5ae113559a52403914bf55c83f4c62b7ceacb3",
+        "bodyHash": "4319e3b6fbfd1476c7a92500400f08489295c93de03e2e4007bb8a9d72052346"
       }
     },
     "tools/decompiler": {
@@ -1365,8 +1365,8 @@
         "status": "current",
         "output": "content/docs/plugin/api/lang-module.md",
         "record": "docs-sync/translations/plugin/api/lang-module.json",
-        "outputHash": "cf69b60590db4a0d810addef1571df1f5e4fd4322fc7d492a2bc302861229ded",
-        "bodyHash": "3391c5200387061e0922ac562c0e1fe2500b5d7e4bc0bcab59cc874dcfe76fb8"
+        "outputHash": "0aaaeb5b9ede3879a91fb3ed86b0bd7d9061f04e1e8e3a940dfea924426ec26c",
+        "bodyHash": "71a8042dbc6d42fb925e02ab0cf5aead13a9991b7b8acf2c9a6a5db46f31d29b"
       }
     },
     "plugin/api/material-instance": {
@@ -1629,8 +1629,8 @@
         "status": "current",
         "output": "content/docs/plugin/contributing/testing.md",
         "record": "docs-sync/translations/plugin/contributing/testing.json",
-        "outputHash": "0e1cf756bccd1e7b2fc8320151c3949d1928ed28c2934e93b0ef79ac419480d7",
-        "bodyHash": "9daa07749de0ebedc06106d7a9daa13feccc134f3950a6b0ad33502f4c5b6bb1"
+        "outputHash": "ca810ced74dca6a622f05d321a8a2a56fdb90c5695224faa2af6ad287c53748b",
+        "bodyHash": "754cdb39926f8d0a086287f1462881081453f69ded84b626419f0186c1f05096"
       }
     },
     "plugin/diagnostics/dsh1xxx": {
@@ -2575,8 +2575,8 @@
         "status": "current",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "f97af951b88d01ee29c964de6ec18907228e45af5e8ade0f6041dd128cd66a00",
-        "bodyHash": "37db2bff66e0406a50388803a95192cfed7fdd44db4f37af83e09d597cb5d349"
+        "outputHash": "d0967786b93b8e6fea6cbbcd9d5f779a2c6c01789f6419cdc45fe22e5e72b8cd",
+        "bodyHash": "7f977cd6e5ae85e7099791f7d45acfa8d41a91922e8b4325d109a6e1d75f5163"
       }
     },
     "plugin/pass-runtime/hlsl": {
