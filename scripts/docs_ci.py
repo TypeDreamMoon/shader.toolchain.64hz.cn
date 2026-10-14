@@ -12,13 +12,26 @@ import urllib.parse
 from docs_sync import ROOT, config, git, load, plugin_statuses, validate, within, write
 
 
+SECRET_ENV = ("GH_TOKEN", "DOCS_PR_TOKEN", "DOCS_SITE_TOKEN", "DOCS_AI_API_KEY", "GIT_CONFIG_VALUE_0")
+
+
 def run(*args, cwd=None, token=None, env=None):
     extra = {**({"GH_TOKEN": token} if token is not None else {}), **(env or {})}
     env = {**os.environ, **extra} if extra else None
     result = subprocess.run(list(args), cwd=cwd or ROOT, env=env, capture_output=True, text=True, encoding="utf-8")
     if result.returncode:
-        # Never echo subprocess input, auth-bearing errors or provider responses.
-        raise ValueError(f"{args[0]} {args[1]} failed (exit {result.returncode})")
+        # Never echo subprocess input, auth-bearing errors or provider responses. gh is the
+        # exception: its last stderr line is GitHub's reason (a missing permission, a rule),
+        # and every token this process knows is cut out of it first.
+        detail = ""
+        if args[0] == "gh" and result.stderr.strip():
+            detail = result.stderr.strip().splitlines()[-1][:300]
+            for name in SECRET_ENV:
+                value = (env or os.environ).get(name)
+                if value:
+                    detail = detail.replace(value, "***")
+            detail = ": " + detail
+        raise ValueError(f"{args[0]} {args[1]} failed (exit {result.returncode}){detail}")
     # Porcelain status has significant leading spaces in its two-column status code.
     return result.stdout.rstrip("\r\n")
 

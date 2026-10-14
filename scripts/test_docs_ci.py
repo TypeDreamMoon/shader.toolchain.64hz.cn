@@ -40,6 +40,16 @@ class DocsCiTests(unittest.TestCase):
             process.return_value.stdout=' M content/docs/guide.md\n'
             self.assertEqual(ci.run('git','status'),' M content/docs/guide.md')
 
+    def test_gh_failure_reports_reason_without_tokens(self):
+        failed = ci.subprocess.CompletedProcess([], 1, '', 'noise\nHTTP 403: needs pull requests write (token plugin-token)\n')
+        with patch.object(ci.subprocess, 'run', return_value=failed):
+            with self.assertRaises(ValueError) as caught: ci.run('gh', 'pr', 'create', token='plugin-token')
+        self.assertIn('HTTP 403: needs pull requests write', str(caught.exception))
+        self.assertNotIn('plugin-token', str(caught.exception))
+        with patch.object(ci.subprocess, 'run', return_value=failed):
+            with self.assertRaises(ValueError) as caught: ci.run('git', 'push')
+        self.assertNotIn('403', str(caught.exception))
+
     def test_coordinator_refuses_non_default_branch(self):
         with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/docs-translation/test'}):
             with self.assertRaisesRegex(ValueError,'default branch'): self.invoke('commit-source')
