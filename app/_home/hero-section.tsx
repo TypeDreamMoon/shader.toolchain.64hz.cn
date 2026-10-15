@@ -1,9 +1,11 @@
 import { localizedPath, type Locale } from '@/lib/i18n';
 import { GITHUB_URL } from '@/lib/site';
-import { BookOpen, CodeXml, GitBranch } from 'lucide-react';
+import { extensionVersion, pluginVersion } from '@/lib/versions';
+import { BookOpen, ChevronDown, CodeXml, GitBranch } from 'lucide-react';
 import Link from 'next/link';
-import { CodePanel } from './code-panel';
+import { Character } from './character';
 import type { HomeCopy } from './copy';
+import { Particles } from './particles';
 
 export function HeroSection({
   copy,
@@ -15,6 +17,7 @@ export function HeroSection({
   return (
     <section className="ds-hero" id="overview">
       <div className="ds-aurora" aria-hidden="true" />
+      <Particles />
 
       <div className="ds-container ds-hero-grid">
         <div className="ds-hero-copy">
@@ -48,7 +51,11 @@ export function HeroSection({
           </div>
 
           <ul className="ds-tags" aria-label={copy.hero.versionsLabel}>
-            {copy.versions.map(([label, value]) => (
+            {[
+              ['DreamShader', pluginVersion()] as const,
+              ['VSCode', extensionVersion()] as const,
+              ...copy.versions,
+            ].map(([label, value]) => (
               <li key={label}>
                 <strong>{label}</strong>
                 {value}
@@ -57,8 +64,15 @@ export function HeroSection({
           </ul>
         </div>
 
-        <CodePanel file={copy.sample.file} result={copy.sample.result} />
+        <div className="ds-hero-art">
+          <Character alt={copy.hero.artAlt} caption={copy.hero.artCaption} />
+        </div>
       </div>
+
+      <a className="ds-cue" href="#sample">
+        {copy.hero.scrollCue}
+        <ChevronDown aria-hidden="true" />
+      </a>
     </section>
   );
 }

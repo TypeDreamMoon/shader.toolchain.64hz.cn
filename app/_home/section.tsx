@@ -2,14 +2,15 @@ import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 /**
- * One band of the homepage. Bands sit in normal document flow — the page
- * scrolls like any other page, and each band owns only its own rhythm.
+ * One screen of the homepage deck. Each band fills the viewport and carries a
+ * snap point; the sizing and the wash live in `home.css` keyed off
+ * `ds-section-<id>`, so a band only has to name itself here.
  */
 export function HomeSection({
   id,
   children,
 }: {
-  id: 'workflow' | 'tools' | 'docs';
+  id: 'sample' | 'workflow' | 'tools' | 'docs';
   children: ReactNode;
 }) {
   return (

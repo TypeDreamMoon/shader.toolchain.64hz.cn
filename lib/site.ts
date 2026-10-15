@@ -10,3 +10,9 @@ export const GITHUB_URL = 'https://github.com/TypeDreamMoon/DreamShader';
 
 export const RIDER_PLUGIN_URL =
   'https://github.com/tsdaer/dreamshader-language-support';
+
+export const PORTAL_URL = 'https://toolchain.64hz.cn';
+
+export const FX_SITE_URL = 'https://fx.toolchain.64hz.cn';
+
+export const GUI_SITE_URL = 'https://gui.toolchain.64hz.cn';

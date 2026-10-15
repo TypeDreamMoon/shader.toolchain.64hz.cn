@@ -6,15 +6,445 @@
    band shares one container width, one heading scale and one card recipe.
    ============================================================================= */
 
+/* -----------------------------------------------------------------------------
+   full page — one band per screen
+
+   Snapping is CSS, never a wheel handler: the page keeps native scrolling,
+   keyboard paging, find-in-page and momentum. `proximity` rather than `mandatory`
+   is the safety valve — a band that outgrows the viewport (a short laptop, a
+   large font, a translated string that wraps) scrolls like an ordinary page
+   instead of trapping the reader between two snap points.
+
+   Scoped with :has() so only the marketing route is affected; the docs keep
+   ordinary document flow.
+   -------------------------------------------------------------------------- */
+
+html:has(.ds-home) {
+  scroll-snap-type: y mandatory;
+  scroll-padding-block-start: var(--ds-nav-height);
+}
+
+/* `scroll-behavior: smooth` is deliberately NOT set here. With mandatory
+   snapping the two animations fight — the browser glides, re-targets, then
+   snaps again — and that double motion is what reads as stutter. `SlideDeck`
+   owns the timing instead (one 720ms ease per gesture, snapping suspended while
+   it runs) and hands control straight back to CSS when it is done. Without
+   JavaScript, the browser's own snap animation is the fallback. */
+
+/* an eased glide should not be redrawn from scratch every frame */
+.ds-art-figure,
+.ds-cue svg {
+  will-change: transform;
+}
+
 #nd-home-layout.ds-home {
   min-height: 100svh;
   background: var(--color-fd-background);
   color: var(--color-fd-foreground);
 }
 
+/* every band is a screen: full height, content centred in it */
+.ds-hero,
+.ds-home .ds-section {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* -----------------------------------------------------------------------------
+   arrival reveals
+
+   `data-state` is set by SlideDeck: `in` for a screen that has arrived, `out`
+   for one still below the fold. A screen the reader can already see is marked
+   `in` at hydration, so nothing visible ever flashes, and with no JavaScript the
+   attribute is simply absent — which is the fully visible state.
+   -------------------------------------------------------------------------- */
+
+/* Only ever hide anything when the reader has not asked for less motion —
+   otherwise the reveal would be a visibility mechanism rather than an
+   animation, and content would depend on an observer to come back. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-state='out'] :is(.ds-head, .ds-sample, .ds-command, .ds-steps > *, .ds-tool-grid, .ds-route-grid, .ds-foot) {
+    opacity: 0;
+    translate: 0 1.25rem;
+  }
+}
+
+[data-state] :is(.ds-head, .ds-sample, .ds-command, .ds-steps > *, .ds-tool-grid, .ds-route-grid, .ds-foot) {
+  transition:
+    opacity 620ms var(--ds-ease),
+    translate 620ms var(--ds-ease);
+}
+
+/* the steps arrive as a run rather than all at once */
+[data-state] .ds-steps > *:nth-child(2) {
+  transition-delay: 90ms;
+}
+
+[data-state] .ds-steps > *:nth-child(3) {
+  transition-delay: 180ms;
+}
+
+[data-state] .ds-steps > *:nth-child(4) {
+  transition-delay: 270ms;
+}
+
+[data-state] :is(.ds-sample, .ds-tool-grid, .ds-route-grid) {
+  transition-delay: 120ms;
+}
+
+[data-state] :is(.ds-command, .ds-foot) {
+  transition-delay: 220ms;
+}
+
+.ds-home .ds-section {
+  display: grid;
+  align-items: center;
+  min-block-size: calc(100svh - var(--ds-nav-height));
+  padding-block: clamp(var(--ds-space-5), 5vh, var(--ds-space-7));
+}
+
+/* a short viewport is not a slide deck — let the bands breathe instead */
+@media (max-height: 660px), (max-width: 720px) {
+  html:has(.ds-home) {
+    scroll-snap-type: none;
+  }
+
+  .ds-home .ds-section {
+    min-block-size: 0;
+  }
+}
+
 .ds-container {
   width: min(100% - 2.5rem, 1140px);
   margin-inline: auto;
+}
+
+/* -----------------------------------------------------------------------------
+   backdrop — three drifting lights and a slow weave, fixed behind the deck
+
+   Only `translate`, `scale` and `opacity` are animated, so every frame is a
+   compositor job: no blur filter to re-run, no background-position to repaint.
+   The lights also re-place themselves per screen off `[data-screen]`, which
+   SlideDeck sets, so changing screens moves the light as well as the content.
+   -------------------------------------------------------------------------- */
+
+.ds-backdrop {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ds-glow {
+  position: absolute;
+  border-radius: 50%;
+  /* soft stops instead of a blur filter — same look, a fraction of the cost */
+  opacity: 0.85;
+  transition:
+    translate 900ms var(--ds-ease),
+    scale 900ms var(--ds-ease),
+    opacity 900ms var(--ds-ease);
+  will-change: transform;
+}
+
+.ds-glow-a {
+  inset-block-start: -18vh;
+  inset-inline-start: -12vw;
+  width: 58vw;
+  height: 58vw;
+  animation: ds-drift-a 34s var(--ds-ease) infinite alternate;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--dream-miku) 26%, transparent),
+    transparent 70%
+  );
+}
+
+.ds-glow-b {
+  inset-block-end: -26vh;
+  inset-inline-end: -16vw;
+  width: 52vw;
+  height: 52vw;
+  animation: ds-drift-b 41s var(--ds-ease) infinite alternate;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--dream-cyan) 17%, transparent),
+    transparent 70%
+  );
+}
+
+.ds-glow-c {
+  inset-block-start: 34vh;
+  inset-inline-start: 46vw;
+  width: 34vw;
+  height: 34vw;
+  animation: ds-drift-c 29s var(--ds-ease) infinite alternate;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--dream-spark) 13%, transparent),
+    transparent 68%
+  );
+}
+
+/* the plotting grid, panned slowly enough to read as depth rather than motion */
+.ds-weave {
+  position: absolute;
+  inset: -12vh -12vw;
+  opacity: 0.5;
+  animation: ds-weave 72s linear infinite;
+  background-image:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--dream-miku) 11%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--dream-miku) 9%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    88px 88px,
+    88px 88px;
+  mask-image: radial-gradient(closest-side at 50% 40%, black, transparent 92%);
+  will-change: transform;
+}
+
+@keyframes ds-drift-a {
+  from {
+    translate: 0 0;
+    scale: 1;
+  }
+  to {
+    translate: 7vw 6vh;
+    scale: 1.12;
+  }
+}
+
+@keyframes ds-drift-b {
+  from {
+    translate: 0 0;
+    scale: 1.08;
+  }
+  to {
+    translate: -8vw -5vh;
+    scale: 1;
+  }
+}
+
+@keyframes ds-drift-c {
+  from {
+    translate: 0 0;
+    scale: 0.94;
+  }
+  to {
+    translate: -6vw 9vh;
+    scale: 1.16;
+  }
+}
+
+@keyframes ds-weave {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: -88px -88px;
+  }
+}
+
+/* --- the light follows the deck ------------------------------------------- */
+
+:root[data-screen='sample'] .ds-glow-a {
+  translate: 62vw 12vh;
+  scale: 0.9;
+}
+
+:root[data-screen='sample'] .ds-glow-b {
+  opacity: 0.5;
+}
+
+:root[data-screen='workflow'] .ds-glow-a {
+  translate: 10vw 46vh;
+  opacity: 0.6;
+}
+
+:root[data-screen='workflow'] .ds-glow-b {
+  translate: -14vw -30vh;
+  scale: 1.1;
+}
+
+:root[data-screen='tools'] .ds-glow-a {
+  translate: 48vw 40vh;
+  opacity: 0.55;
+}
+
+:root[data-screen='tools'] .ds-glow-c {
+  translate: -26vw -14vh;
+  scale: 1.3;
+  opacity: 1;
+}
+
+:root[data-screen='docs'] .ds-glow-a {
+  translate: 26vw 58vh;
+  scale: 1.15;
+}
+
+:root[data-screen='docs'] .ds-glow-b {
+  translate: -6vw -12vh;
+  opacity: 0.8;
+}
+
+/* the motes: the hero's own layer, behind the copy and the figure */
+.ds-motes {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* the bands sit above the backdrop; their washes are translucent, so it reads
+   through them rather than being covered */
+.ds-hero > .ds-container,
+.ds-home .ds-section > .ds-container,
+.ds-cue {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-glow,
+  .ds-weave,
+  .ds-art-figure {
+    animation: none;
+  }
+}
+
+/* --- the dot rail ---------------------------------------------------------- */
+
+.ds-rail {
+  position: fixed;
+  z-index: 30;
+  inset-block-start: 50%;
+  inset-inline-end: clamp(0.5rem, 1.6vw, 1.4rem);
+  translate: 0 -50%;
+}
+
+.ds-rail ul {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+
+.ds-rail-dot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+  padding-block: 0.2rem;
+  color: var(--color-fd-muted-foreground);
+}
+
+.ds-rail-label {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition:
+    opacity var(--ds-dur-fast) ease,
+    translate var(--ds-dur-fast) ease;
+  translate: 0.35rem 0;
+  white-space: nowrap;
+}
+
+.ds-rail-mark {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border: 1px solid var(--ds-rule-strong);
+  border-radius: 50%;
+  background: transparent;
+  transition:
+    background var(--ds-dur-fast) ease,
+    border-color var(--ds-dur-fast) ease,
+    scale var(--ds-dur-fast) ease;
+}
+
+.ds-rail-dot:hover .ds-rail-label,
+.ds-rail-dot:focus-visible .ds-rail-label {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.ds-rail-dot:hover .ds-rail-mark {
+  border-color: var(--dream-miku);
+}
+
+.ds-rail-dot[aria-current] {
+  color: var(--ds-brand-text);
+}
+
+.ds-rail-dot[aria-current] .ds-rail-mark {
+  border-color: var(--dream-miku);
+  background: var(--dream-miku);
+  scale: 1.2;
+}
+
+.ds-rail-dot[aria-current] .ds-rail-label {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* the rail would sit on top of the content on a narrow screen */
+@media (max-width: 900px), (max-height: 660px) {
+  .ds-rail {
+    display: none;
+  }
+}
+
+/* --- the hero's scroll cue -------------------------------------------------- */
+
+.ds-cue {
+  position: absolute;
+  z-index: 2;
+  inset-block-end: clamp(var(--ds-space-4), 3vh, var(--ds-space-6));
+  inset-inline-start: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  translate: -50% 0;
+  color: var(--color-fd-muted-foreground);
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ds-cue:hover {
+  color: var(--ds-brand-text);
+}
+
+.ds-cue svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  animation: ds-cue-bob 2.4s var(--ds-ease) infinite;
+}
+
+@keyframes ds-cue-bob {
+  0%,
+  100% {
+    translate: 0 -0.1rem;
+  }
+  50% {
+    translate: 0 0.25rem;
+  }
+}
+
+@media (max-height: 660px), (max-width: 720px) {
+  .ds-cue {
+    display: none;
+  }
 }
 
 /* -----------------------------------------------------------------------------
@@ -124,8 +554,8 @@
 
 .ds-hero {
   position: relative;
-  /* fills the first screen without locking to it — the page scrolls past */
-  min-height: min(calc(100svh - var(--ds-nav-height)), 46rem);
+  /* the first screen of the deck */
+  min-height: calc(100svh - var(--ds-nav-height));
   display: grid;
   align-items: center;
   padding-block: clamp(var(--ds-space-7), 8vh, var(--ds-space-8))
@@ -133,7 +563,8 @@
   overflow: clip;
 }
 
-/* one soft wash behind the hero only, so the band boundaries stay legible */
+/* one soft wash behind the hero only, kept subtle now that the backdrop's
+   lights carry the colour */
 .ds-aurora {
   position: absolute;
   z-index: 0;
@@ -146,7 +577,7 @@
     ),
     radial-gradient(
       46rem 30rem at 96% 8%,
-      color-mix(in oklab, var(--dream-pink) 11%, transparent),
+      color-mix(in oklab, var(--dream-spark) 12%, transparent),
       transparent 64%
     );
   pointer-events: none;
@@ -163,8 +594,137 @@
   z-index: 1;
   display: grid;
   align-items: center;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.8fr);
   gap: clamp(var(--ds-space-6), 5vw, 4rem);
+}
+
+/* -----------------------------------------------------------------------------
+   hero art — panels of UI standing in a scene, lit by the page
+   -------------------------------------------------------------------------- */
+
+.ds-hero-art {
+  display: grid;
+  justify-items: center;
+}
+
+.ds-art {
+  display: grid;
+  justify-items: center;
+}
+
+/* the figure and its light sit in their own stacking context, so the plaque
+   below is never lit by the floor glow */
+.ds-art-stage {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  isolation: isolate;
+}
+
+.ds-art-figure {
+  position: relative;
+  z-index: 2;
+  display: block;
+  block-size: clamp(22rem, 66vh, 42rem);
+  inline-size: auto;
+  max-inline-size: 100%;
+  filter: drop-shadow(0 24px 44px color-mix(in oklab, var(--dream-ink) 34%, transparent));
+  animation: ds-float 11s var(--ds-ease) infinite;
+}
+
+.dark .ds-art-figure {
+  filter: drop-shadow(0 24px 48px hsl(190 80% 3% / 0.6));
+}
+
+/* Absolutely positioned children of a grid container take their static position,
+   which is the container's inline start — not its centre. Centre them explicitly
+   or the halo hangs off to one side. */
+.ds-art-halo,
+.ds-art-ring,
+.ds-art-plinth {
+  inset-inline-start: 50%;
+  translate: -50% 0;
+}
+
+/* the wash the panels stand in: a blue halo behind them, an amber rim on the right */
+.ds-art-halo {
+  position: absolute;
+  z-index: 0;
+  inset-block-start: 2%;
+  inline-size: min(26rem, 118%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--dream-miku) 34%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      closest-side at 78% 62%,
+      color-mix(in oklab, var(--dream-spark) 16%, transparent),
+      transparent 68%
+    );
+  filter: blur(2px);
+}
+
+/* one flattened orbit under the panels — a stage mark, not a halo ring */
+.ds-art-ring {
+  position: absolute;
+  z-index: 1;
+  inset-block-end: 3%;
+  inline-size: min(26rem, 112%);
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in oklab, var(--dream-cyan) 62%, transparent);
+  border-radius: 50%;
+  opacity: 0.4;
+  rotate: -7deg;
+  scale: 1 0.26;
+}
+
+.dark .ds-art-ring {
+  opacity: 0.5;
+}
+
+/* the floor the panels are lit from */
+.ds-art-plinth {
+  position: absolute;
+  z-index: 0;
+  inset-block-end: 1%;
+  inline-size: min(22rem, 92%);
+  block-size: 3.75rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--dream-miku) 52%, transparent),
+    transparent 78%
+  );
+  filter: blur(6px);
+}
+
+/* the caption under the stage */
+.ds-art-plaque {
+  position: relative;
+  z-index: 2;
+  margin: var(--ds-space-4) 0 0;
+  border-block-start: 1px solid var(--ds-rule);
+  padding-block-start: var(--ds-space-3);
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-2xs);
+  letter-spacing: 0.16em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@keyframes ds-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.65rem;
+  }
 }
 
 .ds-tags {
@@ -317,6 +877,11 @@
 }
 
 /* punctuation recedes from identifiers but is still code, so it stays readable */
+.ds-t-com {
+  color: var(--color-fd-muted-foreground);
+  font-style: italic;
+}
+
 .ds-t-punct {
   color: var(--color-fd-muted-foreground);
 }
@@ -330,8 +895,110 @@
   padding-block: clamp(var(--ds-space-8), 8vw, 6.5rem);
 }
 
+/* Each screen carries its own wash. Faint on purpose: it should register when a
+   band arrives, not compete with the text that lands on top of it. */
+
+.ds-section-sample {
+  background:
+    radial-gradient(
+      52rem 30rem at 88% 8%,
+      color-mix(in oklab, var(--dream-miku) 12%, transparent),
+      transparent 70%
+    ),
+    var(--ds-tint-weak);
+}
+
+.ds-section-workflow {
+  background: radial-gradient(
+    46rem 26rem at 6% 92%,
+    color-mix(in oklab, var(--dream-cyan) 9%, transparent),
+    transparent 68%
+  );
+}
+
 .ds-section-tools {
-  background: var(--ds-tint-weak);
+  background:
+    radial-gradient(
+      44rem 26rem at 92% 88%,
+      color-mix(in oklab, var(--dream-spark) 8%, transparent),
+      transparent 68%
+    ),
+    var(--ds-tint-weak);
+}
+
+.ds-section-docs {
+  background: radial-gradient(
+    50rem 28rem at 50% 108%,
+    color-mix(in oklab, var(--dream-miku) 11%, transparent),
+    transparent 66%
+  );
+}
+
+/* -----------------------------------------------------------------------------
+   sample band — the source panel with the command that turns it into an asset
+   -------------------------------------------------------------------------- */
+
+.ds-sample {
+  display: grid;
+  gap: var(--ds-space-4);
+  max-inline-size: 62rem;
+}
+
+/* On a full-height band the head and the panel share the screen rather than
+   stacking, which is what kept the sample from fitting one. */
+.ds-section-sample .ds-container {
+  display: grid;
+  align-items: center;
+  gap: clamp(var(--ds-space-6), 4vw, 3.5rem);
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+}
+
+.ds-section-sample .ds-head {
+  margin-block-end: 0;
+}
+
+/* one step smaller than the docs' code, so a 29-line file still fits a screen */
+.ds-section-sample .ds-code-body {
+  font-size: var(--ds-text-xs);
+  line-height: 1.62;
+  padding-block: var(--ds-space-3);
+}
+
+.ds-section-sample .ds-code-line::before {
+  width: 2.6rem;
+  padding-inline-end: var(--ds-space-3);
+}
+
+@media (max-width: 1080px) {
+  .ds-section-sample .ds-container {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ds-command {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  overflow-x: auto;
+  margin: 0;
+  border: 1px solid var(--ds-rule);
+  border-radius: var(--ds-radius-md);
+  background: var(--color-fd-card);
+  padding: 0.7rem var(--ds-space-4);
+}
+
+.ds-command svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  color: var(--ds-brand-text);
+}
+
+.ds-command code {
+  color: var(--color-fd-foreground);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-sm);
+  white-space: pre;
 }
 
 .ds-head {
@@ -345,7 +1012,7 @@
 
 .ds-steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--ds-space-5);
 }
 
@@ -353,6 +1020,18 @@
   position: relative;
   border-block-start: 2px solid var(--ds-rule-strong);
   padding-block-start: var(--ds-space-4);
+}
+
+/* the rule reads as a track, and the dot as the step's position on it */
+.ds-step::before {
+  content: '';
+  position: absolute;
+  inset-block-start: -0.3125rem;
+  inset-inline-start: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--dream-miku);
 }
 
 .ds-step-index {
@@ -402,9 +1081,20 @@
 }
 
 .ds-tool-card:hover {
-  border-color: var(--ds-rule-strong);
+  border-color: color-mix(in oklab, var(--dream-miku) 45%, var(--color-fd-border));
   box-shadow: var(--ds-shadow-lift);
   transform: translateY(-2px);
+}
+
+.ds-tool-card:hover .ds-tool-icon {
+  border-color: color-mix(in oklab, var(--dream-miku) 40%, var(--color-fd-border));
+  background: color-mix(in oklab, var(--dream-miku) 14%, transparent);
+}
+
+.ds-tool-icon {
+  transition:
+    background var(--ds-dur-fast) ease,
+    border-color var(--ds-dur-fast) ease;
 }
 
 .ds-tool-icon {
@@ -515,8 +1205,13 @@
    -------------------------------------------------------------------------- */
 
 .ds-foot {
+  margin-block-start: clamp(var(--ds-space-6), 6vh, var(--ds-space-8));
   border-block-start: 1px solid var(--ds-rule-faint);
-  padding-block: var(--ds-space-6);
+  padding-block-start: var(--ds-space-5);
+}
+
+.ds-foot .ds-container {
+  width: 100%;
 }
 
 .ds-foot .ds-container {
@@ -558,6 +1253,11 @@
   .ds-route-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .ds-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ds-space-6);
+  }
 }
 
 @media (max-width: 960px) {
@@ -567,18 +1267,23 @@
 
   .ds-hero-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--ds-space-7);
+    gap: var(--ds-space-6);
   }
 
-  .ds-steps {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--ds-space-6);
+  /* art first would push the headline below the fold on a phone */
+  .ds-hero-art {
+    order: 2;
+  }
+
+  .ds-art-figure {
+    block-size: clamp(18rem, 46vh, 26rem);
   }
 }
 
 @media (max-width: 620px) {
   .ds-tool-grid,
-  .ds-route-grid {
+  .ds-route-grid,
+  .ds-steps {
     grid-template-columns: minmax(0, 1fr);
   }
 

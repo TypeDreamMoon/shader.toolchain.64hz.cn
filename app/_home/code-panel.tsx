@@ -2,16 +2,16 @@ import { CornerDownRight } from 'lucide-react';
 import { heroSample } from './copy';
 
 /**
- * The hero's source sample: a real, complete `.dsm` from the manual, tokenized
- * by hand so the panel needs no highlighter at runtime. Line numbers come from
- * a CSS counter, so nothing here is selectable noise when the reader copies it.
+ * The sample band's source: a complete `.dss` from the manual, tokenized by hand so
+ * the panel needs no highlighter at runtime. Line numbers come from a CSS counter, so
+ * nothing here is selectable noise when the reader copies it.
  */
 export function CodePanel({ file, result }: { file: string; result: string }) {
   return (
     <figure className="ds-code-panel">
       <figcaption className="ds-code-head">
         <span className="ds-code-file">{file}</span>
-        <span className="ds-code-lang">DreamShaderLang</span>
+        <span className="ds-code-lang">DreamShaderLang 2.0</span>
       </figcaption>
 
       <pre className="ds-code-body">

@@ -1,15 +1,19 @@
 import { localizedPath, type Locale } from '@/lib/i18n';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { HomeCopy } from './copy';
 import { HomeSection, SectionHead } from './section';
 
 export function DocsSection({
   copy,
   locale,
+  children,
 }: {
   copy: HomeCopy;
   locale: Locale;
+  /** The site foot. It rides in this band so the page ends on one screen. */
+  children?: ReactNode;
 }) {
   return (
     <HomeSection id="docs">
@@ -31,6 +35,8 @@ export function DocsSection({
           </Link>
         ))}
       </div>
+
+      {children}
     </HomeSection>
   );
 }
