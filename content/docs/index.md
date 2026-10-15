@@ -15,7 +15,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 | | |
 | :-- | :-- |
-| 版本 | `2.1.2` |
+| 版本 | `2.2.0` |
 | 引擎 | Unreal Engine `5.3` – `5.8`（Win64 已验证）；Custom Pass 需要 `5.8` |
 | 模块 | `DreamShaderLang` (Runtime)、`DreamShader` (Runtime)、`DreamShaderPass` (Runtime)、`DreamShaderCompiler` (Editor)、`DreamShaderEditor` (Editor) |
 | 源文件扩展名 | `.dsm` 材质 · `.dsf` 函数 · `.dsh` 头文件 · `.dss` 2.0 编译单元 · `.dsi` 材质实例 · `.dsp` Custom Pass 管线 |
@@ -72,7 +72,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 ### [Graph 语言](/docs/graph/overview) [#graph-languagegraphindexmd]
 
-`Graph = { ... }` 内部的语句和表达式语言，用于具现化材质节点。
+``Graph = { ... }`` 内部的语句和表达式语言，用于具现化材质节点。
 
 | | |
 | :-- | :-- |
@@ -152,14 +152,14 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 | | |
 | :-- | :-- |
-| [资产路径](/docs/generation/asset-paths) | `Name=` 和 `Root=` 到包路径与磁盘路径 |
+| [资产路径](/docs/generation/asset-paths) | ``Name=`` 和 ``Root=`` 到包路径与磁盘路径 |
 | [瞬时材质](/docs/generation/in-memory) | 薄实例、隐藏基础、烹饪行为 |
 | [缓存](/docs/plugin/generation/caching) | 源哈希与跳过的重建 |
 | [图表布局](/docs/plugin/generation/graph-layout) | 自动放置及其限制 |
 | [重新生成](/docs/generation/regeneration) | 重建后什么保留、什么不保留 |
 | [分歧](/docs/plugin/generation/divergence) | 手改过的资产：检测，以及三种出路 |
 | [NoGeneration](/docs/generation/no-generation) | 只有指名它们的那次编译才会构建的源文件 |
-| [生成的 HLSL](/docs/plugin/generation/generated-hlsl) | 生成的 `.ush` include |
+| [生成的 HLSL](/docs/plugin/generation/generated-hlsl) | 生成的 ``.ush`` include |
 
 ---
 
@@ -175,7 +175,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | [反编译器](/docs/tools/decompiler) | 把已有的材质、实例和 Custom Pass 管线导出为源文件 |
 | [VirtualFunction 工具](/docs/plugin/tools/virtual-function-tools) | 声明并同步已有的函数 |
 | [工作区与编辑器扩展](/docs/plugin/tools/workspace) | VSCode 工作区、VSCode 与 Rider 插件 |
-| [Package](/docs/tools/packages) | `DShader/Packages` 共享库 |
+| [Package](/docs/tools/packages) | ``DShader/Packages`` 共享库 |
 | [Commandlet](/docs/tools/commandlet) | 无头编译与反编译 |
 | [编辑器 bridge](/docs/plugin/tools/bridge) | 请求文件、WebSocket 协议、产物 |
 
@@ -183,14 +183,14 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 | | |
 | :-- | :-- |
-| [`DreamShaderModule.h`](/docs/plugin/api/dreamshader-module) | 模块、日志类别、导出的函数 |
-| [`DreamShaderTypes.h`](/docs/plugin/api/types) | 解析后的源数据模型 |
-| [`DreamShaderParser.h`](/docs/plugin/api/parser) | 2.0 中已退役 —— 取代 1.x 解析器入口点的是什么 |
-| [`DreamShaderSettings.h`](/docs/plugin/api/settings) | `UDreamShaderSettings` |
-| [`DreamShaderMaterialInstance.h`](/docs/plugin/api/material-instance) | 生成的实例类 |
-| [`DreamShaderVersionCompat.h`](/docs/plugin/api/version-compat) | 引擎版本宏 |
-| [`DreamShaderCompiler`](/docs/plugin/api/compiler-module) | 编译器接口与服务 |
-| [`DreamShaderPass`](/docs/plugin/api/pass-module) | Custom Pass：管线资产、设置、子系统、体积与组件 |
+| [``DreamShaderModule.h``](/docs/plugin/api/dreamshader-module) | 模块、日志类别、导出的函数 |
+| [``DreamShaderTypes.h``](/docs/plugin/api/types) | 解析后的源数据模型 |
+| [``DreamShaderParser.h``](/docs/plugin/api/parser) | 2.0 中已退役 —— 取代 1.x 解析器入口点的是什么 |
+| [``DreamShaderSettings.h``](/docs/plugin/api/settings) | ``UDreamShaderSettings`` |
+| [``DreamShaderMaterialInstance.h``](/docs/plugin/api/material-instance) | 生成的实例类 |
+| [``DreamShaderVersionCompat.h``](/docs/plugin/api/version-compat) | 引擎版本宏 |
+| [``DreamShaderCompiler``](/docs/plugin/api/compiler-module) | 编译器接口与服务 |
+| [``DreamShaderPass``](/docs/plugin/api/pass-module) | Custom Pass：管线资产、设置、子系统、体积与组件 |
 
 ---
 
@@ -199,7 +199,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | | |
 | :-- | :-- |
 | [诊断索引](/docs/diagnostics) | 每一个错误和警告，附原因与修复方法 |
-| [禁用诊断](/docs/language-v2/disable-diagnostics) | `disable_warning` / `disable_error`，针对一个文件或一行 |
+| [禁用诊断](/docs/language-v2/disable-diagnostics) | ``disable_warning`` / ``disable_error``，针对一个文件或一行 |
 | [示例](/docs/plugin/examples) | 完整、可直接复制粘贴的源文件 |
 | [贡献](/docs/plugin/contributing) | 构建插件 |
 | [测试](/docs/plugin/contributing/testing) | 自动化测试套件与固定样本集 |
@@ -216,4 +216,4 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | 文档站点 | <https://shader.toolchain.64hz.cn/> |
 | VSCode 扩展 | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider 插件 | <https://github.com/tsdaer/dreamshader-language-support> |
-| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/b5169970e3e8fb75199b1c0cef17d213ca3a3573/CHANGELOG.md) |
+| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/48860b88c3e9f543d817fafdccf8b979dae9a8ff/CHANGELOG.md) |

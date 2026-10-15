@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "4651e532446b5cb6aa1c402f2663ade39aed2b98ee4920cc5ca4478eabd9e0e9",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/api/lang-module.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/api/lang-module.md",
-  "translationHash": "259a524bea6da64f9ff744bf064f0718582a6b5bc35ce857411e99524b38f96b"
+  "translationHash": "47bb2ab9a16c62c56779372237681ea6ea474c0368f1901a67198f7aa18ddc72"
 }

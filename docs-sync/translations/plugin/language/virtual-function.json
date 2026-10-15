@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "686a5b63b8b03d937e7440418fa7e60c0eb1a6ea833cc0dcf09d07687401c98f",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/language/virtual-function.md",

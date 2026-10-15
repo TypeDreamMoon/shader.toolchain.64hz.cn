@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ccab6054dc486077d091589412cc710a31ce3144a5c8deeeb4acc793cf28c306",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/language/properties.md",

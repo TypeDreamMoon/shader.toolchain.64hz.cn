@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "8ef40ed62585e3b179f2ff37c72319951b6c5521ac2f449337e0d8eda9f68d20",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/generation/asset-paths.md",

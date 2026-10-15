@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "a1a8862100755cbac7520a36f2f839107cfcf4ec7d6b05ffb09dc309ccb3412b",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/tools/bridge.md",

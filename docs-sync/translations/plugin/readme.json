@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "e8832985219105d4e407ea4c4e9227f7458774e288b0f0608af0d73c57570031",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/README.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/readme.md",
-  "translationHash": "db026f2e6486463e5386c3090228cb58278e82641cd8fe7981f54924c0af2616"
+  "translationHash": "0078afefe9975211b5236769524c71606571da7e5c033dcc27f2d5391a55426f"
 }

@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "status": "current",
+  "sourceHash": "d3b8ded7101bcd9f5db6fc1e3216cea1b7300d06cf26296ecb935373d30d9e60",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/getting-started/workflow.md",
-      "sourceHash": "7d807d2fd061fb8d700b88e5e5173feb3f733372d9cb0e99e149650543f4b53b",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "759e10b9e8f8d56a42fa3b123f59c8d100350df3ce0a16d383690e300d89749e"
+      "sourceHash": "e7d135d1b8c61544f76d946da4ca7aaca36f91583012b8ff2c3631b931a1cf5c",
+      "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+      "translationHash": "ee12013804746200c1fee15af0b8900db2d75aecaabe8313db4cb858133bcf81"
     }
   ],
   "translationFile": "content/docs/start/workflow.md",
-  "translationHash": "8edfcb0f50f076fa3ad062a345fcf1774103dff23d28810b5bf3cf506d9ab883"
+  "translationHash": "1d57dd5a52d0ad70a1d67ade01cfc9eb5b06893fe1f64718c1c46fdc9f3fe66a"
 }

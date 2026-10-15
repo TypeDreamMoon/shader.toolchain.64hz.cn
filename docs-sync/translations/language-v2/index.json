@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "61cd843daf2c34a2c03bbf2a81fc062d594bd8b4c4350e103c243f4d763331cf",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/language-v2/index.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/language-v2/index.md",
-  "translationHash": "f3174c6b07414ecefdebc5b2cf29fdbc6d323ac56b6dd1af314cffad66849e20"
+  "translationHash": "c6d39fcdbf279bfc431d2467fb92bde0829d3458f667124e0883a9346052a205"
 }

@@ -32,7 +32,7 @@ description: "DreamShader 文档"
 | Custom Pass | [运行时](/docs/custom-pass)、[HLSL pass](/docs/plugin/pass-runtime/hlsl)、[管线语言](/docs/language-v2/passes) |
 | 诊断 | [错误与警告速查](/docs/diagnostics)、[当前限制](/docs/diagnostics/limitations) |
 | 开发 | [C++ API](/docs/plugin/api)、[参与贡献](/docs/plugin/contributing)、[测试](/docs/plugin/contributing/testing)、[发布](/docs/plugin/contributing/release) |
-| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/b5169970e3e8fb75199b1c0cef17d213ca3a3573/CHANGELOG.md) |
+| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/48860b88c3e9f543d817fafdccf8b979dae9a8ff/CHANGELOG.md) |
 
 [完整参考索引](/docs/)列出了各篇技术参考页。
 
@@ -44,6 +44,6 @@ description: "DreamShader 文档"
 
 发布时还会更新[版本说明页面](/docs/changelog/dreamshader)：它面向手册读者撰写——说明对他们而言有哪些变化，并链接到相关页面——并非 `CHANGELOG.md` 的副本，因此两者都不是由对方生成的。当 `CHANGELOG.md` 获得新版本时，更新其*当前版本*行并添加该版本的章节；提及当前版本的页面，例如[限制](/docs/diagnostics/limitations)，也在同一时间审阅。
 
-`zh-CN/` 目录树与英文源路径保持一致。导入的译文未经审阅；[首次迁移快照](https://github.com/TypeDreamMoon/DreamShader/blob/b5169970e3e8fb75199b1c0cef17d213ca3a3573/Docs/zh-CN/TRANSLATIONS.md)保留了原始的已导入和缺译清单。要了解当前状态，请运行 `python -B Docs/translation-status.py`，或查看网站仓库中的翻译状态 Issue。`.translations/` 记录源文件版本，但不将导入视为批准。仅网站使用的说明保留在网站仓库中。
+`zh-CN/` 目录树与英文源路径保持一致。导入的译文未经审阅；[首次迁移快照](https://github.com/TypeDreamMoon/DreamShader/blob/48860b88c3e9f543d817fafdccf8b979dae9a8ff/Docs/zh-CN/TRANSLATIONS.md)保留了原始的已导入和缺译清单。要了解当前状态，请运行 `python -B Docs/translation-status.py`，或查看网站仓库中的翻译状态 Issue。`.translations/` 记录源文件版本，但不将导入视为批准。仅网站使用的说明保留在网站仓库中。
 
 在本地用 `python -B Docs/translation-status.py` 检查翻译状态；添加 `--all` 可包含全部源文件，或添加 `--json` 输出结构化结果。此只读工具无需网站仓库或 Git 检出。

@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "07204c8c8b487056cc5e6f24b3d517ef199a5509a4534df0be0118f97d32fa77",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/tools/material-browser.md",

@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "status": "current",
+  "sourceHash": "ad868dac3d8c814fda49e50880b008e576425d9d91a23b2914ab56e13b22c577",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/contributing/release.md",
-      "sourceHash": "28d3af9ff6a6dcf18ba1ef7fa0f11b3fcdc923c594c764502ced3c890af5cba2",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "37b811ebda9197283cd6f0759167d9660710360f521c9c13788adc7b3f4f3112"
+      "sourceHash": "4b4068f285fac09a26857cd19cb4b64eb2efb428216b70e247d35404193a25dc",
+      "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+      "translationHash": "a330d6e37406002bcff5ffa248c1d09473872232a45d4d852f1f1b63c7f98e31"
     }
   ],
   "translationFile": "content/docs/plugin/contributing/release.md",
-  "translationHash": "46b36f53ee04bd7f06619f3a00062ea15434d79c59ffea942ff9703aebf81e78"
+  "translationHash": "accde0844e32e099ce84a77be370e69ff78411c626f1ae3a3484189d0d01b979"
 }

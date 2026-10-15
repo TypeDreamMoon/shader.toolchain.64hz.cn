@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "c3bf725edad4e6ffaa78a3ddb8be9f5f269a846484fa825b8d0d4ad51243e8df",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
   "sources": [
     {
       "path": "Docs/tools/vscode.md",
