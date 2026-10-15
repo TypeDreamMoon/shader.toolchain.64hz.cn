@@ -379,6 +379,19 @@ class DocsSyncTests(unittest.TestCase):
         self.settings['extra_body']={'model':'other'}
         with self.assertRaisesRegex(ValueError,'may not replace model'): docs.ai_request({},self.settings,Opener())
 
+    def test_unusable_answer_is_busy_not_a_crash(self):
+        def opener(body=None, error=None):
+            class Opener:
+                def open(inner, request, timeout):
+                    if error: raise error
+                    return io.BytesIO(body)
+            return Opener()
+        for case in (opener(json.dumps({'error': {'type': 'server_busy', 'message': 'x'}}).encode()),
+                     opener(b'{}'), opener(b''), opener(b'{"choices": []}'), opener(error=TimeoutError())):
+            with self.assertRaises(docs.ProviderBusy) as caught: docs.ai_request({}, self.settings, case)
+        with self.assertRaisesRegex(docs.ProviderBusy, 'server_busy'):
+            docs.ai_request({}, self.settings, opener(json.dumps({'error': {'type': 'server_busy'}}).encode()))
+
     def test_http_status_tells_busy_from_refused(self):
         def opener(code, headers=None):
             class Opener:

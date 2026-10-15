@@ -761,7 +761,14 @@ def ai_request(prompt, settings, opener=None):
             raise ProviderBusy(message, wait) from None
         raise ValueError(message) from None
     except urllib.error.URLError:
-        raise ValueError("Translation API connection failed; check BaseURL and network") from None
+        raise ProviderBusy("Translation API connection failed; check BaseURL and network") from None
+    except (TimeoutError, ConnectionError, json.JSONDecodeError):
+        # A provider under load answers late, hangs up or sends half a body: worth asking again.
+        raise ProviderBusy("Translation API timed out or sent no complete answer") from None
+    if not isinstance(data, dict) or (api_format == "chat-completions" and not data.get("choices")):
+        # An error object with HTTP 200; its type names the cause and carries no secret.
+        kind = (data.get("error") or {}).get("type") if isinstance(data, dict) and isinstance(data.get("error"), dict) else None
+        raise ProviderBusy(f"Translation API returned no choices{f' ({kind})' if kind else ''}")
     if api_format == "chat-completions":
         choice = data["choices"][0]
         if choice.get("finish_reason") != "stop" or choice["message"].get("refusal"):
