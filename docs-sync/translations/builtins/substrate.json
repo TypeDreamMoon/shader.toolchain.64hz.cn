@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "fe79865d2900c2509ca2b60abdc7cca7e8250dbf184ffecc9fd4e0547dd98a39",
-  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
+  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
   "sources": [
     {
       "path": "Docs/builtins/substrate.md",

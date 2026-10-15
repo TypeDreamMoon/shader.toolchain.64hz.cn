@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "d7494e83d7a7a7860ca9f98c680fc62d9ebc15c9d6a96cbd30eed4e4c33d2bd7",
-  "sourceRevision": "48860b88c3e9f543d817fafdccf8b979dae9a8ff",
+  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
   "sources": [
     {
       "path": "Docs/tools/asset-rename-sync.md",

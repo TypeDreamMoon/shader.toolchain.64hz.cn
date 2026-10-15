@@ -54,7 +54,7 @@ UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
 
 ## 命令 [#commands]
 
-所有命令都接受可选的 `-AssetWritesManifest=<unused-json-path>` 以及 `-AssetWritesRunId=<run-id>`。它们将本次命令行工具执行的成功 `.uasset` 保存记录（包括绝对文件名和 MD5 内容指纹）记录在一个带版本号的 JSON 清单中。输出路径不能已存在；若无法写入请求的清单，则以 `1` 退出。[PowerShell 驱动程序](https://github.com/TypeDreamMoon/DreamShader/blob/48860b88c3e9f543d817fafdccf8b979dae9a8ff/.skill/README.md) 使用这一来源记录和运行前快照来实现 `-CleanNew`，保留无关资产以及在记录的保存之后被修改的文件。清单不授权删除预先存在的资产，也不授权删除驱动程序 Content 根目录之外的文件。
+所有命令都接受可选的 `-AssetWritesManifest=<unused-json-path>` 以及 `-AssetWritesRunId=<run-id>`。它们将本次命令行工具执行的成功 `.uasset` 保存记录（包括绝对文件名和 MD5 内容指纹）记录在一个带版本号的 JSON 清单中。输出路径不能已存在；若无法写入请求的清单，则以 `1` 退出。[PowerShell 驱动程序](https://github.com/TypeDreamMoon/DreamShader/blob/d804ba9be050e438547a9002c6a6bafea1497aba/.skill/README.md) 使用这一来源记录和运行前快照来实现 `-CleanNew`，保留无关资产以及在记录的保存之后被修改的文件。清单不授权删除预先存在的资产，也不授权删除驱动程序 Content 根目录之外的文件。
 
 命令名是第一个**裸**（非 `-`）参数。如果没有裸参数，则改为查询 `Command=<name>` 参数。匹配不区分大小写；首尾空白会被修剪。
 

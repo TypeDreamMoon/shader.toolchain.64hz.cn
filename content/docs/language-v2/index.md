@@ -337,7 +337,7 @@ Description），否则就是函数名。
 
 要覆盖新的构造，往语料库树里放一个 `.dss`（外加一个可选的 `.expected.json`）——
 不需要 C++，不需要重新编译。基准格式记录在
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/48860b88c3e9f543d817fafdccf8b979dae9a8ff/Tests/Corpus/README.md) 中。
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/d804ba9be050e438547a9002c6a6bafea1497aba/Tests/Corpus/README.md) 中。
 
 ## 另见 [#see-also]
 
