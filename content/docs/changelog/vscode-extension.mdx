@@ -14,6 +14,21 @@ description: DreamShaderLang VSCode 扩展的版本更新记录，取自扩展�
 [DreamShader 插件](/docs/changelog/dreamshader)。
 </Callout>
 
+## 2.2.0 - 2026-10-14
+
+配合 2.1.2 之后的 DreamShader；2.1.0 起的功能在旧插件上照常可用。
+
+- **没编译过的文件里，`#include` 和 `BL::` 也能补全。** `.dss` 以前只靠插件编译后写出的符号索引回答。现在 `#include "` 会列出
+  include 解析器找得到的头文件，`BL::` 列出该命名空间的函数，裸词列出 include 闭包里的命名空间和普通函数；悬停、转到定义和
+  签名提示也照样回答。头文件按文本读取，1.x 和 2.0 都行；索引能回答的地方仍以索引为先。
+- **1.x 源文件里的 `BL::` 只列该命名空间的函数**，不再把能看到的内置函数和 `UE.` 节点全列出来。1.x 源文件 include 了 2.0 写的
+  头文件时，也能看到其中的函数。
+- **用 2.0 写的 `.dsh` 以 DreamShader 2.0 打开。** 只有 2.0 声明、没有 1.x 块的头文件打开时自动切换语言；混写的仍按 1.x。
+- **插件新增的文件级写法。** `#pragma generate(...)`、`#pragma nogeneration`、`#pragma disable_warning(...)`、
+  `#pragma disable_error(...)` 能补全、悬停、着色，`/// @generate`、`/// @nogeneration`、`// disable_warning DSHnnnn` 也一样；
+  屏蔽列表会补全文件当前报出的诊断码，扩展自己发现的诊断也遵守它。1.x 里这三个 pragma 可以写在顶层，
+  `Function(Generate = ...)`、`NoGeneration`、`Library`、`Description` 在各自的头部能补全。
+
 ## 2.1.0 - 2026-10-04
 
 ### Custom Pass 管线：`.dsp`

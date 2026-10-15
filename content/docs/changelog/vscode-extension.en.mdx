@@ -15,6 +15,25 @@ The extension ships on its own cadence and its version numbers are unrelated to 
 the Unreal plugin see [DreamShader Plugin](/en/docs/changelog/dreamshader).
 </Callout>
 
+## 2.2.0 - 2026-10-14
+
+For DreamShader after 2.1.2; everything from 2.1.0 keeps working with older plugins.
+
+- **`#include` and `BL::` complete in a file that has never been compiled.** A `.dss` was answered only from the
+  symbol index the plugin writes after a compile. Now `#include "` offers the headers the include resolver finds,
+  `BL::` the functions of that namespace, and a bare word the namespaces and plain functions of the include closure;
+  hover, Go to Definition and signature help answer for them too. The headers are read as text, 1.x and 2.0 alike;
+  where the index answers, it still comes first.
+- **`BL::` in a 1.x source offers that namespace's functions only**, instead of every intrinsic and `UE.` node in
+  reach. A 1.x source that includes a header written in 2.0 sees its functions as well.
+- **A `.dsh` written in 2.0 opens as DreamShader 2.0.** A header with 2.0 declarations and no 1.x block switches
+  language when it opens; a mixed one stays 1.x.
+- **The plugin's new file-level forms.** `#pragma generate(...)`, `#pragma nogeneration`,
+  `#pragma disable_warning(...)` and `#pragma disable_error(...)` complete, hover and are coloured, as are
+  `/// @generate`, `/// @nogeneration` and `// disable_warning DSHnnnn`; a disable list completes the codes the file
+  reports now, and the diagnostics the extension finds on its own honour it. In 1.x the three pragmas are accepted at
+  the top level, and `Function(Generate = ...)`, `NoGeneration`, `Library` and `Description` complete in their headers.
+
 ## 2.1.0 - 2026-10-04
 
 ### Custom Pass pipelines: `.dsp`
