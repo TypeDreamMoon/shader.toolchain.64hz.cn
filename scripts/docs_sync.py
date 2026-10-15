@@ -10,6 +10,7 @@ import collections
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import html
+import http.client
 import json
 import os
 from pathlib import Path
@@ -762,7 +763,9 @@ def ai_request(prompt, settings, opener=None):
         raise ValueError(message) from None
     except urllib.error.URLError:
         raise ProviderBusy("Translation API connection failed; check BaseURL and network") from None
-    except (TimeoutError, ConnectionError, json.JSONDecodeError):
+    except (OSError, http.client.HTTPException, json.JSONDecodeError):
+        # Includes IncompleteRead: under load DeepSeek keeps a request open with blank lines,
+        # then closes it mid-body.
         # A provider under load answers late, hangs up or sends half a body: worth asking again.
         raise ProviderBusy("Translation API timed out or sent no complete answer") from None
     if not isinstance(data, dict) or (api_format == "chat-completions" and not data.get("choices")):

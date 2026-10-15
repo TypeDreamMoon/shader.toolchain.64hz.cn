@@ -387,7 +387,8 @@ class DocsSyncTests(unittest.TestCase):
                     return io.BytesIO(body)
             return Opener()
         for case in (opener(json.dumps({'error': {'type': 'server_busy', 'message': 'x'}}).encode()),
-                     opener(b'{}'), opener(b''), opener(b'{"choices": []}'), opener(error=TimeoutError())):
+                     opener(b'{}'), opener(b''), opener(b'{"choices": []}'), opener(error=TimeoutError()),
+                     opener(error=docs.http.client.IncompleteRead(b'\n\n'))):
             with self.assertRaises(docs.ProviderBusy) as caught: docs.ai_request({}, self.settings, case)
         with self.assertRaisesRegex(docs.ProviderBusy, 'server_busy'):
             docs.ai_request({}, self.settings, opener(json.dumps({'error': {'type': 'server_busy'}}).encode()))
