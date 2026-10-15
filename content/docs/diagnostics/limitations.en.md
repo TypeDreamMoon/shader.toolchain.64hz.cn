@@ -5,7 +5,7 @@ description: "What DreamShader 2.1.2 does not do — the language boundaries of 
 
 DreamShaderLang covers the material-authoring patterns that are worth keeping as reviewable text. It is not a
 replacement for the Unreal Material Editor and it is not a shader compiler. This page is an honest list of where the
-edges are in **2.1.2**, so you find them here rather than three hours into a shader.
+edges are in **2.2.0**, so you find them here rather than three hours into a shader.
 
 Each section links the page that covers the topic in depth. The detail is not repeated below.
 

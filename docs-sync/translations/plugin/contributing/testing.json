@@ -2,7 +2,7 @@
   "version": 2,
   "status": "current",
   "sourceHash": "2e2f98c705bc5a575c6e50400929648a97d8173b197b3e0655bd2600d6e867d7",
-  "sourceRevision": "8bd41da94a076dda0ba993a8381f8bbd43c61734",
+  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
   "sources": [
     {
       "path": "Docs/contributing/testing.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/contributing/testing.md",
-  "translationHash": "ca810ced74dca6a622f05d321a8a2a56fdb90c5695224faa2af6ad287c53748b"
+  "translationHash": "bebdf9389539b826a9f0be9ba25bd2b498d8c0b5bda58f2f9cb13b41eff3eda9"
 }

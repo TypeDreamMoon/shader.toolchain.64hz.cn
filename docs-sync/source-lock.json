@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "8bd41da94a076dda0ba993a8381f8bbd43c61734",
+  "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
   "workingTree": false,
   "translationSnapshotHash": "fc53aad89cea3aa4707a355d558e0024b871055fda0093e44d03da4e6a9acdbf",
   "pages": {
@@ -116,21 +116,21 @@
       }
     },
     "changelog/dreamshader": {
-      "hash": "0fae58ec2a36d9642000e97eb5517322179724d0fc8624b063e5aee817fe8303",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "f709920dda34c147edd93efcb6de7f758e00bd0f8c73eab5f50a077e5edcf8c0",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/changelog/dreamshader.en.md",
-      "outputHash": "4def60b7a9f7234abd7b7df8fa80a3a66901cc4f8f9c70beae5db228d0fe0a56",
+      "outputHash": "c4c29c4a951bd39aee4d7ed2656dd9545c25c39f5b9fb1523003bff1db5e467b",
       "locale": "en",
       "format": "md",
       "title": "DreamShader Plugin",
       "sources": [
         {
           "path": "Docs/changelog/dreamshader.md",
-          "hash": "458193538e5a2d1bd1c9347b3e4a83f6819fcf771136e3866d892cd6c1016fd3"
+          "hash": "6d22eafeffa11e88e9f8c579a5643ec07ed78b963bae46fee9b230b53c6e81db"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/changelog/dreamshader.md",
         "record": "docs-sync/translations/changelog/dreamshader.json",
         "outputHash": "a8399784a9324a43845bac17a30ef4e40e326e342c3dcf3f8ee6bd656389aed0",
@@ -204,21 +204,21 @@
       }
     },
     "diagnostics/limitations": {
-      "hash": "d31d762ab712ea5757291131af74f7ce0fcc9204f72988054900c6cbfe11c44d",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "65a1d97a54f9c527a8418845d61c2b2a2779a15500d7561fc44792b5bd50dce9",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/diagnostics/limitations.en.md",
-      "outputHash": "690d7f66d5d7c22fc54ff8aa049e11f245b7f4cac045603c57b53432ffd7f3e3",
+      "outputHash": "6eb7c4473e265e4fce2ea00280096ab697a8495669e262482c47bec4130c027a",
       "locale": "en",
       "format": "md",
       "title": "Limitations",
       "sources": [
         {
           "path": "Docs/diagnostics/limitations.md",
-          "hash": "5dba5e80c107edbd1eb27c531a669b6afa241a6ad245898ea9e253ecddea12bf"
+          "hash": "63d19813ffb536951602dfe027e3d892c8437262dc5635280bb2cb024567d4f2"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/diagnostics/limitations.md",
         "record": "docs-sync/translations/diagnostics/limitations.json",
         "outputHash": "3215f671e2c31c4e596e6c5c5c75a23004c034717985ee0d9190ed9ec408cfa2",
@@ -578,25 +578,25 @@
       }
     },
     "index": {
-      "hash": "85c96d13c8ce3f302cb1964ba8f4acb9199926e37aa3d7d28e9a0bdf07d05d3f",
-      "revision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+      "hash": "dfc5e4a67b8b6b453e6bcb330d1dcab687f536ef83d7d632ef5737c5f14e7f3b",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/index.en.md",
-      "outputHash": "e87e17994dcdf0de1f0730b12e4f7ce0b8e5a3515b682950fcf35c8456d57894",
+      "outputHash": "a0fa7ab89f86731b9772a48ae50df4badcde0d9f2542a6b072a71863a4ed02c8",
       "locale": "en",
       "format": "md",
       "title": "Overview",
       "sources": [
         {
           "path": "Docs/index.md",
-          "hash": "58faa98eaf79fadfebec407e8fffff1672ae0a330b977c09375331f24f3ebb03"
+          "hash": "6da8e60baa203c5e0920be2900ee6dd56fb6e25f1aebdec01abbecb49cf8f801"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/index.md",
         "record": "docs-sync/translations/index.json",
-        "outputHash": "02e0d8eb9b8ca8a3c12a01ae9c0c00d730eedf121ac76675a3a689142d8254f8",
-        "bodyHash": "3de4b77a84d06ad65530c9de48623082c194bf4230424d2c510ab75c2dd0cfec"
+        "outputHash": "4ef759469e91c0e1973dac9e843197db93366b291fc01a93cfce9e15260cf26b",
+        "bodyHash": "9be7556de00fcf12b8c1f2fe6d61c57c3528a9a1936c75753f6087b42a123b9c"
       }
     },
     "language/blocks": {
@@ -815,8 +815,8 @@
         "status": "current",
         "output": "content/docs/language-v2/index.md",
         "record": "docs-sync/translations/language-v2/index.json",
-        "outputHash": "e8d6116b690f425b2c9b1c483c5ac20e52da4ab9a8ae798f08bff177a1238837",
-        "bodyHash": "50469520dd6feed72052c85f4ce2f529e1d5693fda8c509e6dbc3f1239f474e4"
+        "outputHash": "f3174c6b07414ecefdebc5b2cf29fdbc6d323ac56b6dd1af314cffad66849e20",
+        "bodyHash": "8fd8db642377d21ab4ac905c4d871fd928f0991ff28e008c1ba5105bd6e8322c"
       }
     },
     "language-v2/instances": {
@@ -1062,21 +1062,21 @@
       }
     },
     "start/about": {
-      "hash": "153ecced0601cff79b0b7af0c3860ecdca81468d3909108a6606970307dd1229",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "64e401e512f3bbab0cdd61b77e2d589fcbeec62663521a944f2ef690b1d3d222",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/start/about.en.md",
-      "outputHash": "5ebb798387c884e2a2e695451a0850ee730eb3b59ad6ec8362576e983593c403",
+      "outputHash": "0ce67740f48d20906da6a03793d9611ee9e1bd80744c37657c59559bb68d53a7",
       "locale": "en",
       "format": "md",
       "title": "About DreamShader",
       "sources": [
         {
           "path": "Docs/getting-started/about.md",
-          "hash": "2cd40140ea1188c803a9ac51142b8383cd8a56f23ed5c1fe9beb1387d09cd8a4"
+          "hash": "6b504e3aea08299f1fa64d924ca686474abc2148c3d982aa6b5f1fdd54d12ebc"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/start/about.md",
         "record": "docs-sync/translations/start/about.json",
         "outputHash": "61d9e4e372f1fe861a5fc5deb979eebd9d6154c5c9d53ca4fcc9b98b4fb14e99",
@@ -1106,21 +1106,21 @@
       }
     },
     "start/installation": {
-      "hash": "c232444a4170f507598ecd52f262196b1b28077218c33c24619afeebec44ae1d",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "7368b912e22bddca17eb140d2bfa3e90b7fec207f89398aabbd0a3c8fa9fbfad",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/start/installation.en.md",
-      "outputHash": "b6c340a412a35d44b79eb4b390ea919c1617ca538da62c7196f5bd8153ab2d1d",
+      "outputHash": "eb6f595bd01cc36f8aa47e3a9984f6a3dfa3f7df3cc3823b84c89baf55515f97",
       "locale": "en",
       "format": "md",
       "title": "Installation",
       "sources": [
         {
           "path": "Docs/getting-started/installation.md",
-          "hash": "f87ded1b12afda6ac06680f87f29febc58624c654bca064d9651ca69b162fcb2"
+          "hash": "3abc35e3d03a23b567f5cd7312dd2141e07a679dcbbc7d51ae09e9aaa037ca9f"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/start/installation.md",
         "record": "docs-sync/translations/start/installation.json",
         "outputHash": "f62ab10c2a7d7b59e733cf5bfcc18c48aaa3a5412a2143c69534963067f4c066",
@@ -1150,21 +1150,21 @@
       }
     },
     "start/workflow": {
-      "hash": "5c2b92f17451192de6fd36a5ea7c6c071ce759b02415c8f63d6d15b1bd06b8bd",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "d3b8ded7101bcd9f5db6fc1e3216cea1b7300d06cf26296ecb935373d30d9e60",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/start/workflow.en.md",
-      "outputHash": "c737effad83d8f70bec98bd29338eafc9815c60de39e79ee6ed9906b8cf35cd9",
+      "outputHash": "5695bc1acc9efadcbcdf2b70850965253c36c0c86a372944cc9edb58661d738b",
       "locale": "en",
       "format": "md",
       "title": "Daily Workflow",
       "sources": [
         {
           "path": "Docs/getting-started/workflow.md",
-          "hash": "b3c084f528224893e4b6e62247e97c81d2e5078cea75e52369c9dd2b0d8988ea"
+          "hash": "6d703c7a451bddeb54f819677f6d40d457354c4768c0a3f53ce536e9d7836fb5"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/start/workflow.md",
         "record": "docs-sync/translations/start/workflow.json",
         "outputHash": "8edfcb0f50f076fa3ad062a345fcf1774103dff23d28810b5bf3cf506d9ab883",
@@ -1189,8 +1189,8 @@
         "status": "current",
         "output": "content/docs/tools/commandlet.md",
         "record": "docs-sync/translations/tools/commandlet.json",
-        "outputHash": "863f2c302f8b23d88162e6911c5ae113559a52403914bf55c83f4c62b7ceacb3",
-        "bodyHash": "4319e3b6fbfd1476c7a92500400f08489295c93de03e2e4007bb8a9d72052346"
+        "outputHash": "09570181a530fc719423e8adbc589a9cb74bcaa42539dfa79730fd0739eacdb8",
+        "bodyHash": "b1205d403d743a47bfee279709b14b3d0e1cdc921f308a19027ebe49b0dd6fb8"
       }
     },
     "tools/decompiler": {
@@ -1326,21 +1326,21 @@
       }
     },
     "plugin/api/index": {
-      "hash": "596eff1f7327b660023acb9bc5d8eefba4304aa58e427effc6dc11014d0a6ebd",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "e7b204acb0b6a7716e761e9339f51643d92baaacd884daf04bd7faaf9a5a9116",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/plugin/api/index.en.md",
-      "outputHash": "2feef02f6302c85806125381588e076541a519c7d7ca1f654e83270fa912fe4b",
+      "outputHash": "a8ef787fa1132f628b3b9621214e035a47fcf4ff17005ac9d1ed83ba408e3d39",
       "locale": "en",
       "format": "md",
       "title": "C++ API",
       "sources": [
         {
           "path": "Docs/api/index.md",
-          "hash": "113c24718e54610e7e3548c1e61f311de85be11cc31055def29a35220e630828"
+          "hash": "5534cb1fcb49e272de4c284e405e95f2e51ec00bb6c7b5ee3497aa5832ff0ac9"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/plugin/api/index.md",
         "record": "docs-sync/translations/plugin/api/index.json",
         "outputHash": "04e9b92d1400096dbc7f0a6722c120f31434547394b7a4b01855766f5f916e5d",
@@ -1365,8 +1365,8 @@
         "status": "current",
         "output": "content/docs/plugin/api/lang-module.md",
         "record": "docs-sync/translations/plugin/api/lang-module.json",
-        "outputHash": "0aaaeb5b9ede3879a91fb3ed86b0bd7d9061f04e1e8e3a940dfea924426ec26c",
-        "bodyHash": "71a8042dbc6d42fb925e02ab0cf5aead13a9991b7b8acf2c9a6a5db46f31d29b"
+        "outputHash": "259a524bea6da64f9ff744bf064f0718582a6b5bc35ce857411e99524b38f96b",
+        "bodyHash": "5682e7e91824a6e1948c1e349ccb20b3a8126eae95bac32f4e9e02f76af0728c"
       }
     },
     "plugin/api/material-instance": {
@@ -1568,21 +1568,21 @@
       }
     },
     "plugin/contributing/index": {
-      "hash": "6648117b9956753e28e5f0d772fd5a9dd6d72d443fd5c94f5649d89185e2945b",
-      "revision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+      "hash": "1d987d74dd5540cfe01d74c6d2d2a64d741cda05e4026c358c585aef3cdb73c7",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/plugin/contributing/index.en.md",
-      "outputHash": "9bed0dbef657ff2546aaa940cf6b93d604608c88d6b4db5ab5d09ea8d5813182",
+      "outputHash": "306f0521fdc07b75b8037493b3e2203b056af470909b9f118766be00d7c5ee2f",
       "locale": "en",
       "format": "md",
       "title": "Contributing",
       "sources": [
         {
           "path": "Docs/contributing/index.md",
-          "hash": "8ef90b9ee0df3ae2aa9525b5d20ac33b04fedababa9424ca954925abd4b02db6"
+          "hash": "74420ee0572d113b4570c86d94123de8eaf8eef6523b6362e30fd23a3c9581d3"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/plugin/contributing/index.md",
         "record": "docs-sync/translations/plugin/contributing/index.json",
         "outputHash": "28707d40e31e429b5109b67a65a9da3538f9a6cc2995d356f5914d4c9f46cf19",
@@ -1590,21 +1590,21 @@
       }
     },
     "plugin/contributing/release": {
-      "hash": "6779b5c15fcf593034e605eb7b28cc00a29ec720bfbbef42787785834cd8f068",
-      "revision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+      "hash": "ad868dac3d8c814fda49e50880b008e576425d9d91a23b2914ab56e13b22c577",
+      "revision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
       "output": "content/docs/plugin/contributing/release.en.md",
-      "outputHash": "c476c6a9122d6688739609b406fbf8de10b1ac7f10a070d2942ef92c2ef7ec72",
+      "outputHash": "8e43cd6f1b09d37a076928fd7d247609a96763f9012b463c83ad2668bc044999",
       "locale": "en",
       "format": "md",
       "title": "Release",
       "sources": [
         {
           "path": "Docs/contributing/release.md",
-          "hash": "28d3af9ff6a6dcf18ba1ef7fa0f11b3fcdc923c594c764502ced3c890af5cba2"
+          "hash": "4b4068f285fac09a26857cd19cb4b64eb2efb428216b70e247d35404193a25dc"
         }
       ],
       "translation": {
-        "status": "current",
+        "status": "outdated",
         "output": "content/docs/plugin/contributing/release.md",
         "record": "docs-sync/translations/plugin/contributing/release.json",
         "outputHash": "46b36f53ee04bd7f06619f3a00062ea15434d79c59ffea942ff9703aebf81e78",
@@ -1629,8 +1629,8 @@
         "status": "current",
         "output": "content/docs/plugin/contributing/testing.md",
         "record": "docs-sync/translations/plugin/contributing/testing.json",
-        "outputHash": "ca810ced74dca6a622f05d321a8a2a56fdb90c5695224faa2af6ad287c53748b",
-        "bodyHash": "754cdb39926f8d0a086287f1462881081453f69ded84b626419f0186c1f05096"
+        "outputHash": "bebdf9389539b826a9f0be9ba25bd2b498d8c0b5bda58f2f9cb13b41eff3eda9",
+        "bodyHash": "b79b29d2246d0d7e95b3ccbef9c3f69dfbaf4c704f578afb59ea9d13c6457c8b"
       }
     },
     "plugin/diagnostics/dsh1xxx": {
@@ -2575,8 +2575,8 @@
         "status": "current",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "d0967786b93b8e6fea6cbbcd9d5f779a2c6c01789f6419cdc45fe22e5e72b8cd",
-        "bodyHash": "7f977cd6e5ae85e7099791f7d45acfa8d41a91922e8b4325d109a6e1d75f5163"
+        "outputHash": "db026f2e6486463e5386c3090228cb58278e82641cd8fe7981f54924c0af2616",
+        "bodyHash": "1f10884dde0df5198ffd2aac4167fc9c981defe189976ea693b27bacd601b33e"
       }
     },
     "plugin/pass-runtime/hlsl": {

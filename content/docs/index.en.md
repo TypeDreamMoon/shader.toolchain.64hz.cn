@@ -16,7 +16,7 @@ regenerated.
 
 | | |
 | :-- | :-- |
-| Version | `2.1.2` |
+| Version | `2.2.0` |
 | Engines | Unreal Engine `5.3` – `5.8` (Win64 verified); Custom Pass needs `5.8` |
 | Modules | `DreamShaderLang` (Runtime), `DreamShader` (Runtime), `DreamShaderPass` (Runtime), `DreamShaderCompiler` (Editor), `DreamShaderEditor` (Editor) |
 | Source extensions | `.dsm` material · `.dsf` function · `.dsh` header · `.dss` 2.0 compilation unit · `.dsi` material instance · `.dsp` Custom Pass pipeline |
@@ -217,4 +217,4 @@ screen-space effects, compute shaders writing data textures.
 | Documentation site | <https://shader.toolchain.64hz.cn/> |
 | VSCode extension | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider plugin | <https://github.com/tsdaer/dreamshader-language-support> |
-| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/CHANGELOG.md) |
+| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/b5169970e3e8fb75199b1c0cef17d213ca3a3573/CHANGELOG.md) |
