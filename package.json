@@ -10,11 +10,9 @@
     "deploy:sftp": "npm run build && node upload.js",
     "run": "next build",
     "typecheck": "fumadocs-mdx && tsc --noEmit",
-    "docs:sync": "python -B scripts/docs_sync.py sync",
-    "docs:status": "python -B scripts/docs_sync.py status",
-    "docs:translate": "python -B scripts/docs_sync.py translate",
-    "docs:validate": "python -B scripts/docs_sync.py validate",
-    "docs:test": "python -B -m unittest discover -s scripts -p test_docs*.py"
+    "docs:sync": "python -B -m dreamdocs site sync",
+    "docs:status": "python -B -m dreamdocs site status",
+    "docs:validate": "python -B -m dreamdocs site validate"
   },
   "dependencies": {
     "@orama/orama": "^3.1.18",

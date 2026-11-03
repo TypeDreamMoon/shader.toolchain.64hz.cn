@@ -43,9 +43,16 @@ jobs:
         with:
           ref: ${{ inputs.site_ref || github.sha }}
 
-      - name: Test documentation sync
-        if: inputs.artifact == ''
-        run: python3 -B -m unittest discover -s scripts -p 'test_docs*.py'
+      - name: Read the dreamdocs version this site uses
+        id: tool
+        run: python3 -c "import json; print('version=' + json.load(open('docs-sync/config.json'))['tool'])" >> "$GITHUB_OUTPUT"
+      - name: Checkout dreamdocs
+        uses: actions/checkout@v5
+        with:
+          repository: TypeDreamMoon/dreamdocs
+          ref: v${{ steps.tool.outputs.version }}
+          path: .dreamdocs
+          persist-credentials: false
 
       - name: Test deploy helper
         if: inputs.artifact == ''
@@ -75,7 +82,9 @@ jobs:
         run: python3 -B scripts/check-links.py
 
       - name: Verify documentation state
-        run: python3 -B scripts/docs_sync.py validate
+        env:
+          PYTHONPATH: .dreamdocs
+        run: python3 -B -m dreamdocs site validate
 
       - name: Download the validated sync build
         if: inputs.artifact != ''
