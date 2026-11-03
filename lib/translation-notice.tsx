@@ -5,7 +5,7 @@ import sourceLock from '@/docs-sync/source-lock.json';
 
 type SourcePage = {
   hash: string; revision: string; locale: string; sources: { path: string }[];
-  translation?: { status: 'current' | 'unreviewed' | 'outdated' | 'missing' };
+  translation?: { status: 'current' | 'unreviewed' | 'outdated' | 'missing'; pending?: number };
 };
 
 /** Evaluated during the static build, including on a reviewed translation PR. */
@@ -27,8 +27,10 @@ export function TranslationNotice({ locale, slug }: { locale: string; slug?: str
     : `https://github.com/${sourceLock.repository}/blob/${page.revision}/${page.sources[0].path}`;
   return (
     <Callout type="warn" title={status === 'outdated' ? '原文已更新' : '本页待核对'}>
-      {status === 'outdated' ? '本页中文尚未跟进最新原文。' : '本页中文尚未与当前插件文档完成核对。'}
-      {' '}<a href={original}>查看原文</a>。翻译更新经插件仓库审阅合并后发布。
+      {status === 'outdated'
+        ? (page.translation?.pending ? `本页有 ${page.translation.pending} 段中文尚未跟进最新原文。` : '本页中文尚未跟进最新原文。')
+        : '本页中文尚未与当前插件文档完成核对。'}
+      {' '}<a href={original}>查看原文</a>。中文在插件仓库更新、合并后发布。
     </Callout>
   );
 }
