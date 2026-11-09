@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ab809743e037bc7b8eea0fe348c083bb8f94c5812c7e55bcdaed07a040fbe481",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/language/inputs-outputs.md",
-      "sourceHash": "e3d590fb58303c065326eb4e61dfcf4b7753bcf51ef22543f715327d1bfbcbba",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "2c4f5be0eae037c05382eeef78ba18c1a0b99b5d039cbea6aebcb726af1f58fb"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "e3d590fb5830",
+      "translationHash": "9309756fb302e2a5dbdb40dd7641171f6066a1565c62bae1be503dccdd9c4f6f"
     }
   ],
   "translationFile": "content/docs/plugin/language/inputs-outputs.md",
-  "translationHash": "e79e7a83ce86da117b7d3cf2dc41c86595a50318d0e7e5953ae78144a82ebc57"
+  "translationHash": "2963e464ddad8fc83c8e0b00e2715b7be0eab0135faf7996dc08352620919586"
 }

@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "cc66615ce3f689dd31bba06a0a5dff725353be08d7bb5bf2fd9a4e66a8253fd4",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/language/shader-layer.md",
-      "sourceHash": "cd2c698a99587d740aa158853ddad015daaaaaca894870e2bbecbcb8359d26a3",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "c910e014d5228281b055c2eba6ad4e677e8bfcc367b77fe359e5f24c4b0d8bfb"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "cd2c698a9958",
+      "translationHash": "f1dc1538c1f1c77ebd8fbf268a36f77ece66947ff68eb4f663daa47a24cc3d58"
     }
   ],
   "translationFile": "content/docs/plugin/language/shader-layer.md",
-  "translationHash": "086865736fce1664fe8338f868647aa5c8482837aaab24718e09efb973156a5c"
+  "translationHash": "f349934e4260400c6f9909238796da6e0b47cc11efd414c45961ec6121b8fc75"
 }

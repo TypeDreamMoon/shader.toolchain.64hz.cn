@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "f3dd7be15dcc255ad70462c80f3d8b4ea56056fe07b28de90d614b2df0211184",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/language-v2/substrate.md",
-      "sourceHash": "6e1c367697cf90b5708337236ed0ef807991741769330fc0cc39d770e6f2dce8",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "16787cbd5151904c54936870323083b1f7e05b66bdfe9373b76bc3023a76b525"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "6e1c367697cf",
+      "translationHash": "6ba5a4a4f36cf6b8a78d068af3ceecf67c8b6b98778b5c3405758e78a4ea22ce"
     }
   ],
   "translationFile": "content/docs/language-v2/substrate.md",
-  "translationHash": "d6e055eff28ee69327281577a7fbe7852df21394b3f8966ef034bab899bee86f"
+  "translationHash": "a743d33e36bb166ca828e2ba588351c82b861cb8a1db2a12cf8e69fe211e57ce"
 }

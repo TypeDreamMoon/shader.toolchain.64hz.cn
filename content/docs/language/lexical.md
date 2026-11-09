@@ -32,10 +32,7 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 
 ## 空白 [#whitespace]
 
-空格、制表符、垂直制表符、换页、回车和换行分隔 token *(自 2.0.0 起：只认 ASCII；其他 Unicode 空白，比如不换行空格，是
-[`DSH2101`](/docs/plugin/diagnostics/dsh2xxx#dsh2101))*。换行在语法里没有作用，只有
-[预处理器](/docs/plugin/language/preprocessor)指令、`Graph` 体内的 `#Region` 指令
-（[Layout](/docs/language/layout)）和诊断的行号关心它。
+空格、制表符、垂直制表符、换页、回车和换行分隔 token *(自 2.0.0 起：只认 ASCII；其他 Unicode 空白，比如不换行空格，是 [`DSH2101`](/docs/plugin/diagnostics/dsh2xxx#dsh2101))*。换行在语法里没有作用，只有[预处理器](/docs/plugin/language/preprocessor)指令、`Graph` 体内的 `#Region` 指令（[Layout](/docs/language/layout)）和诊断的行号关心它。
 
 *(自 2.0.0 起)* 任意空白都能在任何 section 里分隔两个单词：类型和名字之间写制表符和写空格一样。
 
@@ -47,8 +44,7 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 | `/* … */` | 块注释；在第一个 `*/` 处结束 |
 
 - **块注释不嵌套。** `/* a /* b */ c */` 在第一个 `*/` 处结束；后面的 `c */` 又变回代码。
-- **未闭合的块注释是错误** *(自 2.0.0 起)*：
-  [`DSH2102`](/docs/plugin/diagnostics/dsh2xxx#dsh2102)，报在开头的 `/*` 处。1.x 会接受它并吞掉文件剩余部分。
+- **未闭合的块注释是错误** *(自 2.0.0 起)*： [`DSH2102`](/docs/plugin/diagnostics/dsh2xxx#dsh2102)，报在开头的 `/*` 处。1.x 会接受它并吞掉文件剩余部分。
 - 注释在每个位置都被同样识别，包括 `Graph` 体内，统计花括号、圆括号和方括号时也是，所以注释里的花括号或引号永远不会让块失衡。
 - **注释能藏住 `import`** *(自 2.0.0 起)*：`import` 是一个 token，所以写在 `/* … */` 里的就是被注释掉了。见 [`import`](/docs/language/imports#recognition)。**它藏不住预处理指令**：`#if` 一族是在理解注释之前按行扫描出来的，所以写在 `/* … */` 里的 `#if` 仍然是指令。首个非空白字符是 `//` 的行则一定不是。见 [预处理器](/docs/plugin/language/preprocessor#recognition)。
 
@@ -100,17 +96,13 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 | `default` 调用参数哨兵 | **是** —— 只认小写 *（自 2.0.0 起）* | [调用](/docs/graph/calls) |
 | `.dsm` / `.dsf` / `.dsh` 扩展名 | 否 | [源文件](/docs/language/file-model) |
 
-所以 `shader(Name="X")` 和 `SHADER(Name="X")` 都是语法错误
-（[`DSH2240`](/docs/plugin/diagnostics/dsh2xxx#dsh2240)），而 `properties = { … }`、
-`settings { domain = "ui"; }` 和 `Shader(name="X")` 都能被接受。
+所以 `shader(Name="X")` 和 `SHADER(Name="X")` 都是语法错误（[`DSH2240`](/docs/plugin/diagnostics/dsh2xxx#dsh2240)），而 `properties = { … }`、 `settings { domain = "ui"; }` 和 `Shader(name="X")` 都能被接受。
 
-关键字是整个单词：`ShaderFunction` 是它自己的标识符，永远不会被读成 `Shader` 后面跟
-别的东西，`ShaderLayerBlend` 也永远不会被读成 `ShaderLayer`。
+关键字是整个单词：`ShaderFunction` 是它自己的标识符，永远不会被读成 `Shader` 后面跟别的东西，`ShaderLayerBlend` 也永远不会被读成 `ShaderLayer`。
 
 ## 字符串字面量 [#string-literals]
 
-字符串以 `"` 开始，到同一行里下一个未转义的 `"` 结束，由词法器完成
-反转义。
+字符串以 `"` 开始，到同一行里下一个未转义的 `"` 结束，由词法器完成反转义。
 
 | 转义 | 产生 |
 | :-- | :-- |
@@ -122,25 +114,19 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 | `\0` | 什么都不产生 —— 字符串不能含 NUL |
 | `\<any other character>` | [`DSH2104`](/docs/plugin/diagnostics/dsh2xxx#dsh2104) *（自 2.0.0 起；1.x 会丢掉反斜杠）* |
 
-- *（自 2.0.0 起）* 字符串永远不跨行：闭合 `"` 之前遇到换行就结束，未闭合的字符串是
-  [`DSH2103`](/docs/plugin/diagnostics/dsh2xxx#dsh2103)，在 section 里和在 `Graph` 体里都一样。
-  1.x 允许字符串跨行，并且 `Graph` 体里未闭合的字符串会在输入末尾被静默闭合。
-- 在 1.x 文件和 `.dsh` 里，同一行里的一对 `'` 也是字符串，没有转义 —— 也就是
-  Content Browser 引用的外壳 `Texture2D'/Game/T.T'`。孤零零的 `'` 是 `DSH2101`。
+- *（自 2.0.0 起）* 字符串永远不跨行：闭合 `"` 之前遇到换行就结束，未闭合的字符串是 [`DSH2103`](/docs/plugin/diagnostics/dsh2xxx#dsh2103)，在 section 里和在 `Graph` 体里都一样。 1.x 允许字符串跨行，并且 `Graph` 体里未闭合的字符串会在输入末尾被静默闭合。
+- 在 1.x 文件和 `.dsh` 里，同一行里的一对 `'` 也是字符串，没有转义 —— 也就是 Content Browser 引用的外壳 `Texture2D'/Game/T.T'`。孤零零的 `'` 是 `DSH2101`。
 
-任何可以写引号的地方 —— settings 值、元数据值、属性值、参数值 —— **引号都是可选的**：`Domain = UI;` 和
-`Domain = "UI";` 等价。带引号的值就是字符串的文本，不带引号的值是它那些 token 的文本。
+任何可以写引号的地方 —— settings 值、元数据值、属性值、参数值 —— **引号都是可选的**：`Domain = UI;` 和 `Domain = "UI";` 等价。带引号的值就是字符串的文本，不带引号的值是它那些 token 的文本。
 
 > [!NOTE]
-> 带引号的 `Settings` 或 `Options` 值不会被去空白：`Domain = " UI ";` 存下来的是带空格的
-> `` UI ``。
+> 带引号的 `Settings` 或 `Options` 值不会被去空白：`Domain = " UI ";` 存下来的是带空格的 `` UI ``。
 
 ## 数字字面量 [#numeric-literals]
 
 ### 声明语法 [#declaration-grammar]
 
-*（自 2.0.0 起）* 数字在任何地方都是 token，按 [下面](#graph-expression-grammar)的规则切分；
-然后由 section 按消费者的要求读取这个 token 的文本：
+*（自 2.0.0 起）* 数字在任何地方都是 token，按 [下面](#graph-expression-grammar)的规则切分；然后由 section 按消费者的要求读取这个 token 的文本：
 
 | 消费者 | 接受什么 |
 | :-- | :-- |
@@ -149,9 +135,7 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 | 布尔默认值 | 恰好 `true` 或 `false`，大小写不限 |
 | 向量默认值 | `<anything>( <part> [, <part>]… )` —— 见下 |
 
-不被接受的写法：默认值是 [`DSH3254`](/docs/plugin/diagnostics/dsh3xxx#dsh3254)，
-`SortPriority` 是 [`DSH3258`](/docs/plugin/diagnostics/dsh3xxx#dsh3258)，
-`Layout` 坐标是 [`DSH3275`](/docs/plugin/diagnostics/dsh3xxx#dsh3275)。
+不被接受的写法：默认值是 [`DSH3254`](/docs/plugin/diagnostics/dsh3xxx#dsh3254)， `SortPriority` 是 [`DSH3258`](/docs/plugin/diagnostics/dsh3xxx#dsh3258)， `Layout` 坐标是 [`DSH3275`](/docs/plugin/diagnostics/dsh3xxx#dsh3275)。
 
 | 写法 | 读作 | 诊断 |
 | :-- | :-- | :-- |
@@ -162,11 +146,7 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 | `float Strength = 0x1F;` | — | `DSH3254` |
 | `float Strength = 1e3;` | `1000.0` | 无 *（2.0.0 – 2.1.0：`DSH3254`）* |
 
-向量字面量的形式和 1.x 一样故意写得很松。第一个 `(` 和**最后一个** `)` 界定
-分量，而 **`(` 之前的文本被完全忽略** —— `float3(1,0,0)`、`vec3(1,0,0)`、
-`(1,0,0)` 和 `Nonsense(1,0,0)` 解析结果完全一样。内部按 `,` 切分且
-不跟踪嵌套，所以某个分量里再嵌一层调用就会切错。每个分量可以是数字（可带指数和结尾的 `f`），也可以是
-`true` / `false`。
+向量字面量的形式和 1.x 一样故意写得很松。第一个 `(` 和**最后一个** `)` 界定分量，而 **`(` 之前的文本被完全忽略** —— `float3(1,0,0)`、`vec3(1,0,0)`、 `(1,0,0)` 和 `Nonsense(1,0,0)` 解析结果完全一样。内部按 `,` 切分且不跟踪嵌套，所以某个分量里再嵌一层调用就会切错。每个分量可以是数字（可带指数和结尾的 `f`），也可以是 `true` / `false`。
 
 | 分量个数 | 结果 |
 | :-- | :-- |
@@ -190,9 +170,7 @@ DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏�
 
 后缀是 token 文本的一部分，所以 `0.55f` 就是数字 `0.55`。
 
-*(自 2.0.0 起)* 2.0 语法的每个运算符都是 token：`%`、`<`、`!`、`&&`、`?`、`[`、`]` 不再
-终止 `Graph` 表达式并丢掉后半截。1.x 的 `Graph` 没有的东西会被点名拒绝 —— [`DSH2200`](/docs/plugin/diagnostics/dsh2xxx#dsh2200) 到 `DSH2222`。见
-[不支持的写法](/docs/graph/unsupported)。
+*(自 2.0.0 起)* 2.0 语法的每个运算符都是 token：`%`、`<`、`!`、`&&`、`?`、`[`、`]` 不再终止 `Graph` 表达式并丢掉后半截。1.x 的 `Graph` 没有的东西会被点名拒绝 —— [`DSH2200`](/docs/plugin/diagnostics/dsh2xxx#dsh2200) 到 `DSH2222`。见[不支持的写法](/docs/graph/unsupported)。
 
 ## 语句切分 [#statement-separation]
 
@@ -202,11 +180,9 @@ section 的内容是一串以 `;` 分隔的语句，逐个 token 读取 *(自 2.
 - 空语句被跳过，所以多余的 `;;` 无害。
 - section 闭合 `}` 之前最后一条语句的 `;` 是可选的。
 - section 闭合 `}` 之后的 `;` 是可选的，section 名和它的块之间的 `=` 也是可选的 *(自 1.5.0 起)*。
-- 一个值 —— 默认值、设置、绑定源、参数 —— 一直延续到括号之外结束它的 `;`、`,` 或 `)`，所以不带引号的属性值
-  可以含圆括号和逗号：`Asset = Path(Game, "MaterialFunctions/F_X")` 是一个值。
+- 一个值 —— 默认值、设置、绑定源、参数 —— 一直延续到括号之外结束它的 `;`、`,` 或 `)`，所以不带引号的属性值可以含圆括号和逗号：`Asset = Path(Game, "MaterialFunctions/F_X")` 是一个值。
 
-*(自 2.0.0 起)* 1.x 用三种不同的切分器切语句，其中两种找的是字面空格，所以在 `Inputs`、`Outputs`、`Results` 和 `Shader` 的 `Outputs` 里写 `float3\tColor;` 会失败，
-而且 `opt\tfloat X` 不会把输入标成可选。现在两者都能正常工作。
+*(自 2.0.0 起)* 1.x 用三种不同的切分器切语句，其中两种找的是字面空格，所以在 `Inputs`、`Outputs`、`Results` 和 `Shader` 的 `Outputs` 里写 `float3\tColor;` 会失败，而且 `opt\tfloat X` 不会把输入标成可选。现在两者都能正常工作。
 
 ## 诊断 [#diagnostics]
 
@@ -222,10 +198,7 @@ section 的内容是一串以 `;` 分隔的语句，逐个 token 读取 *(自 2.
 | [`DSH2150`](/docs/plugin/diagnostics/dsh2xxx#dsh2150) | 文件在一个块、section 或列表中间结束 |
 | `DSH3254`、`DSH3258`、`DSH3275` | 一个默认值、排序优先级或布局坐标不是所需类型的数字 |
 
-每条诊断都带它所指构造的文件、行和列，并打印成
-`<file>(<line>,<column>): DSHnnnn: <message>` *(自 2.0.0 起)*；只有少数关于整个文件的诊断，
-比如无法解析的 import，报在第 1 行。1.x 只有以
-`near index {Index}` 结尾的消息才带位置。见 [`import`](/docs/language/imports#source-line-mapping)。
+每条诊断都带它所指构造的文件、行和列，并打印成 `<file>(<line>,<column>): DSHnnnn: <message>` *(自 2.0.0 起)*；只有少数关于整个文件的诊断，比如无法解析的 import，报在第 1 行。1.x 只有以 `near index {Index}` 结尾的消息才带位置。见 [`import`](/docs/language/imports#source-line-mapping)。
 
 ## 示例 [#example]
 

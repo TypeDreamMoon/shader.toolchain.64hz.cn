@@ -120,8 +120,7 @@ Settings key
 | [`DSH2245`](/docs/plugin/diagnostics/dsh2xxx#dsh2245) | `Shader` 内部的节名称、函数块或该块不具备的 `VirtualFunction` |
 | [`DSH2246`](/docs/plugin/diagnostics/dsh2xxx#dsh2246) | `Shader` 或函数块中的 `Code` 节，该块采用 `Graph` |
 
-在*应用*设置时引发的诊断列于 [着色器设置](/docs/settings/material#diagnostics)、
-[后端](/docs/settings/backend#diagnostics) 和 [函数设置](/docs/plugin/settings/function#diagnostics)。
+在*应用*设置时引发的诊断列于 [着色器设置](/docs/settings/material#diagnostics)、[后端](/docs/settings/backend#diagnostics) 和 [函数设置](/docs/plugin/settings/function#diagnostics)。
 
 ## 示例 [#example]
 

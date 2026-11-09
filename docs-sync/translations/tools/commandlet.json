@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "10fd04ea5cd6c7b846f704647a0cd37e7be9d1a44a2702b60f5857cf60be0fcb",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
   "sources": [
     {
       "path": "Docs/tools/commandlet.md",
-      "sourceHash": "f5dfe46052ed0d7c90f0c00c76564702759277870838b59bca20b37218f753b8",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "6bb18ee723c06915047402ecb6323c57717ad7990f0e47fbe688e5aed9737b7c"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "f5dfe46052ed",
+      "translationHash": "a54b60ed3a5656b9bdcaacc5f231a04819e10e0054b27835bcd86ad26d608914"
     }
   ],
   "translationFile": "content/docs/tools/commandlet.md",
-  "translationHash": "3b45f3db091e436faa66da736c241fd6bd4cd71a51be6095724aa8ef9c0aeeaf"
+  "translationHash": "a100c5584219ac181d5ac8eea669b000e9d1c56d5a52c59a8625b56c4eb0ab6a"
 }

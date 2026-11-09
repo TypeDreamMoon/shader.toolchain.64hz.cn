@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "68ca0f53b6d4a2495f5468fe4379479c020430244a2532c2a7a38e7954a314a2",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/tools/migrate.md",
-      "sourceHash": "f37c03b24ee1bf4542f3054f8be5d855fb02282cac90de5157c6ba75fef046c7",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "2ca62bee6dbfb035f0846d3b7eb69b579bbf9bfe4cd400b9210f614bb0a61df6"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "f37c03b24ee1",
+      "translationHash": "71fbe64753d2f0f59d136db82b7a3d90184a86d167f162e015817ae615b54883"
     }
   ],
   "translationFile": "content/docs/language-v2/migrate.md",
-  "translationHash": "cab20fd63fc99982a676e1f73f710849007a2e707ddcd8ef1577b631b4597ea6"
+  "translationHash": "c7e14cf7697d74aa218d6720b1b761bc9d8c7a59fce3368f095a65f6a7610a48"
 }

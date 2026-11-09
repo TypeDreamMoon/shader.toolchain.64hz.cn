@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "d3ff0342e813e9855cbfae6b307379f980e07d1e970352900a595d1e4e4d6bb3",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/language/graph-function.md",
-      "sourceHash": "8968441e561f21f051d9e98f43dc9a66b0efbb97c24d5ec2d3dd50c5a22e7d81",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "c968a2964b35556ed430aa452da84ea5dda51b5ea3f8036d8dafdb1896f16a05"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "8968441e561f",
+      "translationHash": "3942efabebdb794779eef6810957fe627e459198cd599ff8b5f81f9386de38c2"
     }
   ],
   "translationFile": "content/docs/plugin/language/graph-function.md",
-  "translationHash": "5f667ffd57c0d514207e4b78cd090be88f34b61197088dbbb75183e1cabb62d5"
+  "translationHash": "436ee4ecd8e4fbf899eef189aa39c5b46064525fc7dac0c90a882bd4cc62a08d"
 }

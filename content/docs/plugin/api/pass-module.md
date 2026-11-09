@@ -141,13 +141,7 @@ Subsystem->UnregisterSource(Owner);
 
 ## `UDreamPassPipeline` [#udreampasspipeline]
 
-编译后的管线。其字段与 `.dsp`——`Order`、`DefaultInjection`、`Views`、`Requires`、
-`EnabledParameter`、`Parameters`、`Buffers`、`Passes`（导出的渲染目标）——相对应，而 `SourceFilePath` 和
-`SourceHash` 则说明是哪个源构建了它。要编辑 `.dsp`，而不是资产：编译会覆盖它，而在
-细节面板中进行的编辑是一种[分歧](/docs/plugin/generation/divergence)，需要采纳或丢弃。在
-`.dsp` 中编写的通道 HLSL 仅保存在编辑器的数据中——通道上的 `HlslSource` 说明其代码位于何处，`InlineHlsl` 和
-`InlineHlslLine` 保存其自身的 `hlsl` 块，而管线的 `SharedHlsl` 则保存该文件的——这是回到文本的方式：
-实际运行的是槽位的快照，而 cook 不携带任何 HLSL 文本。
+编译后的管线。其字段与 `.dsp`——`Order`、`DefaultInjection`、`Views`、`Requires`、 `EnabledParameter`、`Parameters`、`Buffers`、`Passes`（导出的渲染目标）——相对应，而 `SourceFilePath` 和 `SourceHash` 则说明是哪个源构建了它。要编辑 `.dsp`，而不是资产：编译会覆盖它，而在细节面板中进行的编辑是一种[分歧](/docs/plugin/generation/divergence)，需要采纳或丢弃。在 `.dsp` 中编写的通道 HLSL 仅保存在编辑器的数据中——通道上的 `HlslSource` 说明其代码位于何处，`InlineHlsl` 和 `InlineHlslLine` 保存其自身的 `hlsl` 块，而管线的 `SharedHlsl` 则保存该文件的——这是回到文本的方式：实际运行的是槽位的快照，而 cook 不携带任何 HLSL 文本。
 
 | 成员 | |
 | :-- | :-- |
@@ -164,11 +158,9 @@ Subsystem->UnregisterSource(Owner);
 | `GetUserShaderVirtualDirectory()` | `/DreamPassUser` |
 | `GetRegistryFilePath(bCompute)` | `RegistryCompute.ush` 或其中的 `RegistryPixel.ush` |
 | `GetSlotDirectory(bCompute, Slot)` · `GetSlotVirtualDirectory` | `Slots/C07`、`Slots/P07`：某个槽位的快照 |
-| `GetComputeSlotCount()` · `GetPixelSlotCount()` | `DREAMSHADER_PASS_COMPUTE_SLOTS`（32）、`DREAMSHADER_PASS_PIXEL_SLOTS`（16） |
+| `GetComputeSlotCount()` · `GetPixelSlotCount()` | `DREAMSHADER_PASS_COMPUTE_SLOTS` (32), `DREAMSHADER_PASS_PIXEL_SLOTS` (16) |
 
-这些计数可以从 `Target.cs`（`GlobalDefinitions.Add("DREAMSHADER_PASS_COMPUTE_SLOTS=48")`）覆盖；
-提高其中一个会重新编译两个全局着色器类型，仅此而已。注册表的编写方式参见
-[HLSL 通道](/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)。
+这些计数可以从 `Target.cs`（`GlobalDefinitions.Add("DREAMSHADER_PASS_COMPUTE_SLOTS=48")`）覆盖；提高其中一个会重新编译两个全局着色器类型，仅此而已。注册表的编写方式参见 [HLSL 通道](/docs/plugin/pass-runtime/hlsl#how-the-hlsl-gets-into-the-engine)。
 
 ## 另请参阅 [#see-also]
 

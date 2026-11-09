@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "835fcd5678a70c1498c0de853a6c6c5774fd72f6bda35c977217fd54762e5e6f",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/material-attributes.md",
-      "sourceHash": "a0da99332b99423154aa08b6e839b3dd732400f187738c6d3e75053cf395303f",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "e16c6971f486ba371aac4ba94f55cfdd7581a7b2fcba5d79f4f62de16535b36a"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "a0da99332b99",
+      "translationHash": "06d8957c5085fa1580e1684b1f8325d01b7e3e03fa4f9fb47b0c244bacff020d"
     }
   ],
   "translationFile": "content/docs/plugin/graph/material-attributes.md",
-  "translationHash": "d4a03a62e53fc5c69bb0c634c4f12e4fe9ee06e3ce1cff6bc1d8586dd3d88b31"
+  "translationHash": "ed3e75e61f7a7210edcbadde38e7a7a5c798f4c2f2ac7a144919dae8e6906c08"
 }

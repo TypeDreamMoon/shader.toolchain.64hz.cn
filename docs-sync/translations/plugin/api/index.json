@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "e7b204acb0b6a7716e761e9339f51643d92baaacd884daf04bd7faaf9a5a9116",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
   "sources": [
     {
       "path": "Docs/api/index.md",
-      "sourceHash": "5534cb1fcb49e272de4c284e405e95f2e51ec00bb6c7b5ee3497aa5832ff0ac9",
-      "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
-      "translationHash": "4ca0f2f59c3ee91d5471957b08d1c630d2bf583220fc2811e228644de5dcc350"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "5534cb1fcb49",
+      "translationHash": "d4bbb6b2cef41520e7783553ca75b23a5e0b5f755f49558502e9fb03d6db144b"
     }
   ],
   "translationFile": "content/docs/plugin/api/index.md",
-  "translationHash": "c849e85eb8579bce4dee93091302f1ae1260b66d5888914974d53c16fdc14e35"
+  "translationHash": "113347196bb5038d9daf4e9c7eae4ced90e3542fda2c199e30365a09ef87badf"
 }

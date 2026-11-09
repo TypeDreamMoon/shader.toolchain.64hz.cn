@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "f709920dda34c147edd93efcb6de7f758e00bd0f8c73eab5f50a077e5edcf8c0",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
   "sources": [
     {
       "path": "Docs/changelog/dreamshader.md",
-      "sourceHash": "e69b8f9952de3e868366319e7285de00fb08168a2d27e75e8ba1cb83ae33679e",
-      "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
-      "translationHash": "6ce4e5a60a4ffc72c074d75856cb325aad5875d830e4441a2ace4963f2827347"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "e69b8f9952de",
+      "translationHash": "9d3fc8cbe0c58cceeb38c3e4886b07265dde3a9d912c00a0f13e812f13f679d0"
     }
   ],
   "translationFile": "content/docs/changelog/dreamshader.md",
-  "translationHash": "1a85cc756fe870cd40a14d8900c8987d81a66c34ede402c64d11fdb928908a4b"
+  "translationHash": "e57a881004c18d2e6baa688eb1cf502594a56aced7cd1187f274ab24439473dc"
 }

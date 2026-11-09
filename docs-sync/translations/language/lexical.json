@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "8129b312f4dde0499ca3e5ec492ad351cd4d3b13d2d8114ed703c7437c6fb14f",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/language/lexical.md",
-      "sourceHash": "574e87a192e210ea64edeec70f72c9099e2fc89ceead60744695496a4bab23d7",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "abbf02ac66a3609df22fd8ac942c587a813aae005753a31d4c1d49b8292cdbf7"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "574e87a192e2",
+      "translationHash": "2c30837ab3c7992c2736c7148912d47c1c3567ffea2e99cbe0b2374a7e341179"
     }
   ],
   "translationFile": "content/docs/language/lexical.md",
-  "translationHash": "a6d321fa11a7495bade72cacdcb4637722f1c2530cc34192e727c95ba75307c9"
+  "translationHash": "df0920ed1b90ea8efd9263371c7c87da3d52aa61545c43cc0076fb78e05a043a"
 }

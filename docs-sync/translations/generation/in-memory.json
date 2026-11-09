@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "status": "current",
-  "sourceHash": "e594c6613195db6edc9da9429a7454b7b71eb4f7412bd65f27645d6ebb7aadec",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "status": "outdated",
+  "sourceHash": null,
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/generation/ephemeral.md",
-      "sourceHash": "d15ab5f88badc105efa04274171967b16a88b7aff840aa79fe3999cf5ee75a11",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+      "alignedRevision": "8a7a159022d8",
+      "alignedPage": "d15ab5f88bad",
       "translationHash": "e03ce521fdeb0f538d3ba0a7bbca6b3dfad7c23ce1818beb4f57b6fc8db7adf7"
     }
   ],

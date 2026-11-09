@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "7368b912e22bddca17eb140d2bfa3e90b7fec207f89398aabbd0a3c8fa9fbfad",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
   "sources": [
     {
       "path": "Docs/getting-started/installation.md",
-      "sourceHash": "ddfda8b0960fd1978fc68610e1f93b9a3e5243c6fabd9fadd2d540b7e288a903",
-      "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
-      "translationHash": "e3b35f4fce9a323ea681410c614f7bf815040570bc01f05ca9c9e94311ef4fd4"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "ddfda8b0960f",
+      "translationHash": "b8544fff8accec9302b158e299cdc0ab41612434e9923e8ae8ff7c97fd68d9b9"
     }
   ],
   "translationFile": "content/docs/start/installation.md",
-  "translationHash": "7a47b699539a48cff766f1593147499d9ea24e963a10ac2d81801477f669b027"
+  "translationHash": "6cbb5cc5adfb34254f677381bddbd31cab4eeaab68a5b960096596747d985c6c"
 }

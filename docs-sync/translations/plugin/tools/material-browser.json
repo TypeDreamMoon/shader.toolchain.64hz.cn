@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "07204c8c8b487056cc5e6f24b3d517ef199a5509a4534df0be0118f97d32fa77",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
   "sources": [
     {
       "path": "Docs/tools/material-browser.md",
-      "sourceHash": "83701381ac5c68254e2f4f625ca6b1ee7be237add2e33ca4b72f0aea687fe840",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "914fc3d6df1023f2234ada43f6f0fb4b4f75faf9dd04e17126291d4374a3ac87"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "83701381ac5c",
+      "translationHash": "f1be9a59e2f276e411cf77fd49bb756bb6c519166b635d552b66a688dfd12d8a"
     }
   ],
   "translationFile": "content/docs/plugin/tools/material-browser.md",
-  "translationHash": "30f1410b5ccd15944acf8438a238ac0426fe24b2a72fe1331eebb9d40482e63f"
+  "translationHash": "61f54bc7a800aa6d0f0f6e40fc13a80f59cafc79ac970d5763ac97449e888951"
 }

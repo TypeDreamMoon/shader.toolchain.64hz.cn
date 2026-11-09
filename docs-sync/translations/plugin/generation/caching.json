@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "81ab0b209c9c26c8c35208d1aade2d8dc50c166a2c0d5a034cc8bc34e2950d50",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
   "sources": [
     {
       "path": "Docs/generation/caching.md",
-      "sourceHash": "9de64ab43ce8153249ba2dc340a6bccc9596676f6fd0a0250215b8f3fb5eb7fb",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "ba75a521173c5ffea25fbd02ad66dd71c85ae2041fe3bbc882323c5f0f27e9fe"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "9de64ab43ce8",
+      "translationHash": "cae2a66ed47234d3af3019cb6f2c49c35e9c33cdfe4a2047ad4f6f917e1a5816"
     }
   ],
   "translationFile": "content/docs/plugin/generation/caching.md",
-  "translationHash": "850daf9601fea7ebdc2b47edec70cfdaf98e44abc7019184984337f95432dc05"
+  "translationHash": "f60dc615184d3a04c86823b0233ba059921bfaa14e8aa5a1fb4458a0129db9c5"
 }

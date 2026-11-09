@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "8a5ad46f08362e9c70fca5e3af1d3c64269b2e38f10a9bd4d6c235629f64bef2",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/getting-started/first-material.md",
-      "sourceHash": "4cc632ea12b7914a9c597ebf27dbe92f9d0e1da9cdbe3efa4a8c291bd4473967",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "18f0834a10397eedb0e79d5807d9087425a312339e186f02e0003360b6a3c74d"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "4cc632ea12b7",
+      "translationHash": "c2b2ebef7c66d3d3ae283eb0335690a722847969bf4dd779939aa2c321854890"
     }
   ],
   "translationFile": "content/docs/start/first-material.md",
-  "translationHash": "a211b5b4b78881aac732c4965062fdc50c9da0df3758da38861aa7d216b49526"
+  "translationHash": "c498d14397598c875ae563ce326a2703ce7529ece6f6b1dc46ebafe1c2730c53"
 }

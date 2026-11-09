@@ -7,11 +7,7 @@ description: "DreamShader 参考"
 
 如需教程和面向任务的阅读，请从[文档概览](/docs/plugin/readme)开始。
 
-DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，以及在 2.0 系列上的
-`.dss`——编译为标准 Unreal Engine 材质资产：`UMaterial`、`UMaterialFunction`、
-`UMaterialFunctionMaterialLayer` 和 `UMaterialFunctionMaterialLayerBlend`——并且在 Unreal Engine 5.8 上，将
-`.dsp` [Custom Pass](#custom-pass) 管线编译为 `UDreamPassPipeline` 资产，从而添加你自己的渲染 pass。
-源文件是创作表面；资产是构建产物，随时可以重新生成。
+DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，以及在 2.0 系列上的 `.dss`——编译为标准 Unreal Engine 材质资产：`UMaterial`、`UMaterialFunction`、 `UMaterialFunctionMaterialLayer` 和 `UMaterialFunctionMaterialLayerBlend`——并且在 Unreal Engine 5.8 上，将 `.dsp` [Custom Pass](#custom-pass) 管线编译为 `UDreamPassPipeline` 资产，从而添加你自己的渲染 pass。源文件是创作表面；资产是构建产物，随时可以重新生成。
 
 | | |
 | :-- | :-- |
@@ -29,10 +25,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 ## DreamShaderLang [#dreamshaderlang]
 
 > [!NOTE]
-> 两套语法，一个编译器。下面记录的 **1.x** 语法（`.dsm` / `.dsf` / `.dsh`）是
-> 已发布的语法。**2.0** 语法——`.dss`，用声明代替 Section 块的 HLSL——
-> 在 `2.0` 系列上通过新的 binder/IR/emitter 管线编译，并有自己的页面：
-> **[DreamShaderLang 2.0](/docs/language-v2)**。
+> 两套语法，一个编译器。下面记录的 **1.x** 语法（`.dsm` / `.dsf` / `.dsh`）是已发布的语法。**2.0** 语法——`.dss`，用声明代替 Section 块的 HLSL—— 在 `2.0` 系列上通过新的 binder/IR/emitter 管线编译，并有自己的页面： **[DreamShaderLang 2.0](/docs/language-v2)**。
 
 ### [语言参考](/docs/plugin/language) [#language-referencelanguageindexmd]
 
@@ -122,8 +115,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 
 ## Custom Pass [#custom-pass]
 
-在 Unreal Engine 5.8 上添加你自己的渲染 pass，无需修改引擎：遮罩和自定义缓冲区、
-屏幕空间效果、写入数据纹理的 compute shader。
+在 Unreal Engine 5.8 上添加你自己的渲染 pass，无需修改引擎：遮罩和自定义缓冲区、屏幕空间效果、写入数据纹理的 compute shader。
 
 | | |
 | :-- | :-- |
@@ -186,7 +178,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | [``DreamShaderModule.h``](/docs/plugin/api/dreamshader-module) | 模块、日志类别、导出的函数 |
 | [``DreamShaderTypes.h``](/docs/plugin/api/types) | 解析后的源数据模型 |
 | [``DreamShaderParser.h``](/docs/plugin/api/parser) | 2.0 中已退役 —— 取代 1.x 解析器入口点的是什么 |
-| [``DreamShaderSettings.h``](/docs/plugin/api/settings) | ``UDreamShaderSettings`` |
+| [`DreamShaderSettings.h`](/docs/plugin/api/settings) | `UDreamShaderSettings` |
 | [``DreamShaderMaterialInstance.h``](/docs/plugin/api/material-instance) | 生成的实例类 |
 | [``DreamShaderVersionCompat.h``](/docs/plugin/api/version-compat) | 引擎版本宏 |
 | [``DreamShaderCompiler``](/docs/plugin/api/compiler-module) | 编译器接口与服务 |
@@ -216,4 +208,4 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | 文档站点 | <https://shader.toolchain.64hz.cn/> |
 | VSCode 扩展 | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider 插件 | <https://github.com/tsdaer/dreamshader-language-support> |
-| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/d804ba9be050e438547a9002c6a6bafea1497aba/CHANGELOG.md) |
+| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/1663752907365c04fdd53e58ff6159932d092d27/CHANGELOG.md) |

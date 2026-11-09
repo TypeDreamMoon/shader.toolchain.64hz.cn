@@ -2,13 +2,13 @@
   "version": 2,
   "status": "current",
   "sourceHash": "17b0df911ca91736e7c6ff4c3b1f921f3d9c60acd463f04c9eb292d3d5b6172e",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/tools/index.md",
-      "sourceHash": "f60915a4ace770835cf5004bd35ea3c48a33f0c7bb9a88482ad665527b1f49f0",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "04cf0d33c5debabcde724fac97d2a1a1253d1d21fcc1059e5af36df95ff2cef7"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "f60915a4ace7",
+      "translationHash": "1a5b5705169bd9d21f6c1e5b7dae4a95686a69dff624bb786ed744a7a1f9708d"
     }
   ],
   "translationFile": "content/docs/plugin/tools/index.md",

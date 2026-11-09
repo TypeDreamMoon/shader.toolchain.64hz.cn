@@ -25,16 +25,11 @@ description: "关键字索引"
 ```
 
 > [!NOTE]
-> **块关键字、节名称和类型名称对标识符而言并非保留字。** 属性、
-> 输出变量、参数或函数可以命名为 `Shader`、`Graph` 或 `Layout`；它们
-> 仅在语法期望出现的位置被识别。[保留字](#reserved-words)是
-> 例外 *(自 2.0.0 起)*。
+> **块关键字、节名称和类型名称对标识符而言并非保留字。** 属性、输出变量、参数或函数可以命名为 `Shader`、`Graph` 或 `Layout`；它们仅在语法期望出现的位置被识别。[保留字](#reserved-words)是例外 *(自 2.0.0 起)*。
 
 ## 顶层块关键字 [#top-level-block-keywords]
 
-以整个单词为单位，**区分大小写**进行匹配：`ShaderFunction` 是一个独立的单词，绝不会是 `Shader`
-后跟其他内容。大小写错误的版本（`shader(…)`）不是块：
-[`DSH2240`](/docs/plugin/diagnostics/dsh2xxx#dsh2240)。
+以整个单词为单位，**区分大小写**进行匹配：`ShaderFunction` 是一个独立的单词，绝不会是 `Shader` 后跟其他内容。大小写错误的版本（`shader(…)`）不是块： [`DSH2240`](/docs/plugin/diagnostics/dsh2xxx#dsh2240)。
 
 | 关键字 | 头文件 | 必需特性 | 生成 | 参考 |
 | :-- | :-- | :-- | :-- | :-- |
@@ -49,24 +44,14 @@ description: "关键字索引"
 | `Function` | `Function [SelfContained \| Inline] [<ret>] <Name>( … ) { <HLSL> }` | 名称、至少一个输出 | HLSL 辅助函数 | [Function](/docs/plugin/language/function) |
 | `GraphFunction` *(自 1.3.1 起)* | `GraphFunction [<ret>] <Name>( … ) { <HLSL> }` | 名称、至少一个输出 | 带节点输入的 HLSL 辅助函数 | [GraphFunction](/docs/plugin/language/graph-function) |
 
-`Shader` 限制为**每个文件一个**（[`DSH2250`](/docs/plugin/diagnostics/dsh2xxx#dsh2250)），并且 `.dsh`
-头文件根本不包含资产块（[`DSH2249`](/docs/plugin/diagnostics/dsh2xxx#dsh2249)），因此 `import`
-不能添加第二个。其他每个块都可以重复。`Function` 和 `GraphFunction`
-也可以嵌套在 `Namespace` 内，此时它们的名称变为 `<Namespace>::<Name>`。
+`Shader` 限制为**每个文件一个**（[`DSH2250`](/docs/plugin/diagnostics/dsh2xxx#dsh2250)），并且 `.dsh` 头文件根本不包含资产块（[`DSH2249`](/docs/plugin/diagnostics/dsh2xxx#dsh2249)），因此 `import` 不能添加第二个。其他每个块都可以重复。`Function` 和 `GraphFunction` 也可以嵌套在 `Namespace` 内，此时它们的名称变为 `<Namespace>::<Name>`。
 
 > [!WARNING]
-> 自 1.3.0 起，`MaterialLayer` 和 `MaterialLayerBlend` 已弃用，建议改用 `ShaderLayer` 和
-> `ShaderLayerBlend`。它们的读取方式相同，但会给出警告
-> [`DSH2251`](/docs/plugin/diagnostics/dsh2xxx#dsh2251)。后续诊断和生成的元数据始终
-> 报告现代拼写。
+> 自 1.3.0 起，`MaterialLayer` 和 `MaterialLayerBlend` 已弃用，建议改用 `ShaderLayer` 和 `ShaderLayerBlend`。它们的读取方式相同，但会给出警告 [`DSH2251`](/docs/plugin/diagnostics/dsh2xxx#dsh2251)。后续诊断和生成的元数据始终报告现代拼写。
 
 ## 节名称 [#section-names]
 
-不区分大小写进行匹配。块之前的 `=` 是可选的 *(自 1.5.0 起)*，其后的 `;` 也是
-可选的。节可以按任意顺序出现，也可以重复：`Properties`、`Inputs` 和 `Outputs` 会追加，
-`Settings` 按键逐个合并，第二个 `Graph` 或 `Layout` 会**替换**第一个，并给出警告
-[`DSH2258`](/docs/plugin/diagnostics/dsh2xxx#dsh2258) *(自 2.0.0 起)*。块不接受的名称会报
-[`DSH2245`](/docs/plugin/diagnostics/dsh2xxx#dsh2245)。
+不区分大小写进行匹配。块之前的 `=` 是可选的 *(自 1.5.0 起)*，其后的 `;` 也是可选的。节可以按任意顺序出现，也可以重复：`Properties`、`Inputs` 和 `Outputs` 会追加， `Settings` 按键逐个合并，第二个 `Graph` 或 `Layout` 会**替换**第一个，并给出警告 [`DSH2258`](/docs/plugin/diagnostics/dsh2xxx#dsh2258) *(自 2.0.0 起)*。块不接受的名称会报 [`DSH2245`](/docs/plugin/diagnostics/dsh2xxx#dsh2245)。
 
 | 名称 | 接受于 | 含义 | 参考 |
 | :-- | :-- | :-- | :-- |
@@ -87,9 +72,7 @@ description: "关键字索引"
 `Function` 和 `GraphFunction` 完全没有节 — 它们的 `{ … }` 是原始 HLSL。
 
 > [!WARNING]
-> `Code = { … }` 在所有接受节的块中都是错误：
-> [`DSH2246`](/docs/plugin/diagnostics/dsh2xxx#dsh2246)，并且在 `VirtualFunction` 中，连同 `Graph`，
-> [`DSH2247`](/docs/plugin/diagnostics/dsh2xxx#dsh2247)。请使用 `Graph`。
+> `Code = { … }` 在所有接受节的块中都是错误： [`DSH2246`](/docs/plugin/diagnostics/dsh2xxx#dsh2246)，并且在 `VirtualFunction` 中，连同 `Graph`， [`DSH2247`](/docs/plugin/diagnostics/dsh2xxx#dsh2247)。请使用 `Graph`。
 
 ## 声明限定符 [#declaration-qualifiers]
 
@@ -102,8 +85,7 @@ description: "关键字索引"
 | `SelfContained` | 位于 `Function` 之后 | 读取并被忽略：每个 `Function` 节点已经嵌入了其主体所调用的内容，这正是它向 1.x 所要求的内容；**在 `GraphFunction` 上不被接受**（[`DSH6307`](/docs/plugin/diagnostics/dsh6xxx#dsh6307)） | [函数](/docs/plugin/language/function) |
 | `Inline` | 位于 `Function` 之后 | `SelfContained` 的精确别名，带有警告 [`DSH6306`](/docs/plugin/diagnostics/dsh6xxx#dsh6306) *(自 2.0.0 起)* | [函数](/docs/plugin/language/function) |
 
-`in` 和 `out` 是函数参数上唯一被接受的限定符，不区分大小写；其他任何内容都是
-[`DSH6302`](/docs/plugin/diagnostics/dsh6xxx#dsh6302)。
+`in` 和 `out` 是函数参数上唯一被接受的限定符，不区分大小写；其他任何内容都是 [`DSH6302`](/docs/plugin/diagnostics/dsh6xxx#dsh6302)。
 
 ## 上下文关键字 [#contextual-keywords]
 
@@ -131,11 +113,7 @@ description: "关键字索引"
 
 ## 保留字 [#reserved-words]
 
-*(自 2.0.0 起)* 单个词法分析器读取每个文件，其关键字在 1.x 文件中同样被保留，且为小写：
-`uniform` `static` `const` `extern` `export` `in` `out` `inout` `struct` `if` `else` `for` `while`
-`do` `return` `break` `continue` `discard` `true` `false` `import`。它们都不能命名属性、
-输出、输入或 `Graph` 变量。其他大小写是普通词语：`Const` 和 `IN` 在
-1.x 语法期望它们的位置被读取为 `const` 和 `in`，而 `True` 被读取为 `true`。
+*(自 2.0.0 起)* 单个词法分析器读取每个文件，其关键字在 1.x 文件中同样被保留，且为小写： `uniform` `static` `const` `extern` `export` `in` `out` `inout` `struct` `if` `else` `for` `while` `do` `return` `break` `continue` `discard` `true` `false` `import`。它们都不能命名属性、输出、输入或 `Graph` 变量。其他大小写是普通词语：`Const` 和 `IN` 在 1.x 语法期望它们的位置被读取为 `const` 和 `in`，而 `True` 被读取为 `true`。
 
 ## 保留名称 [#reserved-names]
 
@@ -145,14 +123,11 @@ description: "关键字索引"
 | `return` | 所有位置 | 一个[保留字](#reserved-words)：它不能命名输出变量，也不是绑定源 *(自 2.0.0 起)* |
 | `DS_…` *(自 1.9.0 起)* | 预处理器定义名称 | 整个 `DS_` **前缀**属于 DreamShader。此类名称的 `#define` 或 `#undef` 会以 [`DSH1039`](/docs/plugin/diagnostics/dsh1xxx#dsh1039) 失败；其他定义层级会发出警告并丢弃它。参见[预处理器](/docs/plugin/language/preprocessor#the-builtin-ds_-constants) |
 
-`return` 在 `Function` 主体内是 HLSL。在声明了返回类型的函数中出现裸 `return;`
-是 [`DSH6308`](/docs/plugin/diagnostics/dsh6xxx#dsh6308)。
+`return` 在 `Function` 主体内是 HLSL。在声明了返回类型的函数中出现裸 `return;` 是 [`DSH6308`](/docs/plugin/diagnostics/dsh6xxx#dsh6308)。
 
 ## 标识符重写 [#identifier-rewrites]
 
-在发出 HLSL 之前，会在 `Function` 和 `GraphFunction` 声明内重写标识符。
-匹配不区分大小写且仅限完整标识符；字符串和注释内的文本保持不变，
-而 `::` 限定的名称会绕过该表 — 它会被展平为 `<Namespace>_<Name>`。
+在发出 HLSL 之前，会在 `Function` 和 `GraphFunction` 声明内重写标识符。匹配不区分大小写且仅限完整标识符；字符串和注释内的文本保持不变，而 `::` 限定的名称会绕过该表 — 它会被展平为 `<Namespace>_<Name>`。
 
 | 书写形式 | 重写为 | 适用于 |
 | :-- | :-- | :-- |
@@ -175,8 +150,7 @@ description: "关键字索引"
 | `fract` | `frac` | 仅正文文本 |
 | `mod` | `fmod` | 仅正文文本 |
 
-与此表中任何条目都不匹配的标记会原样输出。每个节中的类型标记都通过
-[类型](/docs/language/types-and-values)上的同一个类型表读取，该表保存着相同的 GLSL 拼写。
+与此表中任何条目都不匹配的标记会原样输出。每个节中的类型标记都通过[类型](/docs/language/types-and-values)上的同一个类型表读取，该表保存着相同的 GLSL 拼写。
 
 ## 诊断 [#diagnostics]
 
@@ -251,10 +225,7 @@ Shader(Name="Materials/M_Keywords")
 - [词法元素](/docs/language/lexical) —— 本索引背后的区分大小写矩阵和标记规则
 - [源文件](/docs/language/file-model) —— 每种文件类型可以声明哪些块
 - [类型](/docs/language/types-and-values) —— 每个类型标记及其在各上下文中的有效性
-- [Shader](/docs/plugin/language/shader) · [ShaderFunction](/docs/plugin/language/shader-function) · [ShaderLayer](/docs/plugin/language/shader-layer) ·
-  [VirtualFunction](/docs/plugin/language/virtual-function) · [Function](/docs/plugin/language/function) ·
-  [GraphFunction](/docs/plugin/language/graph-function) · [Namespace](/docs/plugin/language/namespace) —— 各块页面
-- [属性](/docs/parameters/properties) · [输入 / 输出](/docs/plugin/language/inputs-outputs) ·
-  [输出绑定](/docs/plugin/language/output-bindings) · [选项](/docs/plugin/language/options) · [布局](/docs/language/layout) —— 各节页面
+- [Shader](/docs/plugin/language/shader) · [ShaderFunction](/docs/plugin/language/shader-function) · [ShaderLayer](/docs/plugin/language/shader-layer) · [VirtualFunction](/docs/plugin/language/virtual-function) · [Function](/docs/plugin/language/function) · [GraphFunction](/docs/plugin/language/graph-function) · [Namespace](/docs/plugin/language/namespace) —— 各块页面
+- [属性](/docs/parameters/properties) · [输入 / 输出](/docs/plugin/language/inputs-outputs) · [输出绑定](/docs/plugin/language/output-bindings) · [选项](/docs/plugin/language/options) · [布局](/docs/language/layout) —— 各节页面
 - [`import`](/docs/language/imports) · [预处理器](/docs/plugin/language/preprocessor) —— 不属于语法的指令
 - [诊断索引](/docs/diagnostics) —— 所有代码

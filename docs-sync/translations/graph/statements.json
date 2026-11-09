@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "b0dc5c15124982066d268d1427d58a2fa3ce8356e3480d9fb6c263b14c8753fa",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/statements.md",
-      "sourceHash": "05e2a1b04636dc4fbb06de97a4f175750ee029c16ecf86a55ab4ad091480945e",
-      "sourceRevision": "83b99e8d8c388735e7b903ffe7c03b7ab089859a",
-      "translationHash": "679cb00184a94f8680bb9c11d93ada980ae90af4571de651144034753f9a2ab4"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "05e2a1b04636",
+      "translationHash": "1232e0608eca37352b4504020e50e8608b81ae13fa590a38e91939fcd285b7b2"
     }
   ],
   "translationFile": "content/docs/graph/statements.md",
-  "translationHash": "412dad9d09853df9de491c749ec326e7be23428075b62249e8b381fffe688312"
+  "translationHash": "6141c4feea68141e3eba735826247fd1acceb8b023c40184df220b7e3aeaaf69"
 }

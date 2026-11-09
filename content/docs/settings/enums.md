@@ -7,8 +7,7 @@ description: "材质枚举"
 
 > [DreamShader](/docs/) » [设置](/docs/plugin/settings) » **材质枚举**
 
-以下是 [`Shader`](/docs/plugin/language/shader) `Settings` 块的 `ShadingModel`、`BlendMode` / `RenderType` 以及
-`MaterialDomain` / `Domain` 键所接受的值的完整拼写集合。
+以下是 [`Shader`](/docs/plugin/language/shader) `Settings` 块的 `ShadingModel`、`BlendMode` / `RenderType` 以及 `MaterialDomain` / `Domain` 键所接受的值的完整拼写集合。
 
 | | |
 | :-- | :-- |
@@ -29,19 +28,13 @@ Settings [=] {
 ## 值的匹配方式 [#how-a-value-is-matched]
 
 1. 值先被规范化：去除首尾空白、转为小写，然后删除所有空格、`_` 和 `-`。
-2. 先扫描该键对应的项目映射表。**第一个匹配规范化键的条目即胜出并立即返回** —— 项目条目会遮蔽内置拼写，
-   且不会继续回落。
+2. 先扫描该键对应的项目映射表。**第一个匹配规范化键的条目即胜出并立即返回** —— 项目条目会遮蔽内置拼写，且不会继续回落。
 3. 只有在没有任何项目条目匹配时，才构建内置表并以相同方式扫描。
-4. 若匹配项的值是枚举的 `_MAX` 哨兵，则算作**失败**；因此项目条目中
-   指向 `MSM_MAX` / `BLEND_MAX` / `MD_MAX` 会让该拼写不再能解析成功。
+4. 若匹配项的值是枚举的 `_MAX` 哨兵，则算作**失败**；因此项目条目中指向 `MSM_MAX` / `BLEND_MAX` / `MD_MAX` 会让该拼写不再能解析成功。
 
-由于第 1 步，`"Default Lit"`、`"DefaultLit"`、`"default_lit"` 和 `"DEFAULT-LIT"` 是同一个
-别名。下面的表列出插件注册的原始拼写；每个拼写的各种分隔符变体
-同样有效。
+由于第 1 步，`"Default Lit"`、`"DefaultLit"`、`"default_lit"` 和 `"DEFAULT-LIT"` 是同一个别名。下面的表列出插件注册的原始拼写；每个拼写的各种分隔符变体同样有效。
 
-内置表分两个阶段构建：**反射**阶段遍历引擎枚举并剥掉枚举项前缀，然后**显式**阶段
-补上手写拼写。显式阶段不会用相同的键覆盖反射阶段的条目，所以有几行显式条目
-是保留下来便于阅读的空操作。
+内置表分两个阶段构建：**反射**阶段遍历引擎枚举并剥掉枚举项前缀，然后**显式**阶段补上手写拼写。显式阶段不会用相同的键覆盖反射阶段的条目，所以有几行显式条目是保留下来便于阅读的空操作。
 
 ## ShadingModel [#shadingmodel]
 
@@ -73,15 +66,11 @@ Settings [=] {
 | `Substrate` | 显式别名 *（自 UE 5.4 起）* | `MSM_Strata` |
 | `Strata` | 显式别名 *（自 UE 5.4 起）* —— 空操作，反射阶段已注册该键 | `MSM_Strata` |
 
-在 UE 5.4 – 5.8 上共 **15 个不同的规范化别名**；UE 5.3 上是 **13 个**，因为它既没有 `strata`
-也没有 `substrate`。
+在 UE 5.4 – 5.8 上共 **15 个不同的规范化别名**；UE 5.3 上是 **13 个**，因为它既没有 `strata` 也没有 `substrate`。
 
-被排除的：`MSM_NUM`、`MSM_MAX`，以及被刻意排除的 **`MSM_FromMaterialExpression`**。写
-`ShadingModel = "FromMaterialExpression";` 是错误（`DSH7129`），它不是从图里驱动着色模型的办法。
+被排除的：`MSM_NUM`、`MSM_MAX`，以及被刻意排除的 **`MSM_FromMaterialExpression`**。写 `ShadingModel = "FromMaterialExpression";` 是错误（`DSH7129`），它不是从图里驱动着色模型的办法。
 
-在 UE 5.3 上，`ShadingModel = "Substrate";` 和 `ShadingModel = "Strata";` 会用自己的码
-（`DSH7128`）被拒绝，而不是通用的「不支持」错误。见 [诊断](#diagnostics)和
-[Substrate 内置项](/docs/builtins/substrate)。
+在 UE 5.3 上，`ShadingModel = "Substrate";` 和 `ShadingModel = "Strata";` 会用自己的码（`DSH7128`）被拒绝，而不是通用的「不支持」错误。见 [诊断](#diagnostics)和 [Substrate 内置项](/docs/builtins/substrate)。
 
 ## BlendMode [#blendmode]
 
@@ -102,22 +91,16 @@ Settings [=] {
 | `PremultipliedAlpha` | 显式别名 | `BLEND_AlphaComposite` |
 | `Premultiplied` | 显式别名 | `BLEND_AlphaComposite` |
 
-在原版 UE 5.4 – 5.8 构建上共 **12 个不同的规范化别名**。`TranslucentColoredTransmittance` 是
-Substrate 专有枚举项，所以这个数量与引擎版本相关。
+在原版 UE 5.4 – 5.8 构建上共 **12 个不同的规范化别名**。`TranslucentColoredTransmittance` 是 Substrate 专有枚举项，所以这个数量与引擎版本相关。
 
-被排除的：`BLEND_MAX`，以及两个被引擎标记为隐藏的枚举项 ——
-`BLEND_TranslucentGreyTransmittance` 和 `BLEND_ColoredTransmittanceOnly`。它们都是表中已有值的别名，
-所以没有任何值因此不可达。
+被排除的：`BLEND_MAX`，以及两个被引擎标记为隐藏的枚举项 —— `BLEND_TranslucentGreyTransmittance` 和 `BLEND_ColoredTransmittanceOnly`。它们都是表中已有值的别名，所以没有任何值因此不可达。
 
 > [!NOTE]
-> `TranslucentColoredTransmittance` 挺不过反编译。[反编译器](/docs/tools/decompiler)会把 `BLEND_TranslucentColoredTransmittance`
-> 写回成 `"Translucent"`，所以 `UMaterial` → `.dsm` → `UMaterial` 的往返会降级混合模式。
-> 反编译这类材质后请手工补回该设置。
+> `TranslucentColoredTransmittance` 挺不过反编译。[反编译器](/docs/tools/decompiler)会把 `BLEND_TranslucentColoredTransmittance` 写回成 `"Translucent"`，所以 `UMaterial` → `.dsm` → `UMaterial` 的往返会降级混合模式。反编译这类材质后请手工补回该设置。
 
 ## Domain [#domain]
 
-从 `EMaterialDomain` 反射而来，剥掉 `MD_` 前缀。该键也可以写作
-`MaterialDomain`，两者同时出现时它胜出。
+从 `EMaterialDomain` 反射而来，剥掉 `MD_` 前缀。该键也可以写作 `MaterialDomain`，两者同时出现时它胜出。
 
 | 别名 | 来源 | 引擎枚举项 |
 | :-- | :-- | :-- |
@@ -140,8 +123,7 @@ Substrate 专有枚举项，所以这个数量与引擎版本相关。
 
 共 **10 个不同的规范化别名**，在 UE 5.3 – 5.8 上保持稳定。
 
-被排除的：`MD_MAX`。其他隐藏枚举项都会跳过，`MD_RuntimeVirtualTexture` 是
-唯一刻意的例外 —— 引擎把它标记为隐藏，插件保留了它。
+被排除的：`MD_MAX`。其他隐藏枚举项都会跳过，`MD_RuntimeVirtualTexture` 是唯一刻意的例外 —— 引擎把它标记为隐藏，插件保留了它。
 
 ## 添加项目专属拼写 [#adding-project-specific-spellings]
 
@@ -153,8 +135,7 @@ Substrate 专有枚举项，所以这个数量与引擎版本相关。
 | `BlendModeMappings` | `EBlendMode` | `BlendMode` / `RenderType` |
 | `MaterialDomainMappings` | `EMaterialDomain` | `MaterialDomain` / `Domain` |
 
-它们位于 *Project Settings ▸ DreamPlugin ▸ Dream Shader ▸ Mappings* 下，且**默认为空** —— 上面的内置表从不写入其中。参见
-[项目设置](/docs/settings/project)。
+它们位于 *Project Settings ▸ DreamPlugin ▸ Dream Shader ▸ Mappings* 下，且**默认为空** —— 上面的内置表从不写入其中。参见[项目设置](/docs/settings/project)。
 
 | 条目 | 效果 |
 | :-- | :-- |
@@ -165,23 +146,15 @@ Substrate 专有枚举项，所以这个数量与引擎版本相关。
 键在规范化后比较，所以条目里的大小写、空格、下划线和连字符都无关紧要。
 
 > [!WARNING]
-> 两个规范化后相同的项目条目，扫描顺序由哈希表决定 —— 谁胜出是未定义的。不要同时添加 `My Model`
-> 和 `my_model`。
+> 两个规范化后相同的项目条目，扫描顺序由哈希表决定 —— 谁胜出是未定义的。不要同时添加 `My Model` 和 `my_model`。
 
 ## 备注 [#notes]
 
-- 反射阶段遍历的是编译进引擎的枚举内容。**改过的引擎构建会自动贡献它自己的值**：一个新增了 `MSM_Toon`
-  的引擎，不用改插件也不用配项目映射，`ShadingModel = "Toon";` 就能用。上面的表
-  描述的是原版 UE 5.3 – 5.8 构建。
+- 反射阶段遍历的是编译进引擎的枚举内容。**改过的引擎构建会自动贡献它自己的值**：一个新增了 `MSM_Toon` 的引擎，不用改插件也不用配项目映射，`ShadingModel = "Toon";` 就能用。上面的表描述的是原版 UE 5.3 – 5.8 构建。
 - 枚举项成员来自编译后的引擎，所以它取决于引擎版本。插件自己门控的值是 `Strata` / `Substrate`，它只在 UE 5.4 及更新版本上注册它们。
-- 带 `Hidden` 元数据的值只在保留编辑器专属数据的构建里被过滤。
-  材质生成本来就是编辑器专属的，所以实际生效的正是这种配置。
-- `Saved/DreamShader/Bridge/settings.json` 会导出这些表供编辑器补全使用。它
-  按规范化别名去重，所以会显示 `"Default Lit"` 而不显示 `"DefaultLit"`。**两者都能
-  编译** —— 那份清单是补全用的，不是接受集合。参见
-  [工作区](/docs/plugin/tools/workspace)和 [Bridge](/docs/plugin/tools/bridge)。
-- 不写某个键不会保留上次的值：重新生成的材质会先被重置为
-  `Opaque` / `DefaultLit` / `Surface`。参见[Shader 设置](/docs/settings/material#defaults--what-an-omitted-setting-resets-to)。
+- 带 `Hidden` 元数据的值只在保留编辑器专属数据的构建里被过滤。材质生成本来就是编辑器专属的，所以实际生效的正是这种配置。
+- `Saved/DreamShader/Bridge/settings.json` 会导出这些表供编辑器补全使用。它按规范化别名去重，所以会显示 `"Default Lit"` 而不显示 `"DefaultLit"`。**两者都能编译** —— 那份清单是补全用的，不是接受集合。参见[工作区](/docs/plugin/tools/workspace)和 [Bridge](/docs/plugin/tools/bridge)。
+- 不写某个键不会保留上次的值：重新生成的材质会先被重置为 `Opaque` / `DefaultLit` / `Surface`。参见[Shader 设置](/docs/settings/material#defaults--what-an-omitted-setting-resets-to)。
 
 ## 诊断 [#diagnostics]
 
@@ -192,8 +165,7 @@ Substrate 专有枚举项，所以这个数量与引擎版本相关。
 | [`DSH7127`](/docs/plugin/diagnostics/dsh7xxx#dsh7127) | `BlendMode` / `RenderType` 值没有匹配项 |
 | [`DSH7130`](/docs/plugin/diagnostics/dsh7xxx#dsh7130) | `MaterialDomain` / `Domain` 值没有匹配项 |
 
-这四条都在校验设置时抛出，早于任何一条设置被应用；它们包在
-[`DSH8215`](/docs/plugin/diagnostics/dsh8xxx#dsh8215)（会指出材质）里到达你，这次重建被回滚。
+这四条都在校验设置时抛出，早于任何一条设置被应用；它们包在 [`DSH8215`](/docs/plugin/diagnostics/dsh8xxx#dsh8215)（会指出材质）里到达你，这次重建被回滚。
 
 ## 示例 [#example]
 

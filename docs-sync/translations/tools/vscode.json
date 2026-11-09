@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "status": "current",
-  "sourceHash": "c3bf725edad4e6ffaa78a3ddb8be9f5f269a846484fa825b8d0d4ad51243e8df",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "status": "outdated",
+  "sourceHash": null,
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/tools/vscode.md",
-      "sourceHash": "e493c8d7a2f55e2802359d26b1012229ec7b184bc844c455039f6aa5735a1862",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
+      "alignedRevision": "7b4f0e916992",
+      "alignedPage": "e493c8d7a2f5",
       "translationHash": "ec5ed53e4cdd71edac7adfa5124440635833578cffb867fb0690268d9bcfc62a"
     }
   ],

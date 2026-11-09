@@ -114,21 +114,13 @@ FString GetGeneratedShaderVirtualDirectory();
 | 2 | 如果结果为相对路径，则与 `FPaths::ProjectDir()` 合并。 |
 | 3 | `FPaths::NormalizeFilename`，然后 `FPaths::MakeStandardFilename`。 |
 
-这三个配置路径保存在一个内部缓存中。当缓存尚未初始化**或**设置对象当前可读时——即
-`UObjectInitialized() && !GExitPurge && !IsEngineExitRequested()`——会刷新缓存。一旦 UObject 系统启动，此条件始终为真，因此设置会在**每次**调用时重新读取，会话期间在项目设置中的更改会立即生效。在 UObject 存在之前以及退出清理期间，getter 不会访问 `GetDefault<UDreamShaderSettings>()`：它们直接从引擎 ini 中的 `[/Script/DreamShader.DreamShaderSettings]` 读取 `SourceDirectory` 和
-`GeneratedShaderDirectory`——即设置对象将要加载的值——并在某个键缺失时回退到默认值。模块在 `PostConfigInit` 启动，早于设置对象可能存在的时机，这正是原因所在。
+这三个配置路径保存在一个内部缓存中。当缓存尚未初始化**或**设置对象当前可读时——即 `UObjectInitialized() && !GExitPurge && !IsEngineExitRequested()`——会刷新缓存。一旦 UObject 系统启动，此条件始终为真，因此设置会在**每次**调用时重新读取，会话期间在项目设置中的更改会立即生效。在 UObject 存在之前以及退出清理期间，getter 不会访问 `GetDefault<UDreamShaderSettings>()`：它们直接从引擎 ini 中的 `[/Script/DreamShader.DreamShaderSettings]` 读取 `SourceDirectory` 和 `GeneratedShaderDirectory`——即设置对象将要加载的值——并在某个键缺失时回退到默认值。模块在 `PostConfigInit` 启动，早于设置对象可能存在的时机，这正是原因所在。
 
 > [!WARNING]
-> `GetGeneratedShaderDirectory()` 并不简单等同于 *Generated Shader Directory* 设置。
-> `StartupModule` 仅在 `/DreamShaderGenerated` 映射不存在时注册它，并且从不
-> 重新指向它。因此，在会话中途更改该设置会改变 `StartupModule` *本应*
-> 挂载的位置，并改变内部缓存值，但 `GetGeneratedShaderDirectory()` 仍会
-> 返回启动时挂载的目录。重启编辑器以移动挂载点。参见
-> [生成的 HLSL](/docs/plugin/generation/generated-hlsl)。
+> `GetGeneratedShaderDirectory()` 并不简单等同于 *Generated Shader Directory* 设置。 `StartupModule` 仅在 `/DreamShaderGenerated` 映射不存在时注册它，并且从不重新指向它。因此，在会话中途更改该设置会改变 `StartupModule` *本应*挂载的位置，并改变内部缓存值，但 `GetGeneratedShaderDirectory()` 仍会返回启动时挂载的目录。重启编辑器以移动挂载点。参见[生成的 HLSL](/docs/plugin/generation/generated-hlsl)。
 
 > [!NOTE]
-> 该缓存是一个普通静态变量，没有锁。应将这四个函数视为游戏线程 API，尽管
-> 它们本质上并不与任何线程绑定。
+> 该缓存是一个普通静态变量，没有锁。应将这四个函数视为游戏线程 API，尽管它们本质上并不与任何线程绑定。
 
 ## 源根目录 [#source-roots]
 
@@ -156,9 +148,7 @@ bool IsPathUnderSourceDirectory(const FString& InPath, const FString& InDirector
 
 只有项目根目录可写：那些就地重写源文件的编辑器功能（VirtualFunction 同步、[资产重命名同步](/docs/plugin/tools/asset-rename-sync)）绝不会触碰插件根目录。
 
-`FDreamShaderSourceRoot::bIsProjectPlugin` 携带关于插件根目录的第二个独立答案——
-即其产物是否属于项目应构建的内容，通过 `IsProjectContentPlugin` 计算。cook 会对生成失败的源文件读取此信息：在非项目插件的插件下，失败会被报告且 cook 继续进行，因为这些资产随该插件一同发布。参见
-[Cook 行为](/docs/generation/in-memory#cook-behaviour)。
+`FDreamShaderSourceRoot::bIsProjectPlugin` 携带关于插件根目录的第二个独立答案—— 即其产物是否属于项目应构建的内容，通过 `IsProjectContentPlugin` 计算。cook 会对生成失败的源文件读取此信息：在非项目插件的插件下，失败会被报告且 cook 继续进行，因为这些资产随该插件一同发布。参见 [Cook 行为](/docs/generation/in-memory#cook-behaviour)。
 
 ## `SanitizeIdentifier` [#sanitizeidentifier]
 
@@ -186,9 +176,7 @@ DREAMSHADER_API FString SanitizeIdentifier(const FString& InText);
 | `Ünlit` | `_nlit` |
 
 > [!WARNING]
-> 字符分类是基于原始 ASCII 范围进行的。非 ASCII 字母会被**替换**，而不是
-> 保留——`Ünlit` 会变成 `_nlit`，而不是 `Ünlit`。在命名空间和函数
-> 名称中请使用 ASCII 标识符。
+> 字符分类是基于原始 ASCII 范围进行的。非 ASCII 字母会被**替换**，而不是保留——`Ünlit` 会变成 `_nlit`，而不是 `Ünlit`。在命名空间和函数名称中请使用 ASCII 标识符。
 
 插件内部的调用方：发射器中的瞬态 ThinCustom 基础材质名称（`MB_DreamThinBase_<package>`）、输出命名重路由名称（`DS_<Name>_<Index>`），以及实例工厂和溯源操作中新建实例的 `.dsi` 文件对应的 `MI_<Name>` 词干。`DreamShaderLang` 无法链接该模块，因此旧版前端（将 `A::B` 展平为 `A_B`）和自定义 HLSL 构建器（`DreamShaderFn_<Name>`）各自保留同一规则的副本 *（自 2.0.0 起）*。
 
@@ -321,14 +309,10 @@ LogDreamShader: Found 3 DreamShader source(s) under I:/Project/DShader
 
 - [C++ API](/docs/plugin/api) — 模块、头文件与链接
 - [`DreamShaderTypes.h`](/docs/plugin/api/types) — `NormalizeSettingKey` 与已解析源数据模型
-- [`DreamShaderSettings.h`](/docs/plugin/api/settings) — `SourceDirectory`、`GeneratedShaderDirectory`、`NormalizeMappingKey`
+- [`DreamShaderSettings.h`](/docs/plugin/api/settings) — `SourceDirectory`, `GeneratedShaderDirectory`, `NormalizeMappingKey`
 - [`DreamShaderVersionCompat.h`](/docs/plugin/api/version-compat) — 此头文件引入的宏
 - [`DreamShaderCompiler`](/docs/plugin/api/compiler-module) — 从 C++ 请求编译
-- [`DreamShaderLang`](/docs/plugin/api/lang-module) — 仅限 Core 的前端。`DreamShaderPreprocessor.h`、
-  `DreamShaderDefineTable.h` 和 `DreamShaderDiagnostic.h` 在 2.0 中移入其中；include
-  的写法没有改变。只有 `DreamShaderDefineResolution.h` —— 读取
-  项目设置、引擎版本、插件描述符和命令行的那次层级合并 —— 留在了
-  此模块中
+- [`DreamShaderLang`](/docs/plugin/api/lang-module) — 仅限 Core 的前端。`DreamShaderPreprocessor.h`、 `DreamShaderDefineTable.h` 和 `DreamShaderDiagnostic.h` 在 2.0 中移入其中；include 的写法没有改变。只有 `DreamShaderDefineResolution.h` —— 读取项目设置、引擎版本、插件描述符和命令行的那次层级合并 —— 留在了此模块中
 - [项目设置](/docs/settings/project) — 用户侧的两个目录设置
 - [生成的 HLSL](/docs/plugin/generation/generated-hlsl) — `/DreamShaderGenerated` 接收到的内容
 - [包](/docs/tools/packages) — `DShader/Packages` 目录

@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "16533a53138634cc549c9862221a96a6b983a5be443905c23df7c95864e7dc90",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
   "sources": [
     {
       "path": "Docs/builtins/math.md",
-      "sourceHash": "a08b78b8ef035844a32d749f1045b562aba993927cb1b9190fbeca7802e110f0",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "b805e5dee47ed78c346c85ad07e856146606473f8106eed8f271e15f88b766e9"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "a08b78b8ef03",
+      "translationHash": "d82a4a1921e68de4d784a3d3d18c6e2ad3dec983fe81b6fd936ce0a0d8d1b24b"
     }
   ],
   "translationFile": "content/docs/builtins/math.md",
-  "translationHash": "22f7b21ec56967f0921599bdec0eb0eb25d60a6371fc12baec2e6f01ab16b2dc"
+  "translationHash": "cbbac15b5fd096f59b1142de6e35b29d0c9de89374b3758a450cbb381bfe81ad"
 }

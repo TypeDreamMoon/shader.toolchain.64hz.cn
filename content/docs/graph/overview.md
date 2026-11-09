@@ -86,9 +86,7 @@ Graph [=] {
 
 ## `#Region` / `#EndRegion` [#region--endregion]
 
-`#Region "Name"` 和 `#EndRegion` 行位于 `Graph` 块体内部，将它们之间的语句所产生的节点归入生成图里的一个注释框。每一行单独成行，是块体里的一条语句*（自 2.0.0 起）*；区域可以嵌套。没有名字的 `#Region`、没有打开的区域却写了 `#EndRegion`、块体结束时仍未关闭的区域以及其他 `#` 行是
-[`DSH2216`](/docs/plugin/diagnostics/dsh2xxx#dsh2216)–[`DSH2219`](/docs/plugin/diagnostics/dsh2xxx#dsh2219)，预处理器不认识的行是
-[`DSH1035`](/docs/plugin/diagnostics/dsh1xxx#dsh1035)。完整语法与嵌套语义见 [Layout](/docs/language/layout)。
+`#Region "Name"` 和 `#EndRegion` 行位于 `Graph` 块体内部，将它们之间的语句所产生的节点归入生成图里的一个注释框。每一行单独成行，是块体里的一条语句*（自 2.0.0 起）*；区域可以嵌套。没有名字的 `#Region`、没有打开的区域却写了 `#EndRegion`、块体结束时仍未关闭的区域以及其他 `#` 行是 [`DSH2216`](/docs/plugin/diagnostics/dsh2xxx#dsh2216)–[`DSH2219`](/docs/plugin/diagnostics/dsh2xxx#dsh2219)，预处理器不认识的行是 [`DSH1035`](/docs/plugin/diagnostics/dsh1xxx#dsh1035)。完整语法与嵌套语义见 [Layout](/docs/language/layout)。
 
 ## 诊断指向哪里 [#diagnostic-locations]
 

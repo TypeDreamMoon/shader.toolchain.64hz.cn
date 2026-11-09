@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "f751a0a313964bfaa9079c4836197607b39419455832191668cc77650243241d",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/calls.md",
-      "sourceHash": "39816f543e45136767a80125acde24b8d9105a6a82e7c0e8557e10594089a8f3",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "ed87e699fcf57de3e61f1a6ba77b7f1a2487290d43d0a3182da25c438cb238c2"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "39816f543e45",
+      "translationHash": "d3c42da62e2dd50a946daab0beb1017f481caabe732dbe940978efa31df90b95"
     }
   ],
   "translationFile": "content/docs/graph/calls.md",
-  "translationHash": "4bf7074c14290be52635b93b49098006de6609c6c990591eb79ff522697e9faa"
+  "translationHash": "b54b9c9c6c84f73a44591d237d069eb373f4b00c8d1b25ca5c8cbf4b6da70604"
 }

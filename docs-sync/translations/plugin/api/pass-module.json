@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "a8c2b494794a1527c8c78815873d423c13ca69e78086df695606c6f334461274",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
   "sources": [
     {
       "path": "Docs/api/pass-module.md",
-      "sourceHash": "56b022601305b4deda81255c3cab426962e034bb8fa98696094a2fa82a3dc7aa",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "476e28bb1cb08c0695e9571349a4d41c0f035d3e38223b290dd44805d55ad099"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "56b022601305",
+      "translationHash": "8c080a3f5125c5f2da58c3cdd25e78bcc2bb376cd9a162e6e96882c08ff97b5d"
     }
   ],
   "translationFile": "content/docs/plugin/api/pass-module.md",
-  "translationHash": "f80d7fbd7112d4039002e73335be8311dcd456b9168b92bb80724a576cc98fad"
+  "translationHash": "7d6855a284750051d2bb9cb899fb33351b4b7d7e7b6cdc7cfb4dc85766d92237"
 }

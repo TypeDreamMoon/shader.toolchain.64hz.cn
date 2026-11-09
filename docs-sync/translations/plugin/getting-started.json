@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "778e9059daf9d35a1c027953bb76d39e90e34ad4c92d981fcdddaf420008b842",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/getting-started.md",
-      "sourceHash": "bfab387b3ca8d4897c88521a07fc2b048fbb3f055ef083d5ce54ab066b18d4ea",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "91678d28ad26920941ac694251d81b22a882b70e91bf790e40913f730234f05e"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "bfab387b3ca8",
+      "translationHash": "855285b09afc349d57944c52840a903f1b331bf70d96b03a77804edfb3918c07"
     }
   ],
   "translationFile": "content/docs/plugin/getting-started.md",
-  "translationHash": "3dbe58a60939ddd6ed71fb1e8724a892297e107b4b4aaeb4aca1f1193e4e03b6"
+  "translationHash": "ede7364268f6e545efeeb249de41217b9dc3233458f1444177df648ec45d52e6"
 }

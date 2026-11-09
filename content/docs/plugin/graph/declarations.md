@@ -27,8 +27,7 @@ brace-initializer := { [ <expression> [ , <expression> ] … ] }
 当语句以连续两个名称开头时，它就是声明——一个类型标记和变量的名称*（自 2.0.0 起；1.x 在其最后一个顶层空白处拆分文本）*。两者都是单个标记。
 
 > [!NOTE]
-> 名称是一个标识符。`float3 A.B = x;` 在 `.` 处是 [`DSH2154`](/docs/plugin/diagnostics/dsh2xxx#dsh2154)
-> *（自 2.0.0 起）*；1.x 声明了一个字面名为 `A.B` 的变量。成员写入前面没有类型：`Attrs.BaseColor = x;`。
+> 名称是一个标识符。`float3 A.B = x;` 在 `.` 处是 [`DSH2154`](/docs/plugin/diagnostics/dsh2xxx#dsh2154) *（自 2.0.0 起）*；1.x 声明了一个字面名为 `A.B` 的变量。成员写入前面没有类型：`Attrs.BaseColor = x;`。
 
 ## 可接受的类型标记 [#accepted-type-tokens]
 
@@ -125,8 +124,7 @@ float a = 1, b, c = 3;
 目标类型始终是声明的类型标记。其他任何地方的花括号列表——赋值的右侧或成员写入、作为参数——都是 [`DSH2162`](/docs/plugin/diagnostics/dsh2xxx#dsh2162)*（自 2.0.0 起）*。纹理、`Substrate` 或 `MaterialAttributes` 类型没有构造函数：`Texture2D t = {x};` 是 [`DSH4223`](/docs/plugin/diagnostics/dsh4xxx#dsh4223)。
 
 > [!WARNING]
-> 嵌套大括号不起作用。`float4 m = {{1,2},{3,4}};` 是
-> [`DSH2214`](/docs/plugin/diagnostics/dsh2xxx#dsh2214)；请写作 `float4(float2(1, 2), float2(3, 4))`。
+> 嵌套大括号不起作用。`float4 m = {{1,2},{3,4}};` 是 [`DSH2214`](/docs/plugin/diagnostics/dsh2xxx#dsh2214)；请写作 `float4(float2(1, 2), float2(3, 4))`。
 
 ```c
 Graph = {
@@ -141,23 +139,15 @@ Graph = {
 
 ## 重复声明 [#redeclaration]
 
-在同一代码块中，名称已被声明的声明属于
-[`DSH4220`](/docs/plugin/diagnostics/dsh4xxx#dsh4220)。在 `if` 或 `else` 主体中声明一个外围主体
-已声明的名称也是如此，而在 `Shader` 中声明名为 `Base` 的声明
-也是重复声明，因为该名称就是材质本身。
+在同一代码块中，名称已被声明的声明属于 [`DSH4220`](/docs/plugin/diagnostics/dsh4xxx#dsh4220)。在 `if` 或 `else` 主体中声明一个外围主体已声明的名称也是如此，而在 `Shader` 中声明名为 `Base` 的声明也是重复声明，因为该名称就是材质本身。
 
-该检查会**精确**比较名称 *(自 2.0.0 起)*：`float a = 1; float A = 2;` 声明两个
-变量，而 1.x 会报告重复声明。读取 `a` 或 `A` 会找到其自身的变量；在
-既不精确匹配任何一者的分支中读取时，会找到唯一的大小写不敏感匹配，并给出警告
-[`DSH5275`](/docs/plugin/diagnostics/dsh5xxx#dsh5275)。
+该检查会**精确**比较名称 *(自 2.0.0 起)*：`float a = 1; float A = 2;` 声明两个变量，而 1.x 会报告重复声明。读取 `a` 或 `A` 会找到其自身的变量；在既不精确匹配任何一者的分支中读取时，会找到唯一的大小写不敏感匹配，并给出警告 [`DSH5275`](/docs/plugin/diagnostics/dsh5xxx#dsh5275)。
 
-对现有名称赋值不是重复声明——省略类型标记即可重新赋值。参见
-[语句](/docs/graph/statements#assignment)。
+对现有名称赋值不是重复声明——省略类型标记即可重新赋值。参见[语句](/docs/graph/statements#assignment)。
 
 ## 作用域 [#scope]
 
-每个 `if` 和 `else` 主体都是一个拥有自身作用域的代码块 *(自 2.0.0 起)*；1.x 中整个主体
-只有一个值映射。
+每个 `if` 和 `else` 主体都是一个拥有自身作用域的代码块 *(自 2.0.0 起)*；1.x 中整个主体只有一个值映射。
 
 | 情形 | 语句之后可见性 |
 | :-- | :-- |
@@ -172,8 +162,7 @@ Graph = {
 | 分支声明了外围主体已声明的名称 | `DSH4220` |
 
 > [!WARNING]
-> 1.x 会合并在两个分支中都声明的名称，并允许在 `if` 之后读取它。该名称现在
-> 是分支局部的。请在 `if` **之前**声明变量，并在每个分支中赋值：
+> 1.x 会合并在两个分支中都声明的名称，并允许在 `if` 之后读取它。该名称现在是分支局部的。请在 `if` **之前**声明变量，并在每个分支中赋值：
 >
 > ```c
 > float3 Blend = float3(0.0, 0.0, 0.0);

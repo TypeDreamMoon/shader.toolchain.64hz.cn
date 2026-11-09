@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "6bf8b283aaa587cfaca0ddf8fecaa5010e6ea33bf6c6c708876a9397aa32d709",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/language-v2/disable-diagnostics.md",
-      "sourceHash": "0884f8d023a0ddae8322cb7f66451ad519a5748e1f19631c238335f9bd4a69ab",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "595dcbe5df10256541222528b1e189b65fee5df4b02d9aa1707b3bacebc14ab5"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "0884f8d023a0",
+      "translationHash": "18f059e4afdbdbc1bc30f4c46db4b32c8ce616f494e899cb5ad36e12f689e987"
     }
   ],
   "translationFile": "content/docs/language-v2/disable-diagnostics.md",
-  "translationHash": "7f3ec9491432bd5480e7d19e8ffc3b8ee509d2078801684c864807fb87d60173"
+  "translationHash": "f65d674ce1baf9c94687fe189b2756d9957ec9d4feced76575f9a99b7290176a"
 }

@@ -78,7 +78,7 @@ namespace UE::DreamShader
 | 成员 | 类型 | 含义 |
 | :-- | :-- | :-- |
 | `bSucceeded` | `bool` | 编译是否完成。被跳过的编译视为成功。 |
-| `Message` | `FText` | 采用桥接、扩展与 `dsc.ps1` 所解析的传输格式的报告——参见[结果消息](/docs/plugin/api/compiler-module)。将其写入传输的调用方会通过 `ToInvariantWireString` 传递它。 |
+| `Message` | `FText` | 采用桥接、扩展与 `dsc.ps1` 所解析的传输格式的报告——参见[结果消息](#result-messages)。将其写入传输的调用方会通过 `ToInvariantWireString` 传递它。 |
 | `Code` | `FString` | 第一个错误的 `DSHnnnn` 代码；成功时为空。与 `Message` 并列携带，以便根据代码进行键控的调用方无需再从文本中将其解析出来。 |
 
 一次编译的结构化诊断——每个错误、警告与信息及其代码、阶段、严重级别与范围——不在结果中；请向 [`GetDreamShaderLastCompileDiagnostics`](#dreamshadercompilerserviceh) 请求它们。
@@ -176,37 +176,20 @@ namespace UE::DreamShader::Editor::Compiler
 | `FindDreamShaderPipelinesUsingShaderFile(ShaderFile, OutPipelineSourceFiles)` | 其中一个 HLSL pass 从该文件编译的 `.dsp` 源 |
 | `CollectDreamShaderPipelineShaderDirectories(OutDirectories)` | 包含某个 `.dsp` 编译所依赖文件的每个目录——即桥接监视的内容 |
 
-注册表本身——`<DShader>/.dreampass/` 下的文件、槽位如何被规划、预检查与
-提交——是该模块私有的；其路径和槽位数量在运行时模块中是公开的
-（[`DreamShaderPassModule.h`](/docs/plugin/api/pass-module#the-hlsl-slot-registry)）。
+注册表本身——`<DShader>/.dreampass/` 下的文件、槽位如何被规划、预检查与提交——是该模块私有的；其路径和槽位数量在运行时模块中是公开的（[`DreamShaderPassModule.h`](/docs/plugin/api/pass-module#the-hlsl-slot-registry)）。
 
-<a id="thread-and-context-requirements">
-</a>
+## 线程和上下文要求 [#thread-and-context-requirements]
 
-## 线程和上下文要求
-
-- **仅限游戏线程、编辑器构建。** 输出部分创建并修改 `UPackage`、`UMaterial` 和
-  `UMaterialInstanceConstant`，并运行资产保存路径；绑定读取内置目录，该目录
-  由反射构建。
-- 在 commandlet 之外，编译会打开一个 `FScopedSlowTask`，并在短延迟后显示模态进度对话框；Cancel 会报告为
-  `bCancelled`，与失败不同。
+- **仅限游戏线程、编辑器构建。** 输出部分创建并修改 `UPackage`、`UMaterial` 和 `UMaterialInstanceConstant`，并运行资产保存路径；绑定读取内置目录，该目录由反射构建。
+- 在 commandlet 之外，编译会打开一个 `FScopedSlowTask`，并在短延迟后显示模态进度对话框；Cancel 会报告为 `bCancelled`，与失败不同。
 - 这些调用是**同步的**。没有异步变体、没有 future，也没有除 `OnDreamShaderSourceGenerated` 之外的完成回调。
-- *（自 2.1.0 起）* `.dsp` 编译也会写入其包之外：HLSL 槽位注册表及其
-  快照位于 `<DShader>/.dreampass/` 下。在渲染它的编辑器中，它随后会同步重新编译槽位着色器；
-  commandlet 不会。
+- *（自 2.1.0 起）* `.dsp` 编译也会写入其包之外：HLSL 槽位注册表及其快照位于 `<DShader>/.dreampass/` 下。在渲染它的编辑器中，它随后会同步重新编译槽位着色器； commandlet 不会。
 
-<a id="result-messages">
-</a>
+## 结果消息 [#result-messages]
 
-## 结果消息
+`FDreamShaderCompileResult::Message` 故意保持 1.x 的传输格式：`.skill/dsc.ps1` 会对 `Generated` 行进行 grep，以列出一次运行写入的资产，而桥接会逐字记录该消息。
 
-`FDreamShaderCompileResult::Message` 故意保持 1.x 的传输格式：`.skill/dsc.ps1` 会对
-`Generated` 行进行 grep，以列出一次运行写入的资产，而桥接会逐字记录该消息。
-
-<a id="success">
-</a>
-
-### 成功
+### 成功 [#success]
 
 每个产物一行，按输出顺序；对于已构建的管线，在其行之后，为其导出的每个渲染目标各一行：
 
@@ -219,31 +202,15 @@ namespace UE::DreamShader::Editor::Compiler
 | `Compiled {File}; it declares no material and no exported function, so no asset was written.` | 没有产物的源 |
 | `\nWarnings:\n` + 每个警告一行线路行 | 当运行引发警告时追加：其自身诊断，然后是 `RaiseGenerationWarning` 收集到的内容 |
 
-<a id="failure">
-</a>
+### 失败 [#failure]
 
-### 失败
+第一个错误作为 `<file>(<line>,<column>): DSHnnnn: <message>`，然后每个其他诊断各占一行。 `Code` 保存该第一个 `DSHnnnn`。代码收录在[诊断](/docs/diagnostics) 下；发射器自身的代码为 `DSH8200`–`DSH8289`，而 Custom Pass 发射的代码——管线、其渲染目标、HLSL 槽位及其预检查——为 `DSH8300`–`DSH8339` *（自 2.1.0 起）*。
 
-第一个错误作为 `<file>(<line>,<column>): DSHnnnn: <message>`，然后每个其他诊断各占一行。
-`Code` 保存该第一个 `DSHnnnn`。代码收录在
-[诊断](/docs/diagnostics) 下；发射器自身的代码为 `DSH8200`–`DSH8289`，而 Custom Pass
-发射的代码——管线、其渲染目标、HLSL 槽位及其预检查——为 `DSH8300`–`DSH8339`
-*（自 2.1.0 起）*。
+`Skipped` 行背后的构建键涵盖文件的**以及每个头文件的**预处理文本、预处理器读取的定义，以及——对于 `.dsi`——父级的对象路径和由部分向量覆盖具体化的任何继承通道（不是父级的整个 schema）；对于 `.dsp`，涵盖其 pass 命名的材质及其构建时使用的构建键、其着色器文件的快照输入，以及 pass 层表；对于读取导出缓冲区的 `.dss`，涵盖该缓冲区的导出。参见[缓存](/docs/plugin/generation/caching#custom-pass-pipelines)。
 
-`Skipped` 行背后的构建键涵盖文件的**以及每个头文件的**预处理文本、
-预处理器读取的定义，以及——对于 `.dsi`——父级的对象路径和由部分向量覆盖
-具体化的任何继承通道（不是父级的整个 schema）；对于 `.dsp`，
-涵盖其 pass 命名的材质及其构建时使用的构建键、其着色器文件的快照输入，
-以及 pass 层表；对于读取导出缓冲区的 `.dss`，涵盖该缓冲区的导出。参见
-[缓存](/docs/plugin/generation/caching#custom-pass-pipelines)。
+## 示例 [#example]
 
-<a id="example">
-</a>
-
-## 示例
-
-在不链接编译器模块的情况下请求编译——这就是运行时或第三方
-编辑器模块所需的全部内容：
+在不链接编译器模块的情况下请求编译——这就是运行时或第三方编辑器模块所需的全部内容：
 
 ```csharp
 // MyTooling.Build.cs
@@ -303,10 +270,7 @@ bool Check(const FString& InPath)
 }
 ```
 
-<a id="see-also">
-</a>
-
-## 另见
+## 另见 [#see-also]
 
 - [C++ API](/docs/plugin/api) — 模块、头文件、链接和构建依赖
 - [`DreamShaderLang`](/docs/plugin/api/lang-module) — 此模块运行并输出的前端与 IR

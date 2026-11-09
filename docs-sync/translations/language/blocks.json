@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "c06c77e7bc559bd60da073646eb84e50b800bb29055c128778081b21e72b1b89",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/language/blocks.md",
-      "sourceHash": "521d19b95f6f6d5b120276b9ef7da8c11c7b7dee884f5d82fab73252d8124bb5",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "235986f7d8443d5c04810016aec232128166648e2f948eca3c2e3a3887debe9a"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "521d19b95f6f",
+      "translationHash": "7972fd8efe892960ca8521ab9055316a784bcb102eed0ca817cd4028cee351d4"
     }
   ],
   "translationFile": "content/docs/language/blocks.md",
-  "translationHash": "97b80d23ce768f87df6feea75df8bd4f3f6f53bb11837a040548c75e7af8d641"
+  "translationHash": "20f18930e65bd1c84a43b7cd10f2c5e9812e8b6f03f2fd0dee8bf0061d242db3"
 }

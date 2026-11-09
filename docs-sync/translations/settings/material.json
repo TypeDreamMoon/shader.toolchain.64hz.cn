@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ec8b4390dc6ef64696c34618b4b04615f86a93556b1f28501ef2e63021e57fc2",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/settings/material.md",
-      "sourceHash": "697369227926199a489c47ae46dc8a336fd3763e05491a2ec7e98c3b62a5d492",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "8f4046db76d417e96a5b14513ce90c65c91710a88083bb32f9523461a0dfba8d"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "697369227926",
+      "translationHash": "3ed547fba74f90441af82e15c0928b49b5a0b678c6bb65aed406f40612f9aef1"
     }
   ],
   "translationFile": "content/docs/settings/material.md",
-  "translationHash": "14d0e2849d75a0bfda0dad15fd4e7486f2a4ef07183f8f556417e7644627d1da"
+  "translationHash": "8ae127dabc937d2552eb65b67d1033b206367e60842d47d7c651d6e3d4980b05"
 }

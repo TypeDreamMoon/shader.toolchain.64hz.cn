@@ -1,16 +1,16 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "e8832985219105d4e407ea4c4e9227f7458774e288b0f0608af0d73c57570031",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceHash": "c90ca82ae9dd1c3b701108d545131c5c29450b3b9ab24f21bc7a3f644a5f9d26",
+  "sourceRevision": "1663752907365c04fdd53e58ff6159932d092d27",
   "sources": [
     {
       "path": "Docs/README.md",
-      "sourceHash": "4d4caf39da018432cbf1d22f037b2ee490649346500afc5899dfebc2b994a9e8",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "f5c9f6ce01d2f2a3cebbcb1d282bd543c28d26add7789fc5bbbe8a2295fa7dac"
+      "alignedRevision": "0ca921626ece",
+      "alignedPage": "f393fbe8a373",
+      "translationHash": "ddd6ec34e9f9570771699717952a4318b112957d99960cc967c0e46fd9764424"
     }
   ],
   "translationFile": "content/docs/plugin/readme.md",
-  "translationHash": "a7f1d112ec9bb45c822977b5e0e09febbb206e9fa25e805ab79cf3d97076838f"
+  "translationHash": "98d399f1f595dc25fb3a6e3c6906728a0463dad765d0e243f9befce21761fd03"
 }

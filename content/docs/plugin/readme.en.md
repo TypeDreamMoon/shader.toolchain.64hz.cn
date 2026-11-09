@@ -5,7 +5,7 @@ description: "DreamShader documentation"
 
 # DreamShader documentation
 
-[English](/en/docs/plugin/readme) · [简体中文](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/Docs/zh-CN/README.md)
+[English](/en/docs/plugin/readme) · [简体中文](https://github.com/TypeDreamMoon/DreamShader/blob/1663752907365c04fdd53e58ff6159932d092d27/Docs/zh-CN/README.md)
 
 This directory is the English source for the DreamShader manual. Tutorials and reference pages live
 together by topic and can be read here on GitHub or in a local Markdown reader. The
@@ -34,7 +34,7 @@ The compact [getting-started reference](/en/docs/plugin/getting-started) remains
 | Custom Pass | [Runtime](/en/docs/custom-pass), [HLSL passes](/en/docs/plugin/pass-runtime/hlsl), [pipeline language](/en/docs/language-v2/passes) |
 | Diagnostics | [Error and warning lookup](/en/docs/diagnostics), [limitations](/en/docs/diagnostics/limitations) |
 | Development | [C++ API](/en/docs/plugin/api), [contributing](/en/docs/plugin/contributing), [testing](/en/docs/plugin/contributing/testing), [release](/en/docs/plugin/contributing/release) |
-| Release history | [Version notes with explanations](/en/docs/changelog/dreamshader), [repository changelog](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/CHANGELOG.md) |
+| Release history | [Version notes with explanations](/en/docs/changelog/dreamshader), [repository changelog](https://github.com/TypeDreamMoon/DreamShader/blob/1663752907365c04fdd53e58ff6159932d092d27/CHANGELOG.md) |
 
 The [complete reference index](/en/docs/) lists the individual technical reference pages.
 
@@ -54,6 +54,6 @@ neither file is generated from the other. Bump its *Current release* row and add
 when `CHANGELOG.md` gets one; pages that name the current release, such as
 [Limitations](/en/docs/diagnostics/limitations), are reviewed at the same time.
 
-The `zh-CN/` tree mirrors English source paths. Imported translations are unreviewed; the [initial migration snapshot](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/Docs/zh-CN/TRANSLATIONS.md) preserves the original imported and missing translation lists. For current status, run `python -B Docs/translation-status.py` or check the translation status issue in the website repository. `.translations/` records source versions without treating an import as approval. Website-only notes remain in the website repository.
+The `zh-CN/` tree mirrors English source paths. Beside it, `zh-CN/.align/` records which English paragraph each Chinese paragraph was translated from, so when the English changes only the changed paragraphs are translated again. Correct a translation by editing the Chinese page directly; the next run keeps the edit. Website-only notes remain in the website repository.
 
-Check translation status locally with `python -B Docs/translation-status.py`; add `--all` to include every source or `--json` for structured output. This read-only tool does not need the website repository or a Git checkout.
+Translations are made and checked with [dreamdocs](https://github.com/TypeDreamMoon/dreamdocs): `dreamdocs status` lists the stale and missing paragraphs, `dreamdocs translate` translates them, and `dreamdocs check --plugin .` is what CI runs. Its settings for this plugin are in `dreamdocs.json`.

@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "62ccbef0674da52473e7b60f8e5449469b929fd5463f26ce7d397726ce0a8d36",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/diagnostics/DSH9xxx.md",
-      "sourceHash": "e7c3ab0be321713a904f4a00e2af82e5ad3bfd3b498eb1e42feacf6875bcb974",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "2bec7377cdf38d7d9ca246d9be35f22441026a8be35c2e5bf39dfa08b65d7c9d"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "e7c3ab0be321",
+      "translationHash": "e33e865973ddbac755dbe3d19d8b919e3d20b1c57b56f4426bcb00eeb5abbd3d"
     }
   ],
   "translationFile": "content/docs/plugin/diagnostics/dsh9xxx.md",
-  "translationHash": "cc0dea552b306d2513d8b5ab75efb48e4007aafd664d7784ce834ab2c3d4d650"
+  "translationHash": "af1bd546d3e633ad4631c363590af595d05b3cc595986df651603dd865e902ee"
 }

@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "24c50bfd23c7f2323fbc9ade53fa64728463c18a8bb0b121d1c937068a05d5c6",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/tools/workspace.md",
-      "sourceHash": "4522ad1efdddcde9df2975e0191c66679eb94d30a590fcb92486ff5e611e0c53",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "37a8bcddb930b104a94732b4e8a1d9e61b2c6e037910c4b7ff56d71c35e126ba"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "4522ad1efddd",
+      "translationHash": "64ff5de0145db9dbc85f4bdf65373b500c4bd7239372c618d4f723b2d3849e79"
     }
   ],
   "translationFile": "content/docs/plugin/tools/workspace.md",
-  "translationHash": "bb6eef4742c00360a0ff1ffc9f531fab4518c01c933a1af1660c0aafded816f5"
+  "translationHash": "12b9d5963725ee03ae9a6bfaf6aa62070e661c8842cc118b8070d83dd0b4a02b"
 }

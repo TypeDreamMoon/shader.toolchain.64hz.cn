@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "ff0adb534885b689b757c56ece717d579997914ee3edae2a44a21a98a6bfd3e7",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/node-reuse.md",
-      "sourceHash": "f35b369bdfe2bcff3a437b3d705b5ea71be7ee155c93d03dab1feebb348724b4",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "f8a83d736bc68481e40a25c9a8d8fb60aa577e2d65fe3d4a216a184f55cd5d27"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "f35b369bdfe2",
+      "translationHash": "ce7e42af717c13691aea5768a52059c5b9e4a73a5b008b960b1730dd7cf1c580"
     }
   ],
   "translationFile": "content/docs/plugin/graph/node-reuse.md",
-  "translationHash": "15fe26c97bb9bce0a6430a8ac1ea274f32a91b4981d007220658ed00b4110ae4"
+  "translationHash": "8e4b5319d9a717558e70ab2201cb4847ede14ce5842517c857b8e8942bc3fc8f"
 }

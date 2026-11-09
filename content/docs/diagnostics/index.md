@@ -18,9 +18,7 @@ DreamShader 的诊断出现在哪里、如何读懂一条诊断，以及 1.x 生
 | Bridge 产物 | `<Project>/Saved/DreamShader/Bridge/diagnostics.json`、`.../Bridge/diagnostics/`、`.../Bridge/bridge.db` |
 
 > [!NOTE]
-> **到 1.9.x 为止**大多数消息没有码：1.x parser 给自己的消息编了码，1.x 生成器约 560 个
-> 报错点只报裸文本，本页当时也逐字收录那些文本。生成器和 parser 已经删掉，那些字符串
-> 一条都不会再报出。如果你在旧日志或搜索结果里见到一条，[1.x 消息及其码](#1x-messages-and-their-codes) 列出了常见的那些。
+> **到 1.9.x 为止**大多数消息没有码：1.x parser 给自己的消息编了码，1.x 生成器约 560 个报错点只报裸文本，本页当时也逐字收录那些文本。生成器和 parser 已经删掉，那些字符串一条都不会再报出。如果你在旧日志或搜索结果里见到一条，[1.x 消息及其码](#1x-messages-and-their-codes) 列出了常见的那些。
 
 ## 诊断出现在哪里 [#where-diagnostics-appear]
 
@@ -48,10 +46,7 @@ DreamShader 的诊断出现在哪里、如何读懂一条诊断，以及 1.x 生
 同一个文件里，记录按「编译、shader 编译、VirtualFunction 扫描」排序，各自内部按源文件排，所以一个文件的第一个错误是它编译时的错误。见 [Bridge](/docs/plugin/tools/bridge)。
 
 > [!NOTE]
-> bridge 从不在 commandlet 里运行。`-run=DreamShader`、`-run=Cook` 以及任何其他 commandlet
-> 进程都不写 `diagnostics.json`、不写分片、不写 `bridge.db` 行；消息只存在于
-> 日志中（以及一个 `-DiagnosticsOut` 文件中）。bridge 也会被 `-NoDreamShaderEditorBridge` 禁用。
-> 见 [Commandlet](/docs/tools/commandlet)。
+> bridge 从不在 commandlet 里运行。`-run=DreamShader`、`-run=Cook` 以及任何其他 commandlet 进程都不写 `diagnostics.json`、不写分片、不写 `bridge.db` 行；消息只存在于日志中（以及一个 `-DiagnosticsOut` 文件中）。bridge 也会被 `-NoDreamShaderEditorBridge` 禁用。见 [Commandlet](/docs/tools/commandlet)。
 
 ## 严重级别 [#severity]
 
@@ -153,8 +148,7 @@ I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200: 'Tin' is not declared 
 | `Asset '{ObjectPath}' is open in an asset editor, so it was NOT rebuilt. …` | [`DSH8206`](/docs/plugin/diagnostics/dsh8xxx#dsh8206)，附带 [`DSH8101`](/docs/plugin/diagnostics/dsh8xxx#dsh8101) |
 | `Asset '{ObjectPath}' was edited by hand since DreamShader generated it …` | [`DSH8207`](/docs/plugin/diagnostics/dsh8xxx#dsh8207)，附带 [`DSH8115`](/docs/plugin/diagnostics/dsh8xxx#dsh8115) —— 见 [Divergence](/docs/plugin/generation/divergence) |
 
-不在表里的消息：到 [README.md](/docs/plugin/diagnostics/readme) 里搜它所描述情况的一个词，
-或者把文件编译一遍、读它现在报的码。
+不在表里的消息：到 [README.md](/docs/plugin/diagnostics/readme) 里搜它所描述情况的一个词，或者把文件编译一遍、读它现在报的码。
 
 ## 1.x 静默接受的写法 [#what-1x-accepted-in-silence]
 
@@ -182,18 +176,13 @@ I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200: 'Tin' is not declared 
 | 与内置同名、从 `Graph` 调用的 `ShaderFunction` | 调到了内置 | 在声明处报 [`DSH6206`](/docs/plugin/diagnostics/dsh6xxx#dsh6206) |
 | `dot(vec3Value, vec2Value)` | 接受；后来 Unreal 自己的材质翻译失败 | [`DSH4226`](/docs/plugin/diagnostics/dsh4xxx#dsh4226) |
 
-1.x 写进文档、1.x 源文件仍在依赖的写法 —— 换了大小写的名字、GLSL 拼写、写进 `float3` 位置的 `float4` —— 照样构建，
-作为一条把它说出来的 [legacy 规则](#reading-a-code)。
+1.x 写进文档、1.x 源文件仍在依赖的写法 —— 换了大小写的名字、GLSL 拼写、写进 `float3` 位置的 `float4` —— 照样构建，作为一条把它说出来的 [legacy 规则](#reading-a-code)。
 
 ## VirtualFunction 同步 [#virtualfunction-sync]
 
-启动服务会重新读取每一个 `VirtualFunction` 声明，并从它的
-`UMaterialFunction` 资产刷新它，以及 Material Function 工具栏和上下文菜单上的编辑器操作。
-这些消息没有 `DSHnnnn` 码，`DSH9001` 除外 —— 用于使用 `#if` 的源文件。
+启动服务会重新读取每一个 `VirtualFunction` 声明，并从它的 `UMaterialFunction` 资产刷新它，以及 Material Function 工具栏和上下文菜单上的编辑器操作。这些消息没有 `DSHnnnn` 码，`DSH9001` 除外 —— 用于使用 `#if` 的源文件。
 
-同步诊断通过 `stage = virtualFunctionSync`、`code = virtual-function-sync`
-和 `source = DreamShader VirtualFunction` 进入存储。编辑器操作消息是 toast 通知和
-日志行；它们不会被存储。
+同步诊断通过 `stage = virtualFunctionSync`、`code = virtual-function-sync` 和 `source = DreamShader VirtualFunction` 进入存储。编辑器操作消息是 toast 通知和日志行；它们不会被存储。
 
 | 消息 | 原因 | 修复 | 参见 |
 | :-- | :-- | :-- | :-- |
@@ -220,9 +209,7 @@ I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200: 'Tin' is not declared 
 | `VirtualFunction name cannot be empty.` | 声明构建器收到了空名字 | 提供一个名字 | [VirtualFunction](/docs/plugin/language/virtual-function) |
 
 > [!NOTE]
-> 同步服务按裸关键字 `VirtualFunction` 找声明，**区分大小写**，
-> 两边要有标识符边界 —— 和 legacy 前端对块关键字的要求一样。
-> 小写的 `virtualfunction` 两边都看不见。
+> 同步服务按裸关键字 `VirtualFunction` 找声明，**区分大小写**，两边要有标识符边界 —— 和 legacy 前端对块关键字的要求一样。小写的 `virtualfunction` 两边都看不见。
 
 ## 其他日志行 [#other-log-lines]
 
@@ -234,8 +221,7 @@ I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200: 'Tin' is not declared 
 | `'{ObjectPath}' exists as a saved asset, so it is rebuilt and saved on disk rather than in memory. Run Tools > DreamShader > Make Ephemeral to make it Ephemeral again.` | 编译落到了一个背后有文件的 ThinCustom 产物上；由存储决定，所以它被重建并存盘 |
 | `Skipping automatic layout for large DreamShader graph ({Count} nodes). Existing generated positions will be used.` | 记在 `Display` 级别；1.x 的 `Classic` 布局跳过了大图 |
 
-commandlet 自己的运行行、用法横幅和退出码在
-[命令行](/docs/tools/commandlet)；反编译器的在[反编译导出](/docs/tools/decompiler)。
+commandlet 自己的运行行、用法横幅和退出码在[命令行](/docs/tools/commandlet)；反编译器的在[反编译导出](/docs/tools/decompiler)。
 
 ## 示例 [#example]
 
@@ -260,7 +246,7 @@ Output Log：
 LogDreamShader: Error: I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200: 'Tin' is not declared in this scope.
 ```
 
-`Saved/DreamShader/Bridge/diagnostics.json`：
+`Saved/DreamShader/Bridge/diagnostics.json`:
 
 ```json
 {
@@ -286,9 +272,7 @@ LogDreamShader: Error: I:/Project/DShader/Materials/M_Sample.dsm(8,19): DSH4200:
 }
 ```
 
-同一条记录还会写进 `Bridge/diagnostics/<md5>.json` 和
-`Bridge/bridge.db` 的 `diagnostics` 表，并出现在 Material Content Browser 里这个源文件的那一行。`stage` 由
-码的范围决定：`preprocess`、`parse`、`bind`、`ir`、`generate` 或 `tools`。
+同一条记录还会写进 `Bridge/diagnostics/<md5>.json` 和 `Bridge/bridge.db` 的 `diagnostics` 表，并出现在 Material Content Browser 里这个源文件的那一行。`stage` 由码的范围决定：`preprocess`、`parse`、`bind`、`ir`、`generate` 或 `tools`。
 
 ## 另请参阅 [#see-also]
 

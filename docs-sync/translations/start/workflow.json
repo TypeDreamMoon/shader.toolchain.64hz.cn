@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "d3b8ded7101bcd9f5db6fc1e3216cea1b7300d06cf26296ecb935373d30d9e60",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
   "sources": [
     {
       "path": "Docs/getting-started/workflow.md",
-      "sourceHash": "e7d135d1b8c61544f76d946da4ca7aaca36f91583012b8ff2c3631b931a1cf5c",
-      "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
-      "translationHash": "ee12013804746200c1fee15af0b8900db2d75aecaabe8313db4cb858133bcf81"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "e7d135d1b8c6",
+      "translationHash": "631ab3e101706a0d0dbda2c52b613debb3ed59cec3b691f684bcad03d1e638c2"
     }
   ],
   "translationFile": "content/docs/start/workflow.md",
-  "translationHash": "1d57dd5a52d0ad70a1d67ade01cfc9eb5b06893fe1f64718c1c46fdc9f3fe66a"
+  "translationHash": "32e6db3cfc29fd678f0199e34a213f008e1b5c21e059d15a509b978b6320b942"
 }

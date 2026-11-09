@@ -17,8 +17,7 @@ description: "入门"
    MyProject/Plugins/DreamShader/
    ```
 
-2. 在 *编辑 ▸ 插件* 中启用 **DreamShader** 并重启编辑器。DreamShader 依赖于
-   引擎插件 `WebSocketNetworking` 和 `SQLiteCore`；两者会自动启用。
+2. 在 *编辑 ▸ 插件* 中启用 **DreamShader** 并重启编辑器。DreamShader 依赖于引擎插件 `WebSocketNetworking` 和 `SQLiteCore`；两者会自动启用。
 3. 确认设置页面存在：*项目设置 ▸ DreamPlugin ▸ DreamShader*。
 
 | | |
@@ -28,8 +27,7 @@ description: "入门"
 
 ## 创建源目录 [#create-the-source-directory]
 
-DreamShader 从项目根目录下的一个目录读取源文件，默认是 `DShader`
-（*项目设置 ▸ DreamPlugin ▸ DreamShader ▸ 路径 ▸ 源目录*）。
+DreamShader 从项目根目录下的一个目录读取源文件，默认是 `DShader` （*项目设置 ▸ DreamPlugin ▸ DreamShader ▸ 路径 ▸ 源目录*）。
 
 ```text
 MyProject/
@@ -43,14 +41,11 @@ MyProject/
    └─ DreamShader/
 ```
 
-文件夹由你选择；重要的是扩展名。将新源文件写为 `.dss`；`.dsm` /
-`.dsf` 是 1.x 语法，它仍然可以构建——通过同一个编译器——因此项目可以借助 [`dsc migrate`](/docs/language-v2/migrate) 一次迁移一个
-文件。请参阅[源文件](/docs/language/file-model)
-和 [DreamShaderLang 2.0](/docs/language-v2)。
+文件夹由你选择；重要的是扩展名。将新源文件写为 `.dss`；`.dsm` / `.dsf` 是 1.x 语法，它仍然可以构建——通过同一个编译器——因此项目可以借助 [`dsc migrate`](/docs/language-v2/migrate) 一次迁移一个文件。请参阅[源文件](/docs/language/file-model) 和 [DreamShaderLang 2.0](/docs/language-v2)。
 
 ## 编写材质 [#write-a-material]
 
-`MyProject/DShader/Materials/M_Minimal.dss`：
+`MyProject/DShader/Materials/M_Minimal.dss`:
 
 ```hlsl
 #pragma material(Domain = UI, ShadingModel = Unlit)
@@ -66,8 +61,7 @@ export void M_Minimal(inout material m)
 
 或者 *材质内容浏览器 ▸ 新建 ▾ ▸ 材质 (.dss)*，它会根据模板写入相同的结构。
 
-保存该文件。启用 *保存时自动编译*（默认启用）后，DreamShader 会在短暂延迟后编译源文件
-并构建材质。
+保存该文件。启用 *保存时自动编译*（默认启用）后，DreamShader 会在短暂延迟后编译源文件并构建材质。
 
 | 部分 | 参考 |
 | :-- | :-- |
@@ -76,9 +70,7 @@ export void M_Minimal(inout material m)
 | `export void M_Minimal(inout material m)` | 入口：使文件成为材质的那个函数 |
 | `m.EmissiveColor = …` | 材质输出，会根据引擎的属性列表进行检查 |
 
-The asset lands under `/Game` at the file's folder relative to the source root, named after the
-`export` function: this file produces `/Game/Materials/M_Minimal`. `/// @name` above the entry names
-it otherwise — see [Asset paths](/docs/generation/asset-paths).
+The asset lands under `/Game` at the file's folder relative to the source root, named after the `export` function: this file produces `/Game/Materials/M_Minimal`. `/// @name` above the entry names it otherwise — see [Asset paths](/docs/generation/asset-paths).
 
 ### 1.x 语法中的同一材质 [#the-same-material-in-1x-syntax]
 
@@ -116,24 +108,16 @@ Shader(Name="Materials/M_Minimal")
 | `Base.EmissiveColor = …` | [输出绑定](/docs/plugin/language/output-bindings) |
 | `Graph = { … }` | [图形语言](/docs/graph/overview) |
 
-`Name` 是相对于根目录的资产路径，`Root` 默认为 `Game`。保留这两个
-文件中的一个：两者都会构建 `/Game/Materials/M_Minimal`。
+`Name` 是相对于根目录的资产路径，`Root` 默认为 `Game`。保留这两个文件中的一个：两者都会构建 `/Game/Materials/M_Minimal`。
 
 ## 找到生成的材质 [#find-the-generated-material]
 
-在默认后端 **ThinCustom** 下，DreamShader 会生成 **临时** 材质：在内存中，
-磁盘上没有 `.uasset`，并且从内容浏览器中隐藏。这是有意为之——源文件
-就是创作表面，隐藏该资产可以防止意外的 *保存* 将其具体化。一个
-`Graph` 后端材质（`#pragma material(Backend = Graph)`）是普通资产，在每次
-构建时保存。
+在默认后端 **ThinCustom** 下，DreamShader 会生成 **临时** 材质：在内存中，磁盘上没有 `.uasset`，并且从内容浏览器中隐藏。这是有意为之——源文件就是创作表面，隐藏该资产可以防止意外的 *保存* 将其具体化。一个 `Graph` 后端材质（`#pragma material(Backend = Graph)`）是普通资产，在每次构建时保存。
 
 要处理结果：
 
-- 打开 *工具 ▸ DreamShader ▸ 材质内容浏览器*。它列出源文件、它们的编译
-  状态和诊断信息，以及每个源文件构建的资产。
-- 或者打开 *工具 ▸ DreamShader ▸ 显示临时材质*——或在
-  *项目设置 ▸ DreamPlugin ▸ DreamShader ▸ 编译器* 下的同名设置——以在内容浏览器和
-  资产选择器中显示它们。
+- 打开 *工具 ▸ DreamShader ▸ 材质内容浏览器*。它列出源文件、它们的编译状态和诊断信息，以及每个源文件构建的资产。
+- 或者打开 *工具 ▸ DreamShader ▸ 显示临时材质*——或在*项目设置 ▸ DreamPlugin ▸ DreamShader ▸ 编译器* 下的同名设置——以在内容浏览器和资产选择器中显示它们。
 - 或者在你需要磁盘上的真实资产时，从浏览器中 *具体化* 一个。
 
 烘焙会自动将资产具体化。请参阅[临时材质](/docs/generation/in-memory)。
@@ -146,9 +130,7 @@ Shader(Name="Materials/M_Minimal")
 I:/MyProject/DShader/Materials/M_Minimal.dss(8,24): DSH4200: 'Tnt' is not declared; did you mean 'Tint'? Names are case-sensitive.
 ```
 
-它会进入输出日志、材质内容浏览器，以及 VSCode
-扩展读取的桥接文件。在[诊断目录](/docs/plugin/diagnostics/readme)中查找该代码；诊断出现的位置
-以及如何阅读诊断，请参阅[诊断](/docs/diagnostics)。
+它会进入输出日志、材质内容浏览器，以及 VSCode 扩展读取的桥接文件。在[诊断目录](/docs/plugin/diagnostics/readme)中查找该代码；诊断出现的位置以及如何阅读诊断，请参阅[诊断](/docs/diagnostics)。
 
 ## 后续步骤 [#next-steps]
 

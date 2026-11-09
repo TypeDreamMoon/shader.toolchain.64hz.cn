@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "2363c07fe97ecd4b55c91155e1a3c82d2ed7789e5ebde506ddf7bf87c32c1256",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/swizzle.md",
-      "sourceHash": "5eb609c6d462012b93b84f679f01a2be93dd9c83990c8b30dc5ea9f5578f7ac8",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "595be5c9857e99f52a89db448698cea9c7dbe6074076597138fe137463c0939d"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "5eb609c6d462",
+      "translationHash": "0d1f53e5098a5c9d712983eda04151603418837c1108676ba48efcce4781f1b7"
     }
   ],
   "translationFile": "content/docs/plugin/graph/swizzle.md",
-  "translationHash": "551d2d1f75a122069a681f67b81c2055cc20aa6591f6be6cdd76c13e233e8ede"
+  "translationHash": "a664ddc1819a360202e373d35f8a13a8618c988a32328b8669991c7f9465bbf3"
 }

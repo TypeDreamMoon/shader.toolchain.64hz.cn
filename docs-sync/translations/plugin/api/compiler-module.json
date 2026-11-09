@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "b3247ace809b31fc021e549925ca6468c38e0ce82923417838e2e8a528889e05",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/api/compiler-module.md",
-      "sourceHash": "5fe897aaa08247b5f7d153717dc73b0239adaceb07a4349ff98767e01cbf747f",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "d931dd6ef639adecd5a7b875eb9bc40409a2b5e04172818f82553bc596e74a03"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "5fe897aaa082",
+      "translationHash": "205f13da19e3abbae1b9b4943a04b7a4e45297ca94e9544c5b4e958754b73d4e"
     }
   ],
   "translationFile": "content/docs/plugin/api/compiler-module.md",
-  "translationHash": "5622c051f357adbcb64e05dd0f0339050db7f2e5ec221003a432f30487cfbffd"
+  "translationHash": "961ceee62026ae399c5c5346ddfe86f88bf7ff511c2466edef025349fdf304cf"
 }

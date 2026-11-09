@@ -109,8 +109,7 @@ description: "SamplerType"
 | `IsDefaultMeshpaintTexture` | bool | `false` |
 | `SortPriority` | `int32` | `32` |
 
-`MipValueMode` 是唯一会改变节点 *引脚* 名称的键，因而也会改变
-[调用形式](/docs/plugin/parameters/graph-usage#pin-names-by-parameter-type)在活动节点上可以匹配哪些名称。
+`MipValueMode` 是唯一会改变节点 *引脚* 名称的键，因而也会改变[调用形式](/docs/plugin/parameters/graph-usage#pin-names-by-parameter-type)在活动节点上可以匹配哪些名称。
 
 ## 维度验证与推断 [#dimension-validation-and-inference]
 
@@ -124,14 +123,10 @@ description: "SamplerType"
 | `TextureSampleParameter2D` / `2DArray` / `Cube` / `Volume` / `SubUV` | 是，来自标记的后缀 | 与紧凑标记一样检查壳 |
 | `TextureSampleParameterCubeArray` | 否 | 仅检查壳是否命名了一个纹理（[`DSH1043`](/docs/plugin/diagnostics/dsh1xxx#dsh1043)） |
 
-`TextureObjectParameter` 的维度由其默认值所加载的资产读出：`UTextureCube` →
-`TextureCube`，`UTexture2DArray` → `Texture2DArray`，`UVolumeTexture` → `VolumeTexture`，其他任何值——
-或者默认值未加载——`Texture2D`。
+`TextureObjectParameter` 的维度由其默认值所加载的资产读出：`UTextureCube` → `TextureCube`，`UTexture2DArray` → `Texture2DArray`，`UVolumeTexture` → `VolumeTexture`，其他任何值—— 或者默认值未加载——`Texture2D`。
 
 > [!WARNING]
-> 一个 `TextureSampleParameterCube` 若通过纯对象路径指向 2D 纹理，会干净地生成，
-> 随后在 Unreal 的着色器编译器中失败。参见
-> [参数节点标记](/docs/plugin/parameters/parameter-nodes#dimension-validation-asymmetry)。
+> 一个 `TextureSampleParameterCube` 若通过纯对象路径指向 2D 纹理，会干净地生成，随后在 Unreal 的着色器编译器中失败。参见[参数节点标记](/docs/plugin/parameters/parameter-nodes#dimension-validation-asymmetry)。
 
 ## 诊断 [#diagnostics]
 

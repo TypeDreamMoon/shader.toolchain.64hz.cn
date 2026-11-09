@@ -2,13 +2,13 @@
   "version": 2,
   "status": "current",
   "sourceHash": "1ac1ae950797529a300677337503a517026ca158da1a1cad2786c2be7104e0c3",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/diagnostics/README.md",
-      "sourceHash": "135387707d55e1cd3a22d57ce041b760f06600853813105541031a0e4366d368",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "9c69ff50ef19f23d5e2e433713b850086216585e5c160e63d2b7e6a269c56178"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "135387707d55",
+      "translationHash": "b4392bca23f7bac057cb792ee8e63b292f199136def4e7a338058d5a3d8294bb"
     }
   ],
   "translationFile": "content/docs/plugin/diagnostics/readme.md",

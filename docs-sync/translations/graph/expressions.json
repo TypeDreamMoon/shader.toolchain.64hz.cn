@@ -2,13 +2,13 @@
   "version": 2,
   "status": "current",
   "sourceHash": "b3226149d9aeeea42da23250005f86c2c38e315bb8007080b0e0391563db979f",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/expressions.md",
-      "sourceHash": "35622d14d925c76af1af82c27b5b4812bc70940bc345138ff89ee291298ad40d",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "159b1092a2b61c872bab1261bebcd810fd8f74398615598407cffe19b5eda76e"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "35622d14d925",
+      "translationHash": "28e95d20382c67663fee06b8eabdc1d0060c0e0df9259373494f417a47da6102"
     }
   ],
   "translationFile": "content/docs/graph/expressions.md",

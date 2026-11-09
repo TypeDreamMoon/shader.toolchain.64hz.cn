@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "9569e0924da9b2d775742a9cb890f4fe392f7465166fbd6ae245ec99b11039c7",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/settings/material-enums.md",
-      "sourceHash": "117071d42d795d1e5480f6af916e77bb225d4b195404649f3eaa9385e0a535f4",
-      "sourceRevision": "7b4f0e91699288981cabb57468fbcdd5ddbd2d10",
-      "translationHash": "0d65c24595c7b304f063d596a432003e159a13ef6f7b4db6194a15d000c5807e"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "117071d42d79",
+      "translationHash": "2644a4adfa744b07fbc2e97e199e1e40c8102be1fed2adeeae327be28ee886e1"
     }
   ],
   "translationFile": "content/docs/settings/enums.md",
-  "translationHash": "f64037f12bdb326cfc7f8f80d1ff7cbaf982be3b5c569c36bb71302673c85a83"
+  "translationHash": "bc90cebe6cbadc2cb7f12c28d19e1519d6d2c83c51c6467fda6601bcf09632b6"
 }

@@ -7,8 +7,7 @@ description: "语句"
 
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **语句**
 
-`Graph` 块体可以包含的全部语句形式、终结这些语句的规则，以及
-解析器如何判定一条给定语句属于哪种形式。
+`Graph` 块体可以包含的全部语句形式、终结这些语句的规则，以及解析器如何判定一条给定语句属于哪种形式。
 
 | | |
 | :-- | :-- |
@@ -45,13 +44,11 @@ graph-statement :=
 | 9 | 语句形式调用 | `F_Split(Src, OutA, OutB);` | `;` | [调用](/docs/graph/calls) |
 | 10 | `if` / `else` / `else if` | `if (m > .5) { … } else { … }` | **无** —— 以其最后一个 `}` 结束 | [if / else](/docs/graph/control-flow) |
 
-形式 8 会展开成每个声明子一个变量；它们全部共用**第一个**声明子的类型 token，
-每个声明子报告自己的源码行和列。
+形式 8 会展开成每个声明子一个变量；它们全部共用**第一个**声明子的类型 token，每个声明子报告自己的源码行和列。
 
 ## 终结与切分 [#termination-and-splitting]
 
-`Graph` 块体由 2.0 的语句解析器逐个记号读入 *(自 2.0.0 起)*；不再在 `;` 处
-按文本切分。
+`Graph` 块体由 2.0 的语句解析器逐个记号读入 *(自 2.0.0 起)*；不再在 `;` 处按文本切分。
 
 | 规则 | 行为 |
 | :-- | :-- |
@@ -70,8 +67,7 @@ Graph = {
 }
 ```
 
-解析失败的语句会被跳到它所在层级的下一个 `;`，解析器接着处理下一条语句；块体里的
-每一个错误都会在同一个构建中报出。
+解析失败的语句会被跳到它所在层级的下一个 `;`，解析器接着处理下一条语句；块体里的每一个错误都会在同一个构建中报出。
 
 ## 分类顺序 [#classification-order]
 
@@ -81,7 +77,7 @@ Graph = {
 | --: | :-- | :-- |
 | 1 | 关键字 `if`（**区分大小写**） | 形式 10 |
 | 2 | `for`、`while`、`do`、`return`、`break`、`continue`、`discard` | 能解析，随后被拒绝：[`DSH2208`](/docs/plugin/diagnostics/dsh2xxx#dsh2208) |
-| 3 | `switch`、`case`、`default` | [`DSH2160`](/docs/plugin/diagnostics/dsh2xxx#dsh2160) |
+| 3 | `switch`, `case`, `default` | [`DSH2160`](/docs/plugin/diagnostics/dsh2xxx#dsh2160) |
 | 4 | `{` | 裸块：[`DSH2220`](/docs/plugin/diagnostics/dsh2xxx#dsh2220) |
 | 5 | `;` | 空语句 |
 | 6 | `#Region` / `#EndRegion` 行 | 区域；见 [Layout](/docs/language/layout) |
@@ -89,18 +85,14 @@ Graph = {
 | 8 | 其他任何情况 | 表达式：赋值（形式 4–7）、调用（形式 9），或对无人接收的值报 [`DSH2211`](/docs/plugin/diagnostics/dsh2xxx#dsh2211) |
 
 > [!WARNING]
-> 关键字区分大小写。`If (x) { … }` 不是 `if` 语句：`If` 是一个名字，`If (x)` 是
-> 一次调用，而本该放调用语句 `;` 的位置出现了 `{`，于是报 `DSH2154`。见
-> [不支持的写法](/docs/graph/unsupported#wrong-case-keywords)。
+> 关键字区分大小写。`If (x) { … }` 不是 `if` 语句：`If` 是一个名字，`If (x)` 是一次调用，而本该放调用语句 `;` 的位置出现了 `{`，于是报 `DSH2154`。见[不支持的写法](/docs/graph/unsupported#wrong-case-keywords)。
 
 > [!NOTE]
-> 声明的名字是一个标识符。`float3 A.B = x;` 在 `DSH2154` 处报 `.` *(自 2.0.0 起)*；1.x
-> 会声明一个名字字面为 `A.B` 的变量。成员写入前面不带类型：`Attrs.BaseColor = x;`。
+> 声明的名字是一个标识符。`float3 A.B = x;` 在 `DSH2154` 处报 `.` *(自 2.0.0 起)*；1.x 会声明一个名字字面为 `A.B` 的变量。成员写入前面不带类型：`Attrs.BaseColor = x;`。
 
 ## 赋值 [#assignment]
 
-形式 4 和 6。目标是一个名字或 `name.member`；其他任何东西 —— 成员的 swizzle、
-下标、调用 —— 都是 [`DSH2206`](/docs/plugin/diagnostics/dsh2xxx#dsh2206)。
+形式 4 和 6。目标是一个名字或 `name.member`；其他任何东西 —— 成员的 swizzle、下标、调用 —— 都是 [`DSH2206`](/docs/plugin/diagnostics/dsh2xxx#dsh2206)。
 
 ```c
 <target> = <expression> ;
@@ -115,8 +107,7 @@ Graph = {
 | 3 | 一个属性 | [`DSH4229`](/docs/plugin/diagnostics/dsh4xxx#dsh4229)：属性是输入；请先把它复制到变量里 |
 | 4 | 什么都不是 | 在这里以值的类型声明 —— 沿用旧规则 L26，并由提示 [`DSH5292`](/docs/plugin/diagnostics/dsh5xxx#dsh5292) 说明 |
 
-名字先精确查找，然后忽略大小写查找；另一个大小写下的唯一匹配会被采用，
-并带警告 [`DSH5275`](/docs/plugin/diagnostics/dsh5xxx#dsh5275)。见 [名称解析](/docs/plugin/graph/name-resolution)。
+名字先精确查找，然后忽略大小写查找；另一个大小写下的唯一匹配会被采用，并带警告 [`DSH5275`](/docs/plugin/diagnostics/dsh5xxx#dsh5275)。见 [名称解析](/docs/plugin/graph/name-resolution)。
 
 规则 4 意味着 `=` 左侧未声明的名字不是错误：
 
@@ -128,53 +119,36 @@ Graph = {
 }
 ```
 
-规则 2 的转换取更宽值的**前导分量**，并给出提示
-[`DSH5289`](/docs/plugin/diagnostics/dsh5xxx#dsh5289)（旧规则 L22），还会把标量广播到
-更宽的目标。它绝不会把 2 分量值加宽到 3 分量：那种情况以及其他任何放不进去的值
-都是 [`DSH4228`](/docs/plugin/diagnostics/dsh4xxx#dsh4228)。见 [转换](/docs/plugin/graph/conversions)。
+规则 2 的转换取更宽值的**前导分量**，并给出提示 [`DSH5289`](/docs/plugin/diagnostics/dsh5xxx#dsh5289)（旧规则 L22），还会把标量广播到更宽的目标。它绝不会把 2 分量值加宽到 3 分量：那种情况以及其他任何放不进去的值都是 [`DSH4228`](/docs/plugin/diagnostics/dsh4xxx#dsh4228)。见 [转换](/docs/plugin/graph/conversions)。
 
 ### 花括号初始值赋值 [#brace-initializer-assignment]
 
-花括号列表只在作为声明的初始值时才会被读入。在赋值或
-成员写入的右侧它是 [`DSH2162`](/docs/plugin/diagnostics/dsh2xxx#dsh2162) *(自 2.0.0 起)*；请改写为
-构造器：`Color = float3(r, g, b);`。声明形式及其规则见
-[声明](/docs/plugin/graph/declarations#brace-initializers)；构造器规则见
-[构造器](/docs/plugin/graph/constructors)。
+花括号列表只在作为声明的初始值时才会被读入。在赋值或成员写入的右侧它是 [`DSH2162`](/docs/plugin/diagnostics/dsh2xxx#dsh2162) *(自 2.0.0 起)*；请改写为构造器：`Color = float3(r, g, b);`。声明形式及其规则见[声明](/docs/plugin/graph/declarations#brace-initializers)；构造器规则见[构造器](/docs/plugin/graph/constructors)。
 
 ## 表达式语句 [#expression-statements]
 
-形式 9。既不是声明也不是赋值的语句必须是一个**调用**；其他任何
-表达式都是 `DSH2211`。
+形式 9。既不是声明也不是赋值的语句必须是一个**调用**；其他任何表达式都是 `DSH2211`。
 
-在语句形式下，函数的输出由末尾的参数接收，每个输出一个普通变量
-名，按声明顺序。完整的参数规则、out 目标约束以及
-值调用形式见 [调用](/docs/graph/calls)。
+在语句形式下，函数的输出由末尾的参数接收，每个输出一个普通变量名，按声明顺序。完整的参数规则、out 目标约束以及值调用形式见 [调用](/docs/graph/calls)。
 
-语句形式的语句调用支持多输出 `ShaderFunction` / `VirtualFunction`
-*（自 1.3.5 起）*；值形式调用支持单输出 `Function` / `GraphFunction` *（自 1.3.1 起）*。
+语句形式的语句调用支持多输出 `ShaderFunction` / `VirtualFunction` *（自 1.3.5 起）*；值形式调用支持单输出 `Function` / `GraphFunction` *（自 1.3.1 起）*。
 
 ## 合成语句 [#synthesized-statements]
 
-每个 `Outputs` 声明 `Shader` 都会成为在材质体开头声明的变量，
-排在 `Graph` 的第一条语句之前 *（自 2.0.0 起）*。有初始值时用它自己的
-初始值初始化，否则用该类型的零值（`MaterialAttributes` 为空属性集）；没有初始值的纹理或
-`Substrate` 输出开始时没有值。这些声明带着它们来源的那一行 `Outputs` 的位置。
+每个 `Outputs` 声明 `Shader` 都会成为在材质体开头声明的变量，排在 `Graph` 的第一条语句之前 *（自 2.0.0 起）*。有初始值时用它自己的初始值初始化，否则用该类型的零值（`MaterialAttributes` 为空属性集）；没有初始值的纹理或 `Substrate` 输出开始时没有值。这些声明带着它们来源的那一行 `Outputs` 的位置。
 
-在顶层用相同大小写重新声明一个输出的名字的 `Graph` 声明，不会声明第二个变量：
-有初始值时它成为对该输出的赋值，没有时直接被丢弃。
+在顶层用相同大小写重新声明一个输出的名字的 `Graph` 声明，不会声明第二个变量：有初始值时它成为对该输出的赋值，没有时直接被丢弃。
 
 | 码 | 何时触发 |
 | :-- | :-- |
 | [`DSH3270`](/docs/plugin/diagnostics/dsh3xxx#dsh3270) | 一个 `Outputs` 声明带有 `=` 但后面什么都没有 |
 | [`DSH3266`](/docs/plugin/diagnostics/dsh3xxx#dsh3266) | 一个 `Outputs` 声明后面既不是 `;` 也不是该段落的闭合 `}` |
 
-一个 `Shader` 只要其 `Outputs` 段落声明或绑定了任何东西，就不需要 `Graph` 段落；
-两者都没有则是 [`DSH2255`](/docs/plugin/diagnostics/dsh2xxx#dsh2255)。见 [Shader](/docs/plugin/language/shader)。
+一个 `Shader` 只要其 `Outputs` 段落声明或绑定了任何东西，就不需要 `Graph` 段落；两者都没有则是 [`DSH2255`](/docs/plugin/diagnostics/dsh2xxx#dsh2255)。见 [Shader](/docs/plugin/language/shader)。
 
 ## 诊断 [#diagnostics]
 
-每条诊断都以 `<file>(<line>,<column>): DSHnnnn: <message>` 报告，位置在该构造本身，
-包括 `if` 块体内部。
+每条诊断都以 `<file>(<line>,<column>): DSHnnnn: <message>` 报告，位置在该构造本身，包括 `if` 块体内部。
 
 ### 解析时 [#parse-time]
 
@@ -187,7 +161,7 @@ Graph = {
 | [`DSH5260`](/docs/plugin/diagnostics/dsh5xxx#dsh5260) | `::` 后面没有名字 |
 | [`DSH2163`](/docs/plugin/diagnostics/dsh2xxx#dsh2163) | `,` 后面的声明子不是名字 |
 | [`DSH2105`](/docs/plugin/diagnostics/dsh2xxx#dsh2105) | 格式错误的数字，例如 `0.5.5` ——见[字面量](/docs/plugin/graph/literals) |
-| `DSH2160` | `switch`、`case`、`default` |
+| `DSH2160` | `switch`, `case`, `default` |
 | `DSH2162` | 花括号列表被当作值使用（形式 5 和 7） |
 | `DSH2200`–`DSH2222` | 1.x 没有的构造——见[不支持的写法](/docs/graph/unsupported) |
 

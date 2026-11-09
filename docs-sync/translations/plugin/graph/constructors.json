@@ -2,15 +2,15 @@
   "version": 2,
   "status": "current",
   "sourceHash": "c2a1b3335b575d44e19a15f06863e091652bec5172a7b929ae979d818ba58f34",
-  "sourceRevision": "d804ba9be050e438547a9002c6a6bafea1497aba",
+  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
   "sources": [
     {
       "path": "Docs/graph/constructors.md",
-      "sourceHash": "e10a269f06acd941b688259a7646abec1e547b3ae574bbd838baee568dc2cab4",
-      "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
-      "translationHash": "c46c4664fd7dc7698a98b5b921f2d7824f5744b223d6451570c522a61921d2bd"
+      "alignedRevision": "dce3a7afae92",
+      "alignedPage": "e10a269f06ac",
+      "translationHash": "4ee75066aa23654d16906c9d77d5f41c9207141784c12b59b71a42c8b3067d8e"
     }
   ],
   "translationFile": "content/docs/plugin/graph/constructors.md",
-  "translationHash": "186ec8058773eefa17e248a66ddec254bbb19dc3be88f9f53a5b0c44e5c85988"
+  "translationHash": "bf00ef09c4185e101ce941fde1871c50d263f40f3454e0cbd67e5c4480f31acc"
 }
