@@ -153,3 +153,6 @@ vite.config.ts.timestamp-*
 
 # Temporary documentation checks
 .docs-sync-tmp/
+
+# dreamdocs checkout used by the sync and deploy workflows
+.dreamdocs/

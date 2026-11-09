@@ -23,6 +23,9 @@ jobs:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PYTHONPATH: .dreamdocs
+      PYTHONIOENCODING: utf-8
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
       artifact: docs-site-${{ github.run_id }}-${{ github.run_attempt }}
@@ -31,11 +34,21 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
+      - name: Read the dreamdocs version this site uses
+        id: tool
+        run: python3 -c "import json; print('version=' + json.load(open('docs-sync/config.json'))['tool'])" >> "$GITHUB_OUTPUT"
+      - name: Checkout dreamdocs
+        uses: actions/checkout@v5
+        with:
+          repository: TypeDreamMoon/dreamdocs
+          ref: v${{ steps.tool.outputs.version }}
+          path: .dreamdocs
+          persist-credentials: false
       - name: Validate source event
         id: event
         env:
           DOCS_SOURCE_SHA: ${{ inputs.source_sha }}
-        run: python3 -B scripts/docs_ci.py event
+        run: python3 -B -m dreamdocs site ci event
       - name: Checkout the exact plugin revision
         uses: actions/checkout@v5
         with:
@@ -54,16 +67,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: python3 -B -m unittest discover -s scripts -p 'test_docs*.py'
       - name: Generate both locales from merged plugin documents
-        run: python3 -B scripts/docs_sync.py sync --plugin .docs-sync-tmp/plugin --report .docs-sync-tmp/status.md
-      - run: python3 -B scripts/docs_sync.py validate
+        run: python3 -B -m dreamdocs site sync --plugin .docs-sync-tmp/plugin --report .docs-sync-tmp/status.md
+      - run: python3 -B -m dreamdocs site validate
       - run: npm run typecheck
       - run: npm run build
       - run: python3 -B scripts/check-links.py
       - name: Commit only generated bilingual documents and source records
         id: commit
-        run: python3 -B scripts/docs_ci.py commit-source
+        run: python3 -B -m dreamdocs site ci commit-source
       - uses: actions/upload-artifact@v4
         with:
           name: docs-site-${{ github.run_id }}-${{ github.run_attempt }}
@@ -71,19 +83,11 @@ jobs:
           retention-days: 3
       - name: Translation summary
         if: always()
-        run: python3 -B scripts/docs_sync.py status >> "$GITHUB_STEP_SUMMARY"
+        run: python3 -B -m dreamdocs site status >> "$GITHUB_STEP_SUMMARY"
   deploy:
     needs: sync
     uses: ./.github/workflows/deploy.yml
     with:
       site_ref: ${{ needs.sync.outputs.sha }}
       artifact: ${{ needs.sync.outputs.artifact }}
-    secrets: inherit
-  translations:
-    needs: sync
-    permissions:
-      contents: read
-      pull-requests: read
-      issues: write
-    uses: ./.github/workflows/docs-translate.yml
     secrets: inherit
