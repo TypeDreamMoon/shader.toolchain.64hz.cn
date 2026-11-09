@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
+  "status": "current",
+  "sourceHash": "011e43b506ee175f21b5d57059ce116247883f7edef0b77d5c32cdda5d761ea9",
   "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
   "sources": [
     {
       "path": "Docs/language/shader-function.md",
-      "alignedRevision": "8a7a159022d8",
+      "alignedRevision": "166375290736",
       "alignedPage": "29b07baa95d1",
-      "translationHash": "c22953694353388211d3016f9cb5ae4e7c4297458202db60d6a7aabb63296b0f"
+      "translationHash": "43cd09bcf0c53dec92bed9981cd47c15e7e0f2770ec8927079a0221981e8f020"
     }
   ],
   "translationFile": "content/docs/plugin/language/shader-function.md",
-  "translationHash": "42d6407a0600c31cb05947fa97d1a7653e989e3cf6e238266dd7f94307f98a2f"
+  "translationHash": "73c65a632ca4eb8025bc8992b14be54903722d137410a3291d217fe39a11b45d"
 }
