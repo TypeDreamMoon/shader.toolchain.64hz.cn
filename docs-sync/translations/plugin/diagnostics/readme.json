@@ -1,16 +1,16 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "1ac1ae950797529a300677337503a517026ca158da1a1cad2786c2be7104e0c3",
-  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sourceHash": "5a27f05d5df532b585965d9131ca0f261cadb3ad1b5d752816ce64c2da6e14c3",
+  "sourceRevision": "9c296055f5d1e57ff2d56b86997a1678004272c9",
   "sources": [
     {
       "path": "Docs/diagnostics/README.md",
-      "alignedRevision": "dce3a7afae92",
-      "alignedPage": "135387707d55",
-      "translationHash": "b4392bca23f7bac057cb792ee8e63b292f199136def4e7a338058d5a3d8294bb"
+      "alignedRevision": "91dee3448997",
+      "alignedPage": "efe60afecc83",
+      "translationHash": "3923a8cc4d13d64231571e6e649c93867f172ec2608b353f5d39e39eb6016f53"
     }
   ],
   "translationFile": "content/docs/plugin/diagnostics/readme.md",
-  "translationHash": "9d1e04bf7a45e27654553819f46308787173072a37ba596577ca73bfea2e99f9"
+  "translationHash": "3db88de25cfaaf58ddafe09cf5c0b1acf2d258cfd7e08489df2feb32296aa7e9"
 }
