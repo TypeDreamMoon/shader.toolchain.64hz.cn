@@ -308,7 +308,7 @@ git diff --no-index -- I:/Baseline/before I:/Baseline/after
 
 ## 语料库 [#the-corpus]
 
-`Tests/Corpus` 位于**插件**之下，而不是项目的 `DShader` 树之下，因此它随插件一起分发，并且永远不会被普通的源文件发现机制拾取。 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md) 是该树、每个黄金基准模式以及每个运行器的参考；本节是地图。
+`Tests/Corpus` 位于**插件**之下，而不是项目的 `DShader` 树之下，因此它随插件一起分发，并且永远不会被普通的源文件发现机制拾取。 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7d87cbc7b01c3824ccd1ee70e7d605a5221baa2e/Tests/Corpus/README.md) 是该树、每个黄金基准模式以及每个运行器的参考；本节是地图。
 
 | 层 | 源文件 | 用例做什么 | 需求 |
 | :-- | --: | :-- | :-- |
@@ -364,7 +364,7 @@ DreamShader.Compiler2.CorpusLegacy.Material.M_Surface
 
 ## `.expected.json` [#expectedjson]
 
-每个字段都是选择加入的；缺失的字段不做任何断言。下表是 **`Parse/` 层**的黄金基准（`"entryPoint": "parse"`）：由于 1.x 解析器已在 2.0 中退役，其 `definition` 字段是从旧版前端的 AST 和 `FLegacyMigrationInfo` 中读取的，而不是从 `FTextShaderDefinition` 中读取，字段名相同。其他每一层都有自己的形态 — `lang`、`ir`、 `legacy`、`legacy-ir`、`decompile`、`migrate`、`compile`、`roundtrip` — 记录在 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md) 中。它们共享两个约定： `errorContains` / `warningsContain` / `infosContain` 保存 `DSHnnnn` 代码而非消息文本，以及 `...Pending: true` 标志（`textPending`、`irPending`、`graphPending`）会跳过尚未有人审核的黄金基准的字节比较 — 移除该标志是审核者的行为，绝不是编写者的行为。
+每个字段都是选择加入的；缺失的字段不做任何断言。下表是 **`Parse/` 层**的黄金基准（`"entryPoint": "parse"`）：由于 1.x 解析器已在 2.0 中退役，其 `definition` 字段是从旧版前端的 AST 和 `FLegacyMigrationInfo` 中读取的，而不是从 `FTextShaderDefinition` 中读取，字段名相同。其他每一层都有自己的形态 — `lang`、`ir`、 `legacy`、`legacy-ir`、`decompile`、`migrate`、`compile`、`roundtrip` — 记录在 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7d87cbc7b01c3824ccd1ee70e7d605a5221baa2e/Tests/Corpus/README.md) 中。它们共享两个约定： `errorContains` / `warningsContain` / `infosContain` 保存 `DSHnnnn` 代码而非消息文本，以及 `...Pending: true` 标志（`textPending`、`irPending`、`graphPending`）会跳过尚未有人审核的黄金基准的字节比较 — 移除该标志是审核者的行为，绝不是编写者的行为。
 
 | 字段 | 类型 | 层 | 含义 |
 | :-- | :-- | :-- | :-- |
@@ -430,7 +430,7 @@ DreamShader.Compiler2.CorpusLegacy.Material.M_Surface
 | `DreamShader {layer} corpus test invoked without a source path.` | every runner | 子测试以空命令参数启动；`{layer}` 是 `parse`、`lang`、`IR`、`legacy parse`、`legacy IR`、`legacy compile`、`compile`、`instance`、`decompile`、`migrate` 或 `roundtrip`（该运行器为 `DreamShader RoundtripIR test …`） |
 | `Failed to write DreamShader automation source file '{Path}'.` | harness | 测试无法写入其临时源文件 |
 
-1.x Generate 运行器及其 `generation should …` 消息已消失 *(自 2.0.0 起)*：其夹具为 `Legacy/Compile/`，通过 2.0 管线编译。其他层的断言消息位于其运行器中，以及 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md) 中。
+1.x Generate 运行器及其 `generation should …` 消息已消失 *(自 2.0.0 起)*：其夹具为 `Legacy/Compile/`，通过 2.0 管线编译。其他层的断言消息位于其运行器中，以及 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7d87cbc7b01c3824ccd1ee70e7d605a5221baa2e/Tests/Corpus/README.md) 中。
 
 ## 示例 [#example]
 
