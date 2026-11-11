@@ -314,8 +314,8 @@ In the editor: *Tools ▸ Test Automation*, filter for `DreamShader.Lang2` or `D
 Headless:
 
 ```
-"F:\UnrealEngine\UE_Moon\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
-  "I:\UnrealProject_Moon\DEV_58\MoonEngineSample\MoonEngineSample.uproject" ^
+"<EngineDir>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
+  "<ProjectDir>\<Project>.uproject" ^
   -ExecCmds="Automation RunTests DreamShader.Lang2; Quit" ^
   -nullrhi -unattended -nopause -nosplash -log
 ```
@@ -335,7 +335,7 @@ Headless:
 
 To cover a new construct, drop a `.dss` (plus an optional `.expected.json`) into the corpus tree —
 no C++, no recompile. The golden schema is documented in
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md).
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md).
 
 ## See also
 

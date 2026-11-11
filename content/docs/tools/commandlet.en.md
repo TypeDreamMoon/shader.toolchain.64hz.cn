@@ -62,7 +62,7 @@ All commands accept optional `-AssetWritesManifest=<unused-json-path>` together 
 `-AssetWritesRunId=<run-id>`. These record successful `.uasset` saves performed by this commandlet,
 including their absolute filenames and MD5 content fingerprints, in a versioned JSON manifest.
 The output path must not already exist; failure to write the requested manifest exits `1`.
-The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/.skill/README.md) uses this provenance and a pre-run snapshot for
+The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/.skill/README.md) uses this provenance and a pre-run snapshot for
 `-CleanNew`, retaining unrelated assets and files modified after the recorded save. The manifest
 does not authorize deletion of pre-existing assets or files outside the driver's Content roots.
 
@@ -405,7 +405,7 @@ reproducible.
 ### Diffing two captures
 
 ```powershell
-git diff --no-index -- I:/Baseline/before I:/Baseline/after
+git diff --no-index -- <baseline>/before <baseline>/after
 ```
 
 `--no-index` diffs two directory trees that are not in a repository, and the layout is designed for
@@ -870,12 +870,12 @@ shape matters, because `dump-graph` will not rebuild an asset that already exist
 ```powershell
 & $UnrealEditorCmd $Project -run=DreamShader compile -All -Force `
   -unattended -nopause -nosplash -stdout -log
-& $UnrealEditorCmd $Project -run=DreamShader dump-graph -All -Out="I:/Baseline/before" `
+& $UnrealEditorCmd $Project -run=DreamShader dump-graph -All -Out="<baseline>/before" `
   -unattended -nopause -nosplash -stdout -log
 
 # …change the compiler, rebuild, capture again…
 
-git diff --no-index -- I:/Baseline/before I:/Baseline/after
+git diff --no-index -- <baseline>/before <baseline>/after
 ```
 
 After a merge that conflicted in `DShader/.dreampass/Registry.json`, rebuild the slot registry from the

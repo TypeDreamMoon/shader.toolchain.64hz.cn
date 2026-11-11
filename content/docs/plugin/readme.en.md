@@ -3,7 +3,7 @@ title: "Start here"
 description: "Start here"
 ---
 
-[English](/en/docs/plugin/readme) · [简体中文](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Docs/zh-CN/README.md)
+[English](/en/docs/plugin/readme) · [简体中文](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Docs/zh-CN/README.md)
 
 This directory is the English source for the DreamShader manual. Tutorials and reference pages live
 together by topic and can be read here on GitHub or in a local Markdown reader. The
@@ -28,11 +28,11 @@ The compact [getting-started reference](/en/docs/plugin/getting-started) remains
 | Nodes and parameters | [Builtins](/en/docs/plugin/builtins), [parameters](/en/docs/plugin/parameters), [settings](/en/docs/plugin/settings) |
 | Generation | [Pipeline and asset lifecycle](/en/docs/generation/pipeline), [output bindings](/en/docs/generation/outputs), [source control](/en/docs/generation/source-control) |
 | Examples | [Reference examples](/en/docs/plugin/examples), [patterns](/en/docs/examples/patterns), [recipes](/en/docs/examples/recipes), [Custom Pass examples](/en/docs/examples/custom-pass) |
-| Tools | [Editor tools](/en/docs/plugin/tools), [VSCode and Rider](/en/docs/tools/vscode), [commandlet](/en/docs/tools/commandlet) |
+| Tools | [Editor tools](/en/docs/plugin/tools), [VSCode and Rider](/en/docs/tools/vscode), [commandlet](/en/docs/tools/commandlet), [AI agents](/en/docs/tools/ai-agents) |
 | Custom Pass | [Runtime](/en/docs/custom-pass), [HLSL passes](/en/docs/plugin/pass-runtime/hlsl), [pipeline language](/en/docs/language-v2/passes) |
 | Diagnostics | [Error and warning lookup](/en/docs/diagnostics), [limitations](/en/docs/diagnostics/limitations) |
 | Development | [C++ API](/en/docs/plugin/api), [contributing](/en/docs/plugin/contributing), [testing](/en/docs/plugin/contributing/testing), [release](/en/docs/plugin/contributing/release) |
-| Release history | [Version notes with explanations](/en/docs/changelog/dreamshader), [repository changelog](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/CHANGELOG.md) |
+| Release history | [Version notes with explanations](/en/docs/changelog/dreamshader), [repository changelog](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/CHANGELOG.md) |
 
 The [complete reference index](/en/docs/) lists the individual technical reference pages.
 

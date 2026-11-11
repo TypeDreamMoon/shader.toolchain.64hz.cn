@@ -306,7 +306,7 @@ every fixture as its own sub-test.
 | Runner | `RunDreamShaderLangCorpusCase` in `Source/DreamShaderEditor/Private/Tests/DreamShaderTestCommon.h` |
 | Registration | `Source/DreamShaderEditor/Private/Tests/DreamShaderCorpusLangTests.cpp` |
 | Fixtures | `Tests/Corpus/Lang/{Lexical,Expressions,Statements,Declarations,Examples}/` — `.dss` and `.dsh`, plus one `.dsm` that pins front-end selection: it reaches the legacy front end and fails there (`DSH2241`) |
-| Golden schema | `"entryPoint": "lang"` — see [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md) |
+| Golden schema | `"entryPoint": "lang"` — see [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md) |
 
 Each case is parsed once through `ParseDreamShaderLang`, then checked against its golden:
 
@@ -327,8 +327,8 @@ Adding coverage for a new construct is dropping a file in the tree; no C++ chang
 Run the whole layer headlessly:
 
 ```
-"F:\UnrealEngine\UE_Moon\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
-  "I:\UnrealProject_Moon\DEV_58\MoonEngineSample\MoonEngineSample.uproject" ^
+"<EngineDir>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
+  "<ProjectDir>\<Project>.uproject" ^
   -ExecCmds="Automation RunTests DreamShader.Lang2; Quit" ^
   -nullrhi -unattended -nopause -nosplash -log
 ```

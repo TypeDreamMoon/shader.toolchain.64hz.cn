@@ -177,6 +177,7 @@ screen-space effects, compute shaders writing data textures.
 | [Packages](/en/docs/tools/packages) | `DShader/Packages` shared libraries |
 | [Commandlet](/en/docs/tools/commandlet) | Headless compile and decompile |
 | [Editor bridge](/en/docs/plugin/tools/bridge) | Request files, WebSocket protocol, artifacts |
+| [AI agents](/en/docs/tools/ai-agents) | Agent guide, skills, MCP server, the authoring loop |
 
 ### [C++ API](/en/docs/plugin/api)
 
@@ -215,4 +216,4 @@ screen-space effects, compute shaders writing data textures.
 | Documentation site | <https://shader.toolchain.64hz.cn/> |
 | VSCode extension | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider plugin | <https://github.com/tsdaer/dreamshader-language-support> |
-| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/CHANGELOG.md) |
+| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/CHANGELOG.md) |

@@ -101,6 +101,15 @@ This exercises the driver's real helper functions in a temporary fake project, i
 unrelated writes, pre-existing assets, post-save edits, Content boundaries, invalid and consumed save
 manifests, and Content folders that cannot be listed.
 
+`dsc.ps1 info` is tested the same way, against fake projects and fake engine roots:
+
+```powershell
+pwsh -NoProfile -File Tools/Tests/Test-DscInfo.ps1
+```
+
+It checks the field order, the engine version and kind, `unknown` for an engine that cannot be found,
+and that no line names a path.
+
 | Goal | Filter |
 | :-- | :-- |
 | Fast gate — 1.x parse-equivalence corpus, pure helpers, the preprocessor | `DreamShader.Lang.` |
@@ -299,13 +308,13 @@ an asset, so an asset already on disk is dumped as it stands rather than rebuilt
 
 ```powershell
 & $UnrealEditorCmd $Project -run=DreamShader compile -All -Force -unattended -nopause -nullrhi -nosplash -stdout -log
-& $UnrealEditorCmd $Project -run=DreamShader dump-graph -All -Out="I:/Baseline/before" -unattended -nopause -nullrhi -nosplash -stdout -log
+& $UnrealEditorCmd $Project -run=DreamShader dump-graph -All -Out="<baseline>/before" -unattended -nopause -nullrhi -nosplash -stdout -log
 ```
 
 Then, after the change:
 
 ```powershell
-git diff --no-index -- I:/Baseline/before I:/Baseline/after
+git diff --no-index -- <baseline>/before <baseline>/after
 ```
 
 Every hunk is a behavioural difference. `./dsc.ps1 dump-graph -All -Out …` is the shorter spelling of
@@ -355,7 +364,7 @@ Parity cases — ThinCustom and Graph twins of the same body, differing only in 
 
 `Tests/Corpus` lives under the **plugin**, not under the project's `DShader` tree, so it travels with
 the plugin and is never picked up by ordinary source discovery.
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md) is the reference for the tree, every golden
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md) is the reference for the tree, every golden
 schema and every runner; this section is the map.
 
 | Layer | Sources | What a case does | Needs |
@@ -420,7 +429,7 @@ golden (`"entryPoint": "parse"`): since the 1.x parser retired in 2.0, its `defi
 read out of the legacy front end's AST and `FLegacyMigrationInfo` instead of an
 `FTextShaderDefinition`, under the same names. Every other layer has its own shape — `lang`, `ir`,
 `legacy`, `legacy-ir`, `decompile`, `migrate`, `compile`, `roundtrip` — documented in
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md). Two conventions they share:
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md). Two conventions they share:
 `errorContains` / `warningsContain` / `infosContain` hold `DSHnnnn` codes rather than message text,
 and a `...Pending: true` flag (`textPending`, `irPending`, `graphPending`) skips the byte comparison
 of a golden nobody has reviewed yet — removing the flag is the reviewer's act, never the writer's.
@@ -509,7 +518,7 @@ Assertion and infrastructure messages the runners emit. Runtime substitutions ar
 
 The 1.x Generate runner and its `generation should …` messages are gone *(since 2.0.0)*: its fixtures
 are `Legacy/Compile/`, compiled through the 2.0 pipeline. The other layers' assertion messages are in
-their runners and in [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md).
+their runners and in [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md).
 
 ## Example
 

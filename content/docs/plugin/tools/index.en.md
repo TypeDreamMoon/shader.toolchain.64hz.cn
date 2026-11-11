@@ -34,6 +34,7 @@ module is editor-only, and the runtime `DreamShader` module carries no UI.
 | [Packages](/en/docs/tools/packages) | `DShader/Packages`: what the plugin implements and what it does not |
 | [Commandlet](/en/docs/tools/commandlet) | `-run=DreamShader` — headless compile, decompile, migrate, check and the IR tools; the Custom Pass slot registry, `pass-registry` *(2.1.0)* |
 | [Bridge](/en/docs/plugin/tools/bridge) | request files, the diagnostics sinks, `bridge.db`, the WebSocket protocol; the watches on Custom Pass shader files *(2.1.0)* |
+| [AI agents](/en/docs/tools/ai-agents) | `AGENTS.md`, the six skills and publishing them with `sync-skills.ps1`, the optional MCP server, the write–check–fix loop |
 
 ## Which side implements what
 
