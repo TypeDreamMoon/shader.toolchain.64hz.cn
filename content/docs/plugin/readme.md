@@ -32,7 +32,7 @@ description: "DreamShader 文档"
 | Custom Pass | [运行时](/docs/custom-pass)、[HLSL pass](/docs/plugin/pass-runtime/hlsl)、[管线语言](/docs/language-v2/passes) |
 | 诊断 | [错误与警告速查](/docs/diagnostics)、[当前限制](/docs/diagnostics/limitations) |
 | 开发 | [C++ API](/docs/plugin/api)、[参与贡献](/docs/plugin/contributing)、[测试](/docs/plugin/contributing/testing)、[发布](/docs/plugin/contributing/release) |
-| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/9c296055f5d1e57ff2d56b86997a1678004272c9/CHANGELOG.md) |
+| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/CHANGELOG.md) |
 
 [完整参考索引](/docs/)列出了各篇技术参考页。
 
