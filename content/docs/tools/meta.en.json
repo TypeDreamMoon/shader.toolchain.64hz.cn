@@ -5,6 +5,7 @@
     "decompiler",
     "vscode",
     "commandlet",
-    "packages"
+    "packages",
+    "ai-agents"
   ]
 }

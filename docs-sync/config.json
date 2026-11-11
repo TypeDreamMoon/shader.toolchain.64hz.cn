@@ -609,6 +609,17 @@
       "locale": "en"
     },
     {
+      "id": "tools/ai-agents",
+      "sources": [
+        {
+          "path": "Docs/tools/ai-agents.md"
+        }
+      ],
+      "format": "md",
+      "title": "AI agents",
+      "description": "How a coding agent writes DreamShaderLang in your project and checks its own work — the agent guide and how to point your project's agent at it, the six skills and publishing them, and the write–check–fix loop."
+    },
+    {
       "id": "tools/commandlet",
       "sources": [
         {
