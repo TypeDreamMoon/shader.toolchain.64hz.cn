@@ -1,9 +1,7 @@
 ---
-title: "Function"
-description: "Function"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Function
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Function**
 

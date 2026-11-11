@@ -3,8 +3,6 @@ title: "Custom Pass pipelines"
 description: ".dsp — render passes of your own, written as source. Named buffers, fullscreen / compute / mesh / clear / copy passes at injection points of the renderer, and parameters activations can override, compiled to one UDreamPassPipeline. Needs UE 5.8."
 ---
 
-# Custom Pass pipelines — `.dsp`
-
 > [DreamShader](/en/docs/) » [DreamShaderLang 2.0](/en/docs/language-v2) » **Custom Pass pipelines**
 
 A `.dsp` file is one `UDreamPassPipeline`: named buffers, an ordered list of passes that each run at an

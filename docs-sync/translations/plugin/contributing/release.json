@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "ad868dac3d8c814fda49e50880b008e576425d9d91a23b2914ab56e13b22c577",
-  "sourceRevision": "b5169970e3e8fb75199b1c0cef17d213ca3a3573",
+  "sourceHash": "1e45b35e8cef237f5e242a623228ed7092f3de356c6993cc6be6f283afa591da",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/contributing/release.md",

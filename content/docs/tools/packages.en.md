@@ -3,8 +3,6 @@ title: "Packages"
 description: "DShader/Packages — the install root the plugin implements, the manifest and lock file the extensions implement, and the enumeration gap between them."
 ---
 
-# Packages
-
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Packages**
 
 `DShader/Packages` — the install root for reusable DreamShaderLang libraries, resolvable by `import`

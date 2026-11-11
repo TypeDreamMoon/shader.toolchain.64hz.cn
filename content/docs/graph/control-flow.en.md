@@ -3,8 +3,6 @@ title: "Control Flow"
 description: "if / else in a Graph block — a build-time select that builds both branches, one conditional node per changed variable, and the truthy form that means != 0 rather than > 0."
 ---
 
-# if / else
-
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **if**
 
 The only control-flow statement in a `Graph` block: a build-time construct that evaluates **both**

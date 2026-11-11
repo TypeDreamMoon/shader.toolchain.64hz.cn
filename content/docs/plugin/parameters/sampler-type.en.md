@@ -1,9 +1,7 @@
 ---
-title: "SamplerType"
-description: "SamplerType"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# SamplerType
 
 > [DreamShader](/en/docs/) » [Parameters](/en/docs/plugin/parameters) » **SamplerType**
 

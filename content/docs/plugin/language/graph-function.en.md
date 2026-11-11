@@ -1,9 +1,7 @@
 ---
-title: "GraphFunction"
-description: "GraphFunction"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# GraphFunction
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **GraphFunction**
 

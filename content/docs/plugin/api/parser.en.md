@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderParser.h *(retired in 2.0)*"
-description: "DreamShaderParser.h *(retired in 2.0)*"
+title: "What to call instead"
+description: "What to call instead"
 ---
-
-# DreamShaderParser.h *(retired in 2.0)*
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderParser.h**
 

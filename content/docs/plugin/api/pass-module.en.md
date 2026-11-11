@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderPass"
-description: "DreamShaderPass"
+title: "Public headers"
+description: "Public headers"
 ---
-
-# DreamShaderPass
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderPass**
 

@@ -1,9 +1,7 @@
 ---
-title: "Compact type tokens"
-description: "Compact type tokens"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Compact type tokens
 
 > [DreamShader](/en/docs/) » [Parameters](/en/docs/plugin/parameters) » **Compact type tokens**
 

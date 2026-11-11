@@ -3,8 +3,6 @@ title: "Backend"
 description: "Graph versus ThinCustom — which object carries the graph, which one is addressable, and how the per-file setting resolves against the project default."
 ---
 
-# Backend
-
 > [DreamShader](/en/docs/) » [Settings](/en/docs/plugin/settings) » **Backend**
 
 The `Shader` setting that selects how a source file is materialized: a visible `UMaterial` node

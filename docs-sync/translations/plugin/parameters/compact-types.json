@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "4fb4831f0a2b4b298d723aea0289e1ab303c4d56868294371ac54e385adcaebd",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "47d0b00a4d8a8594625f3a5e100c9140cdce93450c16273c0db65447c9e36586",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/parameters/compact-types.md",

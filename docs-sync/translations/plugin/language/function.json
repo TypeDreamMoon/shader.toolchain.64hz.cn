@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "67a7348fdd038ea92494fe2758c5b63a7f41aaa4b3e4da4e0e76917775af131a",
-  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sourceHash": "6a64430acf1926f2aec66aaf6d7997f2da0ab8d85226d2d20b2fdd0827ec3636",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/language/function.md",

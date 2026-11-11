@@ -3,8 +3,6 @@ title: "Migrating from 1.x"
 description: "dsc migrate rewrites .dsm, .dsf and .dsh sources as .dss — and proves, before it writes anything, that no comment is lost and the same graph comes out."
 ---
 
-# `dsc migrate` — 1.x sources to `.dss`
-
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Migrate**
 
 `dsc migrate` rewrites `.dsm`, `.dsf` and `.dsh` files as DreamShaderLang 2.0. Nothing forces a

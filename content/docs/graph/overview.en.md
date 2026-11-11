@@ -3,8 +3,6 @@ title: "Evaluation Model"
 description: "What a Graph block actually is, how the legacy front end of the 2.0 compiler builds it into nodes, and why it is a different language from the declarations around it."
 ---
 
-# Graph
-
 > [DreamShader](/en/docs/) » **Graph**
 
 The section whose body is a sequence of statements that the compiler lowers **once, in order, at

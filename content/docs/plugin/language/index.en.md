@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderLang"
-description: "DreamShaderLang"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# DreamShaderLang
 
 > [DreamShader](/en/docs/) » **DreamShaderLang**
 

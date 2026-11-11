@@ -3,8 +3,6 @@ title: "Material Settings"
 description: "The Settings block — how a statement is read, the special Shader keys, the reflection resolver that reaches any UMaterial property, what a regenerated material resets to, and the four material-function keys."
 ---
 
-# Shader settings
-
 > [DreamShader](/en/docs/) » [Settings](/en/docs/plugin/settings) » **Shader settings**
 
 The `Settings` section of a [`Shader`](/en/docs/plugin/language/shader) block: a few hand-handled keys plus a

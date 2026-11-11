@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderCompiler"
-description: "DreamShaderCompiler"
+title: "The interface lives in `DreamShader`"
+description: "The interface lives in `DreamShader`"
 ---
-
-# DreamShaderCompiler
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderCompiler**
 

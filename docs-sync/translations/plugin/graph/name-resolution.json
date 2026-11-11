@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "e6d1fc3c496bcbee0214aa1323d4449f22c3da9235e6dbb96cf18ca44d4b7011",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "e6d4989d33e3651474669628e35a01ca570955cd72c7662f9c9bf2d0d7e27eb5",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/graph/name-resolution.md",

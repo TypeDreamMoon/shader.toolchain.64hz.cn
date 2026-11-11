@@ -1,9 +1,7 @@
 ---
-title: "Options"
-description: "Options"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Options
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Options**
 

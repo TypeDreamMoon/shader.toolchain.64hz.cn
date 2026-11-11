@@ -3,8 +3,6 @@ title: "Diagnostics"
 description: "Where DreamShader's diagnostics appear, how to read one, how the DSHnnnn codes are banded, their severities, a table of the common ones by stage, and the 1.x messages mapped to their codes."
 ---
 
-# Diagnostics
-
 > [DreamShader](/en/docs/) » **Diagnostics**
 
 Where DreamShader's diagnostics appear, how to read one, and what became of the messages of the 1.x

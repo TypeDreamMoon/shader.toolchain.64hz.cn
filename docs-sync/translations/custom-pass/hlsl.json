@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "baae330d1a3cade1a6e92fdfe23aad37ead3ef076682d5a589f40ecf12aa0c2c",
-  "sourceRevision": "8a7a159022d80ca6ee2db0cce78d6c0f4938f1d4",
+  "sourceHash": "81b71d4ae9b688c2b71ed9e90d5fd6e2b388e537d49469fd26c2682ff44bd6f4",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/builtins/hlsl-library.md",

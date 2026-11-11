@@ -1,11 +1,9 @@
 ---
-title: "DreamShader documentation"
-description: "DreamShader documentation"
+title: "Start here"
+description: "Start here"
 ---
 
-# DreamShader documentation
-
-[English](/en/docs/plugin/readme) · [简体中文](https://github.com/TypeDreamMoon/DreamShader/blob/1663752907365c04fdd53e58ff6159932d092d27/Docs/zh-CN/README.md)
+[English](/en/docs/plugin/readme) · [简体中文](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Docs/zh-CN/README.md)
 
 This directory is the English source for the DreamShader manual. Tutorials and reference pages live
 together by topic and can be read here on GitHub or in a local Markdown reader. The
@@ -34,7 +32,7 @@ The compact [getting-started reference](/en/docs/plugin/getting-started) remains
 | Custom Pass | [Runtime](/en/docs/custom-pass), [HLSL passes](/en/docs/plugin/pass-runtime/hlsl), [pipeline language](/en/docs/language-v2/passes) |
 | Diagnostics | [Error and warning lookup](/en/docs/diagnostics), [limitations](/en/docs/diagnostics/limitations) |
 | Development | [C++ API](/en/docs/plugin/api), [contributing](/en/docs/plugin/contributing), [testing](/en/docs/plugin/contributing/testing), [release](/en/docs/plugin/contributing/release) |
-| Release history | [Version notes with explanations](/en/docs/changelog/dreamshader), [repository changelog](https://github.com/TypeDreamMoon/DreamShader/blob/1663752907365c04fdd53e58ff6159932d092d27/CHANGELOG.md) |
+| Release history | [Version notes with explanations](/en/docs/changelog/dreamshader), [repository changelog](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/CHANGELOG.md) |
 
 The [complete reference index](/en/docs/) lists the individual technical reference pages.
 

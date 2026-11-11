@@ -3,8 +3,6 @@ title: "HLSL passes"
 description: "The HLSL a compute pass, or a fullscreen pass without a material, runs — written in an hlsl block of the .dsp or in a .usf, the names its bindings make, the fixed parameters and helpers of DreamPass.ush, and how the code reaches the engine through a pre-check and a snapshot. Needs UE 5.8."
 ---
 
-# DreamShaderBuiltins.ush
-
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **`DreamShaderBuiltins.ush`**
 
 An HLSL header shipped with the plugin, defining `DS_*` macros and functions that mirror the HLSL the

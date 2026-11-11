@@ -3,8 +3,6 @@ title: "The Pipeline"
 description: "How one DreamShaderLang source file becomes Unreal assets — every stage, what triggers a build, and where each stage can fail."
 ---
 
-# Generation
-
 > [DreamShader](/en/docs/) » **Generation**
 
 The stage that turns a DreamShaderLang source file into Unreal assets.

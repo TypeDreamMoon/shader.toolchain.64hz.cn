@@ -3,8 +3,6 @@ title: "Commandlet"
 description: "-run=DreamShader — every command and switch, path resolution, exit codes, and why it writes real assets when the editor does not."
 ---
 
-# Commandlet
-
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Commandlet**
 
 `-run=DreamShader` — a headless entry point that compiles DreamShader sources into persistent assets
@@ -64,7 +62,7 @@ All commands accept optional `-AssetWritesManifest=<unused-json-path>` together 
 `-AssetWritesRunId=<run-id>`. These record successful `.uasset` saves performed by this commandlet,
 including their absolute filenames and MD5 content fingerprints, in a versioned JSON manifest.
 The output path must not already exist; failure to write the requested manifest exits `1`.
-The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/e5215acb86e1d0616e39f7d93addadb5db067633/.skill/README.md) uses this provenance and a pre-run snapshot for
+The [PowerShell driver](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/.skill/README.md) uses this provenance and a pre-run snapshot for
 `-CleanNew`, retaining unrelated assets and files modified after the recorded save. The manifest
 does not authorize deletion of pre-existing assets or files outside the driver's Content roots.
 

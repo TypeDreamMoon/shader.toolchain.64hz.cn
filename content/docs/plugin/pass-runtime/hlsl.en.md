@@ -1,9 +1,7 @@
 ---
-title: "HLSL passes"
-description: "HLSL passes"
+title: "Where the code is"
+description: "Where the code is"
 ---
-
-# HLSL passes
 
 > [DreamShader](/en/docs/) » [Custom Pass runtime](/en/docs/custom-pass) » **HLSL passes**
 

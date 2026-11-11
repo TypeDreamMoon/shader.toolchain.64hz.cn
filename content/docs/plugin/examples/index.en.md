@@ -1,9 +1,7 @@
 ---
-title: "Examples"
-description: "Examples"
+title: "Contents"
+description: "Contents"
 ---
-
-# Examples
 
 > [DreamShader](/en/docs/) » **Examples**
 

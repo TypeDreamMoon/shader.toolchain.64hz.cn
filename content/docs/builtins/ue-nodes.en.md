@@ -3,8 +3,6 @@ title: "UE.* Nodes"
 description: "The 27 UE.* names 1.x implemented itself and their argument lists, the bases of the two transform builtins, the three special-cased names, and the Properties declaration form."
 ---
 
-# UE builtins
-
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **UE builtins**
 
 The 27 names in the `UE.` namespace that 1.x implemented itself, each with a fixed argument list, and

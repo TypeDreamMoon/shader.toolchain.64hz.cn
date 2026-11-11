@@ -3,8 +3,6 @@ title: "Asset References"
 description: "Path(Root, \"…\") and the Content Browser's Copy Reference — every root spelling, absolute paths beside a root, object-path completion, the shared resolver, and its codes."
 ---
 
-# Path(…) asset references
-
 > [DreamShader](/en/docs/) » [Parameters](/en/docs/plugin/parameters) » **Path(…)**
 
 The asset-reference form: a package root plus a relative path, resolved to a full Unreal object path

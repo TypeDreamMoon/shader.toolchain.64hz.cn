@@ -1,9 +1,7 @@
 ---
-title: "Name resolution"
-description: "Name resolution"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Name resolution
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Name resolution**
 

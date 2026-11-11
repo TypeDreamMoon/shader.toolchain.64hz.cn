@@ -3,8 +3,6 @@ title: "Source control"
 description: "Which generated assets have files since 2.0, the two workable ways to version them, and dsc list-generated — the list ignore rules and P4 typemaps are written from."
 ---
 
-# Source control
-
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Source control**
 
 What to commit, what to ignore, and how to keep a team on one answer.

@@ -1,9 +1,7 @@
 ---
-title: "Parameter node tokens"
-description: "Parameter node tokens"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Parameter node tokens
 
 > [DreamShader](/en/docs/) » [Parameters](/en/docs/plugin/parameters) » **Parameter node tokens**
 

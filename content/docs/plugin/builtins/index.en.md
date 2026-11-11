@@ -1,9 +1,7 @@
 ---
-title: "Builtins"
-description: "Builtins"
+title: "The call surfaces"
+description: "The call surfaces"
 ---
-
-# Builtins
 
 > [DreamShader](/en/docs/) » **Builtins**
 

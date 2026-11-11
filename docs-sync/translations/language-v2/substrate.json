@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "f3dd7be15dcc255ad70462c80f3d8b4ea56056fe07b28de90d614b2df0211184",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "155fe06d8e2cbe4df83bc1fe309937a9ba025bd527d9c3ea754bdd7308c739b9",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/language-v2/substrate.md",

@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderSettings.h"
-description: "DreamShaderSettings.h"
+title: "`EDreamShaderDefaultBackend`"
+description: "`EDreamShaderDefaultBackend`"
 ---
-
-# DreamShaderSettings.h
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderSettings.h**
 

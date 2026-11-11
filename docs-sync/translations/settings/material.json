@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "ec8b4390dc6ef64696c34618b4b04615f86a93556b1f28501ef2e63021e57fc2",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "b90b7e9e7f4df9dc2ea321d7b3c4cf3701f79f306f5ccd7d179bfd7e18d200ab",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/settings/material.md",

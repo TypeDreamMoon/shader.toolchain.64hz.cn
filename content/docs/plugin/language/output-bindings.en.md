@@ -1,9 +1,7 @@
 ---
-title: "Output bindings"
-description: "Output bindings"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Output bindings
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Output bindings**
 

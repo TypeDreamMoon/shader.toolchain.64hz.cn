@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "cb2dfc0ffc9aa329b29eb48696a06614ffc59d55c37513e4691d154f567f3877",
-  "sourceRevision": "9c296055f5d1e57ff2d56b86997a1678004272c9",
+  "sourceHash": "b1d77e21a16485e0207638591930e04c1ae00f975d9ef74546175d7142d9dae8",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/runtime/hlsl.md",

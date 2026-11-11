@@ -3,8 +3,6 @@ title: "Source Files"
 description: "The three 1.x file kinds, what each may declare, how that rule is enforced, and how a file is compiled together with the headers it imports."
 ---
 
-# Source files
-
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Source files**
 
 The three DreamShaderLang file kinds — `.dsm`, `.dsf` and `.dsh` — and the rule that decides which

@@ -3,8 +3,6 @@ title: "Regeneration"
 description: "What a rebuild destroys and what survives, divergence and the three ways out, the ownership guard, and the build key that decides whether a rebuild happens at all."
 ---
 
-# Regeneration
-
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Regeneration**
 
 What happens to an already-generated asset when its source file is compiled again.

@@ -3,8 +3,6 @@ title: "Imports and Namespaces"
 description: "How import makes a .dsh header's declarations visible in the current file — recognition, specifier normalisation, source roots, how a header is read, and namespaces across files."
 ---
 
-# import
-
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **import**
 
 A top-level line that makes the declarations of a `.dsh` header visible in the current file.

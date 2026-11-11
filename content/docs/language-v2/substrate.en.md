@@ -3,8 +3,6 @@ title: "Substrate sugar"
 description: "Operators and lerp over Substrate values, legacy parameters on a slab, run-time branches, values built member by member, and one source for Substrate and non-Substrate projects."
 ---
 
-# Substrate sugar
-
 > [DreamShader](/en/docs/) » [DreamShaderLang 2.0](/en/docs/language-v2) » **Substrate sugar**
 
 Shorter spellings for Substrate graphs. Each one is a spelling and nothing else: it binds to a fixed

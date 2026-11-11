@@ -1,9 +1,7 @@
 ---
-title: "Conversions"
-description: "Conversions"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Conversions
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Conversions**
 

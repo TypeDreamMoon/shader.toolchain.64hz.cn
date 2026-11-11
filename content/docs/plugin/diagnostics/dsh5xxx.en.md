@@ -1,9 +1,7 @@
 ---
-title: "DSH5xxx --- Builtins -- UE.*, math, Substrate"
-description: "DSH5xxx --- Builtins -- UE.*, math, Substrate"
+title: "DSH5200"
+description: "DSH5200"
 ---
-
-# DSH5xxx --- Builtins -- UE.*, math, Substrate
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

@@ -1,9 +1,7 @@
 ---
-title: "Custom Pass runtime"
-description: "Custom Pass runtime"
+title: "What makes a pipeline apply"
+description: "What makes a pipeline apply"
 ---
-
-# Custom Pass runtime
 
 > [DreamShader](/en/docs/) » **Custom Pass runtime**
 

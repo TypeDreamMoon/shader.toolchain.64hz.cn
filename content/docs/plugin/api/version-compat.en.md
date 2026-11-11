@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderVersionCompat.h"
-description: "DreamShaderVersionCompat.h"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# DreamShaderVersionCompat.h
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderVersionCompat.h**
 

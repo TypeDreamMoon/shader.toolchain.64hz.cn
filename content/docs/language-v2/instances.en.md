@@ -3,8 +3,6 @@ title: "Material instances"
 description: ".dsi — a material instance as source. A parent, the properties it overrides and the parameters it sets, checked against the parent's real parameters."
 ---
 
-# Material instances — `.dsi`
-
 > [DreamShader](/en/docs/) » [DreamShaderLang 2.0](/en/docs/language-v2) » **Material instances**
 
 A `.dsi` file is one `UMaterialInstanceConstant`: a parent, a few overridden properties, and the

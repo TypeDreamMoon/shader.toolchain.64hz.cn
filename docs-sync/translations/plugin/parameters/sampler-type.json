@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "21d941fd2db86c4007b8d7ff6c59bcf3f51ca128bbb6ac0ab2700893e54ba5e0",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "e198edabfa98f6bc0bf9619b2e6cc93addc790b2e7c17ccb3e48df255d393a45",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/parameters/sampler-type.md",

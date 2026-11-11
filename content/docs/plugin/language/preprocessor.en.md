@@ -1,9 +1,7 @@
 ---
-title: "Preprocessor"
-description: "Preprocessor"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Preprocessor
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Preprocessor**
 

@@ -1,9 +1,7 @@
 ---
-title: "Graph layout"
-description: "Graph layout"
+title: "When layout runs"
+description: "When layout runs"
 ---
-
-# Graph layout
 
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Graph layout**
 

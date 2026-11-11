@@ -3,8 +3,6 @@ title: "Types and Values"
 description: "The 52 type tokens, the per-context validity matrix, GLSL aliases, literals, and the tokens that no longer exist."
 ---
 
-# Type tokens
-
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Type tokens**
 
 The closed set of identifiers that name a value's shape in a declaration, and the per-context rules

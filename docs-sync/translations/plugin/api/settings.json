@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "334a3e055d6bd8f10cafb5520a26549c74f504e152a02292ca2f9b4169d46a5f",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "b762ad707ecc427308886c9370b8031d9cbdacb2984ea61f5b146c87e25250ec",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/api/settings.md",

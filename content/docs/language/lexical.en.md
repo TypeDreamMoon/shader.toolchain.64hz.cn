@@ -3,8 +3,6 @@ title: "Lexical Elements"
 description: "Case sensitivity, whitespace and comments, identifiers and reserved words, string and numeric literals, statement splitting, and the line-oriented preprocessor that runs before parsing."
 ---
 
-# Lexical elements
-
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Lexical elements**
 
 The character-level rules of DreamShaderLang: whitespace, comments, identifiers, case sensitivity,

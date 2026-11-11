@@ -1,9 +1,7 @@
 ---
-title: "DSH2xxx --- Lexer and syntax"
-description: "DSH2xxx --- Lexer and syntax"
+title: "DSH2101"
+description: "DSH2101"
 ---
-
-# DSH2xxx --- Lexer and syntax
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

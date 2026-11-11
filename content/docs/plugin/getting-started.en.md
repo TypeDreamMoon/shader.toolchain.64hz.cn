@@ -1,9 +1,7 @@
 ---
-title: "Getting started"
-description: "Getting started"
+title: "Install"
+description: "Install"
 ---
-
-# Getting started
 
 > [DreamShader](/en/docs/) » **Getting started**
 

@@ -3,8 +3,6 @@ title: "Layout and #Region"
 description: "Pin generated node positions with Layout = { Node(...); Comment(...); }, group graph statements with #Region, and what both do under each layout style."
 ---
 
-# Layout
-
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Layout**
 
 A section that pins generated node positions and declares comment boxes in the generated material

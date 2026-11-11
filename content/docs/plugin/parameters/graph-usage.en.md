@@ -1,9 +1,7 @@
 ---
-title: "Using parameters in Graph"
-description: "Using parameters in Graph"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Using parameters in Graph
 
 > [DreamShader](/en/docs/) » [Parameters](/en/docs/plugin/parameters) » **Using parameters in Graph**
 

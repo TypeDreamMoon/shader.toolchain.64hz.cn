@@ -3,8 +3,6 @@ title: "What Graph Is Not"
 description: "Loops, return, ternary, %, comparisons and indexing — every HLSL / GLSL construct a Graph block does not implement, the code the compiler reports for it, and what to write instead."
 ---
 
-# Unsupported constructs
-
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Unsupported constructs**
 
 Every HLSL and GLSL construct that a `Graph` block does **not** implement, the code the compiler

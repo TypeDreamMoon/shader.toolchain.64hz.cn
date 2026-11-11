@@ -1,9 +1,7 @@
 ---
-title: "Inputs, Outputs and Results"
-description: "Inputs, Outputs and Results"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Inputs, Outputs and Results
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Inputs / Outputs / Results**
 

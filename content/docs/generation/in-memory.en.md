@@ -3,8 +3,6 @@ title: "In-memory (Ephemeral) Materials"
 description: "Why a compiled DreamShader material does not show up in the Content Browser — the Ephemeral and Materialized states of a ThinCustom product, the hidden base material, and how to put it on disk."
 ---
 
-# Ephemeral materials
-
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Ephemeral materials**
 
 A **ThinCustom** product has two states, and exactly two:

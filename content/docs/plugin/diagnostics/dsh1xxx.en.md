@@ -1,9 +1,7 @@
 ---
-title: "DSH1xxx --- Driver, source files and imports"
-description: "DSH1xxx --- Driver, source files and imports"
+title: "DSH1030"
+description: "DSH1030"
 ---
-
-# DSH1xxx --- Driver, source files and imports
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

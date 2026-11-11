@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "4d25515bb79adb94d922709ed5186ab19ce87abc6f886d8e9adb8b6da114fd3a",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "c7dd95bdda2b6d8745d0b7f5f49947ae4894e68cd44e43f85585e97319faa6e6",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/tools/editor-integration.md",

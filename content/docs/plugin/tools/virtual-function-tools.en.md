@@ -1,9 +1,7 @@
 ---
-title: "VirtualFunction tools"
-description: "VirtualFunction tools"
+title: "Context menu"
+description: "Context menu"
 ---
-
-# VirtualFunction tools
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **VirtualFunction tools**
 

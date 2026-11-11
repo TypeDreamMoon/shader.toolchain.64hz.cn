@@ -1,9 +1,7 @@
 ---
-title: "MaterialAttributes"
-description: "MaterialAttributes"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# MaterialAttributes
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **MaterialAttributes**
 

@@ -1,9 +1,7 @@
 ---
-title: "Release"
-description: "Release"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Release
 
 > [DreamShader](/en/docs/) » [Contributing](/en/docs/plugin/contributing) » **Release**
 
