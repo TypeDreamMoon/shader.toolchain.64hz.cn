@@ -3,8 +3,6 @@ title: "DreamShader 诊断"
 description: "DreamShader 诊断"
 ---
 
-# DreamShader 诊断 [#dreamshader-diagnostics]
-
 每个 `DSHnnnn` DreamShader 可以发出的诊断。首位数字是抛出该诊断的阶段：
 
 - **DSH1xxx** --- 驱动、源文件和导入 --- [DSH1xxx.md](/docs/plugin/diagnostics/dsh1xxx)

@@ -3,8 +3,6 @@ title: "材质内容浏览器"
 description: "材质内容浏览器"
 ---
 
-# 材质内容浏览器 [#material-content-browser]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **材质内容浏览器**
 
 一个可停靠的编辑器标签页，涵盖项目中的每个 DreamShader 源文件和每个材质：每个源文件编译成什么、该资产是否为最新、是否有人手动编辑过它、它导入了什么以及什么继承了它——以及由每个答案所引出的操作。

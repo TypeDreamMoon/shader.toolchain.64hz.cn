@@ -3,8 +3,6 @@ title: "Calls"
 description: "Calling Function, GraphFunction, ShaderFunction, VirtualFunction and parameter pins from a Graph block — dispatch order, value form, statement form, arguments and output selection."
 ---
 
-# Calls
-
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Calls**
 
 Invoking a `Function`, `GraphFunction`, `ShaderFunction`, `VirtualFunction` or an input-bearing

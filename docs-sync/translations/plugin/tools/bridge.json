@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "a1a8862100755cbac7520a36f2f839107cfcf4ec7d6b05ffb09dc309ccb3412b",
-  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+  "sourceHash": "897bf800aec9ae97d79026be19e44460e70145f56d2abd9cfbed89803d149d64",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/tools/bridge.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/tools/bridge.md",
-  "translationHash": "a42dd686fc46e761219a1b8636484df32138d7335cf1ae554376276a6877f0f9"
+  "translationHash": "84296228b61c47aeb90b085c7b402110e608bb36cd5000b0e89e265955aa16ef"
 }

@@ -1,9 +1,7 @@
 ---
-title: "Generated HLSL"
-description: "Generated HLSL"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Generated HLSL
 
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Generated HLSL**
 

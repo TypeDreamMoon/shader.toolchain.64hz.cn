@@ -3,8 +3,6 @@ title: "反编译导出"
 description: "反编译导出"
 ---
 
-# 反编译导出 [#decompiler]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **反编译导出**
 
 这个导出器会遍历一个已有的 `UMaterial` 或 `UMaterialFunction` 节点图，写出等价的 DreamShaderLang 源文件。

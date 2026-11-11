@@ -1,9 +1,7 @@
 ---
-title: "ShaderFunction"
-description: "ShaderFunction"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# ShaderFunction
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **ShaderFunction**
 

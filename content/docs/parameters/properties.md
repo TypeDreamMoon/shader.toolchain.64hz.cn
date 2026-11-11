@@ -3,8 +3,6 @@ title: "属性"
 description: "属性"
 ---
 
-# 属性 [#properties]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **属性**
 
 一个声明块的段落，用于声明该块生成到其材质图中的参数节点、常量节点和 `UE.*` 内置节点。

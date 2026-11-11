@@ -3,8 +3,6 @@ title: "UE.Expression"
 description: "The reflected call that creates any UMaterialExpression class of the builtin catalog by name — class resolution, argument dispatch, OutputType, output selection, Custom nodes and the result type."
 ---
 
-# UE.Expression
-
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **UE.Expression**
 
 The reflected node call: creates any `UMaterialExpression` class of the builtin catalog by name and

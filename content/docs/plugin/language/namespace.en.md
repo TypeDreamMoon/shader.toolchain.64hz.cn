@@ -1,9 +1,7 @@
 ---
-title: "Namespace"
-description: "Namespace"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Namespace
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Namespace**
 

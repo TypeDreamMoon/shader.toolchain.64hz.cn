@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "e1e19e7d213226a08bb678f63dad8dedf2365f9bcca2dd9ed1c11d96039bf23f",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "2118deea2622ea9394a4a33df38e6caccf346080240f2c62fcb6e697e708d573",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/graph/literals.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/graph/literals.md",
-  "translationHash": "a61eec2893e46b67d7e4b4e6d15f42d16cb778d34104806bd6fbaf010dacad82"
+  "translationHash": "34720f1be3bc4cdb3d94fd0a8398ae771ff3cb6bccf60f3fb086e6e6626ed4b6"
 }

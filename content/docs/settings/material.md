@@ -3,8 +3,6 @@ title: "着色器设置"
 description: "着色器设置"
 ---
 
-# 着色器设置 [#shader-settings]
-
 > [DreamShader](/docs/) » [设置](/docs/plugin/settings) » **着色器设置**
 
 [`Shader`](/docs/plugin/language/shader) 块的 `Settings` 段：少数几个手工处理的键，外加一个反射解析器，它会把其他任何键写入生成的 `UMaterial`。

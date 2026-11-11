@@ -3,8 +3,6 @@ title: "Overview"
 description: "DreamShaderLang is a text language for Unreal Engine materials, compiled by the DreamShader plugin into ordinary material assets; on UE 5.8, .dsp sources add render passes of your own."
 ---
 
-# DreamShader reference
-
 For tutorials and task-oriented reading, start at the [documentation overview](/en/docs/plugin/readme).
 
 DreamShader compiles **DreamShaderLang** source files — `.dsm`, `.dsf`, `.dsh` and, on the 2.0 line,
@@ -217,4 +215,4 @@ screen-space effects, compute shaders writing data textures.
 | Documentation site | <https://shader.toolchain.64hz.cn/> |
 | VSCode extension | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider plugin | <https://github.com/tsdaer/dreamshader-language-support> |
-| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/b5169970e3e8fb75199b1c0cef17d213ca3a3573/CHANGELOG.md) |
+| Changelog | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/CHANGELOG.md) |

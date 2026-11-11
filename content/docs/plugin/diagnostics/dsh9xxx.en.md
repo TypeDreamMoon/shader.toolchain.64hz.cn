@@ -1,9 +1,7 @@
 ---
-title: "DSH9xxx --- Tools, sync and internal invariants"
-description: "DSH9xxx --- Tools, sync and internal invariants"
+title: "DSH9001"
+description: "DSH9001"
 ---
-
-# DSH9xxx --- Tools, sync and internal invariants
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

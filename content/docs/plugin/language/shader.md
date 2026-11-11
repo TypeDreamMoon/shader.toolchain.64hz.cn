@@ -3,8 +3,6 @@ title: "Shader"
 description: "Shader"
 ---
 
-# Shader [#shader]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **Shader**
 
 一个顶层块，用于声明一个 Unreal 材质资产：其参数、渲染状态设置、输出绑定以及为它们提供输入的节点图。

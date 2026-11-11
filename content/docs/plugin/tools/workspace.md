@@ -3,8 +3,6 @@ title: "工作区和编辑器扩展"
 description: "工作区和编辑器扩展"
 ---
 
-# 工作区和编辑器扩展 [#workspace-and-editor-extensions]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **工作区和编辑器扩展**
 
 一个生成的 VSCode 工作区文件，它将六个 DreamShaderLang 文件扩展名映射到 [VS Code 扩展](https://github.com/TypeDreamMoon/dreamshader-language-support) 的语言 ID，以及写入该文件并在其上启动外部编辑器的编辑器命令。

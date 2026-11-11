@@ -3,8 +3,6 @@ title: "DreamShaderVersionCompat.h"
 description: "DreamShaderVersionCompat.h"
 ---
 
-# DreamShaderVersionCompat.h [#dreamshaderversioncompath]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderVersionCompat.h**
 
 十三个预处理宏，用于控制插件中所有依赖引擎版本的行为——此外，在该头文件之外还有一个模块定义：Custom Pass 开关，[`DREAMSHADER_WITH_CUSTOM_PASS`](#dreamshader_with_custom_pass)。本页是手册中所有 *(自 UE 5.x 起)* 标记的唯一事实来源。

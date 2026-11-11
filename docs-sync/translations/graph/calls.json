@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "f751a0a313964bfaa9079c4836197607b39419455832191668cc77650243241d",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "cac0e5f109284117e986750664c1e8aa3b9f359058abcc4a3c7496413db159c3",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/graph/calls.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/graph/calls.md",
-  "translationHash": "b54b9c9c6c84f73a44591d237d069eb373f4b00c8d1b25ca5c8cbf4b6da70604"
+  "translationHash": "962ffe84ead3e48b547242ed06ec6b117347f06cc07a12403b5abe32f3e4afa3"
 }

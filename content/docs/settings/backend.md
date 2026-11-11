@@ -3,8 +3,6 @@ title: "Backend"
 description: "Backend"
 ---
 
-# Backend [#backend]
-
 > [DreamShader](/docs/) » [Settings](/docs/plugin/settings) » **Backend**
 
 `Shader` 设置，用于选择源文件如何被物化：一个可见的 `UMaterial` 节点图，还是隐藏基础材质之上的一个轻量材质实例。

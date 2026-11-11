@@ -1,9 +1,7 @@
 ---
-title: "DreamShader diagnostics"
-description: "DreamShader diagnostics"
+title: "plugin/diagnostics/readme"
+description: "plugin/diagnostics/readme"
 ---
-
-# DreamShader diagnostics
 
 Every `DSHnnnn` DreamShader can emit. The leading digit is the stage that raises it:
 

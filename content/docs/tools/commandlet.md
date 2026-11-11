@@ -3,8 +3,6 @@ title: "命令行工具"
 description: "命令行工具"
 ---
 
-# 命令行工具 [#commandlet]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **命令行工具**
 
 `-run=DreamShader` — 一个无头入口点，将 DreamShader 源文件编译为持久化资产，并将现有材质资产反编译回源文件。

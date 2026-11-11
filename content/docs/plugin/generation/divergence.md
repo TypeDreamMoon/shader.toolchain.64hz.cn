@@ -3,8 +3,6 @@ title: "差异"
 description: "差异"
 ---
 
-# 差异 [#divergence]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **差异**
 
 当一个生成的资产被手动编辑后会发生什么：DreamShader 如何察觉、为何停止，以及三种解决方式。

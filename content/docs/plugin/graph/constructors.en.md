@@ -1,9 +1,7 @@
 ---
-title: "Constructors"
-description: "Constructors"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Constructors
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Constructors**
 

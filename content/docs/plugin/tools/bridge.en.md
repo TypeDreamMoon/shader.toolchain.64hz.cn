@@ -1,9 +1,7 @@
 ---
-title: "Editor bridge"
-description: "Editor bridge"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Editor bridge
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Editor bridge**
 

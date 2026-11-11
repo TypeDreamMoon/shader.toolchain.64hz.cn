@@ -3,8 +3,6 @@ title: "DreamShaderLang 2.0 —— 今天已经存在的东西"
 description: "DreamShaderLang 2.0 —— 今天已经存在的东西"
 ---
 
-# DreamShaderLang 2.0 —— 今天已经存在的东西 [#dreamshaderlang-20--what-exists-today]
-
 > [DreamShader](/docs/) » **DreamShaderLang 2.0**
 
 > [!IMPORTANT]

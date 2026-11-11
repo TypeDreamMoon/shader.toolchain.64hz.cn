@@ -3,8 +3,6 @@ title: "设置"
 description: "设置"
 ---
 
-# 设置 [#settings]
-
 > [DreamShader](/docs/) » **设置**
 
 该部分负责将 `<key> = <value>;` 键值对从源块传递到其生成的资源。

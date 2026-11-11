@@ -1,9 +1,7 @@
 ---
-title: "VirtualFunction"
-description: "VirtualFunction"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# VirtualFunction
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **VirtualFunction**
 

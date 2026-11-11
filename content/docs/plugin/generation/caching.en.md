@@ -1,9 +1,7 @@
 ---
-title: "Caching"
-description: "Caching"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Caching
 
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Caching**
 

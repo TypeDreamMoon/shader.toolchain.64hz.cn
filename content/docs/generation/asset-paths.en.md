@@ -3,8 +3,6 @@ title: "Asset Paths"
 description: "How Name= and Root= become an Unreal package path, an object path, and a file on disk — including the Plugin.X roots and the plugin-source-root default."
 ---
 
-# Asset paths
-
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Asset paths**
 
 The rule that turns a block's `Name` and `Root` header attributes into an Unreal package path, an

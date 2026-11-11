@@ -1,9 +1,7 @@
 ---
-title: "Custom Pass runtime"
-description: "Custom Pass runtime"
+title: "What makes a pipeline apply"
+description: "What makes a pipeline apply"
 ---
-
-# Custom Pass runtime
 
 > [DreamShader](/en/docs/) » **Custom Pass runtime**
 
@@ -179,7 +177,7 @@ See [the pipeline language reference](/en/docs/language-v2/passes#compute).
 
 ### Custom Pass pipelines — `.dsp`
 
-See [the pipeline language reference](/en/docs/language-v2/passes#custom-pass-pipelines--dsp).
+See [the pipeline language reference](/en/docs/language-v2/passes).
 
 ### Fullscreen
 

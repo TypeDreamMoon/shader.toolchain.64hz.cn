@@ -3,8 +3,6 @@ title: "ShaderLayer / ShaderLayerBlend"
 description: "ShaderLayer / ShaderLayerBlend"
 ---
 
-# ShaderLayer / ShaderLayerBlend [#shaderlayer--shaderlayerblend]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **ShaderLayer / ShaderLayerBlend**
 
 两个顶层块，用于声明 Unreal 的材质层函数资产：层（layer）产生一个 `MaterialAttributes` 值，而层混合（layer blend）将其中两个组合起来。

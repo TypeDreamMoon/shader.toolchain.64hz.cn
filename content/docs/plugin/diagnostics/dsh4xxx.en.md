@@ -1,9 +1,7 @@
 ---
-title: "DSH4xxx --- Graph statements and expressions"
-description: "DSH4xxx --- Graph statements and expressions"
+title: "DSH4200"
+description: "DSH4200"
 ---
-
-# DSH4xxx --- Graph statements and expressions
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

@@ -3,8 +3,6 @@ title: "UE.Expression"
 description: "UE.Expression"
 ---
 
-# UE.Expression [#ueexpression]
-
 > [DreamShader](/docs/) » [内置节点](/docs/plugin/builtins) » **UE.Expression**
 
 反射节点调用：按名字创建内置目录中的任意 `UMaterialExpression` 类，并用参数填充它的输入引脚和属性。

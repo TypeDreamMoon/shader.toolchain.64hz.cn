@@ -3,8 +3,6 @@ title: "OutputType"
 description: "OutputType"
 ---
 
-# OutputType [#outputtype]
-
 > [DreamShader](/docs/) » [内置组件](/docs/plugin/builtins) » **OutputType**
 
 1.x 调用用它作为参数来说明反射内置组件产生何种类型的值。自 2.0.0 起，内置组件目录会为每个类说明这一点，而 `OutputType` 保留了两项职责：Custom 节点的输出类型，以及 1.x 源码中的宽度提示。

@@ -3,8 +3,6 @@ title: "NoGeneration"
 description: "A source, or one export of it, that only a compile naming it builds — the three spellings, which build paths leave it alone, and what a compile that does not name it does with its asset."
 ---
 
-# NoGeneration
-
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **NoGeneration**
 
 *(after 2.1.2)* A source, or one export of it, that only a compile **naming** it builds. Every other

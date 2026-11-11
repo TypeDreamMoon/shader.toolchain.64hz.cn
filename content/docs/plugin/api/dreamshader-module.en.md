@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderModule.h"
-description: "DreamShaderModule.h"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# DreamShaderModule.h
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderModule.h**
 

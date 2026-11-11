@@ -3,8 +3,6 @@ title: "ShaderFunction"
 description: "ShaderFunction"
 ---
 
-# ShaderFunction [#shaderfunction]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **ShaderFunction**
 
 一个顶层块，声明一个可复用的 Unreal 材质函数：它带类型的输入和输出引脚、它的函数局部参数节点，以及连接它们的节点图。

@@ -1,9 +1,7 @@
 ---
-title: "Tools"
-description: "Tools"
+title: "Pages"
+description: "Pages"
 ---
-
-# Tools
 
 > [DreamShader](/en/docs/) » **Tools**
 

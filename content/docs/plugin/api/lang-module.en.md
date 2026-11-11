@@ -1,9 +1,7 @@
 ---
-title: "`DreamShaderLang`"
-description: "`DreamShaderLang`"
+title: "The Core-only rule"
+description: "The Core-only rule"
 ---
-
-# `DreamShaderLang`
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **`DreamShaderLang`**
 
@@ -308,7 +306,7 @@ every fixture as its own sub-test.
 | Runner | `RunDreamShaderLangCorpusCase` in `Source/DreamShaderEditor/Private/Tests/DreamShaderTestCommon.h` |
 | Registration | `Source/DreamShaderEditor/Private/Tests/DreamShaderCorpusLangTests.cpp` |
 | Fixtures | `Tests/Corpus/Lang/{Lexical,Expressions,Statements,Declarations,Examples}/` — `.dss` and `.dsh`, plus one `.dsm` that pins front-end selection: it reaches the legacy front end and fails there (`DSH2241`) |
-| Golden schema | `"entryPoint": "lang"` — see [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/651887c2df69a774cf6ffbf0d360777af6850b64/Tests/Corpus/README.md) |
+| Golden schema | `"entryPoint": "lang"` — see [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md) |
 
 Each case is parsed once through `ParseDreamShaderLang`, then checked against its golden:
 

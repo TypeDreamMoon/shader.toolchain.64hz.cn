@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "6bf8b283aaa587cfaca0ddf8fecaa5010e6ea33bf6c6c708876a9397aa32d709",
-  "sourceRevision": "5533fecff05dff170130ce5a4b8c7556742c5fd9",
+  "sourceHash": "75c77b15023333f5e59e1f7dcfebe335453e3649be9e5a6a9e092e6f2a71361c",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/language-v2/disable-diagnostics.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/language-v2/disable-diagnostics.md",
-  "translationHash": "f65d674ce1baf9c94687fe189b2756d9957ec9d4feced76575f9a99b7290176a"
+  "translationHash": "23b16df3843b27c8d513cef4f480dee65d86d47e050aa4c6597aa1514f1b1461"
 }

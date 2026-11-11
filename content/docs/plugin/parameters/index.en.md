@@ -1,9 +1,7 @@
 ---
-title: "Parameters"
-description: "Parameters"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Parameters
 
 > [DreamShader](/en/docs/) » **Parameters**
 

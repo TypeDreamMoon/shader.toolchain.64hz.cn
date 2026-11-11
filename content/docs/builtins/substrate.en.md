@@ -3,8 +3,6 @@ title: "Substrate Nodes"
 description: "The Substrate.* call namespace — every Substrate BSDF, composition and utility node of the running engine, called by name. UE 5.4+."
 ---
 
-# Substrate.*
-
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **`Substrate.*`**
 
 A sibling call namespace to [`UE.*`](/en/docs/builtins/ue-nodes) holding Unreal's Substrate BSDF, composition and utility

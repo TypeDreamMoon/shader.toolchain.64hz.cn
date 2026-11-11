@@ -1,9 +1,7 @@
 ---
-title: "Preview"
-description: "Preview"
+title: "Breakpoints (probe preview)"
+description: "Breakpoints (probe preview)"
 ---
-
-# Preview
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Preview**
 

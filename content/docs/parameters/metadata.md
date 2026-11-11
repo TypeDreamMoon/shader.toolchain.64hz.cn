@@ -3,8 +3,6 @@ title: "元数据块"
 description: "元数据块"
 ---
 
-# 元数据块 [#metadata-block]
-
 > [DreamShader](/docs/) » [参数](/docs/plugin/parameters) » **元数据块**
 
 声明末尾的 `[ … ]` 块：一组 `Key = Value` 条目，用于设置生成节点的组织字段；对于语言不认识的任何键，则直接写入该节点类的反射 UPROPERTY。

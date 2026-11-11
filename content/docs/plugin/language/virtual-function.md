@@ -3,8 +3,6 @@ title: "VirtualFunction"
 description: "VirtualFunction"
 ---
 
-# VirtualFunction [#virtualfunction]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **VirtualFunction**
 
 一个顶层块，用于声明一个**已存在的** `UMaterialFunction` 资源——包括其路径和引脚签名——以便 `Graph` 可以调用它。它不会生成任何内容。

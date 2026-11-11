@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "3aec993e3e12cfd69d97817023cb4d31e013a890f23b5bcdd38a0c463bc44b6a",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "e49d7d5f573fa0cd280f290cccc63d0e01046ca6ed0260cb89685af426b7ce08",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/settings/index.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/settings/index.md",
-  "translationHash": "613312448132dabc390e07542869e0ab6bbb703988544e747b85c198f487a4fb"
+  "translationHash": "5b7aee4cb42293ef27d493ed1ddadec4e25087f095399e7f9c15dc0d645e9dbb"
 }

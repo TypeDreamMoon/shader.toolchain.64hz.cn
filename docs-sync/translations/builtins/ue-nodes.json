@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "b1959363e220e5242879675cdba9b3427f7ce055f6616a508cea2254e6e22251",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "bb6fcf5e8325b0a87e5f153501801ffdbd046c236b42405a47adf3da3470d09a",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/builtins/ue.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/builtins/ue-nodes.md",
-  "translationHash": "2673a6b7849681e8e8d9a93bdaf1d2a4dd4635b4e685a310d14a13cff89ed9fa"
+  "translationHash": "f7edcf17962cafb9c4137d10b3d15be5b71acb84d11a7915ab3fb618bdfb4ec5"
 }

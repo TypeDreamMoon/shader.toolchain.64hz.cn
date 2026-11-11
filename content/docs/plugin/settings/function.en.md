@@ -1,9 +1,7 @@
 ---
-title: "Function settings"
-description: "Function settings"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Function settings
 
 > [DreamShader](/en/docs/) » [Settings](/en/docs/plugin/settings) » **Function settings**
 

@@ -1,9 +1,7 @@
 ---
-title: "Settings"
-description: "Settings"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Settings
 
 > [DreamShader](/en/docs/) » **Settings**
 

@@ -1,9 +1,7 @@
 ---
-title: "C++ API"
-description: "C++ API"
+title: "Modules"
+description: "Modules"
 ---
-
-# C++ API
 
 > [DreamShader](/en/docs/) » **C++ API**
 

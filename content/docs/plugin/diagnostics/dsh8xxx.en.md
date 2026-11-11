@@ -1,9 +1,7 @@
 ---
-title: "DSH8xxx --- Asset generation and saving"
-description: "DSH8xxx --- Asset generation and saving"
+title: "DSH8088"
+description: "DSH8088"
 ---
-
-# DSH8xxx --- Asset generation and saving
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

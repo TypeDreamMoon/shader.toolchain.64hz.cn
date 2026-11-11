@@ -3,8 +3,6 @@ title: "Substrate 语法糖"
 description: "Substrate 语法糖"
 ---
 
-# Substrate 语法糖 [#substrate-sugar]
-
 > [DreamShader](/docs/) » [DreamShaderLang 2.0](/docs/language-v2) » **Substrate 语法糖**
 
 给 Substrate 图准备的更短写法。每一条都只是一种拼写，仅此而已：它绑定到一组固定的 [`Substrate.*`](/docs/builtins/substrate) 节点模式上，生成的图就是长写法所生成的那一个。反编译器写长写法，只有在被要求给出可读形式时才写短写法。

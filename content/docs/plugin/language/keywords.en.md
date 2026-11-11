@@ -1,9 +1,7 @@
 ---
-title: "Keyword index"
-description: "Keyword index"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Keyword index
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Keyword index**
 

@@ -3,8 +3,6 @@ title: "DreamShaderBuiltins.ush"
 description: "DreamShaderBuiltins.ush"
 ---
 
-# DreamShaderBuiltins.ush [#dreamshaderbuiltinsush]
-
 > [DreamShader](/docs/) » [内置项](/docs/plugin/builtins) » **`DreamShaderBuiltins.ush`**
 
 随插件一起提供的 HLSL 头文件，定义了 `DS_*` 宏和函数，与材质翻译器为对应 `UE.*` 内置节点生成的 HLSL 保持一致。

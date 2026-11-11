@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "3d1173735a61d62a9f9f690ad1002a0eb90056db42419099ed58fc58144740f6",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "23f6a5c3639abb9c65f8bdbc3921282c02deb7c9112a8769e81ced405908f7cc",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/builtins/transform.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/builtins/transform.md",
-  "translationHash": "0c970b4971b944e0ab109a12a6321d00b9d230240aa831dde907dcf8c0139123"
+  "translationHash": "ca79895611e10575327e5c980f11f5891936af78d975f40942d71395037eb580"
 }

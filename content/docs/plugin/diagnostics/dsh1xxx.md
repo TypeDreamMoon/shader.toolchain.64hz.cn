@@ -3,8 +3,6 @@ title: "DSH1xxx --- 驱动、源文件和导入"
 description: "DSH1xxx --- 驱动、源文件和导入"
 ---
 
-# DSH1xxx --- 驱动、源文件和导入 [#dsh1xxx-----driver-source-files-and-imports]
-
 > 生成标记之间的块由 `.skill/gen-diagnostics.ps1` 写入。标记下方的一切均为手动编写，会在重新生成后保留。
 
 ## DSH1030 [#dsh1030]

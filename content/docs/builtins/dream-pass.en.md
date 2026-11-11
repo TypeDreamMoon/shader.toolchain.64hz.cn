@@ -3,8 +3,6 @@ title: "Custom Pass material nodes"
 description: "UE.DreamPassOutput writes the data a mesh pass draws, UE.DreamPassBuffer lets an ordinary material read an exported buffer; and how a pass material reads the pass's buffers with UE.UserSceneTexture. Needs UE 5.8."
 ---
 
-# Custom Pass material nodes
-
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **Custom Pass material nodes**
 
 Two material expressions of the DreamShaderPass module, reached from a `.dss` like any other expression,

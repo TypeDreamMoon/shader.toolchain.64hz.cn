@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "686a5b63b8b03d937e7440418fa7e60c0eb1a6ea833cc0dcf09d07687401c98f",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "e18737d21ed67e18ab3a4a1243b7292c0604d159051f1f1cc267ebc5a0c34075",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/language/virtual-function.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/language/virtual-function.md",
-  "translationHash": "d4da0623f55a777eb28a0f10f10b8017ab93e7e0f6e2841f691162481e0451d8"
+  "translationHash": "b2acb3ac84bb4cf8533cde18ca0f4065c4a0480f6df87b0c9e31406531d743d2"
 }

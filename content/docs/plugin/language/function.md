@@ -3,8 +3,6 @@ title: "Function"
 description: "Function"
 ---
 
-# Function [#function]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **Function**
 
 一个顶层块，用于声明可复用的 HLSL 辅助函数：其主体为逐字保留的 HLSL 文本，每一处调用位置都会成为一个 `UMaterialExpressionCustom` 节点，其代码即为该主体。

@@ -3,8 +3,6 @@ title: "数学内置"
 description: "数学内置"
 ---
 
-# 数学内置 [#math-builtins]
-
 > [DreamShader](/docs/) » [内置](/docs/plugin/builtins) » **数学内置**
 
 无前缀、按 HLSL 拼写的调用名，会直接降级为算术 `UMaterialExpression` 节点。

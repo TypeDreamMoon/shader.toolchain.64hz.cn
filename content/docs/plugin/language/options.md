@@ -3,8 +3,6 @@ title: "Options"
 description: "Options"
 ---
 
-# Options [#options]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **Options**
 
 `VirtualFunction` 块中用于命名声明所代表的现有 `UMaterialFunction` 资产的部分。

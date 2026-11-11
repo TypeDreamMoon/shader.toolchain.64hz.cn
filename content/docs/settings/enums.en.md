@@ -3,8 +3,6 @@ title: "Enum Values"
 description: "Every accepted ShadingModel, BlendMode and Domain spelling, how a value is matched, and how project mappings extend or shadow the built-in tables."
 ---
 
-# Material enums
-
 > [DreamShader](/en/docs/) » [Settings](/en/docs/plugin/settings) » **Material enums**
 
 The complete set of value spellings accepted by the `ShadingModel`, `BlendMode` / `RenderType` and

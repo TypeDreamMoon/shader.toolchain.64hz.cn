@@ -3,8 +3,6 @@ title: "Property Types"
 description: "Every type token a Properties declaration accepts — 39 compact tokens, 22 parameter node tokens (15 of which build), their defaults, how Graph reads them and their call forms."
 ---
 
-# Properties
-
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Properties**
 
 A section that declares the parameter nodes, constant nodes and `UE.*` builtin nodes a block

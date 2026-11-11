@@ -3,8 +3,6 @@ title: "缓存"
 description: "缓存"
 ---
 
-# 缓存 [#caching]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **缓存**
 
 源哈希短路：存储编译后文本的指纹，让未更改的源完全跳过重新生成。

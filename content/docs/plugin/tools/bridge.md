@@ -3,8 +3,6 @@ title: "编辑器桥接"
 description: "编辑器桥接"
 ---
 
-# 编辑器桥接 [#editor-bridge]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **编辑器桥接**
 
 编辑器侧的服务，它通过两种传输方式将 DreamShader 暴露给外部编辑器——轮询的请求文件目录和回环 WebSocket 服务器——并在 `Saved/DreamShader/Bridge/` 下生成一组产物。

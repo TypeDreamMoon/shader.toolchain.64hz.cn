@@ -3,8 +3,6 @@ title: "布局"
 description: "布局"
 ---
 
-# 布局 [#layout]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **布局**
 
 一个用于固定生成节点位置并在生成的材质图中声明注释框的 section。

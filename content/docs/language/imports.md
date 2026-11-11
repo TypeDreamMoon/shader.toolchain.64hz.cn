@@ -3,8 +3,6 @@ title: "import"
 description: "import"
 ---
 
-# import [#import]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **import**
 
 一条顶层语句，使某个 `.dsh` header 的声明在当前文件中可见。

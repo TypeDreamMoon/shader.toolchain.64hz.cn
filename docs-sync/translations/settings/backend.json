@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "9db73114baaa03367f92fca83a790a78d82b36fb60635978ebe688f31b5ba9d4",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "77d5da1c5e9f0cd142fc6eeccbe7fd9b3d81ec375ccd9ed203e1af3c857c09fd",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/settings/backend.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/settings/backend.md",
-  "translationHash": "56f00faa2fcf2348037df9726704d3b610707233a345fcc7723f0c0ff1e2869a"
+  "translationHash": "b51db0216788a408112837020007a30e8be0087317ea4971fd4b92215226c078"
 }

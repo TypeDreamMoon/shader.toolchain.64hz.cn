@@ -3,8 +3,6 @@ title: "Decompiler"
 description: "Exporting an existing material asset back to source — the default 2.0 decompiler (.dss / .dsi / .dsp), and what the kept 1.x exporter (.dsm / .dsf) reproduces and loses."
 ---
 
-# Decompiler
-
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Decompiler**
 
 The exporter that walks an existing `UMaterial` or `UMaterialFunction` node graph and writes an

@@ -3,8 +3,6 @@ title: "Project Settings"
 description: "All 17 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects, and the Custom Pass settings object."
 ---
 
-# Project settings
-
 > [DreamShader](/en/docs/) » [Settings](/en/docs/plugin/settings) » **Project settings**
 
 The project-wide configuration object: seventeen properties under *Project Settings ▸ DreamPlugin ▸

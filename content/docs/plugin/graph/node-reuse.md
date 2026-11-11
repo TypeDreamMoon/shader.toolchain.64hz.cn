@@ -3,8 +3,6 @@ title: "节点复用"
 description: "节点复用"
 ---
 
-# 节点复用 [#node-reuse]
-
 > [DreamShader](/docs/) » [图形](/docs/graph/overview) » **节点复用**
 
 公共子表达式消除:两个节点若从相同输入计算出相同结果,在生成的资产中就是同一个节点。

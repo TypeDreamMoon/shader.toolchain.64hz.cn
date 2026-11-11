@@ -3,8 +3,6 @@ title: "DreamShaderMaterialInstance.h"
 description: "DreamShaderMaterialInstance.h"
 ---
 
-# DreamShaderMaterialInstance.h [#dreamshadermaterialinstanceh]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderMaterialInstance.h**
 
 `UDreamShaderMaterialInstance` —— ThinCustom 后端生成的可寻址资产：一个常量材质实例，其父级是隐藏的、携带真实节点图的每材质基础 `UMaterial`。

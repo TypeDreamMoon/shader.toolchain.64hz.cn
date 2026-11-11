@@ -3,8 +3,6 @@ title: "Metadata and Groups"
 description: "The trailing [ … ] block — recognized keys and aliases, Slider(min,max), SamplerType, Group scopes and the SortPriority counter, and the reflected-property passthrough."
 ---
 
-# Metadata block
-
 > [DreamShader](/en/docs/) » [Parameters](/en/docs/plugin/parameters) » **Metadata block**
 
 The trailing `[ … ]` block of a declaration: a list of `Key = Value` entries that set the generated

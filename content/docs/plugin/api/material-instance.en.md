@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderMaterialInstance.h"
-description: "DreamShaderMaterialInstance.h"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# DreamShaderMaterialInstance.h
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderMaterialInstance.h**
 

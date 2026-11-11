@@ -3,8 +3,6 @@ title: "调用"
 description: "调用"
 ---
 
-# 调用 [#calls]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **调用**
 
 从 `Graph` 块中调用 `Function`、`GraphFunction`、`ShaderFunction`、`VirtualFunction` 或带输入的参数，既可以作为值表达式，也可以作为独立语句。

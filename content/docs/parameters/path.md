@@ -3,8 +3,6 @@ title: "Path(…) 资产引用"
 description: "Path(…) 资产引用"
 ---
 
-# Path(…) 资产引用 [#path-asset-references]
-
 > [DreamShader](/docs/) » [参数](/docs/plugin/parameters) » **Path(…)**
 
 资产引用形式：一个包根加一段相对路径，在生成时解析为完整的 Unreal 对象路径。

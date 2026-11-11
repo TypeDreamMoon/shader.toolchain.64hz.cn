@@ -3,8 +3,6 @@ title: "`DreamShaderLang`"
 description: "`DreamShaderLang`"
 ---
 
-# `DreamShaderLang` [#dreamshaderlang]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **`DreamShaderLang`**
 
 `DreamShaderLang` 是前端**也是中端**：文本输入，输出的是降低后的图——反过来也一样。词法分析器、预处理器、两个解析器（2.0 和 1.x 旧版前端）、AST、打印器、绑定器、带各遍处理的图 IR、验证器和比较器、把 IR 变回源码的写出器、1.x → 2.0 迁移器，以及诊断类型都在这里——除此之外再无他物。它是为 2.0 从 `DreamShader` 中拆分出来的，这样语言就可以在没有编辑器的情况下被演练、被语言服务复用，并作为一门语言而非一个插件来被推演。

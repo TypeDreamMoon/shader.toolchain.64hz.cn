@@ -3,8 +3,6 @@ title: "资产重命名同步"
 description: "资产重命名同步"
 ---
 
-# 资产重命名同步 [#asset-rename-sync]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **资产重命名同步**
 
 在编辑器中重命名或移动资产时，会重写引用它的 `.dsm` / `.dsf` / `.dsh` 文件，这样源文件引用的就始终是资产的名称，而不是它曾经使用的路径。

@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "b0d42b062c03638705a8fbfdb09c35f74d0ef3a62d9a55e9a285b7eabf7be572",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "a39e52a5d3d693bdd543effb29835a8e5959141a98c49d85c87fe5a7658c1307",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/language/import.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/language/imports.md",
-  "translationHash": "7f8e4e0d9d3eefba11b20b501b110bf7ba9ddf08d05a7ea69ba6fb3993cd91dc"
+  "translationHash": "96778455c26f417795d7e26491041975027762feab72f2ee46bef5659fc0e91e"
 }

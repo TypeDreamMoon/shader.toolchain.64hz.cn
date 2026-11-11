@@ -3,8 +3,6 @@ title: "输出绑定"
 description: "输出绑定"
 ---
 
-# 输出绑定 [#output-bindings]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **输出绑定**
 
 位于 `Shader` 的 `Outputs` 部分中的语句，用于将图值连接到材质属性输入，或连接到显式创建的 `UMaterialExpression` 上的引脚。

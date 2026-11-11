@@ -3,8 +3,6 @@ title: "DreamShader 参考"
 description: "DreamShader 参考"
 ---
 
-# DreamShader 参考 [#dreamshader-reference]
-
 如需教程和面向任务的阅读，请从[文档概览](/docs/plugin/readme)开始。
 
 DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，以及在 2.0 系列上的 `.dss`——编译为标准 Unreal Engine 材质资产：`UMaterial`、`UMaterialFunction`、 `UMaterialFunctionMaterialLayer` 和 `UMaterialFunctionMaterialLayerBlend`——并且在 Unreal Engine 5.8 上，将 `.dsp` [Custom Pass](#custom-pass) 管线编译为 `UDreamPassPipeline` 资产，从而添加你自己的渲染 pass。源文件是创作表面；资产是构建产物，随时可以重新生成。

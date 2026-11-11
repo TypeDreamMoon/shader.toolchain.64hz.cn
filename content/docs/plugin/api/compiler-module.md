@@ -3,8 +3,6 @@ title: "DreamShaderCompiler"
 description: "DreamShaderCompiler"
 ---
 
-# DreamShaderCompiler [#dreamshadercompiler]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderCompiler**
 
 编译器后半部分：将源从文本驱动到资产的管线、IR 发射器、其下的资产层、由反射构建的内置目录以及产品索引。前半部分——从词法分析器到经过验证的 IR——是 [`DreamShaderLang`](/docs/plugin/api/lang-module)，它对引擎一无所知；本模块是首次接触到 `UObject` 的地方。

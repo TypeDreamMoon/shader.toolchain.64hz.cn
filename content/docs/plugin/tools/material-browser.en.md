@@ -1,9 +1,7 @@
 ---
-title: "Material Content Browser"
-description: "Material Content Browser"
+title: "Opening it"
+description: "Opening it"
 ---
-
-# Material Content Browser
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Material Content Browser**
 

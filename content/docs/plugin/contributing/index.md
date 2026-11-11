@@ -3,8 +3,6 @@ title: "贡献"
 description: "贡献"
 ---
 
-# 贡献 [#contributing]
-
 > [DreamShader](/docs/) » **贡献**
 
 构建插件本身、其五个 C++ 模块的布局，以及各子系统的代码所在位置。

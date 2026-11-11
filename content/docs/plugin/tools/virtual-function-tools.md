@@ -3,8 +3,6 @@ title: "VirtualFunction 工具"
 description: "VirtualFunction 工具"
 ---
 
-# VirtualFunction 工具 [#virtualfunction-tools]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **VirtualFunction 工具**
 
 为现有 `UMaterialFunction` 资源生成、打开和刷新 [`VirtualFunction`](/docs/plugin/language/virtual-function) 声明的编辑器操作，以及使这些声明与其指定资源保持同步的启动服务。

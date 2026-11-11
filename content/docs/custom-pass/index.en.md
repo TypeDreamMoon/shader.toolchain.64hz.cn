@@ -3,8 +3,6 @@ title: "Custom Pass runtime"
 description: "What happens to a compiled .dsp pipeline at run time — what makes it apply to a view, when its passes run, what its buffers hold, how exported buffers reach materials, Blueprints, UMG and Niagara, and how to see what it did. Needs UE 5.8."
 ---
 
-# Custom Pass runtime
-
 > [DreamShader](/en/docs/) » **Custom Pass runtime**
 
 What happens to a compiled [`.dsp` pipeline](/en/docs/language-v2/passes) at run time: what makes it apply to a
@@ -179,7 +177,7 @@ See [the pipeline language reference](/en/docs/language-v2/passes#compute).
 
 ### Custom Pass pipelines — `.dsp`
 
-See [the pipeline language reference](/en/docs/language-v2/passes#custom-pass-pipelines--dsp).
+See [the pipeline language reference](/en/docs/language-v2/passes).
 
 ### Fullscreen
 

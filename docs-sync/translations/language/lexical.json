@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "8129b312f4dde0499ca3e5ec492ad351cd4d3b13d2d8114ed703c7437c6fb14f",
-  "sourceRevision": "651887c2df69a774cf6ffbf0d360777af6850b64",
+  "sourceHash": "d481e827560ddc08f08d9567ab45fb9b5bb08f0f378f55f1f597ecf70e183fd3",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/language/lexical.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/language/lexical.md",
-  "translationHash": "df0920ed1b90ea8efd9263371c7c87da3d52aa61545c43cc0076fb78e05a043a"
+  "translationHash": "88b60cfe5ad41c2cd95e291691bafe609a4ddf446a2782c7af051281eb68f77e"
 }

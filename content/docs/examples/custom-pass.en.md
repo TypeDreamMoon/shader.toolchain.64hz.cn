@@ -3,8 +3,6 @@ title: "Custom Pass examples"
 description: "Seven complete .dsp pipelines with the .dss materials they use — highlight outline, UI frosted glass, X-ray, wind field, scanner pulse, old CRT, tagged objects. Needs UE 5.8."
 ---
 
-# Custom Pass examples
-
 > [DreamShader](/en/docs/) » [Examples](/en/docs/plugin/examples) » **Custom Pass examples**
 
 Complete pipelines, each with the `.dss` materials it uses; the HLSL of their HLSL passes is written in the `.dsp`

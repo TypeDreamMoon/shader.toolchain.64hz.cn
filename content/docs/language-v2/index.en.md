@@ -3,8 +3,6 @@ title: "DreamShaderLang 2.0"
 description: "The HLSL-shaped language of DreamShader 2.0 — .dss sources, uniforms and doc directives, one asset per export, and how it sits beside the 1.x language."
 ---
 
-# DreamShaderLang 2.0 — what exists today
-
 > [DreamShader](/en/docs/) » **DreamShaderLang 2.0**
 
 > [!IMPORTANT]
@@ -337,7 +335,7 @@ Headless:
 
 To cover a new construct, drop a `.dss` (plus an optional `.expected.json`) into the corpus tree —
 no C++, no recompile. The golden schema is documented in
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5533fecff05dff170130ce5a4b8c7556742c5fd9/Tests/Corpus/README.md).
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/ef80c89352d0e7a8571f0e651f3b664930ef4e97/Tests/Corpus/README.md).
 
 ## See also
 

@@ -3,8 +3,6 @@ title: "DreamShaderLang"
 description: "DreamShaderLang"
 ---
 
-# DreamShaderLang [#dreamshaderlang]
-
 > [DreamShader](/docs/) » **DreamShaderLang**
 
 从 `.dsm`、`.dsf` 和 `.dsh` 源文件中读取的语言：一种描述资源的外层声明文法，以及一种嵌入在 `Graph` 块中、描述其内部节点图的语句文法。

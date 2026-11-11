@@ -1,9 +1,7 @@
 ---
-title: "DreamShaderTypes.h"
-description: "DreamShaderTypes.h"
+title: "Declaration index"
+description: "Declaration index"
 ---
-
-# DreamShaderTypes.h
 
 > [DreamShader](/en/docs/) » [C++ API](/en/docs/plugin/api) » **DreamShaderTypes.h**
 

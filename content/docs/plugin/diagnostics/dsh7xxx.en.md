@@ -1,9 +1,7 @@
 ---
-title: "DSH7xxx --- Properties, parameters and settings"
-description: "DSH7xxx --- Properties, parameters and settings"
+title: "DSH7111"
+description: "DSH7111"
 ---
-
-# DSH7xxx --- Properties, parameters and settings
 
 > The block between the generated markers is written by `.skill/gen-diagnostics.ps1`.
 > Everything below a marker is written by hand and survives a regeneration.

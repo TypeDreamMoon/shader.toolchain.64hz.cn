@@ -1,9 +1,7 @@
 ---
-title: "Shader"
-description: "Shader"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Shader
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **Shader**
 

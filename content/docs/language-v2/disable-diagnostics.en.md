@@ -3,8 +3,6 @@ title: "Disabling diagnostics"
 description: "#pragma disable_warning / disable_error and the per-line // disable_warning comment — turning off warnings and errors by code, for a file or a line, and what a disabled error still does."
 ---
 
-# Disabling diagnostics
-
 > [DreamShader](/en/docs/) » [DreamShaderLang 2.0](/en/docs/language-v2) » **Disabling diagnostics**
 
 *(after 2.1.2)* A source can turn off warnings and errors by their code, for the whole file or for

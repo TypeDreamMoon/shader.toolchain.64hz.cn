@@ -3,8 +3,6 @@ title: "Math Builtins"
 description: "Unprefixed, HLSL-spelled call names — 44 HLSL names lowered straight to arithmetic material nodes, plus the four GLSL spellings a 1.x source may still use."
 ---
 
-# Math builtins
-
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **Math builtins**
 
 Unprefixed, HLSL-spelled call names that lower directly to arithmetic `UMaterialExpression` nodes.

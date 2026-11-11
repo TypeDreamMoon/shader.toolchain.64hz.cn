@@ -3,8 +3,6 @@ title: "NoGeneration"
 description: "NoGeneration"
 ---
 
-# NoGeneration [#nogeneration]
-
 > [DreamShader](/docs/) » [Generation](/docs/generation/pipeline) » **NoGeneration**
 
 *（2.1.2 之后）* 一个源，或它的某个导出，只有**命名**它的编译才会构建它。其他所有编译都会让其资产保持磁盘上的原样，任何使用该资产的东西也按原样使用它。

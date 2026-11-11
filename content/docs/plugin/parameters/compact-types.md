@@ -3,8 +3,6 @@ title: "紧凑类型标记"
 description: "紧凑类型标记"
 ---
 
-# 紧凑类型标记 [#compact-type-tokens]
-
 > [DreamShader](/docs/) » [参数](/docs/plugin/parameters) » **紧凑类型标记**
 
 `Properties` 声明可以在不指定 Unreal 表达式类的情况下使用的 39 个内置类型标记：7 个标量拼写、27 个向量拼写和 5 个纹理拼写。

@@ -1,9 +1,7 @@
 ---
-title: "Literals"
-description: "Literals"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Literals
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Literals**
 

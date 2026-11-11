@@ -1,8 +1,8 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "81ab0b209c9c26c8c35208d1aade2d8dc50c166a2c0d5a034cc8bc34e2950d50",
-  "sourceRevision": "e5215acb86e1d0616e39f7d93addadb5db067633",
+  "sourceHash": "139fe73c4b4d03c250a6097aab8e4c296525210ef482dcf5ab6b2f4ea120c862",
+  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
       "path": "Docs/generation/caching.md",
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/generation/caching.md",
-  "translationHash": "f60dc615184d3a04c86823b0233ba059921bfaa14e8aa5a1fb4458a0129db9c5"
+  "translationHash": "73bf9ddbaa1f2f4670f3d17b69cdee2d6deeac16c14800d39c6f9da5569bc441"
 }

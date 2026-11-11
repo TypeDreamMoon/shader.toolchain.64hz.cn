@@ -3,8 +3,6 @@ title: "`dsc migrate` —— 从 1.x 源文件迁移到 `.dss`"
 description: "`dsc migrate` —— 从 1.x 源文件迁移到 `.dss`"
 ---
 
-# `dsc migrate` —— 从 1.x 源文件迁移到 `.dss` [#dsc-migrate--1x-sources-to-dss]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **迁移**
 
 `dsc migrate` 把 `.dsm`、`.dsf` 与 `.dsh` 文件改写成 DreamShaderLang 2.0。没有任何东西逼你迁移：legacy 前端会继续用同一个编译器构建 1.x 源码。当你想要只有 `.dss` 才有的东西时再迁移 —— 真正的表达式和控制流、 `#include`、与材质并排的材质实例、能在工具处理之后存活的注释。

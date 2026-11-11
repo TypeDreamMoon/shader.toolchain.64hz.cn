@@ -1,9 +1,7 @@
 ---
-title: "Declarations"
-description: "Declarations"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Declarations
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Declarations**
 

@@ -1,9 +1,7 @@
 ---
-title: "Contributing"
-description: "Contributing"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Contributing
 
 > [DreamShader](/en/docs/) » **Contributing**
 

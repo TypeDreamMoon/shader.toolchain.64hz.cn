@@ -3,8 +3,6 @@ title: "参数节点标记"
 description: "参数节点标记"
 ---
 
-# 参数节点标记 [#parameter-node-tokens]
-
 > [DreamShader](/docs/) » [参数](/docs/plugin/parameters) » **参数节点标记**
 
 这 22 个类型标记直接指定 Unreal 参数表达式类的名称，因此一个 `Properties` 声明会生成该精确节点，而不是紧凑的标量 / 向量 / 纹理对象节点。

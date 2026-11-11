@@ -3,8 +3,6 @@ title: "SamplerType"
 description: "SamplerType"
 ---
 
-# SamplerType [#samplertype]
-
 > [DreamShader](/docs/) » [Parameters](/docs/plugin/parameters) » **SamplerType**
 
 用于设置纹理节点如何解释其纹理的元数据键：位于生成的 `UMaterialExpressionTextureBase` 子类上的 `EMaterialSamplerType`。

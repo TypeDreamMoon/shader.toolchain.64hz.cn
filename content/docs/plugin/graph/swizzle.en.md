@@ -1,9 +1,7 @@
 ---
-title: "Swizzle"
-description: "Swizzle"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Swizzle
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Swizzle**
 

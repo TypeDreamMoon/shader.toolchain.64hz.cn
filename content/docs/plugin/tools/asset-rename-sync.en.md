@@ -1,9 +1,7 @@
 ---
-title: "Asset rename sync"
-description: "Asset rename sync"
+title: "What triggers it"
+description: "What triggers it"
 ---
-
-# Asset rename sync
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Asset rename sync**
 

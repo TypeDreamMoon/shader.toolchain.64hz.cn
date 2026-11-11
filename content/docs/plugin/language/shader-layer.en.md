@@ -1,9 +1,7 @@
 ---
-title: "ShaderLayer / ShaderLayerBlend"
-description: "ShaderLayer / ShaderLayerBlend"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# ShaderLayer / ShaderLayerBlend
 
 > [DreamShader](/en/docs/) » [DreamShaderLang](/en/docs/plugin/language) » **ShaderLayer / ShaderLayerBlend**
 

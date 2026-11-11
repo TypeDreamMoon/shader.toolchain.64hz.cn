@@ -3,8 +3,6 @@ title: "预览"
 description: "预览"
 ---
 
-# 预览 [#preview]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **预览**
 
 编辑器端的渲染器，用于编译材质源并将其材质渲染为 PNG，可执行一次，也可作为帧流连续渲染。

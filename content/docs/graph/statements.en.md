@@ -3,8 +3,6 @@ title: "Statements"
 description: "Every statement form a Graph body can contain — declarations, assignments, member writes, calls — plus termination, classification, MaterialAttributes and scope."
 ---
 
-# Statements
-
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Statements**
 
 The complete set of statement forms a `Graph` body may contain, the rules that terminate them, and

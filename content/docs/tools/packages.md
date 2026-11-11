@@ -3,8 +3,6 @@ title: "Package"
 description: "Package"
 ---
 
-# Package [#packages]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **Package**
 
 `DShader/Packages` —— 可复用 DreamShaderLang 库的安装根目录，1.x 文件中的 `import` 以及 `.dss` 中的 `#include` 都能解析到这里。Package 是别人的源码：插件只通过引用它的文件来编译它，唯一例外是 package 主动要求构建的内容 —— 它的[资产](#package-assets) *（2.1.2 之后）*：用于 Material Editor 的材质函数，生成到 package 自己的资产文件夹中。每个源码根都有一个：工程的那个，以及随附[源码根](/docs/language/file-model#source-roots)的插件的 `<Plugin>/DShader/Packages`。

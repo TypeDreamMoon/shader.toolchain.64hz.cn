@@ -3,8 +3,6 @@ title: "图形布局"
 description: "图形布局"
 ---
 
-# 图形布局 [#graph-layout]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **图形布局**
 
 该阶段为刚刚完成编译所创建的节点分配编辑器坐标和注释框。

@@ -1,9 +1,7 @@
 ---
-title: "Node reuse"
-description: "Node reuse"
+title: "The dedupe pass"
+description: "The dedupe pass"
 ---
-
-# Node reuse
 
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Node reuse**
 

@@ -3,8 +3,6 @@ title: "Expressions and Conversions"
 description: "The four operators and their precedence, literals, name lookup, constructors, swizzles, the conversion rules that fit a value to its place, and the merging of identical nodes."
 ---
 
-# Expressions
-
 > [DreamShader](/en/docs/) » [Graph](/en/docs/graph/overview) » **Expressions**
 
 The value-producing grammar of a `Graph` block: literals, identifiers, calls, member access and the

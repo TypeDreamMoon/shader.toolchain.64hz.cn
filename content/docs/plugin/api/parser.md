@@ -3,8 +3,6 @@ title: "DreamShaderParser.h *（2.0 中已弃用）*"
 description: "DreamShaderParser.h *（2.0 中已弃用）*"
 ---
 
-# DreamShaderParser.h *（2.0 中已弃用）* [#dreamshaderparserh-retired-in-20]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderParser.h**
 
 > [!IMPORTANT]

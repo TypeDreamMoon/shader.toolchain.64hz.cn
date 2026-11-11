@@ -3,8 +3,6 @@ title: "发布"
 description: "发布"
 ---
 
-# 发布 [#release]
-
 > [DreamShader](/docs/) » [贡献](/docs/plugin/contributing) » **发布**
 
 发布工作流强制执行的标签约定、工作流执行的操作，以及已发布归档中确切包含的内容。

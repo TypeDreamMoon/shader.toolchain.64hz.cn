@@ -3,8 +3,6 @@ title: "构造函数"
 description: "构造函数"
 ---
 
-# 构造函数 [#constructors]
-
 > [DreamShader](/docs/) » [图](/docs/graph/overview) » **构造函数**
 
 以标量或向量类型命名的调用语法表达式，用其参数构建该宽度的值。

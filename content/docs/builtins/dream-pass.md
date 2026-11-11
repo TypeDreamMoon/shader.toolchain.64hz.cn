@@ -3,8 +3,6 @@ title: "Custom Pass 材质节点"
 description: "Custom Pass 材质节点"
 ---
 
-# Custom Pass 材质节点 [#custom-pass-material-nodes]
-
 > [DreamShader](/docs/) » [内置节点](/docs/plugin/builtins) » **Custom Pass 材质节点**
 
 DreamShaderPass 模块的两个材质表达式，可以像其他表达式一样从 `.dss` 访问，通过 `UE.<Name>`：一个写入 [mesh pass](/docs/language-v2/passes#mesh) 绘制的数据，另一个让普通材质读取[导出的缓冲区](/docs/custom-pass#exported-buffers)。

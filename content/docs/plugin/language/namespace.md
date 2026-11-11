@@ -3,8 +3,6 @@ title: "命名空间"
 description: "命名空间"
 ---
 
-# 命名空间 [#namespace]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **命名空间**
 
 一个顶层块，它会用 `<Name>::` 作为其所包含的 `Function` 和 `GraphFunction` 声明名称的前缀。

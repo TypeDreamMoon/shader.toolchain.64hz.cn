@@ -1,9 +1,7 @@
 ---
-title: "Workspace and editor extensions"
-description: "Workspace and editor extensions"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# Workspace and editor extensions
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Workspace and editor extensions**
 

@@ -3,8 +3,6 @@ title: "DSH3xxx —— 分节与声明"
 description: "DSH3xxx —— 分节与声明"
 ---
 
-# DSH3xxx —— 分节与声明 [#dsh3xxx-----sections-and-declarations]
-
 > 生成标记之间的块由 `.skill/gen-diagnostics.ps1` 写入。标记下方的所有内容均为手写，并在重新生成后保留。
 
 ## DSH3200 [#dsh3200]

@@ -3,8 +3,6 @@ title: "内置项"
 description: "内置项"
 ---
 
-# 内置项 [#builtins]
-
 > [DreamShader](/docs/) » **内置项**
 
 DreamShaderLang 自行解析而不在作者声明中查找的名称： `UE.*` 命名空间、`Substrate.*` 命名空间、保留的 `SampleTexture2D` 形式，以及数学内置函数集。

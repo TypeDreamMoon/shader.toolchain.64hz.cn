@@ -3,8 +3,6 @@ title: "表达式"
 description: "表达式"
 ---
 
-# 表达式 [#expressions]
-
 > [DreamShader](/docs/) » [图](/docs/graph/overview) » **表达式**
 
 `Graph` 块中产生值的文法：字面量、标识符、调用、成员访问以及四个算术运算符，求值后成为 `UMaterialExpression` 节点。

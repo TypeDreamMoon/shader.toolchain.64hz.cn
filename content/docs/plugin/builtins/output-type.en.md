@@ -1,9 +1,7 @@
 ---
-title: "OutputType"
-description: "OutputType"
+title: "Synopsis"
+description: "Synopsis"
 ---
-
-# OutputType
 
 > [DreamShader](/en/docs/) » [Builtins](/en/docs/plugin/builtins) » **OutputType**
 

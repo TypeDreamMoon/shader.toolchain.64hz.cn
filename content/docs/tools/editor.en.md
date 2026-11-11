@@ -3,8 +3,6 @@ title: "Editor Tools"
 description: "Every menu entry, toolbar button and context-menu action DreamShader registers, the Material Content Browser tab, and the preview, VirtualFunction tools, asset rename sync and bridge artifacts."
 ---
 
-# Editor integration
-
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **Editor integration**
 
 Every place DreamShader attaches itself to the Unreal editor UI: the Tools menu, the Level Editor

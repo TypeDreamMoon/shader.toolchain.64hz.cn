@@ -1,9 +1,7 @@
 ---
-title: "Divergence"
-description: "Divergence"
+title: "The problem it solves"
+description: "The problem it solves"
 ---
-
-# Divergence
 
 > [DreamShader](/en/docs/) » [Generation](/en/docs/generation/pipeline) » **Divergence**
 
