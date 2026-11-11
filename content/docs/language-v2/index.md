@@ -222,8 +222,8 @@ float Pulse(float2 UV, float Gain)
 无头运行：
 
 ```
-"F:\UnrealEngine\UE_Moon\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
-  "I:\UnrealProject_Moon\DEV_58\MoonEngineSample\MoonEngineSample.uproject" ^
+"<EngineDir>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
+  "<ProjectDir>\<Project>.uproject" ^
   -ExecCmds="Automation RunTests DreamShader.Lang2; Quit" ^
   -nullrhi -unattended -nopause -nosplash -log
 ```
@@ -241,7 +241,7 @@ float Pulse(float2 UV, float Gain)
 | `DreamShader.Lang2.CorpusIR.*` | `Tests/Corpus/IR/` —— 输入 `.dss`，输出 `DumpDreamShaderIRText` 基准 |
 | `DreamShader.Compiler2.{Smoke,Corpus,Parity}.*` | 端到端到真实资产，以及与同一材质 1.x 孪生版本的 `dump-graph` 差异对比 |
 
-要覆盖新的构造，往语料库树里放一个 `.dss`（外加一个可选的 `.expected.json`）—— 不需要 C++，不需要重新编译。基准格式记录在 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md) 中。
+要覆盖新的构造，往语料库树里放一个 `.dss`（外加一个可选的 `.expected.json`）—— 不需要 C++，不需要重新编译。基准格式记录在 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7227f97eb8819f75073f8ba013c1a0a4754a113f/Tests/Corpus/README.md) 中。
 
 ## 另见 [#see-also]
 

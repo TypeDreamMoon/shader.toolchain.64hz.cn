@@ -168,6 +168,7 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | [Package](/docs/tools/packages) | ``DShader/Packages`` 共享库 |
 | [Commandlet](/docs/tools/commandlet) | 无头编译与反编译 |
 | [编辑器 bridge](/docs/plugin/tools/bridge) | 请求文件、WebSocket 协议、产物 |
+| [AI 代理](/docs/tools/ai-agents) | 代理指南、技能、MCP 服务器、创作循环 |
 
 ### [C++ API](/docs/plugin/api) [#c-apiapiindexmd]
 
@@ -206,4 +207,4 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | 文档站点 | <https://shader.toolchain.64hz.cn/> |
 | VSCode 扩展 | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider 插件 | <https://github.com/tsdaer/dreamshader-language-support> |
-| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/CHANGELOG.md) |
+| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/7227f97eb8819f75073f8ba013c1a0a4754a113f/CHANGELOG.md) |

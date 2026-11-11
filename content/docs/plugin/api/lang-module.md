@@ -246,7 +246,7 @@ Diagnostics.Error(TEXT("DSH2151"), Span, LOCTEXT("ExpectedExpression", "expected
 | 运行器 | `RunDreamShaderLangCorpusCase`，位于 `Source/DreamShaderEditor/Private/Tests/DreamShaderTestCommon.h` |
 | 注册 | `Source/DreamShaderEditor/Private/Tests/DreamShaderCorpusLangTests.cpp` |
 | 测试固件 | `Tests/Corpus/Lang/{Lexical,Expressions,Statements,Declarations,Examples}/` — `.dss` 与 `.dsh`，外加一个 `.dsm`，用于固定前端选择：它会到达旧版前端并在那里失败（`DSH2241`） |
-| 黄金 schema | `"entryPoint": "lang"` — 参见 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md) |
+| 黄金 schema | `"entryPoint": "lang"` — 参见 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/7227f97eb8819f75073f8ba013c1a0a4754a113f/Tests/Corpus/README.md) |
 
 每个用例都会通过 `ParseDreamShaderLang` 解析一次，然后与其黄金文件进行比对：
 
@@ -258,8 +258,8 @@ Diagnostics.Error(TEXT("DSH2151"), Span, LOCTEXT("ExpectedExpression", "expected
 为新构造添加覆盖就是往树中放入一个文件；无需 C++ 更改，无需重新编译。以无头模式运行整个层：
 
 ```
-"F:\UnrealEngine\UE_Moon\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
-  "I:\UnrealProject_Moon\DEV_58\MoonEngineSample\MoonEngineSample.uproject" ^
+"<EngineDir>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
+  "<ProjectDir>\<Project>.uproject" ^
   -ExecCmds="Automation RunTests DreamShader.Lang2; Quit" ^
   -nullrhi -unattended -nopause -nosplash -log
 ```

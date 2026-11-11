@@ -26,11 +26,11 @@ description: "DreamShader 文档"
 | 节点与参数 | [内置](/docs/plugin/builtins)、[参数](/docs/plugin/parameters)、[设置](/docs/plugin/settings) |
 | 生成 | [管线与资产生命周期](/docs/generation/pipeline)、[输出绑定](/docs/generation/outputs)、[版本控制](/docs/generation/source-control) |
 | 示例 | [参考示例](/docs/plugin/examples)、[常用写法](/docs/examples/patterns)、[完整示例](/docs/examples/recipes)、[Custom Pass 示例](/docs/examples/custom-pass) |
-| 工具 | [编辑器工具](/docs/plugin/tools)、[VSCode 与 Rider](/docs/tools/vscode)、[命令行](/docs/tools/commandlet) |
+| 工具 | [编辑器工具](/docs/plugin/tools)、[VSCode 与 Rider](/docs/tools/vscode)、[commandlet](/docs/tools/commandlet)、[AI 智能体](/docs/tools/ai-agents) |
 | Custom Pass | [运行时](/docs/custom-pass)、[HLSL pass](/docs/plugin/pass-runtime/hlsl)、[管线语言](/docs/language-v2/passes) |
 | 诊断 | [错误与警告速查](/docs/diagnostics)、[当前限制](/docs/diagnostics/limitations) |
 | 开发 | [C++ API](/docs/plugin/api)、[参与贡献](/docs/plugin/contributing)、[测试](/docs/plugin/contributing/testing)、[发布](/docs/plugin/contributing/release) |
-| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/CHANGELOG.md) |
+| 发布历史 | [带说明的版本记录](/docs/changelog/dreamshader)、[仓库更新日志](https://github.com/TypeDreamMoon/DreamShader/blob/7227f97eb8819f75073f8ba013c1a0a4754a113f/CHANGELOG.md) |
 
 [完整参考索引](/docs/)列出了各篇技术参考页。
 

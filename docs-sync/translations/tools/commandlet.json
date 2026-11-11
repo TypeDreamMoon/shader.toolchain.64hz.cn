@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
+  "status": "current",
+  "sourceHash": "de4b7d51e168aab201a0d41b5e9f4c683ae36807db0747d5485656455162d7ed",
   "sourceRevision": "fe9b1749ce85fe93bed2e930e608d9a2d9dc4372",
   "sources": [
     {
       "path": "Docs/tools/commandlet.md",
-      "alignedRevision": "dce3a7afae92",
-      "alignedPage": "f5dfe46052ed",
-      "translationHash": "a54b60ed3a5656b9bdcaacc5f231a04819e10e0054b27835bcd86ad26d608914"
+      "alignedRevision": "fe9b1749ce85",
+      "alignedPage": "989b07e7cc26",
+      "translationHash": "2904118785df0591b34ef59dacca4f5cdcb0ce4c07dd5323373012d37fbe304d"
     }
   ],
   "translationFile": "content/docs/tools/commandlet.md",
-  "translationHash": "32048cf800cb6fe58ef442389b8f198bd156405af5ffb9bef0fbc2652a65fc08"
+  "translationHash": "9001e2e6dd65f59fd2a5b01699535a43e17b970509fa08a88936d9e0791fa3a0"
 }

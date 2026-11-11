@@ -31,6 +31,7 @@ DreamShader 的编辑器端界面：菜单、停靠的浏览器标签页、预�
 | [包](/docs/tools/packages) | `DShader/Packages`：插件实现了什么以及未实现什么 |
 | [命令小程序](/docs/tools/commandlet) | `-run=DreamShader` — 无头编译、反编译、迁移、检查和 IR 工具；Custom Pass 槽位注册表，`pass-registry` *(2.1.0)* |
 | [桥接](/docs/plugin/tools/bridge) | 请求文件、诊断接收端、`bridge.db`、WebSocket 协议；对 Custom Pass 着色器文件的监视 *(2.1.0)* |
+| [AI 智能体](/docs/tools/ai-agents) | `AGENTS.md`、六个技能以及使用 `sync-skills.ps1` 发布它们、可选的 MCP 服务器、写入—检查—修复循环 |
 
 ## 各方实现了什么 [#which-side-implements-what]
 

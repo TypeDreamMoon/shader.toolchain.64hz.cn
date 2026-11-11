@@ -52,7 +52,7 @@ UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
 
 ## 命令 [#commands]
 
-所有命令都接受可选的 `-AssetWritesManifest=<unused-json-path>` 以及 `-AssetWritesRunId=<run-id>`。它们将本次命令行工具执行的成功 `.uasset` 保存记录（包括绝对文件名和 MD5 内容指纹）记录在一个带版本号的 JSON 清单中。输出路径不能已存在；若无法写入请求的清单，则以 `1` 退出。[PowerShell 驱动程序](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/.skill/README.md) 使用这一来源记录和运行前快照来实现 `-CleanNew`，保留无关资产以及在记录的保存之后被修改的文件。清单不授权删除预先存在的资产，也不授权删除驱动程序 Content 根目录之外的文件。
+所有命令都接受可选的 `-AssetWritesManifest=<unused-json-path>` 以及 `-AssetWritesRunId=<run-id>`。它们将本次命令行工具执行的成功 `.uasset` 保存记录（包括绝对文件名和 MD5 内容指纹）记录在一个带版本号的 JSON 清单中。输出路径不能已存在；若无法写入请求的清单，则以 `1` 退出。[PowerShell 驱动程序](https://github.com/TypeDreamMoon/DreamShader/blob/7227f97eb8819f75073f8ba013c1a0a4754a113f/.skill/README.md) 使用这一来源记录和运行前快照来实现 `-CleanNew`，保留无关资产以及在记录的保存之后被修改的文件。清单不授权删除预先存在的资产，也不授权删除驱动程序 Content 根目录之外的文件。
 
 命令名是第一个**裸**（非 `-`）参数。如果没有裸参数，则改为查询 `Command=<name>` 参数。匹配不区分大小写；首尾空白会被修剪。
 
@@ -299,7 +299,7 @@ UnrealEditor-Cmd.exe <project>.uproject -run=DreamShader <command> [<option>…]
 ### 对比两次采集 [#diffing-two-captures]
 
 ```powershell
-git diff --no-index -- I:/Baseline/before I:/Baseline/after
+git diff --no-index -- <baseline>/before <baseline>/after
 ```
 
 `--no-index` 对比两个不在仓库中的目录树，而布局正是为此设计的：相同的树形结构、有序的键、每行一个值、LF 行尾。只在一侧存在的文件，是一个资产集发生变化的源文件。其他每个差异块都是行为差异，需要修复或在一致性日志中记录一条。
@@ -663,12 +663,12 @@ foreach ($Legacy in 0, 1) {
 ```powershell
 & $UnrealEditorCmd $Project -run=DreamShader compile -All -Force `
   -unattended -nopause -nosplash -stdout -log
-& $UnrealEditorCmd $Project -run=DreamShader dump-graph -All -Out="I:/Baseline/before" `
+& $UnrealEditorCmd $Project -run=DreamShader dump-graph -All -Out="<baseline>/before" `
   -unattended -nopause -nosplash -stdout -log
 
 # …change the compiler, rebuild, capture again…
 
-git diff --no-index -- I:/Baseline/before I:/Baseline/after
+git diff --no-index -- <baseline>/before <baseline>/after
 ```
 
 在 ``DShader/.dreampass/Registry.json`` 中发生冲突的合并之后，从源文件重建 slot 注册表，然后列出它：
