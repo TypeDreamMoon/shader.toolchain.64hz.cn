@@ -3,8 +3,6 @@ title: "参数"
 description: "参数"
 ---
 
-# 参数 [#parameters]
-
 > [DreamShader](/docs/) » **参数**
 
 参数是一种 `Properties` 声明，在生成的资源中会成为命名的 `UMaterialExpression` 节点——可以是实例能够覆盖的材质参数、常量，或内置输入节点。

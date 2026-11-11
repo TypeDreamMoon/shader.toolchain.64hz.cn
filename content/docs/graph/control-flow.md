@@ -3,8 +3,6 @@ title: "if / else"
 description: "if / else"
 ---
 
-# if / else [#if--else]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **if**
 
 `Graph` 块里唯一的控制流语句：一个构建期构造，它把**两个**分支都求值成材质节点，并按每个变量用一个条件节点在两个结果之间选择。

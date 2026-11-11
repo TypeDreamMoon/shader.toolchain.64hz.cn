@@ -3,8 +3,6 @@ title: "DreamShaderTypes.h"
 description: "DreamShaderTypes.h"
 ---
 
-# DreamShaderTypes.h [#dreamshadertypesh]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderTypes.h**
 
 1.x 源代码数据模型。一直到 1.9.x，`FTextShaderParser::Parse` 会填充这些结构体，生成器则根据它们构建资产。**自 2.0 起，已没有任何解析会填充它们**：1.x 源代码由旧版前端读取到语言模块的 AST 中（参见[已废弃的解析器页面](/docs/plugin/api/parser)）。该头文件之所以保留，是因为编译器的资产层仍然在使用它——`BuildDefinitionForIRProduct` 会从某个 IR 产物填充一个 `FTextShaderDefinition`（名称、根、设置），以解析资产应放置于何处以及其材质如何配置——同时也因为编辑器模块中的 VirtualFunction 工具和 `dump-graph` 仍在使用其部分结构体和枚举。

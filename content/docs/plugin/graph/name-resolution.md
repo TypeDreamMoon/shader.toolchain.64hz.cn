@@ -3,8 +3,6 @@ title: "名称解析"
 description: "名称解析"
 ---
 
-# 名称解析 [#name-resolution]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **名称解析**
 
 在 `Graph` 块内，裸标识符和调用目标是如何被查找的，按照编译器尝试它们的固定顺序，以及每个层面会遮蔽什么。

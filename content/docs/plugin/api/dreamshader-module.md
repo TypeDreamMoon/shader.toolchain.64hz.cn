@@ -3,8 +3,6 @@ title: "DreamShaderModule.h"
 description: "DreamShaderModule.h"
 ---
 
-# DreamShaderModule.h [#dreamshadermoduleh]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderModule.h**
 
 运行时模块入口点、插件的日志类别，以及其他所有模块所依赖的路径、标识符和文件分类辅助工具。

@@ -3,8 +3,6 @@ title: "DSH6xxx —— 函数与 HLSL 代码生成"
 description: "DSH6xxx —— 函数与 HLSL 代码生成"
 ---
 
-# DSH6xxx —— 函数与 HLSL 代码生成 [#dsh6xxx-----functions-and-hlsl-codegen]
-
 > 生成标记之间的区块由 `.skill/gen-diagnostics.ps1` 写入。标记之下的所有内容均为手工编写，在重新生成后仍会保留。
 
 ## DSH6200 [#dsh6200]

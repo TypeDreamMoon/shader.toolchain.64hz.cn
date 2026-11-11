@@ -3,8 +3,6 @@ title: "C++ API"
 description: "C++ API"
 ---
 
-# C++ API [#c-api]
-
 > [DreamShader](/docs/) » **C++ API**
 
 该插件公开的 C++ 接口面：五个模块、69 个公共头文件，以及每个调用方都要经过的一个编译接口。

@@ -3,8 +3,6 @@ title: "词法元素"
 description: "词法元素"
 ---
 
-# 词法元素 [#lexical-elements]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **词法元素**
 
 DreamShaderLang 的字符级规则：空白、注释、标识符、大小写敏感性、字符串与数字字面量，以及 section 的正文如何被切分成语句。

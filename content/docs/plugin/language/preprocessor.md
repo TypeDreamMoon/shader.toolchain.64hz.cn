@@ -3,8 +3,6 @@ title: "预处理器"
 description: "预处理器"
 ---
 
-# 预处理器 [#preprocessor]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **预处理器**
 
 `#if` / `#ifdef` / `#ifndef` / `#elif` / `#else` / `#endif`，外加 `#define` 和 `#undef`：在源码被解析之前、在生成阶段求值的面向行的指令。未被采用的分支永远不会到达解析器，也永远不会成为节点。

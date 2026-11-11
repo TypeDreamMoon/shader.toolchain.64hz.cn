@@ -3,8 +3,6 @@ title: "GraphFunction"
 description: "GraphFunction"
 ---
 
-# GraphFunction [#graphfunction]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **GraphFunction**
 
 一个顶层块，其主体是 HLSL，但其中的 `UE.*` 调用会被提取出文本，构建为真实的材质节点，并作为自动命名的输入引脚接入该调用的 Custom 节点。

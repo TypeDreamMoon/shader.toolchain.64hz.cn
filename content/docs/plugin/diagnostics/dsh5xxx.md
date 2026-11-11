@@ -3,8 +3,6 @@ title: "DSH5xxx --- 内置项 -- UE.*、数学、Substrate"
 description: "DSH5xxx --- 内置项 -- UE.*、数学、Substrate"
 ---
 
-# DSH5xxx --- 内置项 -- UE.*、数学、Substrate [#dsh5xxx-----builtins----ue-math-substrate]
-
 > 生成标记之间的块由 `.skill/gen-diagnostics.ps1` 写入。标记下方的所有内容均为手工编写，重新生成后仍会保留。
 
 ## DSH5200 [#dsh5200]

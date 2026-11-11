@@ -1,7 +1,7 @@
 {
   "version": 2,
   "status": "current",
-  "sourceHash": "8ab8766705c733ce2a107fdb6de055ad5ebe83cc1308eebd384cd8e52f93d303",
+  "sourceHash": "e03b6d4b6d1e1d44e7160ddc8925675a5f1da03ee01bf8f0f1f24580021da445",
   "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
   "sources": [
     {
@@ -12,5 +12,5 @@
     }
   ],
   "translationFile": "content/docs/plugin/pass-runtime/index.md",
-  "translationHash": "4142b0045eeb7c9cf304e35b2936fd3de659c0c7f4accb4c33ff11dff7cc3178"
+  "translationHash": "a23426916077bdc714eb2cb9b509a575ddb836106f9d74649beb0d4f7f0b937b"
 }

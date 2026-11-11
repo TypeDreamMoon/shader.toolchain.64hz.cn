@@ -3,8 +3,6 @@ title: "HLSL 通道"
 description: "HLSL 通道"
 ---
 
-# HLSL 通道 [#hlsl-passes]
-
 > [DreamShader](/docs/) » [自定义通道运行时](/docs/custom-pass) » **HLSL 通道**
 
 `compute` 通道，或没有 `Material` 的 `fullscreen` 通道，会运行 HLSL。代码写在 `.dsp` 本身中——写在通道的 `hlsl { }` 块中，或作为文件 `hlsl { }` 块的一个条目——或写在通过 `Shader =` 为通道命名、位于项目中任意位置的 `.usf` 中。本页说明该 HLSL 可以使用什么，以及它如何进入引擎。

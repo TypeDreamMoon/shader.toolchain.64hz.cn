@@ -3,8 +3,6 @@ title: "Custom Pass 运行时"
 description: "Custom Pass 运行时"
 ---
 
-# Custom Pass 运行时 [#custom-pass-runtime]
-
 > [DreamShader](/docs/) » **Custom Pass 运行时**
 
 一条编译好的 [`.dsp` 管线](/docs/language-v2/passes)在运行时的样子：什么让它作用于一个视图、它的 pass 何时运行、缓冲区里装着什么，以及怎么看它做了什么。
@@ -143,7 +141,7 @@ description: "Custom Pass 运行时"
 
 ### Custom Pass 管线 — `.dsp` [#custom-pass-pipelines--dsp]
 
-见[管线语言参考](/docs/language-v2/passes#custom-pass-pipelines--dsp)。
+见[管线语言参考](/docs/language-v2/passes)。
 
 ### 全屏 [#fullscreen]
 

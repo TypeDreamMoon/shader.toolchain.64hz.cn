@@ -3,8 +3,6 @@ title: "重新生成"
 description: "重新生成"
 ---
 
-# 重新生成 [#regeneration]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **重新生成**
 
 当一个已经生成的资产的源文件被再次编译时，会发生什么。

@@ -3,8 +3,6 @@ title: "DSH4xxx --- 图语句与表达式"
 description: "DSH4xxx --- 图语句与表达式"
 ---
 
-# DSH4xxx --- 图语句与表达式 [#dsh4xxx-----graph-statements-and-expressions]
-
 > 生成的标记之间的内容由 `.skill/gen-diagnostics.ps1` 写入。标记下方的所有内容均为手工编写，并在重新生成后保留。
 
 ## DSH4200 [#dsh4200]

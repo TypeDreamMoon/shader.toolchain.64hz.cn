@@ -3,8 +3,6 @@ title: "编辑器集成"
 description: "编辑器集成"
 ---
 
-# 编辑器集成 [#editor-integration]
-
 > [DreamShader](/docs/) » [工具](/docs/plugin/tools) » **编辑器集成**
 
 DreamShader 挂接到 Unreal 编辑器 UI 上的每一处：Tools 菜单、关卡编辑器工具栏、Content Browser 资产右键菜单、材质编辑器工具栏、Window 菜单、Custom Pass 管线的详情面板，以及它自行弹出的通知。

@@ -3,8 +3,6 @@ title: "入门"
 description: "入门"
 ---
 
-# 入门 [#getting-started]
-
 > [DreamShader](/docs/) » **入门**
 
 本页将带领项目从“插件已复制进来”到“从文本文件生成材质”。

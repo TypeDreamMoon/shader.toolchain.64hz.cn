@@ -3,8 +3,6 @@ title: "资产路径"
 description: "资产路径"
 ---
 
-# 资产路径 [#asset-paths]
-
 > [DreamShader](/docs/) » [生成流程](/docs/generation/pipeline) » **资产路径**
 
 把块的 `Name` 和 `Root` 头部属性变成 Unreal package 路径、object 路径和磁盘上文件的规则。

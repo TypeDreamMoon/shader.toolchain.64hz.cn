@@ -3,8 +3,6 @@ title: "材质实例 —— `.dsi`"
 description: "材质实例 —— `.dsi`"
 ---
 
-# 材质实例 —— `.dsi` [#material-instances--dsi]
-
 > [DreamShader](/docs/) » [DreamShaderLang 2.0](/docs/language-v2) » **材质实例**
 
 一个 `.dsi` 文件就是一个 `UMaterialInstanceConstant`：一个父材质、几个被覆盖的属性，以及它设置的参数。它没有图，所以没有函数、没有 `#include`、也没有 `#pragma material` —— 只有一条 pragma 和若干 `uniform` 行。

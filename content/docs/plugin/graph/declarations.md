@@ -3,8 +3,6 @@ title: "声明"
 description: "声明"
 ---
 
-# 声明 [#declarations]
-
 > [DreamShader](/docs/) » [图](/docs/graph/overview) » **声明**
 
 将一个新名称引入 `Graph` 主体并将其绑定到带类型的值的语句。

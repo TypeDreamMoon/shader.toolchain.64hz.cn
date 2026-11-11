@@ -3,8 +3,6 @@ title: "MaterialAttributes"
 description: "MaterialAttributes"
 ---
 
-# MaterialAttributes [#materialattributes]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **MaterialAttributes**
 
 一种类似结构体的 Graph 值，将整个材质的属性集作为单个连接来承载，逐成员写入和读取。*（自 1.2.5 起）*

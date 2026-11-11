@@ -3,8 +3,6 @@ title: "测试"
 description: "测试"
 ---
 
-# 测试 [#testing]
-
 > [DreamShader](/docs/) » [贡献](/docs/plugin/contributing) » **测试**
 
 插件的 Unreal 自动化测试套件，以及其中十三个测试在运行时枚举的磁盘夹具语料库。

@@ -3,8 +3,6 @@ title: "DSH7xxx --- 属性、参数与设置"
 description: "DSH7xxx --- 属性、参数与设置"
 ---
 
-# DSH7xxx --- 属性、参数与设置 [#dsh7xxx-----properties-parameters-and-settings]
-
 > 生成标记之间的内容由 `.skill/gen-diagnostics.ps1` 写入。标记以下的所有内容均为手动撰写，在重新生成后仍会保留。
 
 ## DSH7111 [#dsh7111]

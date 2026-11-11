@@ -3,8 +3,6 @@ title: "版本控制"
 description: "版本控制"
 ---
 
-# 版本控制 [#source-control]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **版本控制**
 
 提交什么、忽略什么，以及怎么让一个团队只有一种答案。

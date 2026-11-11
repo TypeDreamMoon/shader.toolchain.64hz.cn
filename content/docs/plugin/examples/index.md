@@ -3,8 +3,6 @@ title: "示例"
 description: "示例"
 ---
 
-# 示例 [#examples]
-
 > [DreamShader](/docs/) » **示例**
 
 十五个完整、自包含的 DreamShaderLang 1.x 源文件，从最小的可能材质排序到需要 `.dsh` 头文件、`.dsf` 函数文件或特定引擎版本的构造 —— 每个后面都跟着以 `.dss` 形式编写的相同内容。

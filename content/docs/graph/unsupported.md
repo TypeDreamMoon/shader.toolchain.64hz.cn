@@ -3,8 +3,6 @@ title: "不支持的写法"
 description: "不支持的写法"
 ---
 
-# 不支持的写法 [#unsupported-constructs]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **不支持的写法**
 
 `Graph` 块**不**实现的每一种 HLSL 与 GLSL 写法、编译器为它报告的代码，以及应该改写成什么。

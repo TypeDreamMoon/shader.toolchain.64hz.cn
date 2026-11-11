@@ -3,8 +3,6 @@ title: "Substrate.*"
 description: "Substrate.*"
 ---
 
-# Substrate.* [#substrate]
-
 > [DreamShader](/docs/) » [内置节点](/docs/plugin/builtins) » **`Substrate.*`**
 
 与 [`UE.*`](/docs/builtins/ue-nodes) 并列的调用命名空间，装着 Unreal 的 Substrate BSDF、组合与工具材质节点。（自 2.0.0 起）它是内置目录的 `Substrate` 命名空间：运行中引擎拥有的每一个 Substrate 类，按名字调用。

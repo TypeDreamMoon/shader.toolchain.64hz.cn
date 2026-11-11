@@ -3,8 +3,6 @@ title: "DreamShaderSettings.h"
 description: "DreamShaderSettings.h"
 ---
 
-# DreamShaderSettings.h [#dreamshadersettingsh]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderSettings.h**
 
 项目设置对象、默认后端与图布局枚举，以及为每个 `ShadingModel`、`BlendMode` 和 `Domain` 值拼写提供支持的名称到引擎枚举解析器。

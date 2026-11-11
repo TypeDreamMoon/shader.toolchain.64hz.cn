@@ -3,8 +3,6 @@ title: "DSH8xxx --- 资源生成与保存"
 description: "DSH8xxx --- 资源生成与保存"
 ---
 
-# DSH8xxx --- 资源生成与保存 [#dsh8xxx-----asset-generation-and-saving]
-
 > 生成标记之间的内容由 `.skill/gen-diagnostics.ps1` 写入。标记之下的所有内容均为手动写入，在重新生成后仍会保留。
 
 ## DSH8088 [#dsh8088]

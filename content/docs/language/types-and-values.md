@@ -3,8 +3,6 @@ title: "类型 token"
 description: "类型 token"
 ---
 
-# 类型 token [#type-tokens]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **类型 token**
 
 在声明中命名值的形状的封闭标识符集合，以及决定某个声明位置接受其中哪些标识符的按上下文规则。

@@ -3,8 +3,6 @@ title: "禁用诊断"
 description: "禁用诊断"
 ---
 
-# 禁用诊断 [#disabling-diagnostics]
-
 > [DreamShader](/docs/) » [DreamShaderLang 2.0](/docs/language-v2) » **禁用诊断**
 
 *（2.1.2 之后）* 源文件可以按代码关闭警告和错误，作用于整个文件或单行。两种语言都接受下面所有写法。

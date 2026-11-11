@@ -3,8 +3,6 @@ title: "输入、输出与结果"
 description: "输入、输出与结果"
 ---
 
-# 输入、输出与结果 [#inputs-outputs-and-results]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **输入 / 输出 / 结果**
 
 声明块的类型化参数的各个节 —— 生成的 `UMaterialFunction` 的输入和输出引脚，或 `Shader` 的已声明输出变量。

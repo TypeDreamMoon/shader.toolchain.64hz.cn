@@ -3,8 +3,6 @@ title: "材质枚举"
 description: "材质枚举"
 ---
 
-# 材质枚举 [#material-enums]
-
 > [DreamShader](/docs/) » [设置](/docs/plugin/settings) » **材质枚举**
 
 以下是 [`Shader`](/docs/plugin/language/shader) `Settings` 块的 `ShadingModel`、`BlendMode` / `RenderType` 以及 `MaterialDomain` / `Domain` 键所接受的值的完整拼写集合。

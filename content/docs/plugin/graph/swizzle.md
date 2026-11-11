@@ -3,8 +3,6 @@ title: "Swizzle"
 description: "Swizzle"
 ---
 
-# Swizzle [#swizzle]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **Swizzle**
 
 对数值使用后缀成员访问，用于选择、重排或重复其通道。

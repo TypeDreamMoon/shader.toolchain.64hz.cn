@@ -3,8 +3,6 @@ title: "DSH2xxx —— 词法分析器与语法"
 description: "DSH2xxx —— 词法分析器与语法"
 ---
 
-# DSH2xxx —— 词法分析器与语法 [#dsh2xxx-----lexer-and-syntax]
-
 > 生成标记之间的内容由 `.skill/gen-diagnostics.ps1` 编写。标记下方的所有内容均为手动编写，并可在重新生成后保留。
 
 ## DSH2101 [#dsh2101]

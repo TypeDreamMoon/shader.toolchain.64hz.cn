@@ -3,8 +3,6 @@ title: "源文件"
 description: "源文件"
 ---
 
-# 源文件 [#source-files]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **源文件**
 
 DreamShaderLang 的三种文件类型 —— `.dsm`、`.dsf` 和 `.dsh` —— 以及决定每种文件可包含哪些顶层块的规则。

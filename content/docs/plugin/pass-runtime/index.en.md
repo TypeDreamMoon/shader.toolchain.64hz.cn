@@ -177,7 +177,7 @@ See [the pipeline language reference](/en/docs/language-v2/passes#compute).
 
 ### Custom Pass pipelines — `.dsp`
 
-See [the pipeline language reference](/en/docs/language-v2/passes#custom-pass-pipelines--dsp).
+See [the pipeline language reference](/en/docs/language-v2/passes).
 
 ### Fullscreen
 

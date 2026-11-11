@@ -3,8 +3,6 @@ title: "在 Graph 中使用参数"
 description: "在 Graph 中使用参数"
 ---
 
-# 在 Graph 中使用参数 [#using-parameters-in-graph]
-
 > [DreamShader](/docs/) » [参数](/docs/plugin/parameters) » **在 Graph 中使用参数**
 
 声明的属性在 `Graph` 块内如何被使用：作为值、作为 swizzle 后的值，或作为一次调用，用于连接所生成节点的输入引脚。

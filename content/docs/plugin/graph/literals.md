@@ -3,8 +3,6 @@ title: "字面量"
 description: "字面量"
 ---
 
-# 字面量 [#literals]
-
 > [DreamShader](/docs/) » [图表](/docs/graph/overview) » **字面量**
 
 一个 `Graph` 表达式可以包含三种字面量形式：数值字面量、字符串字面量，以及布尔字面量 `true` / `false`。

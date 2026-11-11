@@ -3,8 +3,6 @@ title: "临时材质"
 description: "临时材质"
 ---
 
-# 临时材质 [#ephemeral-materials]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **临时材质**
 
 一个 **ThinCustom** 产物有两种状态，而且恰好只有两种：

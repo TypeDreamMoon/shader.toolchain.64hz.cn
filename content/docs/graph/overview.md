@@ -3,8 +3,6 @@ title: "Graph"
 description: "Graph"
 ---
 
-# Graph [#graph]
-
 > [DreamShader](/docs/) » **Graph**
 
 块体是一串语句，编译器在**生成阶段按顺序一次性降级**为生成材质中的 `UMaterialExpression` 节点的那个 section。

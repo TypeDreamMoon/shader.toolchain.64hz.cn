@@ -3,8 +3,6 @@ title: "函数设置"
 description: "函数设置"
 ---
 
-# 函数设置 [#function-settings]
-
 > [DreamShader](/docs/) » [设置](/docs/plugin/settings) » **函数设置**
 
 [`ShaderFunction`](/docs/plugin/language/shader-function)、 [`ShaderLayer` 或 `ShaderLayerBlend`](/docs/plugin/language/shader-layer) 块的 `Settings` 部分：用于向材质函数库描述所生成 `UMaterialFunction` 的四个键。

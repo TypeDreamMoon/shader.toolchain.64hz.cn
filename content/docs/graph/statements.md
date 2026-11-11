@@ -3,8 +3,6 @@ title: "语句"
 description: "语句"
 ---
 
-# 语句 [#statements]
-
 > [DreamShader](/docs/) » [Graph](/docs/graph/overview) » **语句**
 
 `Graph` 块体可以包含的全部语句形式、终结这些语句的规则，以及解析器如何判定一条给定语句属于哪种形式。

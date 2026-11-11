@@ -3,8 +3,6 @@ title: "关键字索引"
 description: "关键字索引"
 ---
 
-# 关键字索引 [#keyword-index]
-
 > [DreamShader](/docs/) » [DreamShaderLang](/docs/plugin/language) » **关键字索引**
 
 声明语法特殊处理的每个单词：顶层块关键字、节名称及其别名、声明限定符、上下文关键字、保留名称，以及在输出 HLSL 之前被重写的标识符。

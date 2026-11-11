@@ -3,8 +3,6 @@ title: "工具"
 description: "工具"
 ---
 
-# 工具 [#tools]
-
 > [DreamShader](/docs/) » **工具**
 
 DreamShader 的编辑器端界面：菜单、停靠的浏览器标签页、预览渲染器、反编译器、VirtualFunction 操作、资产重命名同步、磁盘桥接以及无头命令小程序。

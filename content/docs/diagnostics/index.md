@@ -3,8 +3,6 @@ title: "诊断"
 description: "诊断"
 ---
 
-# 诊断 [#diagnostics]
-
 > [DreamShader](/docs/) » **诊断**
 
 DreamShader 的诊断出现在哪里、如何读懂一条诊断，以及 1.x 生成器的消息后来怎么样了。一次编译报出的每条诊断都有一个稳定的 `DSHnnnn` 码*（自 2.0.0 起）*；码是契约，措辞不是。目录在 [README.md](/docs/plugin/diagnostics/readme)——每个码及其严重级别和消息——每个码在其页面上都有一节，`DSH1xxx.md` … `DSH9xxx.md`，列有它名下报出的每条消息、报出它的位置、原因和修复方法。

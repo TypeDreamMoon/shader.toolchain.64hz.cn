@@ -3,8 +3,6 @@ title: "DreamShaderPass"
 description: "DreamShaderPass"
 ---
 
-# DreamShaderPass [#dreamshaderpass]
-
 > [DreamShader](/docs/) » [C++ API](/docs/plugin/api) » **DreamShaderPass**
 
 自定义 Pass 的运行时：[`.dsp`](/docs/language-v2/passes) 编译成的资产，决定哪些管线应用到某个视图的依据，以及在其 Pass 于渲染器内运行时使用的场景视图扩展。本页介绍该模块的 C++ 与蓝图接口；这些 Pass 在运行时的行为请参阅[自定义 Pass 运行时](/docs/custom-pass)。

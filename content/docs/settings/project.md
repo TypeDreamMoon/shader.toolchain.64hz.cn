@@ -3,8 +3,6 @@ title: "项目设置"
 description: "项目设置"
 ---
 
-# 项目设置 [#project-settings]
-
 > [DreamShader](/docs/) » [设置](/docs/plugin/settings) » **项目设置**
 
 项目级配置对象：*Project Settings ▸ DreamPlugin ▸ Dream Shader* 下的十七个属性，持久化到项目的 `DefaultEngine.ini`。

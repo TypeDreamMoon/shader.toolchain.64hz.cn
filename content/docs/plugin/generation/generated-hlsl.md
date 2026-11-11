@@ -3,8 +3,6 @@ title: "生成的 HLSL"
 description: "生成的 HLSL"
 ---
 
-# 生成的 HLSL [#generated-hlsl]
-
 > [DreamShader](/docs/) » [生成](/docs/generation/pipeline) » **生成的 HLSL**
 
 编译为源的 `Function` 块写入的 HLSL。*(自 2.0.0 起)* 它被写入每次调用所生成的 Custom 节点中；不会生成 `.ush` include。

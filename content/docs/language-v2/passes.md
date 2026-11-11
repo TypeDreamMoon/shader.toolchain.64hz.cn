@@ -3,8 +3,6 @@ title: "自定义 Pass 管线 — `.dsp`"
 description: "自定义 Pass 管线 — `.dsp`"
 ---
 
-# 自定义 Pass 管线 — `.dsp` [#custom-pass-pipelines--dsp]
-
 > [DreamShader](/docs/) » [DreamShaderLang 2.0](/docs/language-v2) » **自定义 Pass 管线**
 
 一个 `.dsp` 文件就是一个 `UDreamPassPipeline`：若干具名缓冲区、一串各自选择渲染器注入点运行的 pass，以及激活方可以覆盖的参数。它就是你在不碰引擎的情况下给 Unreal 添加渲染 pass 的方式 —— 选中物体的遮罩、一次模糊、一个屏幕空间效果、一个写数据纹理的 compute shader。
