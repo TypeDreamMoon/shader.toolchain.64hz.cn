@@ -241,7 +241,7 @@ float Pulse(float2 UV, float Gain)
 | `DreamShader.Lang2.CorpusIR.*` | `Tests/Corpus/IR/` —— 输入 `.dss`，输出 `DumpDreamShaderIRText` 基准 |
 | `DreamShader.Compiler2.{Smoke,Corpus,Parity}.*` | 端到端到真实资产，以及与同一材质 1.x 孪生版本的 `dump-graph` 差异对比 |
 
-要覆盖新的构造，往语料库树里放一个 `.dss`（外加一个可选的 `.expected.json`）—— 不需要 C++，不需要重新编译。基准格式记录在 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/0c4e9e0650420ecad6e96e55998fb11eafebf1e2/Tests/Corpus/README.md) 中。
+要覆盖新的构造，往语料库树里放一个 `.dss`（外加一个可选的 `.expected.json`）—— 不需要 C++，不需要重新编译。基准格式记录在 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/9296b7dd3dc0ac8dce6a6138a237b2ff0677e1eb/Tests/Corpus/README.md) 中。
 
 ## 另见 [#see-also]
 

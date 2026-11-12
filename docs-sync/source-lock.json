@@ -1,9 +1,9 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
+  "revision": "9296b7dd3dc0ac8dce6a6138a237b2ff0677e1eb",
   "workingTree": false,
-  "translationSnapshotHash": "1ff0d3c70b482abe39df777cebc4773aae59eb86f2b5cb573231d9f821032e94",
+  "translationSnapshotHash": "add00fdf8371bf5e6b08a30e293a199f15b58621523ba179da9a938c462a95b6",
   "pages": {
     "builtins/dream-pass": {
       "hash": "9894ef60eae70d44a8d1dbbd982cb4ca3765e50c42e0b1b8acb15e68ba381291",
@@ -595,8 +595,8 @@
         "status": "current",
         "output": "content/docs/index.md",
         "record": "docs-sync/translations/index.json",
-        "outputHash": "aa7f44fc1554b2a710900de42f16f0282b9e8d6c7e77e5b2866286c305455e24",
-        "bodyHash": "444e8760834c915edab82882ae710adc4fce65d8837a9da6bd367d7b91030eb1"
+        "outputHash": "72c174e3bf965f95cb71a682fa48e39ca5e5db422413836423d8d20a95a258fa",
+        "bodyHash": "76776cab61682d96117235f330759559f7a6e3039af0ed0bb6b8349d02283275"
       }
     },
     "language/blocks": {
@@ -815,8 +815,8 @@
         "status": "current",
         "output": "content/docs/language-v2/index.md",
         "record": "docs-sync/translations/language-v2/index.json",
-        "outputHash": "5a607cf6c9cc6f424b869379c72f9bf84cb37ab81e29e2cd3c73506f40c1fd9f",
-        "bodyHash": "40bfc250f9be611132560912e3ab7e64ad5254d8f3c4eb29eda8f98bd25225c7"
+        "outputHash": "b485d234efc1333e7882117dec2365ea1f052a38baa47a62ec0d1f38539fc6aa",
+        "bodyHash": "8817903a893e0af7e86f2c76625dba0260d59a70656c7ece576a11ae92ca2a07"
       }
     },
     "language-v2/instances": {
@@ -1054,12 +1054,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/settings/project.md",
         "record": "docs-sync/translations/settings/project.json",
-        "pending": 1,
-        "outputHash": "fa90793901c5a41e8d39b124fee1f99be3d794b4e4af23e7cd5caf8db25d1473",
-        "bodyHash": "d9cc61a9fbddfb8e5802756c0a49cf6279c687b95c8b4a24b2661c68a9c84cb3"
+        "outputHash": "12bf55c74bdc456789fd5e75d99122789f9be72bf21272699e2a0918d88796b4",
+        "bodyHash": "7ef6cda04751ced7c51970ba6a2859e62e6a2c449eab4688fe1032cbc67c3bb3"
       }
     },
     "start/about": {
@@ -1187,12 +1186,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/tools/ai-agents.md",
         "record": "docs-sync/translations/tools/ai-agents.json",
-        "pending": 14,
-        "outputHash": "2f95e0443e908a2081318b3d7c70d208374dddfaed4dfa918255641edd893889",
-        "bodyHash": "06c4bcb52ffe49731233ae2b61fd7dab5040bb3262cc761522fa417deb737bfb"
+        "outputHash": "f3f43e8308d257f7545450ea19ecd5013355a7d3cfa3d5978b3d89e2dc19c677",
+        "bodyHash": "08c098b4a81cfb3b44f9dc4fcb3682963ba454563dbff2af66b023c1b198613f"
       }
     },
     "tools/commandlet": {
@@ -1213,8 +1211,8 @@
         "status": "current",
         "output": "content/docs/tools/commandlet.md",
         "record": "docs-sync/translations/tools/commandlet.json",
-        "outputHash": "6c080ddcf040307a5652064ae3932f40a665bf2a280e99aae61746464bf4a080",
-        "bodyHash": "0cce0ab5e1137b0b3ebe84aa8268c0e691f8d0f4aaf419326ac362311759c8b3"
+        "outputHash": "4aeba82aaa839e8755ae1d8feac3743e3bc65d4b92b81a9fb4e57c63635db666",
+        "bodyHash": "77cb32f38086cf30f680271b9786ac41915d43e33d4dfd5e09a9a2b97efcb7b8"
       }
     },
     "tools/decompiler": {
@@ -1254,7 +1252,11 @@
         }
       ],
       "translation": {
-        "status": "missing"
+        "status": "current",
+        "output": "content/docs/tools/dreammcp.md",
+        "record": "docs-sync/translations/tools/dreammcp.json",
+        "outputHash": "f9927e0c77ddff4d199c25fea273861ba9576779f66ee4d7dade0721a5c7f1d8",
+        "bodyHash": "95c9426dc07884877e8f2b4b3ae97798216563e8f561e303908171ff1b184beb"
       }
     },
     "tools/editor": {
@@ -1407,8 +1409,8 @@
         "status": "current",
         "output": "content/docs/plugin/api/lang-module.md",
         "record": "docs-sync/translations/plugin/api/lang-module.json",
-        "outputHash": "3162511f46baedd5aecc738e1f6e7c585bdb2e99d0123792490f3d4104aa795b",
-        "bodyHash": "b178854ce89d4442e2ac2856f2ad7876cad66cc586ca8f7585ac2c39cce0fac1"
+        "outputHash": "c1b9614850d73b7b84ced946edc68e9105b4e868dfa5b9bf88cade38fa4aff7e",
+        "bodyHash": "35c5b107799904950a8c9a2b53d2cde8e5d39ba6aa327eb7bd06bb9644f56144"
       }
     },
     "plugin/api/material-instance": {
@@ -1536,12 +1538,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/api/version-compat.md",
         "record": "docs-sync/translations/plugin/api/version-compat.json",
-        "pending": 6,
-        "outputHash": "453e3c98c5820be96c3081f71a386ee6b9c9497ea3e1a6f9fea5f7fb3b969c30",
-        "bodyHash": "ef44a263d0cd442da3bddfd0de6850cde7f06a49f0be0186b189bfc202b4e4c2"
+        "outputHash": "4e04c05d2f50f1c9c7b610a3fc35ee07e7f2f70bc0d9a9e157d08da1ffa88b5d",
+        "bodyHash": "fff8d2192b97218eb1bab32ed29f1986127f066727e6ccd244040c607948bbad"
       }
     },
     "plugin/builtins/index": {
@@ -1669,12 +1670,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/contributing/testing.md",
         "record": "docs-sync/translations/plugin/contributing/testing.json",
-        "pending": 3,
-        "outputHash": "714365e326e2a27e4b78511254c731baf27478116332df3284e798844de8f466",
-        "bodyHash": "2120d6d46c1148de7ccc185c2da0e1ec5a6cb9b14528ffaa45ffaaa05fcbb728"
+        "outputHash": "8ea019d1a9047be553ca129ae7d41b7615852a8883f34256bae2d9338504e273",
+        "bodyHash": "d79e35f713caf39a20f5ba98ffe7f874e55b7acf77ec9ae2e23398cc043796d5"
       }
     },
     "plugin/diagnostics/dsh1xxx": {
@@ -2619,8 +2619,8 @@
         "status": "current",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "d3a6ecaf4c0706d56535e4cd0328930365d519b226f0fd63731454c66482713e",
-        "bodyHash": "3524c722d0b06569495ffae5e5b7a495066459736e697bfc980979f05bc0736d"
+        "outputHash": "dcdbd47383eddea599bf1a2bf47458f5cbf1722c641f38e69a5f508816db6693",
+        "bodyHash": "72ce644d849e8d0284b0ae4bec488572252d0706fc0fb01f2abe778730df4fce"
       }
     },
     "plugin/pass-runtime/hlsl": {
@@ -2748,12 +2748,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/tools/bridge.md",
         "record": "docs-sync/translations/plugin/tools/bridge.json",
-        "pending": 1,
-        "outputHash": "84296228b61c47aeb90b085c7b402110e608bb36cd5000b0e89e265955aa16ef",
-        "bodyHash": "31f78e3845c817bf1ec845dedf6ee24d60048de5a65c0c3b903adecce846f394"
+        "outputHash": "0b04f1d8881cf3e7c8dfddc705075734c598a10f8f85e5f2683a99321e534fe3",
+        "bodyHash": "b6afe2d3571c4759b9727dcb9d3b6e20aa4f09541cb14fe34bb45d9defea1948"
       }
     },
     "plugin/tools/index": {
@@ -2771,12 +2770,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/tools/index.md",
         "record": "docs-sync/translations/plugin/tools/index.json",
-        "pending": 3,
-        "outputHash": "f27a0b54cd0e42965c1115d0f9e504f899d6801f5fbbf2d5352a33473aeb865a",
-        "bodyHash": "9275bedddfc52506942d3ed4273ded6b3ea3d13c3400761c4b7d9a7ecc60abec"
+        "outputHash": "33346d7c2039d063f1b92a8ac040dca7d11381993a7de7231f6537f905d65749",
+        "bodyHash": "d8ef2ff97363203dfb90da312bbed166823d77d22d1f23940401d7b4f37e228f"
       }
     },
     "plugin/tools/material-browser": {
@@ -2816,12 +2814,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/tools/preview.md",
         "record": "docs-sync/translations/plugin/tools/preview.json",
-        "pending": 3,
-        "outputHash": "faec21fda79ab81db478b1af459cbe34e9162f7f138a1c4151a70140dbe97a89",
-        "bodyHash": "53a7945187168f3ed61079762ef099228deefa76a9355184a221bf1cc6e8f1e2"
+        "outputHash": "2b8764b9f9499014c7451bfdbb60b3b19f9737d2dab2fe1711d2013ef2a633f0",
+        "bodyHash": "9f86ab691edb66826eac3cac0ecbec2df868d3d7e8589b5e685bb3f73109ffe8"
       }
     },
     "plugin/tools/virtual-function-tools": {

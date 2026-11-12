@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
+  "status": "current",
+  "sourceHash": "9c59d97061ba00b5010a7f01915f5d058c741fbdfc5b59690a8db53f2cabaad5",
   "sourceRevision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
   "sources": [
     {
       "path": "Docs/contributing/testing.md",
-      "alignedRevision": "fe9b1749ce85",
-      "alignedPage": "31768e1a91f3",
-      "translationHash": "864438b01f63afdb390c9ff37df945ee35a875a9fc96746b99867e016d282ca1"
+      "alignedRevision": "0c4e9e065042",
+      "alignedPage": "b97c86baf7a9",
+      "translationHash": "776c1893801f5d64157f8693b94d24924550764383238a14c06250cc1f4de3e0"
     }
   ],
   "translationFile": "content/docs/plugin/contributing/testing.md",
-  "translationHash": "714365e326e2a27e4b78511254c731baf27478116332df3284e798844de8f466"
+  "translationHash": "8ea019d1a9047be553ca129ae7d41b7615852a8883f34256bae2d9338504e273"
 }

@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
+  "status": "current",
+  "sourceHash": "d33b8fd5cc28d66f050f8a83370b98c88d2de377ebc8839b6b546beb453d9207",
   "sourceRevision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
   "sources": [
     {
       "path": "Docs/tools/bridge.md",
-      "alignedRevision": "dce3a7afae92",
-      "alignedPage": "8d90edda29e8",
-      "translationHash": "0e8c7680f9f0fb84018311162f17de1369b7a86807c23686f51213af39737fe3"
+      "alignedRevision": "0c4e9e065042",
+      "alignedPage": "afca14832216",
+      "translationHash": "e2594b71d403f332a947a0065e2ee9986b71486d7f435596c17904eac915e845"
     }
   ],
   "translationFile": "content/docs/plugin/tools/bridge.md",
-  "translationHash": "84296228b61c47aeb90b085c7b402110e608bb36cd5000b0e89e265955aa16ef"
+  "translationHash": "0b04f1d8881cf3e7c8dfddc705075734c598a10f8f85e5f2683a99321e534fe3"
 }

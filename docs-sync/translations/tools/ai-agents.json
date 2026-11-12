@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
+  "status": "current",
+  "sourceHash": "625e388124774d525f12bbc7ff6c923b6b5140ed2b887fa0460e9c18c5645cc5",
   "sourceRevision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
   "sources": [
     {
       "path": "Docs/tools/ai-agents.md",
-      "alignedRevision": "fe9b1749ce85",
-      "alignedPage": "7277b273b8fb",
-      "translationHash": "3acc1758c1d94928390e8578107f5841821ab57e2827fd86752025fc9a49499a"
+      "alignedRevision": "0c4e9e065042",
+      "alignedPage": "d678748d2259",
+      "translationHash": "5d0c51ec8ab272d4417f2e776c276f0d7b6d4eba037665a1244bf94329720cf1"
     }
   ],
   "translationFile": "content/docs/tools/ai-agents.md",
-  "translationHash": "2f95e0443e908a2081318b3d7c70d208374dddfaed4dfa918255641edd893889"
+  "translationHash": "f3f43e8308d257f7545450ea19ecd5013355a7d3cfa3d5978b3d89e2dc19c677"
 }

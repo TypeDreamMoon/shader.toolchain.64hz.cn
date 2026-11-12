@@ -32,6 +32,7 @@ DreamShader 的编辑器端界面：菜单、停靠的浏览器标签页、预�
 | [命令小程序](/docs/tools/commandlet) | `-run=DreamShader` — 无头编译、反编译、迁移、检查和 IR 工具；Custom Pass 槽位注册表，`pass-registry` *(2.1.0)* |
 | [桥接](/docs/plugin/tools/bridge) | 请求文件、诊断接收端、`bridge.db`、WebSocket 协议；对 Custom Pass 着色器文件的监视 *(2.1.0)* |
 | [AI 智能体](/docs/tools/ai-agents) | `AGENTS.md`、六个技能以及使用 `sync-skills.ps1` 发布它们、可选的 MCP 服务器、写入—检查—修复循环 |
+| [DreamMCP 端点](/docs/tools/dreammcp) | AI 代理的 MCP 服务器所驱动的 HTTP 端点：检查、编译、预览、诊断、节点查找、反编译；编辑器以及两个宿主进程 *(2.2.0 之后)* |
 
 ## 各方实现了什么 [#which-side-implements-what]
 
@@ -64,6 +65,9 @@ DreamShader 以两个独立产品的形式发布，它们通过 `<Project>/Saved
 | 3 | 创建并启动编辑器桥接 | 同上 |
 | 4 | 注册材质内容浏览器浮动标签页及其菜单项 | 同上 |
 | 5 | 将[资产重命名同步服务](/docs/plugin/tools/asset-rename-sync)订阅到 `OnAssetRenamed` *(自 1.9.0 起)* | 同上，以及资产注册表不可用时 |
+| 6 | 在引擎初始化后启动 [DreamMCP 端点](/docs/tools/dreammcp) *(2.2.0 之后)* | 同上，`-NoDreamMCP`，且关闭 *Enable DreamMCP Endpoint* |
+
+用 `-DreamMCPHost` 启动的进程是 DreamMCP 宿主，而不是供人使用的编辑器：它在步骤 1a 之后启动端点并跳过步骤 2–6——没有桥接、没有浏览器标签页、没有菜单。`-run=` 为 `Dream…Host` 的 commandlet 会在步骤 1 启动端点。参见 [DreamMCP 端点](/docs/tools/dreammcp#which-process-serves-it)。
 
 随后桥接自身的启动会重置 `bridge.db`、导出清单（`pass-keys.json` 及 `settings.json` *(自 2.1.0 起)*）、运行[VirtualFunction 同步服务](/docs/plugin/tools/virtual-function-tools#startup-sync-service)、将完整扫描排队、在端口 `17864` 上打开[预览 WebSocket 服务器](/docs/plugin/tools/preview#streaming-preview)、注册源目录监视器，并安装菜单。
 

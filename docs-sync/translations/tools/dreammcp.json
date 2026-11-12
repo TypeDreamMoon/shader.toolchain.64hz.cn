@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "status": "current",
+  "sourceHash": "cb85bf5dae7ce6cb37260914a5e21fcee153476bc734858c63940cd06bc68849",
+  "sourceRevision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
+  "sources": [
+    {
+      "path": "Docs/tools/dreammcp.md",
+      "alignedRevision": "0c4e9e065042",
+      "alignedPage": "81dfd8504d8e",
+      "translationHash": "7d35865e0c3c0dcc60aa0eae00f544d351bcb5cbef155f6f3347e79c7d407b61"
+    }
+  ],
+  "translationFile": "content/docs/tools/dreammcp.md",
+  "translationHash": "f9927e0c77ddff4d199c25fea273861ba9576779f66ee4d7dade0721a5c7f1d8"
+}
