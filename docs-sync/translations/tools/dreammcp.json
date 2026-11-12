@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "status": "current",
-  "sourceHash": "cb85bf5dae7ce6cb37260914a5e21fcee153476bc734858c63940cd06bc68849",
-  "sourceRevision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
+  "status": "outdated",
+  "sourceHash": null,
+  "sourceRevision": "ffa35565d341da61e29dd5361036eb40902e8e57",
   "sources": [
     {
       "path": "Docs/tools/dreammcp.md",
