@@ -86,7 +86,7 @@ Agents other than Claude Code do not load skills by themselves. Point them at th
 ## The MCP server (optional)
 
 [dream-mcp](https://github.com/TypeDreamMoon/dream-mcp) is an MCP server for the Dream plugins. Connected to it,
-an agent gets a `dream_shader` tool whose actions are the plugin's own [DreamMCP endpoint](/en/docs/plugin/tools/dreammcp):
+an agent gets a `dream_shader` tool whose actions are the plugin's own [DreamMCP endpoint](/en/docs/tools/dreammcp):
 
 | Action | Does |
 | :-- | :-- |

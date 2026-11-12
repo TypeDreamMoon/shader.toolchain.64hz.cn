@@ -6,6 +6,7 @@
     "vscode",
     "commandlet",
     "packages",
-    "ai-agents"
+    "ai-agents",
+    "dreammcp"
   ]
 }
