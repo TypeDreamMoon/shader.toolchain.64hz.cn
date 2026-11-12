@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "status": "current",
-  "sourceHash": "e0de44a4e79ac5e431a7138b9cb009d1787d5e69ce3cf91f286eae6c2cc31e9d",
-  "sourceRevision": "ef80c89352d0e7a8571f0e651f3b664930ef4e97",
+  "status": "outdated",
+  "sourceHash": null,
+  "sourceRevision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
   "sources": [
     {
       "path": "Docs/api/version-compat.md",

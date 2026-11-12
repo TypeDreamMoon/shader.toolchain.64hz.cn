@@ -78,6 +78,9 @@ fixtures that belong to other layers, which is why the runnable count is not "si
 | `DreamShader.Lang2.Corpus.Pipeline.*` · `DreamShader.Lang2.CorpusIR.Pipeline.*` | The `.dsp` fixtures of `Tests/Corpus/Lang/Pipeline` and `Tests/Corpus/IR/Pipeline` | fast; no asset I/O |
 | `DreamShader.Compiler2.Pipeline.*` | `.dsp` to a `UDreamPassPipeline`: fields, render targets, dependencies, round trip; the slot registry and its pre-check | slow; editor; `Registry` and `RegistryPrecheck` need a real RHI and back up `<DShader>/.dreampass` first |
 | `DreamShader.Pass.Logic.*` | The Custom Pass runtime without rendering: spellings, parameter blending, slot packing, the asset's checks, which pipelines apply to a view, sources | fast |
+| `DreamShader.MCP.{Protocol,Actions,Jobs}.*` *(after 2.2.0)* | The [DreamMCP endpoint](/en/docs/plugin/tools/dreammcp) driven without a socket: hello, tokens and `Origin`, every refusal, each action's success and source error, job polling and cancelling | slow; editor; writes `/Game/DreamShaderTests/MCP` assets |
+| `DreamShader.MCP.Socket.Loopback` *(after 2.2.0)* | A real listener: HTTP over TCP, the discovery file, refused on every non-loopback address | fast; binds a port from `47950` |
+| `DreamShader.MCP.Render.Preview` *(after 2.2.0)* | The endpoint's `preview`, rendered and written as a PNG | `NonNullRHI`: run in the RHI gate below |
 | `DreamShader.Pass.Render.*` · `DreamShader.Pass.Lifecycle.*` | Custom Pass passes rendered into a scene capture and read back pixel by pixel; edits, removals and world teardown mid-frame | `NonNullRHI`: skipped under `-nullrhi`, run in the RHI gate below |
 
 The split the source records: the fast `DreamShader.Lang.*` and `DreamShader.Lang2.*` layers gate
@@ -364,7 +367,7 @@ Parity cases — ThinCustom and Graph twins of the same body, differing only in 
 
 `Tests/Corpus` lives under the **plugin**, not under the project's `DShader` tree, so it travels with
 the plugin and is never picked up by ordinary source discovery.
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md) is the reference for the tree, every golden
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/0c4e9e0650420ecad6e96e55998fb11eafebf1e2/Tests/Corpus/README.md) is the reference for the tree, every golden
 schema and every runner; this section is the map.
 
 | Layer | Sources | What a case does | Needs |
@@ -429,7 +432,7 @@ golden (`"entryPoint": "parse"`): since the 1.x parser retired in 2.0, its `defi
 read out of the legacy front end's AST and `FLegacyMigrationInfo` instead of an
 `FTextShaderDefinition`, under the same names. Every other layer has its own shape — `lang`, `ir`,
 `legacy`, `legacy-ir`, `decompile`, `migrate`, `compile`, `roundtrip` — documented in
-[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md). Two conventions they share:
+[`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/0c4e9e0650420ecad6e96e55998fb11eafebf1e2/Tests/Corpus/README.md). Two conventions they share:
 `errorContains` / `warningsContain` / `infosContain` hold `DSHnnnn` codes rather than message text,
 and a `...Pending: true` flag (`textPending`, `irPending`, `graphPending`) skips the byte comparison
 of a golden nobody has reviewed yet — removing the flag is the reviewer's act, never the writer's.
@@ -518,7 +521,7 @@ Assertion and infrastructure messages the runners emit. Runtime substitutions ar
 
 The 1.x Generate runner and its `generation should …` messages are gone *(since 2.0.0)*: its fixtures
 are `Legacy/Compile/`, compiled through the 2.0 pipeline. The other layers' assertion messages are in
-their runners and in [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/fe9b1749ce85fe93bed2e930e608d9a2d9dc4372/Tests/Corpus/README.md).
+their runners and in [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/0c4e9e0650420ecad6e96e55998fb11eafebf1e2/Tests/Corpus/README.md).
 
 ## Example
 
