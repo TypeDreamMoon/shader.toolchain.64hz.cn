@@ -1,6 +1,6 @@
 ---
-title: "Which process serves it"
-description: "Which process serves it"
+title: "DreamMCP endpoint"
+description: "The HTTP endpoint a DreamMCP server reaches DreamShader through — check, compile, preview, diagnostics, node lookup and decompile, in the open editor or in a host process the server starts."
 ---
 
 > [DreamShader](/en/docs/) » [Tools](/en/docs/plugin/tools) » **DreamMCP endpoint**

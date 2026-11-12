@@ -3,7 +3,7 @@
   "repository": "TypeDreamMoon/DreamShader",
   "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
   "workingTree": false,
-  "translationSnapshotHash": "b1102d908c5373ca9510036ad5c81d199f7e2269b636b75940809c8e532d6309",
+  "translationSnapshotHash": "1ff0d3c70b482abe39df777cebc4773aae59eb86f2b5cb573231d9f821032e94",
   "pages": {
     "builtins/dream-pass": {
       "hash": "9894ef60eae70d44a8d1dbbd982cb4ca3765e50c42e0b1b8acb15e68ba381291",
@@ -1040,10 +1040,10 @@
       }
     },
     "settings/project": {
-      "hash": "b0aa1332ce35c6497047c4da56e3072f8d28187a344738db576e86af748a333f",
+      "hash": "06b433c14a31fae93798bba149a7a2dee9e3c7cc817b7e387853dc17db08cad4",
       "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
       "output": "content/docs/settings/project.en.md",
-      "outputHash": "c46eb571710e3b838eecdcce06c583a250d1cf9a83a76de10dce928ed7b6bce4",
+      "outputHash": "719b22239424787e820273e8caaaf9a3d5cde3b202853712151945ca15769f2b",
       "locale": "en",
       "format": "md",
       "title": "Project Settings",
@@ -1173,10 +1173,10 @@
       }
     },
     "tools/ai-agents": {
-      "hash": "908ac91a8a53cdba057de2245aa14f508ba6cccedb62176e3c64c39f83e4aef4",
+      "hash": "625e388124774d525f12bbc7ff6c923b6b5140ed2b887fa0460e9c18c5645cc5",
       "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
       "output": "content/docs/tools/ai-agents.en.md",
-      "outputHash": "4e3318b8b27cd6271465a35af3f04e5993d89d2fb5d5ed7c7956a6532af496e1",
+      "outputHash": "9379fabf7e0d92d18ef352ce066b47d11ce320ee661f996ab6790b251bda4524",
       "locale": "en",
       "format": "md",
       "title": "AI agents",
@@ -1237,6 +1237,24 @@
         "record": "docs-sync/translations/tools/decompiler.json",
         "outputHash": "a2f9f9ae76b417ea97e82e603eda4109765a90cae3b43c5c53089196c8df40dc",
         "bodyHash": "9780008c8effbdd1e388b7cd9085aa2a439ce840d6b4fdb89d4d9c67d1c7bdca"
+      }
+    },
+    "tools/dreammcp": {
+      "hash": "cb85bf5dae7ce6cb37260914a5e21fcee153476bc734858c63940cd06bc68849",
+      "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
+      "output": "content/docs/tools/dreammcp.en.md",
+      "outputHash": "674b1633f6cf216270547ea04f899bc45abc8ef4d7b84eb9799827bebadc1f1d",
+      "locale": "en",
+      "format": "md",
+      "title": "DreamMCP endpoint",
+      "sources": [
+        {
+          "path": "Docs/tools/dreammcp.md",
+          "hash": "81dfd8504d8e4140e70d0a73cd7ee6931842388a05d7bfecb08995b3616e21f2"
+        }
+      ],
+      "translation": {
+        "status": "missing"
       }
     },
     "tools/editor": {
@@ -1504,10 +1522,10 @@
       }
     },
     "plugin/api/version-compat": {
-      "hash": "da39ceb43a000be42c58f08970053995b279d9b790f2e86eba064fb5b7bdc4ef",
+      "hash": "8c86c375b637e1aa2027e3603c2ce3ce54dfe4f0433678b8c3f161748507d508",
       "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
       "output": "content/docs/plugin/api/version-compat.en.md",
-      "outputHash": "d7929defad8bd5fa3c71aef5b9e0b2745d880ddc7fa592ea7b78ea7244e0c4be",
+      "outputHash": "a36a10f572c476ded5cc256891e411bc7835915c74e6fda96f445f22c456ac62",
       "locale": "en",
       "format": "md",
       "title": "Synopsis",
@@ -1637,10 +1655,10 @@
       }
     },
     "plugin/contributing/testing": {
-      "hash": "f0b978a8214ef26b5de13ae7d6713e2db714aa655dd1a6820d7a3afcba6ea392",
+      "hash": "9c59d97061ba00b5010a7f01915f5d058c741fbdfc5b59690a8db53f2cabaad5",
       "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
       "output": "content/docs/plugin/contributing/testing.en.md",
-      "outputHash": "43db5830fa98e150d2472cd6a270e6459e5f3ec57cf4d6f990384f445582ae17",
+      "outputHash": "06032374521de134c44dee1dcd2945854404f83a9484e8c0b40a81bb874e9369",
       "locale": "en",
       "format": "md",
       "title": "Synopsis",
@@ -2716,10 +2734,10 @@
       }
     },
     "plugin/tools/bridge": {
-      "hash": "1964026a823eb1fe7526566c6dc77a26ede6ea3fb8ad0725bb5ea51edc6a08da",
+      "hash": "d33b8fd5cc28d66f050f8a83370b98c88d2de377ebc8839b6b546beb453d9207",
       "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
       "output": "content/docs/plugin/tools/bridge.en.md",
-      "outputHash": "04734243c91cbbdf1946a1d14931f6c5a424aa7e670f0667c6ccf549d442e4f1",
+      "outputHash": "997fcfe04d53e54cb035426e71b771ec081b05a0d546d09dcaa07db1699ba84e",
       "locale": "en",
       "format": "md",
       "title": "Synopsis",
@@ -2739,10 +2757,10 @@
       }
     },
     "plugin/tools/index": {
-      "hash": "52e84243091a6bd7d3bcf6da179ba757e671d0cd87653e690910c537a9ff3208",
+      "hash": "80e8ea743e36856bfeec83d2b45e232edd8dd346aabc84790fa11a0069244ad2",
       "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
       "output": "content/docs/plugin/tools/index.en.md",
-      "outputHash": "ede0830ce741921e92de4a32d1d6ee7de90df2e30ac3f339774ad7464d7b5d84",
+      "outputHash": "8dd9f57c0d5b6145c567624023cb45c2372daabda3a8a5c01e2a67e2d38be020",
       "locale": "en",
       "format": "md",
       "title": "Pages",
@@ -2848,24 +2866,6 @@
         "record": "docs-sync/translations/plugin/tools/workspace.json",
         "outputHash": "17c17c2af1f71c8cc48efdb74e5c04f6bb0676f19933631e3a69750ebc017cf4",
         "bodyHash": "90a0ec9946c018e269e9351ac80053c744f329dd4ba0c2566641246ef37a49ef"
-      }
-    },
-    "plugin/tools/dreammcp": {
-      "hash": "3586ab2aa2c0ed477a4eab424787c79ca0283798aa7e22a4820d39d097611650",
-      "revision": "0c4e9e0650420ecad6e96e55998fb11eafebf1e2",
-      "output": "content/docs/plugin/tools/dreammcp.en.md",
-      "outputHash": "218766a94b5fb7930d7e9b9a2fefed6c933d8e386f8fcbb81c792cf7ae53e508",
-      "locale": "en",
-      "format": "md",
-      "title": "Which process serves it",
-      "sources": [
-        {
-          "path": "Docs/tools/dreammcp.md",
-          "hash": "81dfd8504d8e4140e70d0a73cd7ee6931842388a05d7bfecb08995b3616e21f2"
-        }
-      ],
-      "translation": {
-        "status": "missing"
       }
     }
   }
