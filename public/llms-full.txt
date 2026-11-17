@@ -1,0 +1,921 @@
+# DreamShader
+
+> DreamShader is an Unreal Engine plugin that builds materials, material functions, material instances and Custom Pass pipelines from text sources written in DreamShaderLang (.dss, .dsi, .dsp, .dsh; the 1.x .dsm/.dsf).
+
+The full text of the pages listed in https://shader.toolchain.64hz.cn/llms.txt, English, generated from the plugin repository TypeDreamMoon/DreamShader at eac3b631e24e.
+
+
+---
+
+# Cheat sheet
+
+Source: https://shader.toolchain.64hz.cn/en/docs/start/cheatsheet/
+
+One page of the 2.0 language: the file kinds, the shape of each, and the mistakes that cost the most
+time. Every complete source on this page is compiled by the test suite. For the rules behind a line, read
+[the 2.0 language](https://shader.toolchain.64hz.cn/en/docs/language-v2); for a code, [the diagnostics](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/readme) or the same
+data as JSON, [`diagnostics/codes.json`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/Docs/diagnostics/codes.json).
+
+A `.dss` is **HLSL with declarations**: parameters are `uniform`s, metadata rides on `///` lines and
+`#pragma` lines, and one `export` function is the asset. It is not HLSL: do not guess names from HLSL,
+GLSL or the material editor.
+
+## Files
+
+| File | Holds | Builds |
+| :-- | :-- | :-- |
+| `.dss` | `uniform`s, helpers, one `export` entry or several `export` functions, `#pragma material` | a material, or material functions / layers / blends |
+| `.dsi` | `#pragma instance(Parent = …)` and `uniform` overrides | a material instance |
+| `.dsp` | `#pragma pipeline`, `buffer`s, `pass`es | a Custom Pass pipeline (UE 5.8+) |
+| `.dsh` | shared helpers, pulled in with `#include "Path/File.dsh"` | nothing on its own |
+| `.dsm` / `.dsf` | the 1.x language; still builds, write new sources as `.dss` | as 1.x did |
+
+`DShader/Props/M_Crate.dss` with `export void M_Crate(…)` builds `/Game/Props/M_Crate`: the folder under
+`DShader/`, the name of the `export`. `/// @name Other` renames the asset.
+
+## A material
+
+```hlsl
+// DShader/CheatSheet/M_CheatSheetSurface.dss -- a lit, textured surface with an optional pulsing edge glow
+#pragma material(Domain = Surface, BlendMode = Opaque, ShadingModel = DefaultLit)
+
+/// @group Surface   @sort 10   @default /Engine/EngineResources/WhiteSquareTexture
+uniform Texture2D Albedo;
+
+/// @group Surface   @sort 20   @desc Multiplies the texture
+uniform float4 Tint = float4(0.8, 0.75, 0.7, 1.0);
+
+/// @group Surface   @sort 30   @slider 0 1
+uniform float SurfaceRoughness = 0.6;
+
+/// @static
+/// @group Glow   @sort 40
+uniform bool UseGlow = true;
+
+/// @group Glow   @sort 50   @slider 0 10
+uniform float GlowStrength = 2.0;
+
+float EdgeMask(float2 UV, float Width)              // a helper: inlined at each call
+{
+    float2 D = min(UV, 1.0 - UV);
+    return 1.0 - saturate(min(D.x, D.y) / Width);
+}
+
+export void M_CheatSheetSurface(inout material m)   // the entry: this signature makes a material
+{
+    float2 UV = UE.TexCoord(Index = 0);
+    float4 Texel = Albedo.Sample(UV);
+    m.BaseColor = Texel.rgb * Tint.rgb;
+    m.Roughness = SurfaceRoughness;
+    m.Metallic = 0.0;
+
+    float3 Glow = float3(0, 0, 0);
+    if (UseGlow)                                     // a static bool: a StaticSwitch, not a branch
+    {
+        float Pulse = 0.5 + 0.5 * sin(UE.Time() * 0.5);   // sin takes cycles: one pulse every 2 s
+        Glow = Tint.rgb * EdgeMask(UV, 0.08) * Pulse * GlowStrength;
+    }
+    m.EmissiveColor = Glow;
+}
+```
+
+- One entry per file, `export void <Name>(inout material m)`. Outputs are members of `m`: `BaseColor`,
+  `Metallic`, `Roughness`, `Specular`, `EmissiveColor`, `Opacity`, `OpacityMask`, `Normal`,
+  `WorldPositionOffset`, `AmbientOcclusion`, … — the engine's own pin names, case-sensitive.
+- Name a uniform apart from the outputs (`SurfaceRoughness`, not `Roughness`); it reads better and
+  searches better.
+
+## A UI material
+
+```hlsl
+// DShader/CheatSheet/M_CheatSheetPanel.dss -- a translucent UI panel: a soft vertical gradient and a scrolling band
+#pragma material(Domain = UI, BlendMode = Translucent, ShadingModel = Unlit)
+
+/// @group Panel   @sort 10   @desc Base colour; alpha scales the opacity
+uniform float4 Tint = float4(0.12, 0.16, 0.2, 0.85);
+
+/// @group Panel   @sort 20   @slider 0 2   @desc Band travel, panels per second
+uniform float ScrollSpeed = 0.25;
+
+export void M_CheatSheetPanel(inout material m)
+{
+    float2 UV = UE.TexCoord(Index = 0);
+    float Band = frac(UV.y - UE.Time() * ScrollSpeed);
+    float Glow = pow(saturate(1.0 - abs(Band - 0.5) * 4.0), 3.0);
+    m.EmissiveColor = Tint.rgb * lerp(1.15, 0.85, UV.y) + Glow * 0.08;
+    m.Opacity = Tint.a;
+}
+```
+
+A UI material writes `EmissiveColor` and `Opacity` (or `OpacityMask` with `BlendMode = Masked`); nothing
+else reaches the screen.
+
+## Parameters
+
+```hlsl
+uniform <Type> <Name> = <value>;          // a material parameter
+static const <Type> <Name> = <value>;     // a constant, folded where it is used
+```
+
+| `///` tag above a uniform | Effect |
+| :-- | :-- |
+| `@group A\|B` · `@sort N` · `@desc text` | group, sort priority, tooltip |
+| `@slider min max` | slider range, scalars only |
+| `@static` | a `uniform bool` becomes a static switch |
+| `@default /Game/T_X` · `@sampler Color` | a texture's default asset and sampler type |
+| `@name Real Name` | the parameter's engine name (keeps overrides when you rename the identifier) |
+
+Several tags share a line. Textures take no initializer: `@default` instead. No uniform arrays.
+
+## `#pragma material`
+
+```hlsl
+#pragma material(Domain = PostProcess, BlendMode = Translucent, ShadingModel = Unlit, TwoSided = true)
+```
+
+Keys are `UMaterial` property names; enum values drop their prefix (`Translucent`, not `BLEND_Translucent`).
+
+| Key | Common values |
+| :-- | :-- |
+| `Domain` | `Surface`, `DeferredDecal`, `LightFunction`, `Volume`, `PostProcess`, `UI` |
+| `BlendMode` | `Opaque`, `Masked`, `Translucent`, `Additive`, `Modulate`, `AlphaComposite` |
+| `ShadingModel` | `Unlit`, `DefaultLit`, `Subsurface`, `ClearCoat`, `TwoSidedFoliage`, `Cloth`, `Substrate` |
+| `Backend` | `ThinCustom` (project default), `Graph` (a plain `UMaterial` an artist can open) |
+
+## Expressions
+
+- Types: `float` `half` `int` `uint` `bool`, `float2`..`float4`, `Texture2D` `TextureCube`
+  `Texture2DArray` `Texture3D`, `SamplerState`, `material`, `Substrate`.
+- Statements are HLSL: declarations, `if`/`else`, `for`/`while`/`do` with a constant trip count (64 at
+  most), `return`, `?:`, swizzles, casts, constructors. No matrices, no `struct`, no `switch`.
+- Math, called bare (`saturate(x)`):
+
+`abs` `acos` `asin` `atan` `atan2` `ceil` `clamp` `cos` `cross` `ddx` `ddy` `distance` `dot` `exp` `exp2` `floor` `fmod` `frac` `fwidth` `length` `lerp` `log` `log2` `log10` `max` `min` `normalize` `pow` `rcp` `reflect` `refract` `round` `rsqrt` `saturate` `sign` `sin` `smoothstep` `sqrt` `step` `tan` `trunc`
+
+- **`sin`, `cos`, `tan` take cycles, not radians** — `sin(0.25)` is 1. For radians write
+  `sin(x / 6.2831853)`.
+- Engine nodes: `UE.<Node>(Pin = value, …)`, named arguments: `UE.TexCoord(Index = 0)`, `UE.Time()`,
+  `UE.Panner(Coordinate = UV, Speed = float2(0.1, 0))`. A node with several outputs names one:
+  `UE.ScreenPosition().ViewportUV`. DreamMCP's `lookup` lists any node's pins.
+- Textures: `Albedo.Sample(UV)`, `Albedo.Sample(S, UV)`, `Albedo.SampleLevel(UV, Mip)`.
+- A scalar widens to any vector; a vector never narrows silently — write the swizzle (`c.rgb`).
+- Two identical calls are one node: no need to keep a node in a variable to share it.
+
+## Material functions
+
+```hlsl
+// DShader/CheatSheet/MF_CheatSheetTiling.dss -- a material function: tiled UV plus the cell index
+/// @library CheatSheet|UV
+/// @param UV       The coordinates to tile.
+/// @param Scale    Tiles per UV unit.
+export float2 MF_CheatSheetTiling(float2 UV, float Scale = 4.0, out float2 Cell)
+{
+    float2 T = UV * Scale;
+    Cell = floor(T);
+    return frac(T);
+}
+```
+
+| Write | Builds |
+| :-- | :-- |
+| `float3 F(float2 UV) { … }` | nothing — inlined into the graph at each call |
+| `export float3 F(float2 UV, float S = 1.0, out float A) { … }` | a material function; `out` = extra outputs, a default = optional input |
+| `/// @layer` + `export void L(inout material m)` | a material layer |
+| `/// @layerblend` + `export void B(material Bottom, material Top, inout material Result)` | a layer blend |
+| `/// @asset /Game/MF_X` + `extern float3 MF_X(float2 UV);` | nothing — calls an existing asset |
+| `/// @custom` + `float F(float2 UV) { … }` | one Custom HLSL node; the body is verbatim HLSL (matrices, real loops) |
+
+An entry and other `export`s cannot share a file: put a material and its functions in separate files.
+
+## Instances — `.dsi`
+
+```hlsl
+// DShader/CheatSheet/MI_CheatSheetSurface_Red.dsi
+#pragma instance(Parent = "M_CheatSheetSurface")
+
+uniform float4 Tint = float4(0.9, 0.2, 0.15, 1.0);
+uniform bool UseGlow = false;
+```
+
+`Parent` is a bare product name under the same source root, or an object path. Override only what the
+parent declares, with the parent's type; metadata belongs to the parent.
+
+## Custom Pass pipelines — `.dsp` (UE 5.8+)
+
+```hlsl
+// DShader/Passes/CP_Highlight.dsp
+#pragma pipeline(Order = 100)
+
+/// @group Look
+uniform float4 OutlineColor = float4(1.0, 0.6, 0.0, 1.0);
+/// @group Look   @slider 1 8
+uniform float  OutlineWidth = 3.0;
+
+buffer Mask    : R8(Clear = 0);
+buffer Blurred : R8(Scale = 0.5, Export = true);
+
+pass DrawMask : mesh                       // the objects on the Highlight layer, into Mask
+{
+    Injection = AfterOpaque;
+    Filter    = Layer(Highlight);
+    Material  = "M_HighlightMask";         // a .dss with UE.DreamPassOutput
+    Depth     = None;
+    write Output0 = Mask;
+}
+
+pass Blur : compute                        // HLSL, written in the pass
+{
+    Injection = AfterOpaque;
+    Dispatch  = Blurred;
+    read  Source = Mask;
+    write Result = Blurred;
+    param Radius = OutlineWidth;
+
+    hlsl
+    {
+        const float2 UV = (Id.xy + 0.5) * ResultSize.zw;
+        const int R = (int)Radius;
+        float Sum = 0;
+        for (int y = -R; y <= R; ++y)
+            for (int x = -R; x <= R; ++x)
+                Sum += Source.SampleLevel(DP_LinearClamp, UV + float2(x, y) * SourceSize.zw, 0).r;
+        Result[DP_ViewRect.xy + Id.xy] = Sum / ((2 * R + 1) * (2 * R + 1));
+    }
+}
+
+pass Composite : fullscreen                // a Post Process material
+{
+    Injection = BeforePostProcess;
+    Material  = "PP_OutlineComposite";
+    read  Mask;
+    read  Blurred;
+    write SceneColor;
+    param Color = OutlineColor;
+}
+```
+
+The materials a pass uses are ordinary `.dss` files. Details: [Passes](https://shader.toolchain.64hz.cn/en/docs/language-v2/passes).
+
+## Mistakes that cost the most time
+
+| Code | Severity | Message |
+| :-- | :-- | :-- |
+| [DSH4200](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4200) | error | '{0}' is not declared; did you mean '{1}'? Names are case-sensitive. |
+| [DSH4250](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4250) | error | '{0}' is the GLSL spelling; this language is HLSL, so write '{1}'. |
+| [DSH4226](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4226) | error | {0} expects {1}, and this is {2}. |
+| [DSH4243](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4243) | error | Both sides of this '/' are integers, and the material graph has no integer division; write 'float(a) / b' for the fraction, or 'floor(float(a) / b)' for the whole part. |
+| [DSH4361](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4361) | error | This expression is {0} and the material graph has no matrices; compute it inside the custom body instead. |
+| [DSH4246](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4246) | error | The material graph has no hyperbolic node, so '{0}' cannot be lowered; write it in a '/// @custom' body, where the shader compiler has it. |
+| [DSH4362](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4362) | error | 'discard' has no material-graph form; set the material's OpacityMask to zero instead, or move the branch into a '/// @custom' function. |
+| [DSH2160](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh2xxx/#dsh2160) | error | Unsupported statement: the preprocessor line '#{0}' cannot appear inside a function body; mark the function /// @custom to hand its body to the shader compiler. |
+| [DSH4365](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh4xxx/#dsh4365) | error | A struct has no graph form; pass one of its fields, or move the whole thing into a '/// @custom' function. |
+| [DSH6200](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh6xxx/#dsh6200) | error | '{0}' is a second material entry; '{1}' above it is already the entry, and one file makes one material. |
+| [DSH6201](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh6xxx/#dsh6201) | error | '{0}' is exported from a file whose entry is '{1}'; a file makes a material or it makes functions, not both. Move it to its own file, or drop 'export' to make it a helper. |
+| [DSH6206](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh6xxx/#dsh6206) | error | '{0}' is a builtin operation and cannot be redeclared; rename the function. |
+| [DSH5200](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh5xxx/#dsh5200) | error | A material has no '{0}' pin; did you mean '{1}'? Attribute names are case-sensitive. |
+| [DSH5220](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh5xxx/#dsh5220) | error | '{0}.{1}' takes named arguments: write 'Pin = value'. |
+| [DSH5201](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh5xxx/#dsh5201) | error | This Custom node declares no output called '{0}'; its outputs are '{1}'. An output is declared by 'AdditionalOutputs'. |
+| [DSH7213](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh7xxx/#dsh7213) | error | A texture uniform has no HLSL initializer; write its default asset as '/// @default /Game/...'. |
+| [DSH7211](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh7xxx/#dsh7211) | error | '{0}' is a file-scope variable with no storage class; write 'uniform' for a material parameter or 'static const' for a compile-time constant. |
+| [DSH7233](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh7xxx/#dsh7233) | warning | A slider range ('@slider', or 'Slider(min, max)' in a 1.x property) is for a scalar parameter; this one is '{0}', which has no slider, so the range is ignored. |
+
+- A name in the wrong case is not found: `tint` for `Tint`. The message suggests the right one.
+- GLSL spellings — `mix`, `fract`, `mod`, `vec3` — are `lerp`, `frac`, `fmod`, `float3`.
+- Matrix work, `sinh`/`cosh`/`tanh` and real loops go in a `/// @custom` function.
+- Run `check` after every edit; it writes nothing. `compile` builds the asset; `preview` renders it.
+
+<!-- Generated by .skill/gen-knowledge.ps1 from .skill/cheatsheet/cheatsheet.src.md. Edit that file, not this one. -->
+
+
+---
+
+# DreamShaderLang 2.0: .dss, .dsi and .dsh sources
+
+Source: https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md
+
+Condensed from [the 2.0 language manual](https://shader.toolchain.64hz.cn/en/docs/language-v2/) and checked against the compiler. When
+this page and the manual disagree, the manual wins. Custom Pass pipelines (`.dsp`) have their own page,
+[`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md); reading or maintaining 1.x sources (`.dsm` / `.dsf`) is [`legacy.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/legacy.md).
+
+This page stands on its own: what an author needs is here, and an agent that cannot open the links
+loses nothing it needs. The links lead to the online manual for depth. A `UE.` node's pins come from
+DreamMCP's `lookup` action; every diagnostic carries a `doc` link of its own.
+
+A `.dss` is **HLSL with declarations**: parameters are `uniform`s, metadata rides on `///` doc lines and
+`#pragma` lines, and one `export` function is the asset.
+
+---
+
+## 1. File kinds
+
+| Extension | Holds | Builds |
+| :-- | :-- | :-- |
+| `.dss` | `uniform`s, helpers, `export` functions, `extern` prototypes, `#pragma material` | a material, or material functions / layers / blends |
+| `.dsi` | `#pragma instance(Parent = …)` and `uniform` overrides — nothing else | one material instance |
+| `.dsp` | `#pragma pipeline`, `buffer`s, `pass`es | one Custom Pass pipeline, UE 5.8+ — [`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md) |
+| `.dsh` | shared helpers, included by `#include`; may hold 2.0 and 1.x declarations | nothing on its own |
+
+**Where the asset lands:** under `/Game`, at the file's folder relative to its source root (`DShader/`), named
+after the `export` function. `DShader/UI/M_Panel.dss` with `export void M_Panel(…)` builds `/Game/UI/M_Panel`. A
+file under a plugin's `DShader/` builds under the plugin's mount point. `/// @name Other` renames the asset;
+`/// @name /Game/Some/Path/M_X` puts it at that exact path. Details:
+[Asset paths](https://shader.toolchain.64hz.cn/en/docs/generation/asset-paths/).
+
+## 2. A material
+
+```hlsl
+// DShader/UI/M_ScanlinePanel.dss -- scanlines and a glow band that scrolls down the panel
+#pragma material(Domain = UI, BlendMode = Translucent, ShadingModel = Unlit)
+
+/// @group Scanline|Style   @sort 10   @desc Base panel colour; alpha scales the opacity
+uniform float4 Tint = float4(0.25, 0.85, 1.0, 1.0);
+
+/// @group Scanline|Style   @sort 20   @slider 8 128   @desc Scanlines across the panel height
+uniform float LineCount = 48.0;
+
+/// @group Scanline|Motion   @sort 30   @slider 0 2   @desc Glow band travel speed, panels per second
+uniform float ScrollSpeed = 0.35;
+
+float GlowBand(float V, float Phase)              // a helper: inlined into the graph at each call
+{
+    float Band = frac(V - Phase);
+    return pow(saturate(1.0 - abs(Band - 0.5) * 4.0), 3.0);
+}
+
+export void M_ScanlinePanel(inout material m)     // the entry: this signature is what makes it a material
+{
+    float2 UV = UE.TexCoord(Index = 0);
+    float Scan = 0.5 + 0.5 * sin(UV.y * LineCount * 6.2831853);
+    float Glow = GlowBand(UV.y, UE.Time() * ScrollSpeed);
+    m.EmissiveColor = Tint.rgb * (0.4 + Glow * 1.6);
+    m.Opacity = saturate(Scan * 0.6 + Glow) * Tint.a;
+}
+```
+
+- **Exactly one entry**, `export void <Name>(inout material m)`. A second one is `DSH6200`; an entry beside
+  other `export`s in one file is `DSH6201` — a material and its functions go in separate files.
+- **Outputs** are members of `m`: `m.BaseColor`, `m.Metallic`, `m.Roughness`, `m.EmissiveColor`,
+  `m.Opacity`, `m.OpacityMask`, `m.Normal`, `m.WorldPositionOffset`, … — every pin the engine's material has,
+  checked against the engine (`DSH5200` for a name it does not have). Case-sensitive.
+
+## 3. Parameters
+
+```hlsl
+uniform <Type> <Name> = <value>;      // a material parameter
+static const <Type> <Name> = <value>; // a constant, folded where it is used
+```
+
+| Doc tag (`///` above the uniform) | Effect |
+| :-- | :-- |
+| `@group A\|B` | the parameter group |
+| `@sort N` | sort priority (an integer, `DSH7221` otherwise) |
+| `@desc text` | the tooltip |
+| `@slider min max` | slider range — **scalars only**; on a vector or bool it is ignored with `DSH7233` |
+| `@name Real Name` | the parameter's name in the engine — the identifier when absent. A name that is not an identifier goes here, and so does the old name when the identifier is renamed, which keeps every material instance's override |
+| `@static` | on a `uniform bool`: a static switch instead of a dynamic scalar (`DSH7223` on anything else) |
+| `@default /Game/T_X` | a texture's default asset; `@sampler` sets its sampler type |
+
+Several tags share a line: `/// @group Look   @sort 10   @desc Base colour`. A tag that does not apply is a
+warning (`DSH7224`), a repeated one `DSH7229`; an unknown tag is passed to the node by its engine property name.
+
+- **Textures take no initializer.** `/// @default /Engine/EngineResources/WhiteSquareTexture` above
+  `uniform Texture2D Albedo;` (`DSH7213` for `= …`). `/// @default` + `static const Texture2D T;` is a
+  TextureObject nobody can override.
+- No uniform arrays (`DSH7216`); a global without `uniform` or `static const` is `DSH7211`.
+
+## 4. `#pragma material`
+
+```hlsl
+#pragma material(Domain = PostProcess, BlendMode = Translucent, ShadingModel = Unlit, TwoSided = true)
+```
+
+Keys are `UMaterial` property names, resolved by reflection: `Domain`, `BlendMode`, `ShadingModel`,
+`TwoSided`, `bUsedWithSkeletalMesh`, `OpacityMaskClipValue`, … Enum values go without their prefix
+(`Translucent`, not `BLEND_Translucent`). Two keys are DreamShader's own:
+
+| Key | Values | |
+| :-- | :-- | :-- |
+| `Backend` | `ThinCustom` (the project default), `Graph` | `ThinCustom` builds the node graph on a hidden base material behind a `UDreamShaderMaterialInstance`, Ephemeral in the editor; `Graph` builds a plain `UMaterial` an artist can open. `Instance` is an old alias (`DSH7204`) |
+| `Substrate` | `Legacy`, `Bridge`, `Native` | how Substrate values are built — [Substrate](https://shader.toolchain.64hz.cn/en/docs/language-v2/substrate/) |
+
+Enum strings. Case, spaces, `_` and `-` do not count, so `Default Lit` is `DefaultLit`; an alias is in
+parentheses. A project can add spellings of its own (Project Settings › DreamShader, the `…Mappings` maps).
+
+| Key | Values |
+| :-- | :-- |
+| `Domain` | `Surface`, `DeferredDecal` (`Decal`), `LightFunction`, `Volume`, `PostProcess`, `UI` (`UserInterface`), `RuntimeVirtualTexture` (`VirtualTexture`) |
+| `BlendMode` | `Opaque`, `Masked` (`Cutout`), `Translucent` (`Transparent`), `Additive`, `Modulate`, `AlphaComposite` (`Premultiplied`, `PremultipliedAlpha`), `AlphaHoldout`, `TranslucentColoredTransmittance` (Substrate) |
+| `ShadingModel` | `Unlit`, `DefaultLit` (`Lit`), `Subsurface`, `PreintegratedSkin`, `ClearCoat`, `SubsurfaceProfile`, `TwoSidedFoliage`, `Hair`, `Cloth`, `Eye`, `SingleLayerWater`, `ThinTranslucent`, `Substrate` (`Strata`; UE 5.4 and later, `DSH7128` before). `FromMaterialExpression` is `DSH7129` |
+
+## 5. Graph code
+
+Statements and expressions are HLSL: declarations, `if` / `else`, `for` / `while` / `do` with a **constant
+trip count** (unrolled, 64 at most — `DSH4360`), `return`, `?:`, swizzles, casts, constructors.
+
+| | |
+| :-- | :-- |
+| Types | `float half double int uint bool`, `float2`..`float4` (and the other vectors), `Texture2D TextureCube Texture2DArray Texture3D VolumeTexture`, `SamplerState`, `material`, `Substrate` |
+| Math | HLSL's intrinsics — `abs saturate lerp clamp min max pow sqrt rsqrt exp log sin cos tan atan2 frac floor ceil round sign step smoothstep dot cross length distance normalize reflect refract ddx ddy fwidth` and more. Named arguments select a pin where the node has named pins: `lerp(A, B, Alpha = t)`. **`sin`, `cos` and `tan` take cycles, not radians**: they are UE's Sine, Cosine and Tangent nodes with their default Period of 1, so `sin(0.25)` is 1 and `sin(t)` repeats once a second. Write `sin(x / 6.2831853)` for radians, or `UE.Sine(Input = x, Period = p)`. Inside a `/// @custom` body they take radians, as in HLSL |
+| Engine nodes | `UE.<Node>(Pin = value, …)` — **named arguments**; positional is `DSH5220` except for a few (`TexCoord`, `Constant*`, `Transform*`, `Panner`, `Mask`, `Time`). A node with several outputs used as a value names one: `UE.ScreenPosition().ViewportUV` (`DSH5201`). A node's pins: DreamMCP `lookup`, or [UE.* nodes](https://shader.toolchain.64hz.cn/en/docs/builtins/ue-nodes/) |
+| Textures | `Albedo.Sample(UV)`, `Albedo.Sample(S, UV)`, `Albedo.SampleLevel(UV, Mip)` — positional arguments |
+| Conversions | a scalar widens to any vector; a vector never narrows silently — write the swizzle (`v.rgb`) (`DSH4226`) |
+
+Two identical calls are one node, so there is no reason to store a node in a variable to share it.
+
+## 6. Functions
+
+| Write | Builds | Notes |
+| :-- | :-- | :-- |
+| `float3 F(float2 UV) { … }` | nothing — **inlined** into the graph at each call | a file-local helper; no matrices, no unbounded loops, as in the entry |
+| `export float3 F(float2 UV, float S = 1.0) { … }` | a material function | extra outputs are `out` parameters; a default argument makes an input optional; `/// @library Cat\|Sub`, `/// @param UV text`; `/// @static P` makes a `bool` parameter a StaticBool pin |
+| `/// @layer` `export void L(inout material m)` | a material layer | |
+| `/// @layerblend` `export void B(material Bottom, material Top, inout material Result)` | a layer blend | `Result` starts empty |
+| `/// @asset /Game/MF_X` `extern float3 MF_X(float2 UV);` | nothing — calls the existing asset | `DSH6202` without `@asset` |
+| `/// @custom` `float F(float2 UV) { … }` | one Custom HLSL node per call | the body is **verbatim HLSL**: matrices, real loops, `#include`, anything the shader compiler takes. Nothing checks it but `check -Shaders`. A `UE.` call inside is lifted into a real node wired in — it may read the parameters and globals, not the body's locals (`DSH6326`) |
+
+`#include "Shared/Common.dsh"` (or `import "Shared/Common.dsh";`) — double-quoted, a `.dsh` or `.dss` only.
+
+## 7. Instances — `.dsi`
+
+```hlsl
+// DShader/UI/MI_ScanlinePanel_Red.dsi
+#pragma instance(Parent = "M_ScanlinePanel", BlendMode = Translucent)
+
+uniform float4 Tint = float4(1.0, 0.2, 0.15, 1.0);
+/// @default /Game/UI/T_Noise
+uniform Texture2D Noise;
+```
+
+`Parent` is a bare name — the product of a `.dss` / `.dsi` under the same source root, built first when
+missing or stale — or an object path. Each override is declared as the parent declares it (`DSH7258` unknown
+name, `DSH7264` a case-only match, `DSH7259` another type); metadata belongs to the parent. Only global
+parameters — a layer's are `DSH7268`. Full rules: [Instances](https://shader.toolchain.64hz.cn/en/docs/language-v2/instances/).
+
+## 8. Traps
+
+| Mistake | Code |
+| :-- | :-- |
+| a name in the wrong case — `tint` for `Tint` | `DSH4200` / `DSH4208`, with "did you mean" |
+| a GLSL spelling — `mix`, `fract`, `mod`, `vec3` | `DSH4250` — write `lerp`, `frac`, `fmod`, `float3` |
+| a function named like a builtin — `float lerp(…)` | `DSH6206` |
+| a vector into a narrower place | `DSH4226` — swizzle it |
+| integer `/` | `DSH4243` |
+| a matrix anywhere in the graph | `DSH4361` — do matrix work in a `/// @custom` body |
+| `sinh` / `cosh` / `tanh` | `DSH4246` — no node; use a `/// @custom` body |
+| `discard` in a branch, `switch` | `DSH4362`, `DSH2160` |
+| a `struct` outside a `/// @custom` body | `DSH4365` |
+| reading a local nothing assigned | `DSH4376` |
+| a `material` parameter on a `/// @custom` function | `DSH6252` — the Custom node has no attributes input |
+| a required pin of a `UE.` node left open | `DSH5219`, a warning: the material compile decides |
+
+Every code has its page, which the diagnostic's `doc` links to: [Diagnostics](https://shader.toolchain.64hz.cn/en/docs/diagnostics/).
+
+## See also
+
+- [The 2.0 language](https://shader.toolchain.64hz.cn/en/docs/language-v2/) — the whole manual
+- [Substrate](https://shader.toolchain.64hz.cn/en/docs/language-v2/substrate/) — Substrate values and their sugar
+- [UE.* nodes](https://shader.toolchain.64hz.cn/en/docs/builtins/ue-nodes/) — every `UE.*` node
+- [`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md) — Custom Pass pipelines · [`legacy.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/legacy.md) — the 1.x language
+
+
+---
+
+# Custom Pass pipelines: .dsp sources
+
+Source: https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md
+
+Condensed from [Passes](https://shader.toolchain.64hz.cn/en/docs/language-v2/passes/), [HLSL passes](https://shader.toolchain.64hz.cn/en/docs/custom-pass/hlsl/) and
+[Custom Pass material nodes](https://shader.toolchain.64hz.cn/en/docs/builtins/dream-pass/). When this page and the manual disagree, the
+manual wins.
+
+This page stands on its own: what an author needs is here, and an agent that cannot open the links
+loses nothing it needs. The links lead to the online manual for depth. A `UE.` node's pins come from
+DreamMCP's `lookup` action; every diagnostic carries a `doc` link of its own.
+
+A `.dsp` adds render passes to Unreal without touching the engine: a mask of selected objects, a blur, a
+screen-space effect, a compute shader writing a data texture. It is **not** a material — the passes it runs
+use materials, which are ordinary [`.dss`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md) files.
+
+| | |
+| :-- | :-- |
+| Builds | one `UDreamPassPipeline`, named after the file, where a `.dss` in that folder puts its product; plus a `UTextureRenderTarget2D` per buffer with `Export = true` |
+| Engine | **UE 5.8 and later.** Below that a `.dsp` parses, formats and binds, and compiling it is `DSH8300` |
+| Runs when | activated — Project Settings, an `ADreamPassVolume`, a `UDreamPassComponent`, Blueprint / C++. A compiled pipeline nobody activates draws nothing |
+| Writes besides the asset | `<DShader>/.dreampass/` — the HLSL slot registry and snapshots. **Source files: commit them** |
+
+---
+
+## 1. The shape of a file
+
+```hlsl
+// DShader/Passes/CP_Highlight.dsp
+#pragma pipeline(Order = 100)
+
+/// @group Look
+uniform float4 OutlineColor = float4(1.0, 0.6, 0.0, 1.0);
+/// @group Look   @slider 1 8
+uniform float  OutlineWidth = 3.0;
+
+buffer Mask    : R8(Clear = 0);
+buffer Blurred : R8(Scale = 0.5, Export = true);
+
+pass DrawMask : mesh                       // the objects on the Highlight layer, into Mask
+{
+    Injection = AfterOpaque;
+    Filter    = Layer(Highlight);
+    Material  = "M_HighlightMask";         // a .dss with UE.DreamPassOutput
+    Depth     = None;
+    write Output0 = Mask;
+}
+
+pass Blur : compute                        // HLSL, written in the pass
+{
+    Injection = AfterOpaque;
+    Dispatch  = Blurred;
+    read  Source = Mask;
+    write Result = Blurred;
+    param Radius = OutlineWidth;
+
+    hlsl
+    {
+        const float2 UV = (Id.xy + 0.5) * ResultSize.zw;
+        const int R = (int)Radius;
+        float Sum = 0;
+        for (int y = -R; y <= R; ++y)
+            for (int x = -R; x <= R; ++x)
+                Sum += Source.SampleLevel(DP_LinearClamp, UV + float2(x, y) * SourceSize.zw, 0).r;
+        Result[DP_ViewRect.xy + Id.xy] = Sum / ((2 * R + 1) * (2 * R + 1));
+    }
+}
+
+pass Composite : fullscreen                // a Post Process material
+{
+    Injection = BeforePostProcess;
+    Material  = "PP_OutlineComposite";
+    read  Mask;
+    read  Blurred;
+    write SceneColor;
+    param Color = OutlineColor;
+}
+```
+
+| Declaration | |
+| :-- | :-- |
+| `#pragma pipeline(...)` | at most one. `Order` (int, default `0`), `Injection` (the default for passes naming none, `BeforePostProcess`), `Views` (`Game \| Editor` by default), `Requires` (`PostProcess`, `SceneResolve`, `CustomStencil`), `Enabled` |
+| `uniform` | what an activation can override: `float`–`float4`, `int`, `bool`, `Texture2D` (with `/// @default <asset>`); doc tags `@group` `@desc` `@slider` `@sort` |
+| `static const` | a constant |
+| `buffer Name : Format(Key = Value, ...);` | formats `R8 RG8 RGBA8 R16F RG16F RGBA16F R32F RG32F RGBA32F Depth32`; keys `Scale`, `Size = int2(w, h)`, `Resolution = Render \| Output`, `Clear` (`0`, a `float4`, or `None`), `Mips`, `History`, `Export` |
+| `hlsl { … }` | at most one per file: shared HLSL functions, and entries a pass names with `Entry =` |
+| `pass Name : kind { … }` | passes run in declaration order within an injection point |
+
+Built-in buffers need no declaration: `SceneColor`, `SceneDepth`, `CustomDepth`, `CustomStencil`,
+`GBufferA`…`GBufferF`, `Velocity`, `Translucency`. `R32U` / `RG32U` are reserved (`DSH7321`) — an id fits
+`R32F` exactly up to 16777216.
+
+## 2. Passes
+
+| Kind | Code | `read X = B` | `write Y = B` | `param P = E` |
+| :-- | :-- | :-- | :-- | :-- |
+| `fullscreen` + `Material` | a Post Process material | the material's `UE.UserSceneTexture` named `X` | exactly one | the material parameter `P` |
+| `fullscreen`, no material | `hlsl { }`, `Entry =`, or `Shader = "x.usf"` + `Entry` | the HLSL name `X` | up to four, `SV_Target0..3` | the HLSL name `P` |
+| `compute` | the same three, plus `Threads`, `Dispatch` | the HLSL name `X` | up to four UAVs | the HLSL name `P` |
+| `mesh` | `Filter`, `Material`, `Mode`, `Depth`, `Cull`, `Blend`, `Usage`, `Nanite` | — | `Output0`…`Output3` of `UE.DreamPassOutput` | the override material's `P` |
+| `clear` | `Value` | — | one | — |
+| `copy` | — | one | one | — |
+
+Every pass takes `Injection` and `Enabled`. `read Mask;` is `read Mask = Mask;`. A `param` value is computed
+on the CPU once per view: a uniform, a `static const`, a literal, `DreamPassWeight`, or those times and plus
+constants — nothing else.
+
+**Injection points**, in frame order: `BeginView` (nothing drawn, **no `View` uniform buffer**) ·
+`BeforeBasePass` (SceneDepth) · `AfterBasePass` (GBuffer, unlit) · `AfterOpaque` (opaque lit, CustomDepth /
+Stencil) · `BeforePostProcess` (the default) · `PostProcess.BeforeDOF` / `AfterDOF` /
+`TranslucencyAfterDOF` / `ReplaceTonemapper` / `AfterMotionBlur` / `AfterTonemap` / `AfterFXAA` ·
+`EndOfView` (LDR, before the UI). The full table of what each point can read is in
+[Passes › Injection points](https://shader.toolchain.64hz.cn/en/docs/language-v2/passes/#injection-points).
+
+`mesh` `Filter`: `Stencil(v)`, `Stencil(v, mask)`, `Layer(A | B)` (the project's pass layers, given to actors by
+`UDreamPassLayerComponent`), `List(Name)`, combined with `|` and `&`.
+
+## 3. HLSL passes
+
+Each HLSL pass has its code in **one** place: an `hlsl { }` block in the pass, an `Entry =` naming a function of
+the file's `hlsl` block, or a `.usf` (`Shader =` + `Entry =`). A pass's own block is either **whole functions**
+(what a `.usf` holds — `[numthreads]`, `groupshared`, `struct`, `#include`; the entry is `Main` unless
+`Entry` says otherwise) or **only the statements of the entry**, whose function the compiler writes.
+
+| Statements-only block | The compiler writes | Names the statements see |
+| :-- | :-- | :-- |
+| `compute` | `[numthreads]` from `Threads` (default `uint3(8, 8, 1)`); threads past `DP_DispatchSize` return first | `Id`, `GroupId`, `LocalId`, `LocalIndex` |
+| `fullscreen` | one `out float4` per `write`, named after it, cleared to 0 | `SvPosition`, `Pixel`, `UV` (0..1 over the view) |
+
+Each binding becomes a `#define` onto the slot's fixed parameters:
+
+| Binding | Names it makes |
+| :-- | :-- |
+| `read X = …` | `X` (a `Texture2D<float4>`), `XSize` (xy, and 1/size in zw), `XUVRect` |
+| `write Y = …` | compute: `Y` (a `RWTexture2D<float4>`) and `YSize`; fullscreen: the output `Y` |
+| `param P = …` | `P` |
+
+Helpers, from `DreamPass.ush` (included for you): `DreamPassSample(Name, UV)`, `DreamPassLoad(Name, Pixel)`,
+`DreamPassSceneUV(UV)` (for `CalcSceneDepth` and friends), `DP_PointClamp`, `DP_LinearClamp`, `DP_Weight`,
+`DP_ViewRect`, `DP_DispatchSize`, `DP_Time` (world time, delta, real time, frame), `View`,
+`SceneTexturesStruct`. A slot has **8 inputs, 4 outputs and 64 scalars** of parameters.
+
+## 4. The materials a pipeline uses
+
+| Used by | Write it as | Key points |
+| :-- | :-- | :-- |
+| a `fullscreen` pass | `#pragma material(Domain = PostProcess, BlendableLocation = SceneColorAfterDOF)` | reads its buffers with `UE.UserSceneTexture(UserSceneTexture = "Mask", Coordinates = UV)`; the scene with `UE.SceneTexture(SceneTextureId = PostProcessInput0, …)`. Writing a **data** buffer rather than the scene colour needs `bDisablePreExposureScale = true` |
+| a `mesh` pass | a Surface material calling `UE.DreamPassOutput(Output0 = …)` | a statement, one per material, **top level only** (inside a material function it does nothing); add the usage flags the pass needs (`bUsedWithSkeletalMesh`, `bUsedWithInstancedStaticMeshes`) |
+| any material, reading an exported buffer | `UE.DreamPassBuffer(Pipeline = "CP_X", Buffer = "Name").r` | the buffer must have `Export = true`; an opaque or translucent material sees the **previous frame** when the last writer runs after the base pass (`DSH7354`, info) |
+
+A `Material` key, like a `.dsi`'s `Parent`, is a bare name — the product of a `.dss` / `.dsi` under the same
+source root, compiled first when it is missing or stale — or an object path.
+
+## 5. Checking it
+
+```bash
+pwsh -File Plugins/DreamShader/.skill/dsc.ps1 check -Shaders DShader/Passes/CP_Highlight.dsp
+```
+
+`check` binds the pipeline against its materials and HLSL files and writes no asset; **`-Shaders` also
+pre-checks every HLSL pass in its slot**, for every shader format the project builds, and reports HLSL errors
+at the line of the `.dsp`. Then `compile` builds the pipeline. The pass materials are separate `.dss` files —
+check those too.
+
+## 6. Traps
+
+- **Code no entry reaches is not compiled at all.** The engine drops it before the shader compiler reads the
+  slot, so a broken helper that nothing calls yet passes `check -Shaders` and fails the day a pass calls it.
+- **One HLSL error can come back twice, worded differently.** The pre-check compiles each shader format the
+  project targets (SM5 with FXC, SM6 with DXC by default); each compiler reports it its own way. It is one
+  mistake.
+- **Binding names are macros.** Pick names no engine identifier uses (`InMask`, not `Texture`). The file's
+  shared `hlsl` code may not use any pass's binding names at all — not even as a local — and nothing may call
+  an entry (`DSH7369`): put what two entries share in a function of its own.
+- **`BeginView` has no `View` uniform buffer.** Using `View` there — also through a shared function a pass
+  calls — is refused (`DSH8318`); use `DP_Time`, or move the pass later.
+- **A pass may not read and write one buffer** (`DSH7333`). Write another buffer, or read `B.Previous` of a
+  `History = true` buffer — that is also how a simulation keeps state across frames.
+- **A read before the first write in frame order reads `Clear`** (`DSH7332`, warning); with `Clear = None` it
+  is an error.
+- **A fullscreen material has 4–5 buffer slots** (`DSH7336`): five when it does not read `PostProcessInput0`
+  itself, four when it does.
+- **Slots are finite**: 32 compute, 16 pixel per project. A pass keeps its slot; a deleted pipeline keeps its
+  slots until `dsc.ps1 pass-registry -Gc`. A decompiled `.dsp` compiled for a look takes slots too.
+- **An HLSL pass cannot ship in DLC** — its shaders are cooked into the base game's global shader cache.
+- **A Nanite primitive cannot be drawn by a `mesh` pass.** `Nanite = Skip` (the default for layers and lists)
+  leaves it out with a warning; `StencilMask` / `AssignStencil(v)` cover it as a stencil mask instead.
+
+## See also
+
+- [Passes](https://shader.toolchain.64hz.cn/en/docs/language-v2/passes/) — every key and value
+- [Custom Pass runtime](https://shader.toolchain.64hz.cn/en/docs/custom-pass/) — activation, views, debugging (`DreamPass.Dump`), limits
+- [HLSL passes](https://shader.toolchain.64hz.cn/en/docs/custom-pass/hlsl/) — slots, snapshots and the pre-check
+- [Custom Pass examples](https://shader.toolchain.64hz.cn/en/docs/examples/custom-pass/) — seven complete pipelines with their `.dss`
+
+
+---
+
+# The 1.x language: .dsm and .dsf sources
+
+Source: https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/legacy.md
+
+Condensed from [the 1.x language manual](https://shader.toolchain.64hz.cn/en/docs/plugin/language/) and checked against the compiler. When this
+page and the manual disagree, the manual wins — except for messages: several 1.x pages still quote messages from the 1.x
+generator, which is gone, and the codes below are what is reported today.
+
+This page stands on its own: what an author needs is here, and an agent that cannot open the links
+loses nothing it needs. The links lead to the online manual for depth. A `UE.` node's pins come from
+DreamMCP's `lookup` action; every diagnostic carries a `doc` link of its own.
+
+**Write new sources as `.dss`** ([`dss.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md)). This page is for a project that already has `.dsm` /
+`.dsf` files: they keep building, through the **legacy front end**, which reads the 1.x language into the same
+tree the 2.0 parser builds — so they get the same binder, the same checks and the same diagnostics. What
+1.x always allowed and 2.0 spells differently is a numbered legacy rule that applies to 1.x text only
+(`DSH5275`–`DSH5292`), and `dsc check` on a `.dsm` lists them. `dsc migrate` rewrites a 1.x file as `.dss` —
+[`dream-shader-migrate`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/dream-shader-migrate/SKILL.md).
+
+---
+
+## 1. File kinds
+
+| Extension | Holds | Builds |
+| :-- | :-- | :-- |
+| `.dsm` | **one** `Shader` block (`DSH2250` for a second), plus helper blocks (`Function`, `GraphFunction`, `Namespace`, `VirtualFunction`), and `ShaderFunction` / layer blocks beside it | the material, and an asset for each function or layer block, as 1.x built them |
+| `.dsf` | `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend`, plus helpers; no `Shader` (`DSH2259`) | the function assets |
+| `.dsh` | `Function` / `GraphFunction` / `Namespace` / `VirtualFunction`, and 2.0 declarations side by side | nothing — included by `import` |
+
+A `.dsh` naming an asset block is `DSH2249`. The check reads tokens, so a comment or a string that mentions
+`Shader(` is fine.
+
+**`import` brings in a `.dsh` only** (`DSH2252` for `import "x.dsf"`), and only one under the file's own source
+root: a root-qualified import (`Plugin.X:…`) is `DSH2252` too. A header is parsed on its own and its names
+are declared into the importing file — nothing is pasted in as text; a name defined twice is `DSH4210`, a
+cycle `DSH4211`.
+
+## 2. The `Shader` block
+
+```c
+Shader(Name="UI/M_Panel")                     // -> /Game/UI/M_Panel; Root="Plugin.MyPlugin" for a content plugin
+{
+    Properties = {
+        float4 Tint = float4(1.0, 0.2, 0.2, 1.0) [Group="Look"; SortPriority=10; Description="Base colour";];
+        float  Gain = 1.0 [Slider(0, 4);];
+        Texture2D Noise = Path(Engine, "EngineResources/WhiteSquareTexture");
+    }
+    Settings = {
+        Domain = "UI";
+        ShadingModel = "Unlit";
+        Backend = "Graph";                     // optional; the project default is ThinCustom
+    }
+    Outputs = {
+        float3 Color;
+        Base.EmissiveColor = Color;
+    }
+    Graph = {
+        float2 uv = UE.TexCoord(Index=0);
+        Color = Tint.rgb * Gain * SampleTexture2D(Noise, uv).r;
+    }
+    Layout = { Node(Var="Tint", X=60, Y=-290); }   // optional editor positions
+}
+```
+
+| Section | |
+| :-- | :-- |
+| `Properties` | parameters. Compact form `float` / `float4` / `Texture2D …`, or a node token (`ScalarParameter`, `VectorParameter`, `TextureObjectParameter`, `StaticSwitchParameter`, …). Of the 22 node tokens, 7 are refused today (`DSH3253`: DoubleVector, TextureCollection, CurveAtlasRow, Dynamic, FontSample, SpriteTextureSampler, SparseVolumeTextureObject). An unknown type is `DSH3252`. Metadata in `[ … ]`: `Group`, `SortPriority`, `Description`, `ParameterName`, `SamplerType`, `Slider(min, max)` — scalars only (`DSH7233`) |
+| `Settings` | `UMaterial` properties by name, plus `Backend` (`Graph`, `ThinCustom`; `Instance` is an old alias) |
+| `Outputs` | typed variables, bound with `Base.<Pin> = var;`. Every pin the engine's material has is accepted, with aliases (`Emissive`, `AO`, `WPO`, …); an unknown one is `DSH5200` |
+| `Graph` | the node graph as statements |
+| `Layout` | `Node(Var=…, X=…, Y=…)`, `Comment(Name=…, X, Y, W, H[, Color])` (`DSH3275` for a bad one); `#Region "text"` / `#EndRegion` in `Graph` make comment boxes |
+
+Asset references: `Path(Game, "…")`, `Path(Engine, "…")`, `Path(Plugins.X, "…")`, or a quoted `"/Game/…"`.
+
+**Backends.** `ThinCustom`, the project default, builds the full node graph on a hidden base material behind a
+`UDreamShaderMaterialInstance`, which stays in memory (Ephemeral) in the editor until a cook or *Materialize*.
+`Graph` builds a plain `UMaterial`, saved on every build.
+
+## 3. `Graph`
+
+Statements: declarations, assignments, calls, `if` / `else`. Types are matched case-insensitively (`vec3` ≡
+`float3`); texture, `SamplerState` and `Substrate` variables need an initializer (`DSH2215`). Graph has no matrix
+values (`DSH4361`; a `mat3` property is `DSH3252`).
+
+- **Math builtins** are HLSL's intrinsics, typed: operands are widened to the widest one, a scalar broadcasts,
+  and a narrower vector is `DSH4226` — the compiler checks component counts. Named arguments select a pin
+  where the node has named ones (`lerp(A, B, Alpha = t)`); an unknown name is `DSH4216`.
+- **GLSL spellings** `mix`, `fract`, `mod` resolve in 1.x with a warning (`DSH5277`); a name matched only by
+  case resolves with `DSH5275`. `dsc migrate` respells both.
+- `reflect` and `refract` have no node: they expand to a 4-node and a 14-node subgraph.
+- Lookup order: `Path()`, property calls, `SampleTexture2D` and the `UE.*` sugar at parse time; then
+  constructors, `UE.*` / `Substrate.*`, texture methods, builtins, user functions. A property call beats a
+  builtin, a builtin beats a user function.
+- A misspelled name is `DSH4208` / `DSH4200`, with "did you mean" for a case-only match.
+- **`/` divides as floats**, as 1.x did: `7 / 2` is 3.5. Only `int(7) / int(2)` — two integer constructor calls —
+  is `DSH4243`. A `.dss` refuses every `/` between integers; `dsc migrate` writes `float(7) / 2`.
+
+## 4. Reusable code
+
+| Block | Builds | |
+| :-- | :-- | :-- |
+| `Function` | a Custom HLSL node holding its body, and the bodies of the `Function`s it calls | dense arithmetic; a body that is HLSL |
+| `GraphFunction` | a Custom node whose `UE.*` calls are pulled out into real nodes wired to its inputs | HLSL that needs engine nodes |
+| `Namespace(Name="N")` | groups `Function`s as `N::F` | |
+| `ShaderFunction` / `ShaderLayer` / `ShaderLayerBlend` | a material function / layer / blend asset | |
+| `VirtualFunction(Name="…") { Options = { Asset = Path(…); } … }` | nothing — declares an existing function asset so `Graph` can call it | multiple outputs: `F(a, OutputIndex=1)` |
+
+- **A function named like a builtin** (`lerp`, `dot`, `saturate`, …) is `DSH6206` at its declaration.
+- **Inside a `Function` / `GraphFunction` body**, the whole identifiers `mix` `fract` `mod` `vec2..4` `ivec*`
+  `uvec*` `bvec*` `mat2..4` are rewritten case-insensitively (`Mix` → `lerp`) — **silently**, comments and
+  strings excepted. A local named `Mix` or `Mod` becomes something else. `Graph` blocks are not rewritten.
+- `#include "/Plugin/X/Y.ush"` lines at the start of a `Function` body are hoisted onto the Custom node's include
+  list, so a header that defines functions works there.
+- **`Function SelfContained` / `Inline` changes nothing.** Every `Function` node embeds the functions its body
+  calls, which is what the modifier asked 1.x for; it is a plain `@custom`, never `@custom selfcontained` (which
+  in a `.dss` embeds nothing, `DSH6264`). `Inline` warns `DSH6306`.
+
+## 5. What 1.x gives you that 2.0 spells differently
+
+| 1.x | `.dss` |
+| :-- | :-- |
+| `Shader(Name=…) { Properties / Settings / Outputs / Graph }` | `#pragma material(…)`, `uniform`s with `///` tags, `export void M(inout material m)` |
+| `ShaderFunction` | `export` function; extra outputs are `out` parameters |
+| `Function` / `GraphFunction` | `/// @custom` function, body verbatim |
+| `VirtualFunction` | `/// @asset` + `extern` prototype |
+| `import "x.dsh";` | `#include "x.dsh"` |
+
+The full rewrite table, rule by rule: [Migrating from 1.x](https://shader.toolchain.64hz.cn/en/docs/language-v2/migrate/).
+
+## See also
+
+- [The 1.x language](https://shader.toolchain.64hz.cn/en/docs/plugin/language/) — the 1.x grammar
+- [Graph evaluation](https://shader.toolchain.64hz.cn/en/docs/graph/overview/) — what `Graph` accepts
+- [Diagnostics](https://shader.toolchain.64hz.cn/en/docs/diagnostics/) — every code
+- [`dss.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md) — the 2.0 language, for anything new
+
+
+---
+
+# Material instances
+
+Source: https://shader.toolchain.64hz.cn/en/docs/language-v2/instances/
+
+> [DreamShader](https://shader.toolchain.64hz.cn/en/docs/) » [DreamShaderLang 2.0](https://shader.toolchain.64hz.cn/en/docs/language-v2) » **Material instances**
+
+A `.dsi` file is one `UMaterialInstanceConstant`: a parent, a few overridden properties, and the
+parameters it sets. It has no graph, so it has no functions, no `#include` and no `#pragma material`
+— only a pragma and `uniform` lines.
+
+```hlsl
+// MI_HeroSkin.dsi
+#pragma instance(Parent = "M_Skin", BlendMode = Masked, TwoSided = true)
+
+uniform float Roughness = 0.35;
+uniform float3 Tint = float3(1.0, 0.82, 0.76);
+
+/// @static
+uniform bool UseDetail = true;
+
+/// @default /Game/Characters/Hero/T_Hero_Skin_D
+uniform Texture2D Albedo;
+
+/// @name Base Color Boost
+uniform float BaseColorBoost = 1.2;
+```
+
+The asset is named after the file and goes where a `.dss` of the same place would put its product.
+
+## The parent
+
+`Parent` is either
+
+- **a bare name** — a material, or another instance, built by a DreamShader source under the same
+  source root (`DSH8261` when none is, `DSH8262` when several are), or
+- **an object path** (`/Game/Materials/M_Skin`) to any material or instance, DreamShader's or not.
+
+A parent that comes from a source is compiled first when its asset is missing or older than that
+source (`DSH8264`), so building an instance never sees a stale parameter list. Instances of instances
+work; a `Parent` chain that loops is `DSH8263`.
+
+## Overrides
+
+An override is a `uniform` **declared as the parent declares that parameter**, with the value it is
+set to. The file is checked against the parent's real parameters: an unknown name is `DSH7258`
+(`DSH7264` when only the case differs — the engine would silently set nothing), another type is
+`DSH7259`.
+
+| Parent parameter | Override |
+| :-- | :-- |
+| scalar | `uniform float Gain = 2.0;` (`int` and `bool` parameters are scalars too: `uniform bool Lit = false;`) |
+| vector | `uniform float3 Tint = float3(0, 1, 0);` — a `float3` keeps the parent's alpha, a `float4` sets all four |
+| static switch | `/// @static` + `uniform bool UseDetail = false;` |
+| static component mask | `/// @static` + `uniform bool4 Mask = bool4(true, false, false, false);` |
+| texture | `/// @default <asset>` + `uniform Texture2D Albedo;` — no initializer; `/// @default None` clears it |
+| font | `/// @default <font asset>`, `/// @page <n>`, `uniform Font Glyphs;` |
+| runtime virtual texture, sparse volume texture, texture collection, parameter collection | `/// @default <asset>` + `uniform RuntimeVirtualTexture Ground;` (and `SparseVolumeTexture`, `TextureCollection`, `ParameterCollection`) |
+
+A value has to be something the compiler can fold — a literal or arithmetic over literals
+(`DSH7265`). A parameter whose name is not an identifier is declared under any identifier with
+`/// @name <real name>`. Metadata (`@group`, `@sort`, `@slider`, `@desc`) belongs to the parent and
+is ignored with a warning (`DSH7262`).
+
+Only **global** parameters can be set. One that exists only on a material layer or blend is
+`DSH7268`.
+
+An override deleted from the file is deleted from the asset on the next build: the instance is
+rebuilt from the file, not patched.
+
+## Keys of `#pragma instance`
+
+Besides `Parent`, a key is a material property an instance can override. Setting one writes the value
+**and** the override flag the engine pairs with it; a key that is no longer in the file goes back to
+"not overridden".
+
+| Keys | Where they live in the engine |
+| :-- | :-- |
+| `BlendMode`, `ShadingModel`, `TwoSided`, `bIsThinSurface`, `DitheredLODTransition`, `OpacityMaskClipValue`, `bCastDynamicShadowAsMasked`, `bOutputTranslucentVelocity`, `bHasPixelAnimation`, `bEnableTessellation`, `DisplacementScaling`, `MaxWorldPositionOffsetDisplacement`, ... | the fields of `FMaterialInstanceBasePropertyOverrides` — whatever this engine version has |
+| `PhysMaterial`, `PhysMaterialMask`, `SubsurfaceProfile`, `SpecularProfile`, `BlendableLocation`, `BlendablePriority`, `NaniteOverrideMaterial` (and an engine fork's own, such as `ToonProfile`) | properties of the instance itself |
+
+Enum values go without their prefix (`Translucent`, not `BLEND_Translucent`), assets as object
+paths or `None`. An unknown key is `DSH8249`, a bad value `DSH8250`. `Backend`, `UsageFlags`, the
+`bOverride...` flags and the raw parameter arrays are refused with the reason (`DSH8251`).
+
+## Tools
+
+- **New Instance** in the Material Content Browser writes the template with the chosen parent.
+- `dsc compile MI_X.dsi`, `dsc check`, `dsc dump-ir` and `dsc index` take a `.dsi`.
+- `dsc decompile /Game/.../MI_X` writes a `.dsi` for a plain material instance: what differs from
+  the parent. Overrides the language cannot state are named and left out (`DSH9101`, `DSH9104`,
+  `DSH9105`).
+- **Adopt Into Source** on a hand-edited instance rewrites the `.dsi` in place, value by value, so
+  comments and order in the file survive. A scalar declared as `bool`, `int` or `uint` becomes
+  `float` if its current value cannot be represented by that type; representable values keep the
+  existing declaration.
+- `dump-graph` dumps an instance as its parent, its overrides and its keys.
+
+## See also
+
+- [The 2.0 language](https://shader.toolchain.64hz.cn/en/docs/language-v2)
+- [Diagnostics `DSH7250`–`DSH7270`](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh7xxx), [`DSH8240`–`DSH8265`](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh8xxx),
+  [`DSH9100`–`DSH9109`](https://shader.toolchain.64hz.cn/en/docs/plugin/diagnostics/dsh9xxx)

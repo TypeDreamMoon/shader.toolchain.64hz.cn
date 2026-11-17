@@ -1,0 +1,39 @@
+# DreamShader
+
+> DreamShader is an Unreal Engine plugin that builds materials, material functions, material instances and Custom Pass pipelines from text sources written in DreamShaderLang (.dss, .dsi, .dsp, .dsh; the 1.x .dsm/.dsf).
+
+DreamShaderLang looks like HLSL but is not HLSL: parameters are `uniform`s with `///` metadata, `#pragma material(...)` sets the material, and one `export void Name(inout material m)` function is the material. Read the cheat sheet before writing a source; do not guess syntax from HLSL, GLSL or the material editor.
+
+Every compile error carries a code `DSHnnnn`. diagnostics.json lists each code with its severity, stage, message, meaning, fix and documentation link.
+
+llms-full.txt holds the cheat sheet and the complete author's reference for .dss, .dsi, .dsp and the 1.x language in one file.
+
+## Start here
+
+- [Cheat sheet](https://shader.toolchain.64hz.cn/en/docs/start/cheatsheet/): the language on one page; every complete source on it is compiled by the test suite
+- [The full author's reference](https://shader.toolchain.64hz.cn/llms-full.txt): cheat sheet, .dss/.dsi, .dsp and 1.x references in one text file
+- [Diagnostics as JSON](https://shader.toolchain.64hz.cn/diagnostics.json): every DSHnnnn: severity, stage, title, meaning, fix, doc
+
+## Language
+
+- [DreamShaderLang 2.0](https://shader.toolchain.64hz.cn/en/docs/language-v2/): the 2.0 language manual
+- [Material instances](https://shader.toolchain.64hz.cn/en/docs/language-v2/instances/): .dsi material instances
+- [Custom Pass pipelines](https://shader.toolchain.64hz.cn/en/docs/language-v2/passes/): .dsp Custom Pass pipelines (UE 5.8+)
+- [Substrate sugar](https://shader.toolchain.64hz.cn/en/docs/language-v2/substrate/): Substrate values
+- [Math Builtins](https://shader.toolchain.64hz.cn/en/docs/builtins/math/): the HLSL-spelled math calls
+- [UE.* Nodes](https://shader.toolchain.64hz.cn/en/docs/builtins/ue-nodes/): UE.* engine nodes
+- [UE.Expression](https://shader.toolchain.64hz.cn/en/docs/builtins/ue-expression/): UE.Expression, any material expression by class
+
+## Tools
+
+- [Your First Material](https://shader.toolchain.64hz.cn/en/docs/start/first-material/): write, check and compile a first material
+- [AI agents](https://shader.toolchain.64hz.cn/en/docs/tools/ai-agents/): skills for coding agents
+- [DreamMCP endpoint](https://shader.toolchain.64hz.cn/en/docs/tools/dreammcp/): the DreamMCP server: check, compile, lookup, preview from an agent
+- [Commandlet](https://shader.toolchain.64hz.cn/en/docs/tools/commandlet/): the headless command line
+- [Diagnostics](https://shader.toolchain.64hz.cn/en/docs/diagnostics/): how to read a diagnostic
+
+## Optional
+
+- [Recipes](https://shader.toolchain.64hz.cn/en/docs/examples/recipes/): longer worked examples
+- [Migrating from 1.x](https://shader.toolchain.64hz.cn/en/docs/language-v2/migrate/): moving 1.x sources to .dss
+- [DreamShader Plugin](https://shader.toolchain.64hz.cn/en/docs/changelog/dreamshader/): release notes
