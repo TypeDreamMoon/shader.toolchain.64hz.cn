@@ -2,7 +2,7 @@
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
   "branch": "main",
-  "tool": "0.3.2",
+  "tool": "0.3.3",
   "siteOnly": [
     "changelog/website",
     "changelog/index",
@@ -547,6 +547,17 @@
       "format": "md",
       "title": "Project Settings",
       "description": "All 17 properties under Project Settings ▸ DreamPlugin ▸ Dream Shader, their real config identifiers, defaults and effects, and the Custom Pass settings object."
+    },
+    {
+      "id": "start/cheatsheet",
+      "sources": [
+        {
+          "path": "Docs/cheatsheet.md"
+        }
+      ],
+      "format": "md",
+      "title": "Cheat sheet",
+      "description": "DreamShaderLang 2.0 on one page: file kinds, a material, parameters, #pragma material, expressions, functions, instances, a .dsp, and the diagnostics that cost the most time."
     },
     {
       "id": "start/about",
@@ -1388,5 +1399,129 @@
     }
   ],
   "siteUrl": "https://shader.toolchain.64hz.cn",
-  "stripLeadingTitle": true
+  "stripLeadingTitle": true,
+  "llms": {
+    "title": "DreamShader",
+    "summary": "DreamShader is an Unreal Engine plugin that builds materials, material functions, material instances and Custom Pass pipelines from text sources written in DreamShaderLang (.dss, .dsi, .dsp, .dsh; the 1.x .dsm/.dsf).",
+    "details": [
+      "DreamShaderLang looks like HLSL but is not HLSL: parameters are `uniform`s with `///` metadata, `#pragma material(...)` sets the material, and one `export void Name(inout material m)` function is the material. Read the cheat sheet before writing a source; do not guess syntax from HLSL, GLSL or the material editor.",
+      "Every compile error carries a code `DSHnnnn`. diagnostics.json lists each code with its severity, stage, message, meaning, fix and documentation link.",
+      "llms-full.txt holds the cheat sheet and the complete author's reference for .dss, .dsi, .dsp and the 1.x language in one file."
+    ],
+    "sections": [
+      {
+        "title": "Start here",
+        "links": [
+          {
+            "page": "start/cheatsheet",
+            "note": "the language on one page; every complete source on it is compiled by the test suite"
+          },
+          {
+            "file": "llms-full.txt",
+            "title": "The full author's reference",
+            "note": "cheat sheet, .dss/.dsi, .dsp and 1.x references in one text file"
+          },
+          {
+            "file": "diagnostics.json",
+            "title": "Diagnostics as JSON",
+            "note": "every DSHnnnn: severity, stage, title, meaning, fix, doc"
+          }
+        ]
+      },
+      {
+        "title": "Language",
+        "links": [
+          {
+            "page": "language-v2/index",
+            "note": "the 2.0 language manual"
+          },
+          {
+            "page": "language-v2/instances",
+            "note": ".dsi material instances"
+          },
+          {
+            "page": "language-v2/passes",
+            "note": ".dsp Custom Pass pipelines (UE 5.8+)"
+          },
+          {
+            "page": "language-v2/substrate",
+            "note": "Substrate values"
+          },
+          {
+            "page": "builtins/math",
+            "note": "the HLSL-spelled math calls"
+          },
+          {
+            "page": "builtins/ue-nodes",
+            "note": "UE.* engine nodes"
+          },
+          {
+            "page": "builtins/ue-expression",
+            "note": "UE.Expression, any material expression by class"
+          }
+        ]
+      },
+      {
+        "title": "Tools",
+        "links": [
+          {
+            "page": "start/first-material",
+            "note": "write, check and compile a first material"
+          },
+          {
+            "page": "tools/ai-agents",
+            "note": "skills for coding agents"
+          },
+          {
+            "page": "tools/dreammcp",
+            "note": "the DreamMCP server: check, compile, lookup, preview from an agent"
+          },
+          {
+            "page": "tools/commandlet",
+            "note": "the headless command line"
+          },
+          {
+            "page": "diagnostics/index",
+            "note": "how to read a diagnostic"
+          }
+        ]
+      },
+      {
+        "title": "Optional",
+        "links": [
+          {
+            "page": "examples/recipes",
+            "note": "longer worked examples"
+          },
+          {
+            "page": "language-v2/migrate",
+            "note": "moving 1.x sources to .dss"
+          },
+          {
+            "page": "changelog/dreamshader",
+            "note": "release notes"
+          }
+        ]
+      }
+    ],
+    "full": [
+      "start/cheatsheet",
+      {
+        "source": ".skill/reference/dss.md",
+        "title": "DreamShaderLang 2.0: .dss, .dsi and .dsh sources"
+      },
+      {
+        "source": ".skill/reference/dsp.md",
+        "title": "Custom Pass pipelines: .dsp sources"
+      },
+      {
+        "source": ".skill/reference/legacy.md",
+        "title": "The 1.x language: .dsm and .dsf sources"
+      },
+      "language-v2/instances"
+    ],
+    "publish": {
+      "diagnostics.json": "Docs/diagnostics/codes.json"
+    }
+  }
 }
