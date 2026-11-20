@@ -2,7 +2,7 @@
 
 > DreamShader is an Unreal Engine plugin that builds materials, material functions, material instances and Custom Pass pipelines from text sources written in DreamShaderLang (.dss, .dsi, .dsp, .dsh; the 1.x .dsm/.dsf).
 
-The full text of the pages listed in https://shader.toolchain.64hz.cn/llms.txt, English, generated from the plugin repository TypeDreamMoon/DreamShader at eac3b631e24e.
+The full text of the pages listed in https://shader.toolchain.64hz.cn/llms.txt, English, generated from the plugin repository TypeDreamMoon/DreamShader at 5b20449bb49b.
 
 
 ---
@@ -291,11 +291,11 @@ The materials a pass uses are ordinary `.dss` files. Details: [Passes](https://s
 
 # DreamShaderLang 2.0: .dss, .dsi and .dsh sources
 
-Source: https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md
+Source: https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dss.md
 
 Condensed from [the 2.0 language manual](https://shader.toolchain.64hz.cn/en/docs/language-v2/) and checked against the compiler. When
 this page and the manual disagree, the manual wins. Custom Pass pipelines (`.dsp`) have their own page,
-[`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md); reading or maintaining 1.x sources (`.dsm` / `.dsf`) is [`legacy.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/legacy.md).
+[`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dsp.md); reading or maintaining 1.x sources (`.dsm` / `.dsf`) is [`legacy.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/legacy.md).
 
 This page stands on its own: what an author needs is here, and an agent that cannot open the links
 loses nothing it needs. The links lead to the online manual for depth. A `UE.` node's pins come from
@@ -312,7 +312,7 @@ A `.dss` is **HLSL with declarations**: parameters are `uniform`s, metadata ride
 | :-- | :-- | :-- |
 | `.dss` | `uniform`s, helpers, `export` functions, `extern` prototypes, `#pragma material` | a material, or material functions / layers / blends |
 | `.dsi` | `#pragma instance(Parent = …)` and `uniform` overrides — nothing else | one material instance |
-| `.dsp` | `#pragma pipeline`, `buffer`s, `pass`es | one Custom Pass pipeline, UE 5.8+ — [`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md) |
+| `.dsp` | `#pragma pipeline`, `buffer`s, `pass`es | one Custom Pass pipeline, UE 5.8+ — [`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dsp.md) |
 | `.dsh` | shared helpers, included by `#include`; may hold 2.0 and 1.x declarations | nothing on its own |
 
 **Where the asset lands:** under `/Game`, at the file's folder relative to its source root (`DShader/`), named
@@ -475,14 +475,14 @@ Every code has its page, which the diagnostic's `doc` links to: [Diagnostics](ht
 - [The 2.0 language](https://shader.toolchain.64hz.cn/en/docs/language-v2/) — the whole manual
 - [Substrate](https://shader.toolchain.64hz.cn/en/docs/language-v2/substrate/) — Substrate values and their sugar
 - [UE.* nodes](https://shader.toolchain.64hz.cn/en/docs/builtins/ue-nodes/) — every `UE.*` node
-- [`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md) — Custom Pass pipelines · [`legacy.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/legacy.md) — the 1.x language
+- [`dsp.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dsp.md) — Custom Pass pipelines · [`legacy.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/legacy.md) — the 1.x language
 
 
 ---
 
 # Custom Pass pipelines: .dsp sources
 
-Source: https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dsp.md
+Source: https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dsp.md
 
 Condensed from [Passes](https://shader.toolchain.64hz.cn/en/docs/language-v2/passes/), [HLSL passes](https://shader.toolchain.64hz.cn/en/docs/custom-pass/hlsl/) and
 [Custom Pass material nodes](https://shader.toolchain.64hz.cn/en/docs/builtins/dream-pass/). When this page and the manual disagree, the
@@ -494,7 +494,7 @@ DreamMCP's `lookup` action; every diagnostic carries a `doc` link of its own.
 
 A `.dsp` adds render passes to Unreal without touching the engine: a mask of selected objects, a blur, a
 screen-space effect, a compute shader writing a data texture. It is **not** a material — the passes it runs
-use materials, which are ordinary [`.dss`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md) files.
+use materials, which are ordinary [`.dss`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dss.md) files.
 
 | | |
 | :-- | :-- |
@@ -680,7 +680,7 @@ check those too.
 
 # The 1.x language: .dsm and .dsf sources
 
-Source: https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/legacy.md
+Source: https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/legacy.md
 
 Condensed from [the 1.x language manual](https://shader.toolchain.64hz.cn/en/docs/plugin/language/) and checked against the compiler. When this
 page and the manual disagree, the manual wins — except for messages: several 1.x pages still quote messages from the 1.x
@@ -690,12 +690,12 @@ This page stands on its own: what an author needs is here, and an agent that can
 loses nothing it needs. The links lead to the online manual for depth. A `UE.` node's pins come from
 DreamMCP's `lookup` action; every diagnostic carries a `doc` link of its own.
 
-**Write new sources as `.dss`** ([`dss.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md)). This page is for a project that already has `.dsm` /
+**Write new sources as `.dss`** ([`dss.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dss.md)). This page is for a project that already has `.dsm` /
 `.dsf` files: they keep building, through the **legacy front end**, which reads the 1.x language into the same
 tree the 2.0 parser builds — so they get the same binder, the same checks and the same diagnostics. What
 1.x always allowed and 2.0 spells differently is a numbered legacy rule that applies to 1.x text only
 (`DSH5275`–`DSH5292`), and `dsc check` on a `.dsm` lists them. `dsc migrate` rewrites a 1.x file as `.dss` —
-[`dream-shader-migrate`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/dream-shader-migrate/SKILL.md).
+[`dream-shader-migrate`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/dream-shader-migrate/SKILL.md).
 
 ---
 
@@ -812,7 +812,7 @@ The full rewrite table, rule by rule: [Migrating from 1.x](https://shader.toolch
 - [The 1.x language](https://shader.toolchain.64hz.cn/en/docs/plugin/language/) — the 1.x grammar
 - [Graph evaluation](https://shader.toolchain.64hz.cn/en/docs/graph/overview/) — what `Graph` accepts
 - [Diagnostics](https://shader.toolchain.64hz.cn/en/docs/diagnostics/) — every code
-- [`dss.md`](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/.skill/reference/dss.md) — the 2.0 language, for anything new
+- [`dss.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/.skill/reference/dss.md) — the 2.0 language, for anything new
 
 
 ---

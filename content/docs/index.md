@@ -207,4 +207,4 @@ DreamShader 将 **DreamShaderLang** 源文件——`.dsm`、`.dsf`、`.dsh`，�
 | 文档站点 | <https://shader.toolchain.64hz.cn/> |
 | VSCode 扩展 | <https://github.com/TypeDreamMoon/dreamshader-language-support> |
 | Rider 插件 | <https://github.com/tsdaer/dreamshader-language-support> |
-| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/eac3b631e24ead068bb01e770a28e21d469f6ae9/CHANGELOG.md) |
+| 更新日志 | [../CHANGELOG.md](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/CHANGELOG.md) |
