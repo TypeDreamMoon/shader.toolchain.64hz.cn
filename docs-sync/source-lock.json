@@ -1,9 +1,9 @@
 {
   "version": 1,
   "repository": "TypeDreamMoon/DreamShader",
-  "revision": "5b20449bb49b22fc21e4cef9ea792b4ff92120a8",
+  "revision": "a580a969ea3257f9b861d626e512dd73a1254b89",
   "workingTree": false,
-  "translationSnapshotHash": "0b2e67be9d25947233749138a76036fee71446841a2c05459e729507e89ab6a7",
+  "translationSnapshotHash": "20b6d4f17976483e69561d987488ae82a54cc04c4b1d663810a19a30c83f5493",
   "pages": {
     "builtins/dream-pass": {
       "hash": "9894ef60eae70d44a8d1dbbd982cb4ca3765e50c42e0b1b8acb15e68ba381291",
@@ -595,8 +595,8 @@
         "status": "current",
         "output": "content/docs/index.md",
         "record": "docs-sync/translations/index.json",
-        "outputHash": "e348e0273b643614390584abc1906c97fa44a4a43f0886eba2605ceaad401133",
-        "bodyHash": "c5bc3cb1bafb99283515e09c21eca9c2d87943f1d7ed68a1775b06317b7fa55c"
+        "outputHash": "296d7e370a105190988be4ea5b99c851a7a198503343977b02fb89b7c2951ff5",
+        "bodyHash": "518bcd5ab8ffe2b069db4da6d69bafb242fb84132ce31b4fc007644726ba6ab5"
       }
     },
     "language/blocks": {
@@ -815,8 +815,8 @@
         "status": "current",
         "output": "content/docs/language-v2/index.md",
         "record": "docs-sync/translations/language-v2/index.json",
-        "outputHash": "77646ba39f9c290d33b4b2cb62db322d39f443c716f91fd2061691f13511e6dc",
-        "bodyHash": "6791c16838b2546d3ece94cc012316031a9fac3ee1728567adca2e7eaefdcb20"
+        "outputHash": "17181fd927682868496db23f9c7eb8f3eaf52954bca18b92d5f6dcf628b6740f",
+        "bodyHash": "dda6d55e4b10f88a3f34ff5c04723862818bec411f18cb961ba1b4385d6df7b4"
       }
     },
     "language-v2/instances": {
@@ -1076,7 +1076,11 @@
         }
       ],
       "translation": {
-        "status": "missing"
+        "status": "current",
+        "output": "content/docs/start/cheatsheet.md",
+        "record": "docs-sync/translations/start/cheatsheet.json",
+        "outputHash": "c1615ebc29a6ba26c80cc3506d7826ffc838710e459e180a86ccad644fbcdcc2",
+        "bodyHash": "55c567f0b8d7ab3dd4d1d6fea07cc78368ccde9f636f3a2c8538f6e0b3508287"
       }
     },
     "start/about": {
@@ -1229,8 +1233,8 @@
         "status": "current",
         "output": "content/docs/tools/commandlet.md",
         "record": "docs-sync/translations/tools/commandlet.json",
-        "outputHash": "3a5134cd68882b01f18d14b9d982f50e6fba9a2141b020581feeaf5dbb692e05",
-        "bodyHash": "20e0c8a9816629ceaa13e874d2882caa729ddbcfe77015b656a02ef877ba4e5f"
+        "outputHash": "4167ff03e15b1548a598fcb97196f5e2449f8a44c5da2b2d1891a65083bc0b19",
+        "bodyHash": "12d8430d4d5bb581ea61e756d8dcb9751807a808e220a10a45070a2117b29e4b"
       }
     },
     "tools/decompiler": {
@@ -1427,8 +1431,8 @@
         "status": "current",
         "output": "content/docs/plugin/api/lang-module.md",
         "record": "docs-sync/translations/plugin/api/lang-module.json",
-        "outputHash": "9803e23a01a5274c4cefc7c4ee54f55e9bdc6f32eb46fa17a884f9907fd88b2d",
-        "bodyHash": "4c0606e6469c3a2d7f276f3c637db9bd0a0ddc9e5ee02231b0ef67ae5c5d2440"
+        "outputHash": "d5f9393df86f3e929cd129f6e2c050ef8d819730d18c9c35a22333382b6d5682",
+        "bodyHash": "170040d87a8143340bf9be43584ffef8fcb1662166c34c8abc6be192a8df8414"
       }
     },
     "plugin/api/material-instance": {
@@ -1691,8 +1695,8 @@
         "status": "current",
         "output": "content/docs/plugin/contributing/testing.md",
         "record": "docs-sync/translations/plugin/contributing/testing.json",
-        "outputHash": "99ea7fed1edffa228a113338d6ef802143d31435481c8c3c3dddd8c5f2cb6cd9",
-        "bodyHash": "0a544fea2ab61a2d30e7dc330b0314eeeadfe13599b36caac5a2e576bb2c3a81"
+        "outputHash": "894e4c1270aec102eb9f6f29f370c7eeedc1d9821dfb2e335a99b2b40394ffd2",
+        "bodyHash": "07e896f84339e926a1af351fc77ac58a9a49d12f376ba943582f9a764765c4ea"
       }
     },
     "plugin/diagnostics/dsh1xxx": {
@@ -1864,12 +1868,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/diagnostics/dsh8xxx.md",
         "record": "docs-sync/translations/plugin/diagnostics/dsh8xxx.json",
-        "pending": 16,
-        "outputHash": "56275e45b6a2e441d0305e941934cc04c88e1a5d644c80d7b225ef32c3c0bede",
-        "bodyHash": "ad60d3bdfa0adb90f0e669bc62638a3907c621e27e0681b4bfa84ff5bf76f0f7"
+        "outputHash": "007580779937483449c657bbe11b5d846da89a26859f88af2e76f76442a97769",
+        "bodyHash": "2f6c0da8cb5e632d9ac34fa1428224984b58d25914a4fc90f7eb911a8877b4f3"
       }
     },
     "plugin/diagnostics/dsh9xxx": {
@@ -2638,8 +2641,8 @@
         "status": "current",
         "output": "content/docs/plugin/readme.md",
         "record": "docs-sync/translations/plugin/readme.json",
-        "outputHash": "5673077288ae6cf924807ee9cebe8af7ea987879cb3f93bb129d97ec6a806cf2",
-        "bodyHash": "a18f3fb8f0aec51af329ee9a61ad8f9b6a09302cc64ab66ce5f1356f08bb4400"
+        "outputHash": "6ce2b3393b2665833de3a87df7c187670325ab7c6e117f8e81e48d05aa54be35",
+        "bodyHash": "0e177704e453a5f550e16feec5272664f4217043a09eb6cdcd8a67dcb8f95d51"
       }
     },
     "plugin/pass-runtime/hlsl": {
@@ -2657,12 +2660,11 @@
         }
       ],
       "translation": {
-        "status": "outdated",
+        "status": "current",
         "output": "content/docs/plugin/pass-runtime/hlsl.md",
         "record": "docs-sync/translations/plugin/pass-runtime/hlsl.json",
-        "pending": 1,
-        "outputHash": "3b3dbd2c77f763d430ba644d30034ad69c86c7d2e1e03b95057750ca49cd99dc",
-        "bodyHash": "b00a42cd59c350d5443c2cd6356f105f6be76dd43b1f0038fc6c2252da6602b7"
+        "outputHash": "bf355b4270dfdc6703689b499af0e1912d306b1147f8e2e40c8585d587c9afd5",
+        "bodyHash": "ed0022ecd26771e43147f98db7bfd4afb704ef218e14dc7e797612bbf38b6055"
       }
     },
     "plugin/pass-runtime/index": {
@@ -2888,7 +2890,7 @@
   },
   "published": {
     "public/diagnostics.json": "edba4046a0328c5435bb530866e83b7d2b147bc800e03226f3ae9620df6b2dab",
-    "public/llms-full.txt": "58ed149c669dec49a285bfd7a4030b40991bf5507090d041dd6f2ff176348062",
+    "public/llms-full.txt": "92c7073596dfacee1160f76652fe85047e3ca0981ef26cf7d349f816402f0f13",
     "public/llms.txt": "c8a79d3676ee2add3643e3fd7b0f933bd99717c70b980a2f15cfcd6f7c8b52d5"
   }
 }

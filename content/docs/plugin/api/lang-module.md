@@ -246,7 +246,7 @@ Diagnostics.Error(TEXT("DSH2151"), Span, LOCTEXT("ExpectedExpression", "expected
 | 运行器 | `RunDreamShaderLangCorpusCase`，位于 `Source/DreamShaderEditor/Private/Tests/DreamShaderTestCommon.h` |
 | 注册 | `Source/DreamShaderEditor/Private/Tests/DreamShaderCorpusLangTests.cpp` |
 | 测试固件 | `Tests/Corpus/Lang/{Lexical,Expressions,Statements,Declarations,Examples}/` — `.dss` 与 `.dsh`，外加一个 `.dsm`，用于固定前端选择：它会到达旧版前端并在那里失败（`DSH2241`） |
-| 黄金 schema | `"entryPoint": "lang"` — 参见 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/5b20449bb49b22fc21e4cef9ea792b4ff92120a8/Tests/Corpus/README.md) |
+| 黄金 schema | `"entryPoint": "lang"` — 参见 [`Tests/Corpus/README.md`](https://github.com/TypeDreamMoon/DreamShader/blob/a580a969ea3257f9b861d626e512dd73a1254b89/Tests/Corpus/README.md) |
 
 每个用例都会通过 `ParseDreamShaderLang` 解析一次，然后与其黄金文件进行比对：
 

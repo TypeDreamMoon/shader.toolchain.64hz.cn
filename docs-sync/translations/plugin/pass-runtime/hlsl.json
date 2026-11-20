@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "status": "outdated",
-  "sourceHash": null,
+  "status": "current",
+  "sourceHash": "7670473dc5fc87776568b949d31fc7680c7b72695e00057e41f9f6d981a2bb70",
   "sourceRevision": "5b20449bb49b22fc21e4cef9ea792b4ff92120a8",
   "sources": [
     {
       "path": "Docs/runtime/hlsl.md",
-      "alignedRevision": "91dee3448997",
-      "alignedPage": "5ca724e37ed6",
-      "translationHash": "086269fff9843ae8a911e8b7e6a42d2ccad6c658094a0a212051b252b997a4ec"
+      "alignedRevision": "5b20449bb49b",
+      "alignedPage": "00163ca9df86",
+      "translationHash": "019752728994e96b11ae6b4b45b18b5b64f6cd674fa5489791a466cea6b356f9"
     }
   ],
   "translationFile": "content/docs/plugin/pass-runtime/hlsl.md",
-  "translationHash": "3b3dbd2c77f763d430ba644d30034ad69c86c7d2e1e03b95057750ca49cd99dc"
+  "translationHash": "bf355b4270dfdc6703689b499af0e1912d306b1147f8e2e40c8585d587c9afd5"
 }
